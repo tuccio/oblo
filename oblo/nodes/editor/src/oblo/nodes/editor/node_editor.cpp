@@ -2,6 +2,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/nodes/editor/node_editor.hpp>
@@ -27,6 +28,14 @@ namespace oblo
         constexpr f32 g_NodeRounding{6.f};
 
         constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
+
+        enum class graph_element : u8
+        {
+            nil,
+            node,
+            in_pin,
+            out_pin,
+        };
     }
 
     struct node_editor::impl
@@ -43,11 +52,38 @@ namespace oblo
             return (world - origin) / zoom;
         }
 
+        void reset_drag_source()
+        {
+            dragSource = graph_element::nil;
+            draggedNode = {};
+        }
+
+        void set_drag_source(h32<node_graph_node> source)
+        {
+            OBLO_ASSERT(source);
+            dragSource = graph_element::node;
+            draggedNode = source;
+        }
+
+        void set_drag_source(h32<node_graph_out_pin> source)
+        {
+            OBLO_ASSERT(source);
+            dragSource = graph_element::out_pin;
+            draggedOutPin = source;
+        }
+
         node_graph* graph{};
         ImVec2 panOffset{0.f, 0.f};
         ImVec2 dragOffset{0.f, 0.f};
         f32 zoom{1.f};
-        h32<node_graph_node> draggedNode{};
+
+        graph_element dragSource{graph_element::nil};
+
+        union {
+            h32<node_graph_node> draggedNode;
+            h32<node_graph_out_pin> draggedOutPin;
+        };
+
         h32<node_graph_node> selectedNode{};
     };
 
@@ -87,6 +123,7 @@ namespace oblo
 
         const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
 
+        ImGui::SetNextItemAllowOverlap();
         ImGui::InvisibleButton("canvas",
             canvasSize,
             ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
@@ -218,15 +255,24 @@ namespace oblo
             const f32 firstY = (g_TitleBarHeight + pinRowMargin);
             const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
 
+            string_builder stringBuilder;
+
+            bool inputConsumed = false;
+
             {
                 for (u32 i = 0; i < inputPins.size32(); ++i)
                 {
-                    const f32 y = firstY + pinRowHeight * i;
+                    const h32 pin = inputPins[i];
 
+                    const f32 y = firstY + pinRowHeight * i;
                     const ImVec2 pinScreenPos = nodeScreenPos + ImVec2(0, (y + .5f * pinRowHeight) * zoom);
                     drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
 
-                    const h32 pin = inputPins[i];
+                    // Use an invisible button for input pin
+                    ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
+                    ImGui::InvisibleButton(stringBuilder.format("##ipin{}", pin.value).c_str(),
+                        ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
+                        ImGuiButtonFlags_PressedOnClick);
 
                     const cstring_view name = graph->get_name(pin);
 
@@ -241,13 +287,18 @@ namespace oblo
             {
                 for (u32 i = 0; i < outputPins.size32(); ++i)
                 {
-                    const f32 y = firstY + pinRowHeight * i;
+                    const h32 pin = outputPins[i];
 
+                    const f32 y = firstY + pinRowHeight * i;
                     const ImVec2 pinScreenPos =
                         nodeScreenPos + ImVec2(nodeSizeScreen.x, (y + .5f * pinRowHeight) * zoom);
                     drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
 
-                    const h32 pin = outputPins[i];
+                    // Use an invisible button for output pin
+                    ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
+                    const bool isPressed = ImGui::InvisibleButton(stringBuilder.format("##opin{}", pin.value).c_str(),
+                        ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
+                        ImGuiButtonFlags_PressedOnClick);
 
                     const cstring_view name = graph->get_name(pin);
                     const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
@@ -258,13 +309,22 @@ namespace oblo
                             ImVec2(textSize.x + pinRadius + pinTextMargin, ImGui::GetFontSize() * .5f) * zoom,
                         textColor,
                         name.c_str());
+
+                    // Handle dragging outputs
+                    if (isPressed)
+                    {
+                        dragOffset = screen_to_world(pinScreenPos, origin);
+                        set_drag_source(outputPins[i]);
+                        inputConsumed = true;
+                    }
                 }
             }
 
-            if (ImGui::IsMouseHoveringRect(nodeRectMin, nodeRectMax) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            if (!inputConsumed && ImGui::IsMouseHoveringRect(nodeRectMin, nodeRectMax) &&
+                ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
                 // Start the node dragging, store the offset to set the frame of reference over multiple frames
-                draggedNode = node;
+                set_drag_source(node);
                 selectedNode = node;
                 dragOffset = screen_to_world(io.MousePos, origin) - pos;
                 clickedOnAnyNode = true;
@@ -272,7 +332,7 @@ namespace oblo
         }
 
         // Move node if dragging
-        if (draggedNode && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        if (dragSource == graph_element::node && draggedNode && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
         {
             const auto [newX, newY] = screen_to_world(io.MousePos, origin) - dragOffset;
             graph->set_ui_position(draggedNode, {newX, newY});
@@ -284,7 +344,29 @@ namespace oblo
 
         if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
         {
-            draggedNode = {};
+            reset_drag_source();
+        }
+
+        // While dragging, update end and draw preview
+        if (dragSource == graph_element::out_pin || dragSource == graph_element::in_pin)
+        {
+            const ImVec2 dragSourceScreen = world_to_screen(dragOffset, origin);
+
+            constexpr u32 edgeColor = IM_COL32(255, 255, 0, 255);
+            constexpr f32 lineWidth = 2.f;
+
+            const ImVec2 p0 = dragSourceScreen;
+            const ImVec2 p1 = dragSourceScreen + ImVec2(64.f * zoom, 0);
+            const ImVec2 p2 = io.MousePos - ImVec2(64.f * zoom, 0);
+            const ImVec2 p3 = io.MousePos;
+            drawList->AddBezierCubic(p0, p1, p2, p3, edgeColor, lineWidth);
+
+            // TODO: If released over an input pin, connect
+
+            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            {
+                reset_drag_source();
+            }
         }
     }
 }
