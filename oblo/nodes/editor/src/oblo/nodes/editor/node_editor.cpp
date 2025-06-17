@@ -260,12 +260,6 @@ namespace oblo
                 textColor,
                 titleBarContent.c_str());
 
-            inputPins.clear();
-            outputPins.clear();
-
-            graph->fetch_in_pins(node, inputPins);
-            graph->fetch_out_pins(node, outputPins);
-
             constexpr f32 pinInvisibleButtonPadding = 1.0f;
             constexpr f32 pinRadius = 5.0f;
             constexpr f32 pinTextMargin = 4.0f;
@@ -282,6 +276,11 @@ namespace oblo
 
             const f32 pinInvisibleButtonSize = max(1.f, (pinInvisibleButtonPadding + pinRadius * 2) * zoom);
             const ImVec2 pinInvisibleButtonSize2d{pinInvisibleButtonSize, pinInvisibleButtonSize};
+
+            // Draw input pins
+
+            inputPins.clear();
+            graph->fetch_in_pins(node, inputPins);
 
             for (u32 i = 0; i < inputPins.size32(); ++i)
             {
@@ -320,7 +319,6 @@ namespace oblo
 
                     const ImVec2 outPinScreenPos =
                         srcNodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
-
 
                     draw_edge(*drawList, outPinScreenPos, pinScreenPos, g_EdgeColor);
                 }
@@ -368,6 +366,11 @@ namespace oblo
                     textColor,
                     name.c_str());
             }
+
+            // Draw output pins
+
+            outputPins.clear();
+            graph->fetch_out_pins(node, outputPins);
 
             for (u32 i = 0; i < outputPins.size32(); ++i)
             {
