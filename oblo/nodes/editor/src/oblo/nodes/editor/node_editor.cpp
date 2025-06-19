@@ -27,12 +27,15 @@ namespace oblo
         constexpr f32 g_MaxZoom{1.5f};
         constexpr f32 g_ZoomSpeed{.1f};
 
+        constexpr f32 g_NodeRounding{6.f};
+        constexpr f32 g_PinHoverThickness{2.f};
+
         constexpr f32 g_TitleBarHeight{24.f};
         constexpr ImVec2 g_TitleTextMargin{8.f, 6.f};
-        constexpr f32 g_NodeRounding{6.f};
 
-        constexpr u32 g_EdgeColor = IM_COL32(255, 255, 0, 255);
+        constexpr u32 g_EdgeColor{IM_COL32(255, 255, 255, 255)};
         constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
+        constexpr u32 g_PinHoverColor{g_EdgeColor};
 
         enum class draw_list_channel : u8
         {
@@ -184,8 +187,8 @@ namespace oblo
             canvasSize,
             ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
 
-        const bool isHovered = ImGui::IsItemHovered();
-        const bool isActive = ImGui::IsItemActive();
+        const bool isCanvasHovered = ImGui::IsItemHovered();
+        const bool isCanvasActive = ImGui::IsItemActive();
         const ImVec2 canvasPos = ImGui::GetItemRectMin();
         ImDrawList* const drawList = ImGui::GetWindowDrawList();
 
@@ -193,13 +196,13 @@ namespace oblo
         drawListSplitter.Split(drawList, i32(draw_list_channel::enum_max));
 
         // Handle panning
-        if (isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+        if (isCanvasActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
         {
             panOffset += io.MouseDelta;
         }
 
         // Handle zoom
-        if (isHovered)
+        if (isCanvasHovered)
         {
             const f32 wheel = io.MouseWheel;
 
@@ -389,12 +392,20 @@ namespace oblo
                 // Use an invisible button for input pin
                 ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
 
-                const bool isPressed = ImGui::InvisibleButton(stringBuilder.format("##ipin{}", pin.value).c_str(),
+                const bool isPinPressed = ImGui::InvisibleButton(stringBuilder.format("##ipin{}", pin.value).c_str(),
                     ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
                     ImGuiButtonFlags_PressedOnClick);
 
+                const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+                if (isPinHovered)
+                {
+                    // Draw pin highlight when hovered
+                    drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
+                }
+
                 // Handle dragging inputs
-                if (isPressed)
+                if (isPinPressed)
                 {
                     dragOffset = screen_to_logical(pinScreenPos, origin);
                     set_drag_source(pin);
@@ -403,7 +414,7 @@ namespace oblo
                     // Clear input on click regardless
                     graph->clear_connected_output(pin);
                 }
-                else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+                else if (isPinHovered)
                 {
                     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
                     {
@@ -489,9 +500,17 @@ namespace oblo
 
                 // Use an invisible button for output pin
                 ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
-                const bool isPressed = ImGui::InvisibleButton(stringBuilder.format("##opin{}", pin.value).c_str(),
+                const bool isPinPressed = ImGui::InvisibleButton(stringBuilder.format("##opin{}", pin.value).c_str(),
                     ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
                     ImGuiButtonFlags_PressedOnClick);
+
+                const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+                if (isPinHovered)
+                {
+                    // Draw pin highlight when hovered
+                    drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
+                }
 
                 const cstring_view name = graph->get_name(pin);
                 const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
@@ -503,13 +522,13 @@ namespace oblo
                     name.c_str());
 
                 // Handle dragging outputs
-                if (isPressed)
+                if (isPinPressed)
                 {
                     dragOffset = screen_to_logical(pinScreenPos, origin);
                     set_drag_source(pin);
                     inputConsumed = true;
                 }
-                else if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
+                else if (isPinHovered)
                 {
                     if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
                     {
@@ -547,7 +566,7 @@ namespace oblo
             const auto [newX, newY] = screen_to_logical(io.MousePos, origin) - dragOffset;
             graph->set_ui_position(draggedNode, {newX, newY});
         }
-        else if (!clickedOnAnyNode && isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        else if (!clickedOnAnyNode && isCanvasHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
             reset_selection();
         }
