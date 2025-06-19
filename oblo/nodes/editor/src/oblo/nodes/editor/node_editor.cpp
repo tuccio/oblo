@@ -2,6 +2,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
@@ -44,6 +45,9 @@ namespace oblo
         struct node_ui_data
         {
             u64 zOrder;
+
+            ImVec2 screenPosition;
+            ImVec2 screenSize;
         };
 
         f32 calculate_pin_y_offset(f32 y, f32 pinRowHeight, f32 zoom)
@@ -236,6 +240,7 @@ namespace oblo
             }
         }
 
+        // Add all new nodes to the nodeUiData map, calculate new screenPositions
         for (const h32 node : nodes)
         {
             const auto [it, inserted] = nodeUiData.emplace(node);
@@ -248,6 +253,15 @@ namespace oblo
             {
                 gcSet.erase(node);
             }
+
+            const auto [posX, posY] = graph->get_ui_position(node);
+            const ImVec2 pos{posX, posY};
+
+            // TODO: Actually need to calculate the size properly
+            const ImVec2 nodeSizeLogical{ImVec2(250, 350)};
+
+            it->screenPosition = logical_to_screen(pos, origin);
+            it->screenSize = nodeSizeLogical * zoom;
         }
 
         if (shouldGC)
@@ -272,19 +286,75 @@ namespace oblo
             [this](const h32<node_graph_node> lhs, const h32<node_graph_node> rhs)
             { return nodeUiData.at(lhs).zOrder < nodeUiData.at(rhs).zOrder; });
 
+        // Settings for the looks and positioning of pins
+        constexpr f32 pinInvisibleButtonPadding = 1.0f;
+        constexpr f32 pinRadius = 5.0f;
+        constexpr f32 pinTextMargin = 4.0f;
+        constexpr f32 pinRowMargin = 4.0f;
+        constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
+        constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
+
+        const f32 firstY = (g_TitleBarHeight + pinRowMargin);
+        const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
+
+        // Draw edges
+        for (const h32 node : nodes)
+        {
+            inputPins.clear();
+            graph->fetch_in_pins(node, inputPins);
+
+            for (u32 dstPinIndex = 0; dstPinIndex < inputPins.size32(); ++dstPinIndex)
+            {
+                const h32 dstPin = inputPins[dstPinIndex];
+
+                if (const auto srcPin = graph->get_connected_output(dstPin))
+                {
+                    const auto srcNode = graph->get_owner_node(srcPin);
+
+                    const auto& srcNodeUiData = nodeUiData.at(srcNode);
+                    const auto& dstNodeUiData = nodeUiData.at(node);
+
+                    const ImVec2 srcNodeScreenPos = srcNodeUiData.screenPosition;
+                    const ImVec2 dstNodeScreenPos = dstNodeUiData.screenPosition;
+
+                    const f32 dstY = firstY + pinRowHeight * dstPinIndex;
+
+                    const ImVec2 dstPinScreenPos =
+                        dstNodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(dstY, pinRowHeight, zoom)};
+
+                    // Find the pin index at the source to calculate
+                    outputPins.clear();
+                    graph->fetch_out_pins(srcNode, outputPins);
+
+                    u32 srcIndex = 0;
+
+                    for (u32 j = 0; j < outputPins.size32(); ++j)
+                    {
+                        if (outputPins[j] == srcPin)
+                        {
+                            srcIndex = j;
+                            break;
+                        }
+                    }
+
+                    const f32 srcY = firstY + pinRowHeight * srcIndex;
+
+                    const ImVec2 srcPinScreenPos = srcNodeScreenPos +
+                        ImVec2{srcNodeUiData.screenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
+
+                    draw_edge(*drawList, srcPinScreenPos, dstPinScreenPos, g_EdgeColor);
+                }
+            }
+        }
+
         // Draw nodes
         for (const h32 node : nodes)
         {
             // TODO: Clipping of nodes that are not visible
+            const auto& uiData = nodeUiData.at(node);
 
-            const auto [posX, posY] = graph->get_ui_position(node);
-            const ImVec2 pos{posX, posY};
-
-            // TODO: Actually need to calculate the size properly
-            const ImVec2 nodeSizeLogical{ImVec2(250, 350)};
-            const ImVec2 nodeScreenSize{nodeSizeLogical * zoom};
-
-            const ImVec2 nodeScreenPos = logical_to_screen(pos, origin);
+            const ImVec2 nodeScreenPos = uiData.screenPosition;
+            const ImVec2 nodeScreenSize = uiData.screenSize;
             const ImVec2 nodeRectMin = nodeScreenPos;
             const ImVec2 nodeRectMax = nodeScreenPos + nodeScreenSize;
 
@@ -332,16 +402,6 @@ namespace oblo
                 textColor,
                 titleBarContent.c_str());
 
-            constexpr f32 pinInvisibleButtonPadding = 1.0f;
-            constexpr f32 pinRadius = 5.0f;
-            constexpr f32 pinTextMargin = 4.0f;
-            constexpr f32 pinRowMargin = 4.0f;
-            constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
-            constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
-
-            const f32 firstY = (g_TitleBarHeight + pinRowMargin);
-            const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
-
             string_builder stringBuilder;
 
             bool inputConsumed = false;
@@ -361,39 +421,6 @@ namespace oblo
                 const f32 y = firstY + pinRowHeight * i;
                 const ImVec2 pinScreenPos = nodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(y, pinRowHeight, zoom)};
                 drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
-
-                if (const auto connectedOutPin = graph->get_connected_output(pin))
-                {
-                    // Calculate the position of the source node
-                    const auto srcNode = graph->get_owner_node(connectedOutPin);
-
-                    const auto [srcPosX, srcPosY] = graph->get_ui_position(srcNode);
-                    const ImVec2 srcPos{srcPosX, srcPosY};
-
-                    const ImVec2 srcNodeScreenPos = logical_to_screen(srcPos, origin);
-
-                    outputPins.clear();
-                    graph->fetch_out_pins(srcNode, outputPins);
-
-                    u32 srcIndex = 0;
-
-                    for (u32 j = 0; j < outputPins.size32(); ++j)
-                    {
-                        if (outputPins[j] == connectedOutPin)
-                        {
-                            srcIndex = j;
-                            break;
-                        }
-                    }
-
-                    // TODO: Only ok temporarily because the node size is fixed
-                    const f32 srcY = firstY + pinRowHeight * srcIndex;
-
-                    const ImVec2 outPinScreenPos =
-                        srcNodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
-
-                    draw_edge(*drawList, outPinScreenPos, pinScreenPos, g_EdgeColor);
-                }
 
                 // Use an invisible button for input pin
                 ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
@@ -500,7 +527,9 @@ namespace oblo
                 // Start the node dragging, store the offset to set the frame of reference over multiple frames
                 set_drag_source(node);
                 select_node(node);
-                dragOffset = screen_to_logical(io.MousePos, origin) - pos;
+
+                const vec2 uiPosition = graph->get_ui_position(node);
+                dragOffset = screen_to_logical(io.MousePos, origin) - ImVec2{uiPosition.x, uiPosition.y};
                 clickedOnAnyNode = true;
             }
         }
