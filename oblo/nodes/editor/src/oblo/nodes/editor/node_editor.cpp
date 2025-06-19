@@ -30,7 +30,7 @@ namespace oblo
 {
     namespace
     {
-        constexpr f32 g_MinZoom{.7f};
+        constexpr f32 g_MinZoom{.8f};
         constexpr f32 g_MaxZoom{1.f};
         constexpr f32 g_ZoomSpeed{.05f};
         constexpr f32 g_DefaultRowHeight{28.f};
@@ -70,6 +70,7 @@ namespace oblo
 
             ImVec2 screenPosition;
             ImVec2 screenSize;
+            ImVec2 logicalSize;
         };
 
         struct node_type_info
@@ -236,6 +237,25 @@ namespace oblo
                     gridColor);
             }
 
+            // Settings for the looks and positioning of pins
+            constexpr f32 pinInvisibleButtonPadding = 1.0f;
+            constexpr f32 pinRadius = 5.0f;
+            constexpr f32 pinTextMargin = 4.0f;
+            constexpr f32 pinRowMargin = 4.0f;
+            constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
+            constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
+
+            const f32 rounding = g_NodeRounding * zoom;
+            const f32 titleBarScreenHeight = g_TitleBarHeight * zoom;
+
+            const f32 firstY = (g_TitleBarHeight + pinRowMargin);
+            const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
+
+            // We may want to have fonts available with different sizes, so it doesn't look as bad as it does when
+            // zooming in/out
+            ImFont* const font = ImGui::GetFont();
+            const f32 fontSize = ImGui::GetFontSize() * zoom;
+
             dynamic_array<h32<node_graph_node>> nodes;
             graph->fetch_nodes(nodes);
 
@@ -257,6 +277,12 @@ namespace oblo
                 }
             }
 
+            data_document schemaDoc;
+            data_document propertiesDoc;
+
+            dynamic_array<h32<node_graph_in_pin>> inputPins;
+            dynamic_array<h32<node_graph_out_pin>> outputPins;
+
             // Add all new nodes to the nodeUiData map, calculate new screenPositions
             for (const h32 node : nodes)
             {
@@ -265,6 +291,28 @@ namespace oblo
                 if (inserted)
                 {
                     it->zOrder = increment_z_order();
+
+                    // We keep the width fixed and estimate the height
+                    it->logicalSize.x = 250;
+
+                    inputPins.clear();
+                    outputPins.clear();
+
+                    graph->fetch_in_pins(node, inputPins);
+                    graph->fetch_out_pins(node, outputPins);
+
+                    const u32 maxNumPins = max(inputPins.size32(), outputPins.size32());
+
+                    schemaDoc.init();
+                    graph->fill_properties_schema(node, schemaDoc, schemaDoc.get_root());
+
+                    const u32 numProperties = schemaDoc.children_count(schemaDoc.get_root());
+
+                    // The row height is problematic because ImGui doesn't allow scaling items, so we add extra padding
+                    constexpr f32 rowPadding = 5.f;
+
+                    it->logicalSize.y = (g_TitleBarHeight + pinRowHeight * (1 + maxNumPins) +
+                        (rowPadding + g_DefaultRowHeight) * numProperties);
                 }
                 else if (shouldGC)
                 {
@@ -274,11 +322,8 @@ namespace oblo
                 const auto [posX, posY] = graph->get_ui_position(node);
                 const ImVec2 pos{posX, posY};
 
-                // TODO: Actually need to calculate the size properly
-                const ImVec2 nodeSizeLogical{ImVec2(250, 350)};
-
                 it->screenPosition = logical_to_screen(pos, origin);
-                it->screenSize = nodeSizeLogical * zoom;
+                it->screenSize = it->logicalSize * zoom;
             }
 
             if (shouldGC)
@@ -288,12 +333,6 @@ namespace oblo
                     nodeUiData.erase(removedNode);
                 }
             }
-
-            data_document schemaDoc;
-            data_document propertiesDoc;
-
-            dynamic_array<h32<node_graph_in_pin>> inputPins;
-            dynamic_array<h32<node_graph_out_pin>> outputPins;
 
             bool clickedOnAnyNode = false;
             graph_element mouseHoveringElement = graph_element::nil;
@@ -306,27 +345,8 @@ namespace oblo
                 [this](const h32<node_graph_node> lhs, const h32<node_graph_node> rhs)
                 { return nodeUiData.at(lhs).zOrder < nodeUiData.at(rhs).zOrder; });
 
-            // Settings for the looks and positioning of pins
-            constexpr f32 pinInvisibleButtonPadding = 1.0f;
-            constexpr f32 pinRadius = 5.0f;
-            constexpr f32 pinTextMargin = 4.0f;
-            constexpr f32 pinRowMargin = 4.0f;
-            constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
-            constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
-
-            const f32 firstY = (g_TitleBarHeight + pinRowMargin);
-            const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
-
-            // We may want to have fonts available with different sizes, so it doesn't look as bad as it does when
-            // zooming in/out
-            ImFont* const font = ImGui::GetFont();
-            const f32 fontSize = ImGui::GetFontSize() * zoom;
-
             // Draw nodes
             drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
-
-            const f32 rounding = g_NodeRounding * zoom;
-            const f32 titleBarScreenHeight = g_TitleBarHeight * zoom;
 
             string_builder stringBuilder;
 
@@ -597,6 +617,9 @@ namespace oblo
                     {
                         graph->store_properties(node, propertiesDoc, propertiesDoc.get_root());
 
+                        ImGui::PushStyleVar(ImGuiStyleVar_TabBorderSize, 0);
+                        ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, 0);
+                        ImGui::PushStyleColor(ImGuiCol_TableBorderLight, 0);
                         ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0);
                         ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0);
 
@@ -633,7 +656,8 @@ namespace oblo
 
                         ImGui::SetWindowFontScale(previousFontScale);
 
-                        ImGui::PopStyleColor(2);
+                        ImGui::PopStyleColor(4);
+                        ImGui::PopStyleVar();
                     }
                 }
 
