@@ -42,6 +42,8 @@ namespace oblo
         constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
         constexpr u32 g_PinHoverColor{g_EdgeColor};
 
+        constexpr const char* g_AddNodePopup = "AddNodePopup";
+
         enum class draw_list_channel : u8
         {
             edges,
@@ -159,8 +161,6 @@ namespace oblo
             return ++nextZOrder;
         }
 
-        void open_add_node_dialog();
-
         void draw_add_node_dialog(const ImVec2& origin);
 
         void init_node_types();
@@ -170,6 +170,7 @@ namespace oblo
         ImVec2 panOffset{0.f, 0.f};
         ImVec2 dragOffset{0.f, 0.f};
         f32 zoom{1.f};
+        bool disableRightClickContextMenuNextFrame{false};
 
         graph_element dragSource{graph_element::nil};
 
@@ -235,7 +236,6 @@ namespace oblo
 
         const bool isCanvasHovered = ImGui::IsItemHovered();
         const bool isCanvasActive = ImGui::IsItemActive();
-        const bool isCanvasRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
         const bool isCanvasFocused = ImGui::IsItemFocused();
 
         const ImVec2 canvasPos = ImGui::GetItemRectMin();
@@ -245,10 +245,18 @@ namespace oblo
         drawListSplitter.Split(drawList, i32(draw_list_channel::enum_max));
 
         // Handle panning
-        if (isCanvasActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+        const bool isPanning = isCanvasActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right);
+
+        if (isPanning)
         {
             panOffset += io.MouseDelta;
         }
+        else if (!disableRightClickContextMenuNextFrame)
+        {
+            ImGui::OpenPopupOnItemClick(g_AddNodePopup, ImGuiPopupFlags_MouseButtonRight);
+        }
+
+        disableRightClickContextMenuNextFrame = isPanning;
 
         // Handle zoom
         if (isCanvasHovered)
@@ -690,15 +698,10 @@ namespace oblo
             }
         }
 
-        if (isCanvasRightClicked)
-        {
-            open_add_node_dialog();
-        }
-
         if (isCanvasFocused && ImGui::IsKeyPressed(ImGuiKey_Space, false))
         {
             // When space is pressed, open the dialog at mouse position
-            open_add_node_dialog();
+            ImGui::OpenPopup(g_AddNodePopup);
             ImGui::SetNextWindowPos(io.MousePos, ImGuiCond_Appearing);
         }
 
@@ -724,18 +727,13 @@ namespace oblo
         drawList.AddBezierCubic(curve.cp[0], curve.cp[1], curve.cp[2], curve.cp[3], edgeColor, g_EdgeThickness);
     }
 
-    void node_editor::impl::open_add_node_dialog()
-    {
-        ImGui::OpenPopup("AddNodePopup");
-    }
-
     void node_editor::impl::draw_add_node_dialog(const ImVec2& origin)
     {
         constexpr ImVec2 popupSize{480, 480};
 
         ImGui::SetNextWindowSize(popupSize, ImGuiCond_Appearing);
 
-        if (ImGui::BeginPopup("AddNodePopup"))
+        if (ImGui::BeginPopup(g_AddNodePopup))
         {
             const bool isAppearing = ImGui::IsWindowAppearing();
 
