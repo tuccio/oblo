@@ -29,6 +29,7 @@ namespace oblo
 
         constexpr f32 g_NodeRounding{6.f};
         constexpr f32 g_PinHoverThickness{2.f};
+        constexpr f32 g_EdgeThickness{2.f};
 
         constexpr f32 g_TitleBarHeight{24.f};
         constexpr ImVec2 g_TitleTextMargin{8.f, 6.f};
@@ -64,13 +65,36 @@ namespace oblo
         {
             return (y + .5f * pinRowHeight) * zoom;
         }
+
+        struct cubic_bezier
+        {
+            ImVec2 cp[4];
+        };
+
+        bool is_visible(const ImRect& clipRect, const ImRect& rect)
+        {
+            return clipRect.Overlaps(rect);
+        }
+
+        bool is_visible(const ImRect& clipRect, const cubic_bezier& curve)
+        {
+            const f32 minX = min(curve.cp[0].x, curve.cp[1].x, curve.cp[2].x, curve.cp[3].x);
+            const f32 minY = min(curve.cp[0].y, curve.cp[1].y, curve.cp[2].y, curve.cp[3].y);
+
+            const f32 maxX = max(curve.cp[0].x, curve.cp[1].x, curve.cp[2].x, curve.cp[3].x);
+            const f32 maxY = max(curve.cp[0].y, curve.cp[1].y, curve.cp[2].y, curve.cp[3].y);
+
+            return clipRect.Overlaps({minX, minY, maxX, maxY});
+        }
     }
 
     struct node_editor::impl
     {
         void update();
 
-        void draw_edge(ImDrawList& drawList, const ImVec2& src, const ImVec2& dst, const oblo::u32 edgeColor) const;
+        cubic_bezier calculate_edge_control_points(const ImVec2& src, const ImVec2& dst) const;
+
+        void draw_edge(ImDrawList& drawList, const cubic_bezier& curve, const oblo::u32 edgeColor) const;
 
         ImVec2 logical_to_screen(const ImVec2& logical, const ImVec2& origin) const noexcept
         {
@@ -209,13 +233,15 @@ namespace oblo
             if (wheel != 0.0f)
             {
                 const ImVec2 mouseInCanvas = io.MousePos - canvasPos - panOffset;
-                const f32 prev_zoom = zoom;
+                const f32 prevZoom = zoom;
                 zoom = ImClamp(zoom + wheel * g_ZoomSpeed, g_MinZoom, g_MaxZoom);
-                panOffset -= mouseInCanvas * (zoom - prev_zoom);
+                panOffset -= mouseInCanvas * (zoom - prevZoom);
             }
         }
 
         const ImVec2 origin = canvasPos + panOffset;
+
+        const ImRect canvasAabb{canvasPos, canvasPos + canvasSize};
 
         // Draw grid
         const f32 gridStep = 64.f * zoom;
@@ -312,12 +338,18 @@ namespace oblo
         const f32 firstY = (g_TitleBarHeight + pinRowMargin);
         const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
 
+        // We may want to have fonts available with different sizes, so it doesn't look as bad as it does when
+        // zooming in/out
+        ImFont* const font = ImGui::GetFont();
+        const f32 fontSize = ImGui::GetFontSize() * zoom;
+
         // Draw nodes
         drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
 
+        const f32 rounding = g_NodeRounding * zoom;
+
         for (const h32 node : nodes)
         {
-            // TODO: Clipping of nodes that are not visible
             const auto& uiData = nodeUiData.at(node);
 
             const ImVec2 nodeScreenPos = uiData.screenPosition;
@@ -325,49 +357,53 @@ namespace oblo
             const ImVec2 nodeRectMin = nodeScreenPos;
             const ImVec2 nodeRectMax = nodeScreenPos + nodeScreenSize;
 
-            // Draw node body
-            drawList->AddRectFilled(nodeScreenPos + ImVec2(0, g_TitleBarHeight * zoom),
-                nodeRectMax,
-                nodeBackgroundColor,
-                g_NodeRounding,
-                ImDrawFlags_RoundCornersBottom);
+            // Used for clipping, we might still want to draw edges even when clipping nodes
+            const ImVec2 nodeClipPadding{16.f, 16.f};
+            const ImRect nodeClipRect{nodeRectMin - nodeClipPadding, nodeRectMax + nodeClipPadding};
 
-            // Draw title bar
-            drawList->AddRectFilled(nodeRectMin,
-                nodeScreenPos + ImVec2(nodeScreenSize.x, g_TitleBarHeight * zoom),
-                g_TitleBackground,
-                g_NodeRounding,
-                ImDrawFlags_RoundCornersTop);
+            const bool isNodeVisible = is_visible(canvasAabb, nodeClipRect);
 
-            // Highlight selected nodes with a white border
-            drawList->AddRect(nodeRectMin,
-                nodeRectMax,
-                selectedNode == node ? selectedNodeBorderColor : nodeBorderColor,
-                g_NodeRounding);
-
-            // We may want to have fonts available with different sizes, so it doesn't look as bad as it does when
-            // zooming in/out
-            ImFont* const font = ImGui::GetFont();
-            const f32 fontSize = ImGui::GetFontSize() * zoom;
-
-            cstring_view titleBarContent;
-
-            const uuid& nodeType = graph->get_type(node);
-
-            if (auto* const desc = graph->get_registry().find_node(nodeType))
+            if (isNodeVisible)
             {
-                titleBarContent = desc->name;
-            }
-            else
-            {
-                titleBarContent = "Unknown node";
-            }
+                // Draw node body
+                drawList->AddRectFilled(nodeScreenPos + ImVec2(0, g_TitleBarHeight * zoom),
+                    nodeRectMax,
+                    nodeBackgroundColor,
+                    rounding,
+                    ImDrawFlags_RoundCornersBottom);
 
-            drawList->AddText(font,
-                fontSize,
-                nodeScreenPos + g_TitleTextMargin * zoom,
-                textColor,
-                titleBarContent.c_str());
+                // Draw title bar
+                drawList->AddRectFilled(nodeRectMin,
+                    nodeScreenPos + ImVec2(nodeScreenSize.x, g_TitleBarHeight * zoom),
+                    g_TitleBackground,
+                    rounding,
+                    ImDrawFlags_RoundCornersTop);
+
+                // Highlight selected nodes with a white border
+                drawList->AddRect(nodeRectMin,
+                    nodeRectMax,
+                    selectedNode == node ? selectedNodeBorderColor : nodeBorderColor,
+                    rounding);
+
+                cstring_view titleBarContent;
+
+                const uuid& nodeType = graph->get_type(node);
+
+                if (auto* const desc = graph->get_registry().find_node(nodeType))
+                {
+                    titleBarContent = desc->name;
+                }
+                else
+                {
+                    titleBarContent = "Unknown node";
+                }
+
+                drawList->AddText(font,
+                    fontSize,
+                    nodeScreenPos + g_TitleTextMargin * zoom,
+                    textColor,
+                    titleBarContent.c_str());
+            }
 
             string_builder stringBuilder;
 
@@ -376,7 +412,8 @@ namespace oblo
             const f32 pinInvisibleButtonSize = max(1.f, (pinInvisibleButtonPadding + pinRadius * 2) * zoom);
             const ImVec2 pinInvisibleButtonSize2d{pinInvisibleButtonSize, pinInvisibleButtonSize};
 
-            // Draw input pins
+            // Draw input pins, when the node is not visible we might still want to draw edges, if those are not clipped
+            // (e.g. the source is visible)
 
             inputPins.clear();
             graph->fetch_in_pins(node, inputPins);
@@ -385,60 +422,67 @@ namespace oblo
             {
                 const h32 pin = inputPins[i];
 
-                const f32 y = firstY + pinRowHeight * i;
-                const ImVec2 pinScreenPos = nodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(y, pinRowHeight, zoom)};
-                drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
-
-                // Use an invisible button for input pin
-                ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
-
-                const bool isPinPressed = ImGui::InvisibleButton(stringBuilder.format("##ipin{}", pin.value).c_str(),
-                    ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
-                    ImGuiButtonFlags_PressedOnClick);
-
-                const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-
-                if (isPinHovered)
+                if (isNodeVisible)
                 {
-                    // Draw pin highlight when hovered
-                    drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
-                }
+                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
 
-                // Handle dragging inputs
-                if (isPinPressed)
-                {
-                    dragOffset = screen_to_logical(pinScreenPos, origin);
-                    set_drag_source(pin);
-                    inputConsumed = true;
+                    const f32 y = firstY + pinRowHeight * i;
+                    const ImVec2 pinScreenPos =
+                        nodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(y, pinRowHeight, zoom)};
+                    drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
 
-                    // Clear input on click regardless
-                    graph->clear_connected_output(pin);
-                }
-                else if (isPinHovered)
-                {
-                    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                    // Use an invisible button for input pin
+                    ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
+
+                    const bool isPinPressed =
+                        ImGui::InvisibleButton(stringBuilder.format("##ipin{}", pin.value).c_str(),
+                            ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
+                            ImGuiButtonFlags_PressedOnClick);
+
+                    const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+                    if (isPinHovered)
                     {
-                        // If we were dragging an edge, connect it
-                        if (dragSource == graph_element::out_pin)
-                        {
-                            graph->clear_connected_output(pin);
-                            graph->connect(draggedOutPin, pin);
-                        }
-
-                        reset_drag_source();
+                        // Draw pin highlight when hovered
+                        drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
                     }
 
-                    mouseHoveringElement = graph_element::in_pin;
-                    hoveredPinScreenPos = pinScreenPos;
+                    // Handle dragging inputs
+                    if (isPinPressed)
+                    {
+                        dragOffset = screen_to_logical(pinScreenPos, origin);
+                        set_drag_source(pin);
+                        inputConsumed = true;
+
+                        // Clear input on click regardless
+                        graph->clear_connected_output(pin);
+                    }
+                    else if (isPinHovered)
+                    {
+                        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                        {
+                            // If we were dragging an edge, connect it
+                            if (dragSource == graph_element::out_pin)
+                            {
+                                graph->clear_connected_output(pin);
+                                graph->connect(draggedOutPin, pin);
+                            }
+
+                            reset_drag_source();
+                        }
+
+                        mouseHoveringElement = graph_element::in_pin;
+                        hoveredPinScreenPos = pinScreenPos;
+                    }
+
+                    const cstring_view name = graph->get_name(pin);
+
+                    drawList->AddText(font,
+                        fontSize,
+                        pinScreenPos + ImVec2(pinRadius + pinTextMargin, -ImGui::GetFontSize() * .5f) * zoom,
+                        textColor,
+                        name.c_str());
                 }
-
-                const cstring_view name = graph->get_name(pin);
-
-                drawList->AddText(font,
-                    fontSize,
-                    pinScreenPos + ImVec2(pinRadius + pinTextMargin, -ImGui::GetFontSize() * .5f) * zoom,
-                    textColor,
-                    name.c_str());
 
                 if (const auto srcPin = graph->get_connected_output(pin))
                 {
@@ -476,74 +520,83 @@ namespace oblo
                         ImVec2{srcNodeUiData.screenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
 
                     // TODO: Clipping of the edge
-                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
-                    draw_edge(*drawList, srcPinScreenPos, dstPinScreenPos, g_EdgeColor);
-                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
+                    const auto curve = calculate_edge_control_points(srcPinScreenPos, dstPinScreenPos);
+
+                    if (is_visible(canvasAabb, curve))
+                    {
+                        drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
+                        draw_edge(*drawList, curve, g_EdgeColor);
+                    }
                 }
             }
 
-            // Draw output pins
+            // Draw output pins, only if the node is visible
 
-            outputPins.clear();
-            graph->fetch_out_pins(node, outputPins);
-
-            drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
-
-            for (u32 i = 0; i < outputPins.size32(); ++i)
+            if (isNodeVisible)
             {
-                const h32 pin = outputPins[i];
+                outputPins.clear();
+                graph->fetch_out_pins(node, outputPins);
 
-                const f32 y = firstY + pinRowHeight * i;
-                const ImVec2 pinScreenPos =
-                    nodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(y, pinRowHeight, zoom)};
-                drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
+                drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
 
-                // Use an invisible button for output pin
-                ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
-                const bool isPinPressed = ImGui::InvisibleButton(stringBuilder.format("##opin{}", pin.value).c_str(),
-                    ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
-                    ImGuiButtonFlags_PressedOnClick);
-
-                const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-
-                if (isPinHovered)
+                for (u32 i = 0; i < outputPins.size32(); ++i)
                 {
-                    // Draw pin highlight when hovered
-                    drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
-                }
+                    const h32 pin = outputPins[i];
 
-                const cstring_view name = graph->get_name(pin);
-                const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+                    const f32 y = firstY + pinRowHeight * i;
+                    const ImVec2 pinScreenPos =
+                        nodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(y, pinRowHeight, zoom)};
+                    drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
 
-                drawList->AddText(font,
-                    fontSize,
-                    pinScreenPos - ImVec2(textSize.x + pinRadius + pinTextMargin, ImGui::GetFontSize() * .5f) * zoom,
-                    textColor,
-                    name.c_str());
+                    // Use an invisible button for output pin
+                    ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
+                    const bool isPinPressed =
+                        ImGui::InvisibleButton(stringBuilder.format("##opin{}", pin.value).c_str(),
+                            ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
+                            ImGuiButtonFlags_PressedOnClick);
 
-                // Handle dragging outputs
-                if (isPinPressed)
-                {
-                    dragOffset = screen_to_logical(pinScreenPos, origin);
-                    set_drag_source(pin);
-                    inputConsumed = true;
-                }
-                else if (isPinHovered)
-                {
-                    if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                    const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+                    if (isPinHovered)
                     {
-                        // If we were dragging an edge, connect it
-                        if (dragSource == graph_element::in_pin)
-                        {
-                            graph->clear_connected_output(draggedInPin);
-                            graph->connect(pin, draggedInPin);
-                        }
-
-                        reset_drag_source();
+                        // Draw pin highlight when hovered
+                        drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
                     }
 
-                    mouseHoveringElement = graph_element::out_pin;
-                    hoveredPinScreenPos = pinScreenPos;
+                    const cstring_view name = graph->get_name(pin);
+                    const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+
+                    drawList->AddText(font,
+                        fontSize,
+                        pinScreenPos -
+                            ImVec2(textSize.x + pinRadius + pinTextMargin, ImGui::GetFontSize() * .5f) * zoom,
+                        textColor,
+                        name.c_str());
+
+                    // Handle dragging outputs
+                    if (isPinPressed)
+                    {
+                        dragOffset = screen_to_logical(pinScreenPos, origin);
+                        set_drag_source(pin);
+                        inputConsumed = true;
+                    }
+                    else if (isPinHovered)
+                    {
+                        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                        {
+                            // If we were dragging an edge, connect it
+                            if (dragSource == graph_element::in_pin)
+                            {
+                                graph->clear_connected_output(draggedInPin);
+                                graph->connect(pin, draggedInPin);
+                            }
+
+                            reset_drag_source();
+                        }
+
+                        mouseHoveringElement = graph_element::out_pin;
+                        hoveredPinScreenPos = pinScreenPos;
+                    }
                 }
             }
 
@@ -588,25 +641,34 @@ namespace oblo
                 curveEndPos = hoveredPinScreenPos;
             }
 
-            drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
-            draw_edge(*drawList, dragSourceScreen, curveEndPos, g_EdgeColor);
+            const auto curve = calculate_edge_control_points(dragSourceScreen, curveEndPos);
+
+            if (is_visible(canvasAabb, curve))
+            {
+                drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
+                draw_edge(*drawList, curve, g_EdgeColor);
+            }
         }
 
         drawListSplitter.Merge(drawList);
     }
 
-    void node_editor::impl::draw_edge(
-        ImDrawList& drawList, const ImVec2& src, const ImVec2& dst, const oblo::u32 edgeColor) const
+    cubic_bezier node_editor::impl::calculate_edge_control_points(const ImVec2& src, const ImVec2& dst) const
     {
-        constexpr f32 lineWidth = 2.f;
+        const f32 cpOffset = (src.x < dst.x ? 64.f : -64.f) * zoom;
 
-        const f32 cpOffset = src.x < dst.x ? 64.f : -64.f;
+        cubic_bezier curve;
 
-        const ImVec2 p0 = src;
-        const ImVec2 p1 = src + ImVec2(cpOffset * zoom, 0);
-        const ImVec2 p2 = dst - ImVec2(cpOffset * zoom, 0);
-        const ImVec2 p3 = dst;
+        curve.cp[0] = src;
+        curve.cp[1] = src + ImVec2(cpOffset, 0);
+        curve.cp[2] = dst - ImVec2(cpOffset, 0);
+        curve.cp[3] = dst;
 
-        drawList.AddBezierCubic(p0, p1, p2, p3, edgeColor, lineWidth);
+        return curve;
+    }
+
+    void node_editor::impl::draw_edge(ImDrawList& drawList, const cubic_bezier& curve, const oblo::u32 edgeColor) const
+    {
+        drawList.AddBezierCubic(curve.cp[0], curve.cp[1], curve.cp[2], curve.cp[3], edgeColor, g_EdgeThickness);
     }
 }
