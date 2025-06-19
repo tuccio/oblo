@@ -34,6 +34,13 @@ namespace oblo
         constexpr u32 g_EdgeColor = IM_COL32(255, 255, 0, 255);
         constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
 
+        enum class draw_list_channel : u8
+        {
+            edges,
+            nodes,
+            enum_max,
+        };
+
         enum class graph_element : u8
         {
             nil,
@@ -123,9 +130,6 @@ namespace oblo
 
         graph_element dragSource{graph_element::nil};
 
-        ImVec2 previewEdgeBegin{};
-        ImVec2 previewEdgeEnd{};
-
         union {
             h32<node_graph_node> draggedNode;
             h32<node_graph_out_pin> draggedOutPin;
@@ -135,6 +139,8 @@ namespace oblo
         h32<node_graph_node> selectedNode{};
 
         h32_flat_extpool_dense_map<node_graph_node, node_ui_data> nodeUiData;
+
+        ImDrawListSplitter drawListSplitter;
     };
 
     node_editor::node_editor() = default;
@@ -182,6 +188,9 @@ namespace oblo
         const bool isActive = ImGui::IsItemActive();
         const ImVec2 canvasPos = ImGui::GetItemRectMin();
         ImDrawList* const drawList = ImGui::GetWindowDrawList();
+
+        drawListSplitter.Clear();
+        drawListSplitter.Split(drawList, i32(draw_list_channel::enum_max));
 
         // Handle panning
         if (isActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
@@ -300,66 +309,9 @@ namespace oblo
         const f32 firstY = (g_TitleBarHeight + pinRowMargin);
         const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
 
-        // Draw edges
-        for (const h32 node : nodes)
-        {
-            inputPins.clear();
-            graph->fetch_in_pins(node, inputPins);
-
-            for (u32 dstPinIndex = 0; dstPinIndex < inputPins.size32(); ++dstPinIndex)
-            {
-                const h32 dstPin = inputPins[dstPinIndex];
-
-                if (const auto srcPin = graph->get_connected_output(dstPin))
-                {
-                    const auto srcNode = graph->get_owner_node(srcPin);
-
-                    const auto& srcNodeUiData = nodeUiData.at(srcNode);
-                    const auto& dstNodeUiData = nodeUiData.at(node);
-
-                    const ImVec2 srcNodeScreenPos = srcNodeUiData.screenPosition;
-                    const ImVec2 dstNodeScreenPos = dstNodeUiData.screenPosition;
-
-                    const f32 dstY = firstY + pinRowHeight * dstPinIndex;
-
-                    const ImVec2 dstPinScreenPos =
-                        dstNodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(dstY, pinRowHeight, zoom)};
-
-                    // Find the pin index at the source to calculate
-                    outputPins.clear();
-                    graph->fetch_out_pins(srcNode, outputPins);
-
-                    u32 srcIndex = 0;
-
-                    for (u32 j = 0; j < outputPins.size32(); ++j)
-                    {
-                        if (outputPins[j] == srcPin)
-                        {
-                            srcIndex = j;
-                            break;
-                        }
-                    }
-
-                    const f32 srcY = firstY + pinRowHeight * srcIndex;
-
-                    const ImVec2 srcPinScreenPos = srcNodeScreenPos +
-                        ImVec2{srcNodeUiData.screenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
-
-                    // TODO: Clipping of the edge
-                    draw_edge(*drawList, srcPinScreenPos, dstPinScreenPos, g_EdgeColor);
-                }
-            }
-        }
-
-        // Draw the preview of the edge we are dragging with 1 frame delay
-        // This is so that it gets drawn before the nodes, although we still need to handle inputs for the frame
-        // An alternative would be using the channels im ImDrawList to render nodes and edges separately
-        if (dragSource == graph_element::out_pin || dragSource == graph_element::in_pin)
-        {
-            draw_edge(*drawList, previewEdgeBegin, previewEdgeEnd, g_EdgeColor);
-        }
-
         // Draw nodes
+        drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
+
         for (const h32 node : nodes)
         {
             // TODO: Clipping of nodes that are not visible
@@ -476,12 +428,55 @@ namespace oblo
                     pinScreenPos + ImVec2(pinRadius + pinTextMargin, -ImGui::GetFontSize() * .5f) * zoom,
                     textColor,
                     name.c_str());
+
+                if (const auto srcPin = graph->get_connected_output(pin))
+                {
+                    const auto srcNode = graph->get_owner_node(srcPin);
+
+                    const auto& srcNodeUiData = nodeUiData.at(srcNode);
+                    const auto& dstNodeUiData = nodeUiData.at(node);
+
+                    const ImVec2 srcNodeScreenPos = srcNodeUiData.screenPosition;
+                    const ImVec2 dstNodeScreenPos = dstNodeUiData.screenPosition;
+
+                    const f32 dstY = firstY + pinRowHeight * i;
+
+                    const ImVec2 dstPinScreenPos =
+                        dstNodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(dstY, pinRowHeight, zoom)};
+
+                    // Find the pin index at the source to calculate
+                    outputPins.clear();
+                    graph->fetch_out_pins(srcNode, outputPins);
+
+                    u32 srcIndex = 0;
+
+                    for (u32 j = 0; j < outputPins.size32(); ++j)
+                    {
+                        if (outputPins[j] == srcPin)
+                        {
+                            srcIndex = j;
+                            break;
+                        }
+                    }
+
+                    const f32 srcY = firstY + pinRowHeight * srcIndex;
+
+                    const ImVec2 srcPinScreenPos = srcNodeScreenPos +
+                        ImVec2{srcNodeUiData.screenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
+
+                    // TODO: Clipping of the edge
+                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
+                    draw_edge(*drawList, srcPinScreenPos, dstPinScreenPos, g_EdgeColor);
+                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
+                }
             }
 
             // Draw output pins
 
             outputPins.clear();
             graph->fetch_out_pins(node, outputPins);
+
+            drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
 
             for (u32 i = 0; i < outputPins.size32(); ++i)
             {
@@ -574,9 +569,11 @@ namespace oblo
                 curveEndPos = hoveredPinScreenPos;
             }
 
-            previewEdgeBegin = dragSourceScreen;
-            previewEdgeEnd = curveEndPos;
+            drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
+            draw_edge(*drawList, dragSourceScreen, curveEndPos, g_EdgeColor);
         }
+
+        drawListSplitter.Merge(drawList);
     }
 
     void node_editor::impl::draw_edge(
