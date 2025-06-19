@@ -235,6 +235,7 @@ namespace oblo
         const bool isCanvasHovered = ImGui::IsItemHovered();
         const bool isCanvasActive = ImGui::IsItemActive();
         const bool isCanvasRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+        const bool isCanvasFocused = ImGui::IsItemFocused();
 
         const ImVec2 canvasPos = ImGui::GetItemRectMin();
         ImDrawList* const drawList = ImGui::GetWindowDrawList();
@@ -673,11 +674,31 @@ namespace oblo
             }
         }
 
+        // We are done drawing nodes and edges
         drawListSplitter.Merge(drawList);
+
+        // Handle node deletion
+        if (isCanvasFocused && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+        {
+            if (selectedNode)
+            {
+                graph->remove_node(selectedNode);
+
+                reset_selection();
+                reset_drag_source();
+            }
+        }
 
         if (isCanvasRightClicked)
         {
             open_add_node_dialog();
+        }
+
+        if (isCanvasFocused && ImGui::IsKeyPressed(ImGuiKey_Space, false))
+        {
+            // When space is pressed, open the dialog at mouse position
+            open_add_node_dialog();
+            ImGui::SetNextWindowPos(io.MousePos, ImGuiCond_Appearing);
         }
 
         draw_add_node_dialog(origin);
@@ -715,10 +736,14 @@ namespace oblo
 
         if (ImGui::BeginPopup("AddNodePopup"))
         {
-            if (ImGui::IsWindowAppearing())
+            const bool isAppearing = ImGui::IsWindowAppearing();
+
+            if (isAppearing)
             {
                 addNodeFilter.Clear();
             }
+
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
             if (ImGui::InputTextWithHint("##search",
                     "Filter ... " ICON_FA_MAGNIFYING_GLASS,
@@ -726,6 +751,12 @@ namespace oblo
                     array_size(addNodeFilter.InputBuf)))
             {
                 addNodeFilter.Build();
+            }
+
+            if (isAppearing)
+            {
+                // Set focus on filter when opening the popup
+                ImGui::ActivateItemByID(ImGui::GetItemID());
             }
 
             ImGui::BeginChild("NodeListRegion", {}, true, ImGuiWindowFlags_AlwaysVerticalScrollbar);
