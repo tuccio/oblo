@@ -381,6 +381,8 @@ namespace oblo
 
         const f32 rounding = g_NodeRounding * zoom;
 
+        string_builder stringBuilder;
+
         for (const h32 node : nodes)
         {
             const auto& uiData = nodeUiData.at(node);
@@ -398,6 +400,9 @@ namespace oblo
 
             if (isNodeVisible)
             {
+                ImGui::SetCursorScreenPos(nodeScreenPos);
+                ImGui::InvisibleButton(stringBuilder.clear().format("##node{}", node.value).c_str(), nodeScreenSize);
+
                 // Draw node body
                 drawList->AddRectFilled(nodeScreenPos + ImVec2(0, g_TitleBarHeight * zoom),
                     nodeRectMax,
@@ -437,8 +442,6 @@ namespace oblo
                     textColor,
                     titleBarContent.c_str());
             }
-
-            string_builder stringBuilder;
 
             bool inputConsumed = false;
 
