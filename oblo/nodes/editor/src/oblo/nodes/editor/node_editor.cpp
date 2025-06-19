@@ -103,38 +103,53 @@ namespace oblo
             return clipRect.Overlaps({minX, minY, maxX, maxY});
         }
 
-        [[nodiscard]] bool handle_property(hashed_string_view valueType,
+        template <typename T>
+        bool handle_property(oblo::data_document& propertiesDoc,
+            const oblo::u32 propertyChild,
+            oblo::hashed_string_view propertyName,
+            T& value)
+        {
+            const bool modified =
+                editor::ui::property_table::add(ImGui::GetID(propertyName.begin(), propertyName.end()),
+                    propertyName,
+                    value);
+
+            if (modified)
+            {
+                const property_value_wrapper w{value};
+
+                if (propertyChild == data_node::Invalid)
+                {
+                    propertiesDoc.child_value(propertiesDoc.get_root(), propertyName, w);
+                }
+                else
+                {
+                    propertiesDoc.make_value(propertyChild, w);
+                }
+            }
+
+            return modified;
+        }
+
+        [[nodiscard]] bool add_property(hashed_string_view valueType,
             const oblo::data_document& schemaDoc,
             oblo::data_document& propertiesDoc,
             oblo::u32 child)
         {
             bool modified = false;
 
+            const auto propertyName = schemaDoc.get_node_name(child);
+            const u32 propertyChild = propertiesDoc.find_child(propertiesDoc.get_root(), propertyName);
+
             if (valueType == get_type_id<f32>().name)
             {
-                const auto propertyName = schemaDoc.get_node_name(child);
-
-                const u32 propertyChild = propertiesDoc.find_child(propertiesDoc.get_root(), propertyName);
-
                 f32 value = propertiesDoc.read_f32(propertyChild).value_or(0.f);
-
-                if (editor::ui::property_table::add(ImGui::GetID(propertyName.begin(), propertyName.end()),
-                        propertyName,
-                        value))
-                {
-                    const property_value_wrapper w{value};
-
-                    if (propertyChild == data_node::Invalid)
-                    {
-                        propertiesDoc.child_value(propertiesDoc.get_root(), propertyName, w);
-                    }
-                    else
-                    {
-                        propertiesDoc.make_value(propertyChild, w);
-                    }
-
-                    modified = true;
-                }
+                modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
+            }
+            else if (valueType == get_type_id<bool>().name)
+            {
+                bool value = propertiesDoc.read_bool(propertyChild).value_or(false);
+                modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
             }
 
             return modified;
@@ -449,7 +464,7 @@ namespace oblo
 
                         drawList->AddText(font,
                             fontSize,
-                            pinScreenPos + ImVec2(pinRadius + pinTextMargin, -ImGui::GetFontSize() * .5f) * zoom,
+                            pinScreenPos + ImVec2((pinRadius + pinTextMargin) * zoom, -fontSize * .5f),
                             textColor,
                             name.c_str());
                     }
@@ -537,12 +552,11 @@ namespace oblo
                         }
 
                         const cstring_view name = graph->get_name(pin);
-                        const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+                        const ImVec2 textSize = ImGui::CalcTextSize(name.c_str()) * zoom;
 
                         drawList->AddText(font,
                             fontSize,
-                            pinScreenPos -
-                                ImVec2(textSize.x + pinRadius + pinTextMargin, ImGui::GetFontSize() * .5f) * zoom,
+                            pinScreenPos - ImVec2(textSize.x + pinRadius + pinTextMargin * zoom, fontSize * .5f),
                             textColor,
                             name.c_str());
 
@@ -597,7 +611,7 @@ namespace oblo
 
                                 if (valueType)
                                 {
-                                    modified |= handle_property(hashed_string_view{valueType->str()},
+                                    modified |= add_property(hashed_string_view{valueType->str()},
                                         schemaDoc,
                                         propertiesDoc,
                                         child);
