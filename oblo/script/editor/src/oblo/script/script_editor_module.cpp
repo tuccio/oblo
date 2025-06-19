@@ -65,12 +65,16 @@ namespace oblo::editor
             {
                 bool isOpen = true;
 
-                if (ImGui::Begin("Node Editor", &isOpen))
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
+
+                if (ImGui::Begin("Node Editor", &isOpen, ImGuiWindowFlags_NoScrollbar))
                 {
                     m_editor.update();
                 }
 
                 ImGui::End();
+
+                ImGui::PopStyleVar();
 
                 return isOpen;
             }
