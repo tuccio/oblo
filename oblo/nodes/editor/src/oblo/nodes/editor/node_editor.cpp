@@ -123,6 +123,9 @@ namespace oblo
 
         graph_element dragSource{graph_element::nil};
 
+        ImVec2 previewEdgeBegin{};
+        ImVec2 previewEdgeEnd{};
+
         union {
             h32<node_graph_node> draggedNode;
             h32<node_graph_out_pin> draggedOutPin;
@@ -342,9 +345,18 @@ namespace oblo
                     const ImVec2 srcPinScreenPos = srcNodeScreenPos +
                         ImVec2{srcNodeUiData.screenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
 
+                    // TODO: Clipping of the edge
                     draw_edge(*drawList, srcPinScreenPos, dstPinScreenPos, g_EdgeColor);
                 }
             }
+        }
+
+        // Draw the preview of the edge we are dragging with 1 frame delay
+        // This is so that it gets drawn before the nodes, although we still need to handle inputs for the frame
+        // An alternative would be using the channels im ImDrawList to render nodes and edges separately
+        if (dragSource == graph_element::out_pin || dragSource == graph_element::in_pin)
+        {
+            draw_edge(*drawList, previewEdgeBegin, previewEdgeEnd, g_EdgeColor);
         }
 
         // Draw nodes
@@ -550,7 +562,7 @@ namespace oblo
             reset_drag_source();
         }
 
-        // While dragging, update end and draw preview
+        // While dragging, update the dragged edge that will be draw next frame
         if (dragSource == graph_element::out_pin || dragSource == graph_element::in_pin)
         {
             const ImVec2 dragSourceScreen = logical_to_screen(dragOffset, origin);
@@ -562,14 +574,8 @@ namespace oblo
                 curveEndPos = hoveredPinScreenPos;
             }
 
-            draw_edge(*drawList, dragSourceScreen, curveEndPos, g_EdgeColor);
-
-            // TODO: If released over an input pin, connect
-
-            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-            {
-                reset_drag_source();
-            }
+            previewEdgeBegin = dragSourceScreen;
+            previewEdgeEnd = curveEndPos;
         }
     }
 
