@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/forward.hpp>
 #include <oblo/core/uuid.hpp>
 
 #include <unordered_map>
@@ -22,6 +23,8 @@ namespace oblo
         bool register_node(const node_descriptor& desc);
 
         const node_descriptor* find_node(const uuid& id) const;
+
+        void fetch_nodes(dynamic_array<const node_descriptor*>& outNodes) const;
 
     private:
         std::unordered_map<uuid, node_descriptor, hash<uuid>> m_descriptors;

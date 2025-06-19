@@ -1,5 +1,6 @@
 #include <oblo/nodes/node_graph_registry.hpp>
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 
 namespace oblo
@@ -18,5 +19,15 @@ namespace oblo
     {
         const auto it = m_descriptors.find(id);
         return it == m_descriptors.end() ? nullptr : &it->second;
+    }
+
+    void node_graph_registry::fetch_nodes(dynamic_array<const node_descriptor*>& outNodes) const
+    {
+        outNodes.reserve(outNodes.size() + m_descriptors.size());
+
+        for (const auto& [id, desc] : m_descriptors)
+        {
+            outNodes.emplace_back(&desc);
+        }
     }
 }

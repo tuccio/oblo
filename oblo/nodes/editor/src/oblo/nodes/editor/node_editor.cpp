@@ -2,6 +2,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
+#include <oblo/core/array_size.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -15,6 +16,8 @@
 
 #include <imgui.h>
 #include <imgui_internal.h>
+
+#include <IconsFontAwesome6.h>
 
 #include <algorithm>
 #include <cmath>
@@ -59,6 +62,12 @@ namespace oblo
 
             ImVec2 screenPosition;
             ImVec2 screenSize;
+        };
+
+        struct node_type_info
+        {
+            uuid id;
+            string name;
         };
 
         f32 calculate_pin_y_offset(f32 y, f32 pinRowHeight, f32 zoom)
@@ -149,6 +158,12 @@ namespace oblo
             return ++nextZOrder;
         }
 
+        void open_add_node_dialog();
+
+        void draw_add_node_dialog(const ImVec2& origin);
+
+        void init_node_types();
+
         u64 nextZOrder{};
         node_graph* graph{};
         ImVec2 panOffset{0.f, 0.f};
@@ -168,6 +183,9 @@ namespace oblo
         h32_flat_extpool_dense_map<node_graph_node, node_ui_data> nodeUiData;
 
         ImDrawListSplitter drawListSplitter;
+        ImGuiTextFilter addNodeFilter;
+
+        dynamic_array<node_type_info> nodeTypesInfo;
     };
 
     node_editor::node_editor() = default;
@@ -182,6 +200,8 @@ namespace oblo
     {
         m_impl = allocate_unique<impl>();
         m_impl->graph = &g;
+
+        m_impl->init_node_types();
 
         // Add two constant nodes and an add node for testing purposes
         m_impl->graph->add_node("53b6e2bf-f0fc-43e3-ade4-25f3a74a42e1"_uuid);
@@ -213,6 +233,8 @@ namespace oblo
 
         const bool isCanvasHovered = ImGui::IsItemHovered();
         const bool isCanvasActive = ImGui::IsItemActive();
+        const bool isCanvasRightClicked = ImGui::IsItemClicked(ImGuiMouseButton_Right);
+
         const ImVec2 canvasPos = ImGui::GetItemRectMin();
         ImDrawList* const drawList = ImGui::GetWindowDrawList();
 
@@ -651,6 +673,13 @@ namespace oblo
         }
 
         drawListSplitter.Merge(drawList);
+
+        if (isCanvasRightClicked)
+        {
+            open_add_node_dialog();
+        }
+
+        draw_add_node_dialog(origin);
     }
 
     cubic_bezier node_editor::impl::calculate_edge_control_points(const ImVec2& src, const ImVec2& dst) const
@@ -670,5 +699,81 @@ namespace oblo
     void node_editor::impl::draw_edge(ImDrawList& drawList, const cubic_bezier& curve, const oblo::u32 edgeColor) const
     {
         drawList.AddBezierCubic(curve.cp[0], curve.cp[1], curve.cp[2], curve.cp[3], edgeColor, g_EdgeThickness);
+    }
+
+    void node_editor::impl::open_add_node_dialog()
+    {
+        ImGui::OpenPopup("AddNodePopup");
+    }
+
+    void node_editor::impl::draw_add_node_dialog(const ImVec2& origin)
+    {
+        constexpr ImVec2 popupSize{480, 480};
+
+        ImGui::SetNextWindowSize(popupSize, ImGuiCond_Appearing);
+
+        if (ImGui::BeginPopup("AddNodePopup"))
+        {
+            if (ImGui::IsWindowAppearing())
+            {
+                addNodeFilter.Clear();
+            }
+
+            if (ImGui::InputTextWithHint("##search",
+                    "Filter ... " ICON_FA_MAGNIFYING_GLASS,
+                    addNodeFilter.InputBuf,
+                    array_size(addNodeFilter.InputBuf)))
+            {
+                addNodeFilter.Build();
+            }
+
+            ImGui::BeginChild("NodeListRegion", {}, true, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+            for (const auto& desc : nodeTypesInfo)
+            {
+                if (!addNodeFilter.PassFilter(desc.name.c_str()))
+                {
+                    continue;
+                }
+
+                if (ImGui::Selectable(desc.name.c_str()))
+                {
+                    // Add node at mouse position
+                    const h32 newNode = graph->add_node(desc.id);
+
+                    if (newNode)
+                    {
+                        const ImVec2 addNodePos = ImGui::GetWindowPos();
+                        const ImVec2 logicalPos = screen_to_logical(addNodePos, origin);
+
+                        graph->set_ui_position(newNode, {logicalPos.x, logicalPos.y});
+                    }
+
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+
+            ImGui::EndChild();
+
+            ImGui::EndPopup();
+        }
+    }
+
+    void node_editor::impl::init_node_types()
+    {
+        dynamic_array<const node_descriptor*> nodeTypes;
+
+        const auto& reg = graph->get_registry();
+        reg.fetch_nodes(nodeTypes);
+
+        nodeTypesInfo.reserve(nodeTypes.size());
+
+        for (auto* const desc : nodeTypes)
+        {
+            nodeTypesInfo.push_back({
+                .id = desc->id,
+                .name = desc->name,
+            });
+        }
     }
 }
