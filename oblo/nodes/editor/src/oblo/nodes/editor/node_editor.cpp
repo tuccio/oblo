@@ -30,7 +30,7 @@ namespace oblo
 {
     namespace
     {
-        constexpr f32 g_MinZoom{.8f};
+        constexpr f32 g_MinZoom{.25f};
         constexpr f32 g_MaxZoom{1.f};
         constexpr f32 g_ZoomSpeed{.05f};
         constexpr f32 g_DefaultRowHeight{28.f};
@@ -625,7 +625,10 @@ namespace oblo
 
                         ImGui::SetCursorScreenPos({nodeScreenPos.x + pinTextMargin, ImGui::GetCursorScreenPos().y});
 
-                        const f32 previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
+                        // Since we want to reuse items from property_table, we change the style to scale down
+                        // everything according to the current zoom
+                        const auto styleCopy = GImGui->Style;
+                        GImGui->Style.ScaleAllSizes(zoom);
                         ImGui::SetWindowFontScale(zoom);
 
                         if (editor::ui::property_table::begin({nodeScreenSize.x - 2.f * pinTextMargin, 0.f},
@@ -654,7 +657,8 @@ namespace oblo
                             editor::ui::property_table::end();
                         }
 
-                        ImGui::SetWindowFontScale(previousFontScale);
+                        GImGui->Style = styleCopy;
+                        ImGui::SetWindowFontScale(1.f);
 
                         ImGui::PopStyleColor(4);
                         ImGui::PopStyleVar();
