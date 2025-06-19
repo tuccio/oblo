@@ -37,6 +37,7 @@ namespace oblo
         constexpr f32 g_TitleBarHeight{24.f};
         constexpr ImVec2 g_TitleTextMargin{8.f, 6.f};
 
+        constexpr f32 g_NodeBackgroundAlpha{.9f};
         constexpr u32 g_EdgeColor{IM_COL32(255, 255, 255, 255)};
         constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
         constexpr u32 g_PinHoverColor{g_EdgeColor};
@@ -218,7 +219,7 @@ namespace oblo
     {
         auto& io = ImGui::GetIO();
 
-        const u32 nodeBackgroundColor = ImGui::GetColorU32(ImGuiCol_TableRowBgAlt);
+        const u32 nodeBackgroundColor = ImGui::GetColorU32(ImGuiCol_TableRowBgAlt, g_NodeBackgroundAlpha);
         const u32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
         const u32 nodeBorderColor = ImGui::GetColorU32(ImGuiCol_Border);
         const u32 selectedNodeBorderColor = ImGui::GetColorU32(ImGuiCol_Text);
