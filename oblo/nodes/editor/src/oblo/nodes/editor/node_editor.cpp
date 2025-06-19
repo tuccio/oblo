@@ -665,15 +665,20 @@ namespace oblo
                     }
                 }
 
-                if (!inputConsumed && ImGui::IsMouseHoveringRect(nodeRectMin, nodeRectMax) &&
-                    ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                if (!inputConsumed && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+                    ImGui::IsMouseHoveringRect(nodeRectMin, nodeRectMax))
                 {
-                    // Start the node dragging, store the offset to set the frame of reference over multiple frames
-                    set_drag_source(node);
-                    select_node(node);
+                    // When pressing on the titlebar, start the node dragging
+                    if (io.MousePos.y <= nodeScreenPos.y + titleBarScreenHeight)
+                    {
+                        set_drag_source(node);
 
-                    const vec2 uiPosition = graph->get_ui_position(node);
-                    dragOffset = screen_to_logical(io.MousePos, origin) - ImVec2{uiPosition.x, uiPosition.y};
+                        // We store the offset to set the frame of reference over multiple frames
+                        const vec2 uiPosition = graph->get_ui_position(node);
+                        dragOffset = screen_to_logical(io.MousePos, origin) - ImVec2{uiPosition.x, uiPosition.y};
+                    }
+
+                    select_node(node);
                     clickedOnAnyNode = true;
                 }
             }
