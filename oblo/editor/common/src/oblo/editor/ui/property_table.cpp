@@ -15,6 +15,8 @@ namespace oblo::editor::ui
 {
     namespace
     {
+        f32 g_RowHeight = 0.f;
+
         void setup_property_width()
         {
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -22,16 +24,16 @@ namespace oblo::editor::ui
 
         void setup_property(string_view name)
         {
-            constexpr f32 rowHeight = 28.f;
-
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
 
-            ImGui::Dummy({0, rowHeight});
+            ImGui::Dummy({0, g_RowHeight});
             ImGui::SameLine();
 
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (rowHeight - ImGui::GetTextLineHeight()) * .5f);
+            const f32 verticalAlign = (g_RowHeight - ImGui::GetTextLineHeight()) * .5f;
+
+            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + max(0.f, verticalAlign));
 
             ImGui::TextUnformatted(name.begin(), name.end());
 
@@ -43,13 +45,16 @@ namespace oblo::editor::ui
 
     bool property_table::begin()
     {
-        return begin(vec2{});
+        constexpr f32 defaultRowHeight = 28.f;
+        return begin(vec2{}, defaultRowHeight);
     }
 
-    bool property_table::begin(const vec2& size)
+    bool property_table::begin(const vec2& size, f32 rowHeight)
     {
         if (ImGui::BeginTable("#property_table", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders, {size.x, size.y}))
         {
+            g_RowHeight = rowHeight;
+
             ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
             return true;

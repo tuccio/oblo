@@ -30,9 +30,10 @@ namespace oblo
 {
     namespace
     {
-        constexpr f32 g_MinZoom{.2f};
-        constexpr f32 g_MaxZoom{1.5f};
-        constexpr f32 g_ZoomSpeed{.1f};
+        constexpr f32 g_MinZoom{.7f};
+        constexpr f32 g_MaxZoom{1.f};
+        constexpr f32 g_ZoomSpeed{.05f};
+        constexpr f32 g_DefaultRowHeight{28.f};
 
         constexpr f32 g_NodeRounding{6.f};
         constexpr f32 g_PinHoverThickness{2.f};
@@ -601,7 +602,11 @@ namespace oblo
 
                         ImGui::SetCursorScreenPos({nodeScreenPos.x + pinTextMargin, ImGui::GetCursorScreenPos().y});
 
-                        if (editor::ui::property_table::begin({nodeScreenSize.x - 2.f * pinTextMargin, 0.f}))
+                        const f32 previousFontScale = ImGui::GetCurrentWindow()->FontWindowScale;
+                        ImGui::SetWindowFontScale(zoom);
+
+                        if (editor::ui::property_table::begin({nodeScreenSize.x - 2.f * pinTextMargin, 0.f},
+                                g_DefaultRowHeight * zoom))
                         {
                             bool modified = false;
 
@@ -625,6 +630,8 @@ namespace oblo
 
                             editor::ui::property_table::end();
                         }
+
+                        ImGui::SetWindowFontScale(previousFontScale);
 
                         ImGui::PopStyleColor(2);
                     }
