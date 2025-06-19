@@ -332,9 +332,6 @@ namespace oblo
                 if (isNodeVisible)
                 {
                     ImGui::SetCursorScreenPos(nodeScreenPos);
-                    ImGui::SetNextItemAllowOverlap();
-                    ImGui::InvisibleButton(stringBuilder.clear().format("##node{}", node.value).c_str(),
-                        nodeScreenSize);
 
                     // Draw node body
                     drawList->AddRectFilled(nodeScreenPos + ImVec2(0, titleBarScreenHeight),
@@ -585,18 +582,12 @@ namespace oblo
                     {
                         graph->store_properties(node, propertiesDoc, propertiesDoc.get_root());
 
-                        ImGui::PushStyleColor(ImGuiCol_TableRowBg, nodeBackgroundColor);
-                        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, nodeBackgroundColor);
+                        ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0);
+                        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0);
 
                         ImGui::SetCursorScreenPos({nodeScreenPos.x + pinTextMargin, ImGui::GetCursorScreenPos().y});
-                        ImGui::SetNextWindowSize({nodeScreenSize.x - 2.f * pinTextMargin, 200});
 
-                        ImGui::BeginChild(stringBuilder.clear().format("##props{}", node.value).c_str(),
-                            {},
-                            true,
-                            ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
-
-                        if (editor::ui::property_table::begin())
+                        if (editor::ui::property_table::begin({nodeScreenSize.x - 2.f * pinTextMargin, 0.f}))
                         {
                             bool modified = false;
 
@@ -620,8 +611,6 @@ namespace oblo
 
                             editor::ui::property_table::end();
                         }
-
-                        ImGui::EndChild();
 
                         ImGui::PopStyleColor(2);
                     }

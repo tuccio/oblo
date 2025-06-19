@@ -43,7 +43,12 @@ namespace oblo::editor::ui
 
     bool property_table::begin()
     {
-        if (ImGui::BeginTable("#property_table", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders))
+        return begin(vec2{});
+    }
+
+    bool property_table::begin(const vec2& size)
+    {
+        if (ImGui::BeginTable("#property_table", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders, {size.x, size.y}))
         {
             ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed);
             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);

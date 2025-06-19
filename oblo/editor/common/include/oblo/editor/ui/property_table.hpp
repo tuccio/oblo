@@ -38,6 +38,7 @@ namespace oblo::editor::ui
         using id_t = i32;
 
         [[nodiscard]] bool begin();
+        [[nodiscard]] bool begin(const vec2& size);
         void end();
 
         void add_empty(string_view name);
