@@ -2,6 +2,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
+#include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/vec2.hpp>
@@ -14,6 +15,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <algorithm>
 #include <cmath>
 
 namespace oblo
@@ -37,6 +39,11 @@ namespace oblo
             node,
             in_pin,
             out_pin,
+        };
+
+        struct node_ui_data
+        {
+            u64 zOrder;
         };
 
         f32 calculate_pin_y_offset(f32 y, f32 pinRowHeight, f32 zoom)
@@ -88,6 +95,23 @@ namespace oblo
             draggedOutPin = source;
         }
 
+        void select_node(h32<node_graph_node> node)
+        {
+            selectedNode = node;
+            nodeUiData.at(node).zOrder = increment_z_order();
+        }
+
+        void reset_selection()
+        {
+            selectedNode = {};
+        }
+
+        u64 increment_z_order()
+        {
+            return ++nextZOrder;
+        }
+
+        u64 nextZOrder{};
         node_graph* graph{};
         ImVec2 panOffset{0.f, 0.f};
         ImVec2 dragOffset{0.f, 0.f};
@@ -102,6 +126,8 @@ namespace oblo
         };
 
         h32<node_graph_node> selectedNode{};
+
+        h32_flat_extpool_dense_map<node_graph_node, node_ui_data> nodeUiData;
     };
 
     node_editor::node_editor() = default;
@@ -192,6 +218,46 @@ namespace oblo
         dynamic_array<h32<node_graph_node>> nodes;
         graph->fetch_nodes(nodes);
 
+        // Should maybe increase it to avoid running GC too often
+        constexpr u32 gcThreshold = 0;
+
+        const bool shouldGC = nodes.size() > gcThreshold + nodeUiData.size();
+
+        h32_flat_extpool_dense_set<node_graph_node> gcSet;
+
+        if (shouldGC)
+        {
+            gcSet.reserve_dense(nodeUiData.size());
+            gcSet.reserve_sparse(nodeUiData.size());
+
+            for (const h32 node : nodeUiData.keys())
+            {
+                gcSet.emplace(node);
+            }
+        }
+
+        for (const h32 node : nodes)
+        {
+            const auto [it, inserted] = nodeUiData.emplace(node);
+
+            if (inserted)
+            {
+                it->zOrder = increment_z_order();
+            }
+            else if (shouldGC)
+            {
+                gcSet.erase(node);
+            }
+        }
+
+        if (shouldGC)
+        {
+            for (const h32 removedNode : gcSet.keys())
+            {
+                nodeUiData.erase(removedNode);
+            }
+        }
+
         dynamic_array<h32<node_graph_in_pin>> inputPins;
         dynamic_array<h32<node_graph_out_pin>> outputPins;
 
@@ -199,6 +265,12 @@ namespace oblo
         graph_element mouseHoveringElement = graph_element::nil;
 
         ImVec2 hoveredPinScreenPos;
+
+        // Sort by Z order before drawing
+        std::sort(nodes.begin(),
+            nodes.end(),
+            [this](const h32<node_graph_node> lhs, const h32<node_graph_node> rhs)
+            { return nodeUiData.at(lhs).zOrder < nodeUiData.at(rhs).zOrder; });
 
         // Draw nodes
         for (const h32 node : nodes)
@@ -427,7 +499,7 @@ namespace oblo
             {
                 // Start the node dragging, store the offset to set the frame of reference over multiple frames
                 set_drag_source(node);
-                selectedNode = node;
+                select_node(node);
                 dragOffset = screen_to_logical(io.MousePos, origin) - pos;
                 clickedOnAnyNode = true;
             }
@@ -441,7 +513,7 @@ namespace oblo
         }
         else if (!clickedOnAnyNode && isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
         {
-            selectedNode = {};
+            reset_selection();
         }
 
         if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
