@@ -15,7 +15,8 @@ namespace oblo
         virtual void on_create(const node_graph_context& g) = 0;
         virtual void on_input_change(const node_graph_context& g) = 0;
 
-        virtual void store(data_document& doc, u32 nodeIndex) const = 0;
-        virtual void load(const data_document& doc, u32 nodeIndex) = 0;
+        virtual void fill_properties_schema(data_document& doc, u32 nodeIndex) const = 0;
+        virtual void store_properties(data_document& doc, u32 nodeIndex) const = 0;
+        virtual void load_properties(const data_document& doc, u32 nodeIndex) = 0;
     };
 }

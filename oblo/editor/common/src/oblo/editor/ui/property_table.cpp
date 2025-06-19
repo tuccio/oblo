@@ -20,7 +20,7 @@ namespace oblo::editor::ui
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         }
 
-        void setup_property(cstring_view name)
+        void setup_property(string_view name)
         {
             constexpr f32 rowHeight = 28.f;
 
@@ -33,7 +33,7 @@ namespace oblo::editor::ui
 
             ImGui::SetCursorPosY(ImGui::GetCursorPosY() + (rowHeight - ImGui::GetTextLineHeight()) * .5f);
 
-            ImGui::TextUnformatted(name.c_str());
+            ImGui::TextUnformatted(name.begin(), name.end());
 
             ImGui::TableSetColumnIndex(1);
 
@@ -58,12 +58,12 @@ namespace oblo::editor::ui
         ImGui::EndTable();
     }
 
-    void editor::ui::property_table::add_empty(cstring_view name)
+    void editor::ui::property_table::add_empty(string_view name)
     {
         setup_property(name);
     }
 
-    bool property_table::add(id_t id, cstring_view name, bool& v)
+    bool property_table::add(id_t id, string_view name, bool& v)
     {
         setup_property(name);
 
@@ -73,7 +73,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add(id_t id, cstring_view name, u32& v)
+    bool property_table::add(id_t id, string_view name, u32& v)
     {
         setup_property(name);
 
@@ -83,7 +83,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add(id_t id, cstring_view name, f32& v)
+    bool property_table::add(id_t id, string_view name, f32& v)
     {
         setup_property(name);
 
@@ -93,7 +93,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add(id_t id, cstring_view name, vec2& v)
+    bool property_table::add(id_t id, string_view name, vec2& v)
     {
         setup_property(name);
 
@@ -103,7 +103,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add(id_t id, cstring_view name, vec3& v)
+    bool property_table::add(id_t id, string_view name, vec3& v)
     {
         setup_property(name);
 
@@ -113,7 +113,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add(id_t id, cstring_view name, vec4& v)
+    bool property_table::add(id_t id, string_view name, vec4& v)
     {
         setup_property(name);
 
@@ -123,7 +123,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add(id_t id, cstring_view name, mat4& v)
+    bool property_table::add(id_t id, string_view name, mat4& v)
     {
         setup_property(name);
 
@@ -146,7 +146,7 @@ namespace oblo::editor::ui
         return modified;
     }
 
-    bool property_table::add(id_t id, cstring_view name, quaternion& v)
+    bool property_table::add(id_t id, string_view name, quaternion& v)
     {
         setup_property(name);
 
@@ -168,12 +168,12 @@ namespace oblo::editor::ui
         return anyChange;
     }
 
-    bool property_table::add(id_t id, cstring_view name, degrees& v)
+    bool property_table::add(id_t id, string_view name, degrees& v)
     {
         return add(id, name, v.value);
     }
 
-    bool property_table::add(id_t id, cstring_view name, radians& v)
+    bool property_table::add(id_t id, string_view name, radians& v)
     {
         degrees d{v};
         const bool r = add(id, name, d);
@@ -186,7 +186,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add_color(id_t id, cstring_view name, vec3& v)
+    bool property_table::add_color(id_t id, string_view name, vec3& v)
     {
         setup_property(name);
 
@@ -196,7 +196,7 @@ namespace oblo::editor::ui
         return r;
     }
 
-    bool property_table::add(id_t id, cstring_view name, uuid& anyUuid)
+    bool property_table::add(id_t id, string_view name, uuid& anyUuid)
     {
         setup_property(name);
 
@@ -211,8 +211,7 @@ namespace oblo::editor::ui
         return false;
     }
 
-    bool property_table::add(
-        id_t id, cstring_view name, uuid& artifactId, artifact_picker& picker, const uuid& typeUuid)
+    bool property_table::add(id_t id, string_view name, uuid& artifactId, artifact_picker& picker, const uuid& typeUuid)
     {
         setup_property(name);
 
@@ -226,7 +225,7 @@ namespace oblo::editor::ui
     }
 
     bool property_table::add_enum(
-        id_t id, cstring_view name, void* v, const type_id& typeId, const reflection::reflection_registry& reflection)
+        id_t id, string_view name, void* v, const type_id& typeId, const reflection::reflection_registry& reflection)
     {
         bool modified = false;
 
@@ -279,7 +278,7 @@ namespace oblo::editor::ui
         return modified;
     }
 
-    bool property_table::add_input_text(id_t id, cstring_view name, char* buffer, usize size)
+    bool property_table::add_input_text(id_t id, string_view name, char* buffer, usize size)
     {
         setup_property(name);
 

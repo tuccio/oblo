@@ -3,11 +3,12 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/nodes/node_interface.hpp>
+#include <oblo/script/nodes/zero_properties_node.hpp>
 
 namespace oblo
 {
     template <typename Base>
-    class binary_operator_base : public node_interface
+    class binary_operator_base : public zero_properties_node
     {
     public:
         void on_create(const node_graph_context& g)
@@ -32,10 +33,6 @@ namespace oblo
         {
             // TODO: Deduce output
         }
-
-        void store(data_document&, u32) const {}
-
-        void load(const data_document&, u32) {}
     };
 
     class add_operator final : public binary_operator_base<add_operator>

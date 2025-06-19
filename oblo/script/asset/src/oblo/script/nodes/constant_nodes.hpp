@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/type_id.hpp>
 #include <oblo/nodes/node_interface.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -10,7 +11,7 @@ namespace oblo
     class constant_node_base : public node_interface
     {
     public:
-        void on_create(const node_graph_context& g)
+        void on_create(const node_graph_context& g) override
         {
             g.add_out_pin({
                 .id = "3168ae07-af54-4a01-a861-7c56d7d90418"_uuid,
@@ -18,17 +19,23 @@ namespace oblo
             });
         }
 
-        void on_input_change(const node_graph_context&)
+        void on_input_change(const node_graph_context&) override
         {
             OBLO_ASSERT(false, "This should not happen, we have no inputs");
         }
 
-        void store(data_document& doc, u32 nodeIndex) const
+        void fill_properties_schema(data_document& doc, u32 nodeIndex) const override
+        {
+            constexpr type_id type = get_type_id<T>();
+            doc.child_value(nodeIndex, "value"_hsv, property_value_wrapper{type.name});
+        }
+
+        void store_properties(data_document& doc, u32 nodeIndex) const override
         {
             doc.child_value(nodeIndex, "value"_hsv, property_value_wrapper{m_value});
         }
 
-        void load(const data_document& doc, u32 nodeIndex)
+        void load_properties(const data_document& doc, u32 nodeIndex) override
         {
             const auto childIndex = doc.find_child(nodeIndex, "value"_hsv);
             const auto r = Base::read_value(doc, childIndex);

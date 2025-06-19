@@ -33,8 +33,9 @@ namespace oblo
 
             void on_input_change(const node_graph_context&) override {}
 
-            void store(data_document&, u32) const override {}
-            void load(const data_document&, u32) override {}
+            void fill_properties_schema(data_document&, u32) const override {}
+            void store_properties(data_document&, u32) const override {}
+            void load_properties(const data_document&, u32) override {}
 
         private:
             h32<node_graph_in_pin> m_firstOperand{};
@@ -55,12 +56,10 @@ namespace oblo
 
             void on_input_change(const node_graph_context&) override {}
 
-            void store(data_document&, u32) const override
-            {
-                // TODO: Store float
-            }
+            void fill_properties_schema(data_document&, u32) const override {}
+            void store_properties(data_document&, u32) const override {}
 
-            void load(const data_document& doc, u32 nodeIndex) override
+            void load_properties(const data_document& doc, u32 nodeIndex) override
             {
                 const auto valueIndex = doc.find_child(nodeIndex, "value"_hsv);
                 m_value = doc.read_f32(valueIndex).value_or(0.f);

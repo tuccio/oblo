@@ -49,8 +49,9 @@ namespace oblo
         void fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins) const;
         void fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins) const;
 
-        void store(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const;
-        void load(h32<node_graph_node> nodeHandle, const data_document& doc, u32 docNodeIndex);
+        void fill_properties_schema(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const;
+        void store_properties(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const;
+        void load_properties(h32<node_graph_node> nodeHandle, const data_document& doc, u32 docNodeIndex);
 
         bool can_connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst) const;
         bool connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst);

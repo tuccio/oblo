@@ -6,13 +6,17 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/editor/ui/property_table.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2i.hpp>
 #include <oblo/nodes/editor/node_editor.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -98,11 +102,605 @@ namespace oblo
 
             return clipRect.Overlaps({minX, minY, maxX, maxY});
         }
+
+        [[nodiscard]] bool handle_property(hashed_string_view valueType,
+            const oblo::data_document& schemaDoc,
+            oblo::data_document& propertiesDoc,
+            oblo::u32 child)
+        {
+            bool modified = false;
+
+            if (valueType == get_type_id<f32>().name)
+            {
+                const auto propertyName = schemaDoc.get_node_name(child);
+
+                const u32 propertyChild = propertiesDoc.find_child(propertiesDoc.get_root(), propertyName);
+
+                f32 value = propertiesDoc.read_f32(propertyChild).value_or(0.f);
+
+                if (editor::ui::property_table::add(ImGui::GetID(propertyName.begin(), propertyName.end()),
+                        propertyName,
+                        value))
+                {
+                    const property_value_wrapper w{value};
+
+                    if (propertyChild == data_node::Invalid)
+                    {
+                        propertiesDoc.child_value(propertiesDoc.get_root(), propertyName, w);
+                    }
+                    else
+                    {
+                        propertiesDoc.make_value(propertyChild, w);
+                    }
+
+                    modified = true;
+                }
+            }
+
+            return modified;
+        }
     }
 
     struct node_editor::impl
     {
-        void update();
+
+        void update()
+        {
+            auto& io = ImGui::GetIO();
+
+            const u32 nodeBackgroundColor = ImGui::GetColorU32(ImGuiCol_TableRowBgAlt, g_NodeBackgroundAlpha);
+            const u32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
+            const u32 nodeBorderColor = ImGui::GetColorU32(ImGuiCol_Border);
+            const u32 selectedNodeBorderColor = ImGui::GetColorU32(ImGuiCol_Text);
+            const u32 gridColor = ImGui::GetColorU32(ImGuiCol_Border);
+
+            const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+
+            ImGui::SetNextItemAllowOverlap();
+            ImGui::InvisibleButton("canvas",
+                canvasSize,
+                ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+
+            const bool isCanvasHovered = ImGui::IsItemHovered();
+            const bool isCanvasActive = ImGui::IsItemActive();
+            const bool isCanvasFocused = ImGui::IsItemFocused();
+
+            const ImVec2 canvasPos = ImGui::GetItemRectMin();
+            ImDrawList* const drawList = ImGui::GetWindowDrawList();
+
+            drawListSplitter.Clear();
+            drawListSplitter.Split(drawList, i32(draw_list_channel::enum_max));
+
+            // Handle panning
+            const bool isPanning = isCanvasActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right);
+
+            if (isPanning)
+            {
+                panOffset += io.MouseDelta;
+            }
+            else if (!disableRightClickContextMenuNextFrame)
+            {
+                ImGui::OpenPopupOnItemClick(g_AddNodePopup, ImGuiPopupFlags_MouseButtonRight);
+            }
+
+            disableRightClickContextMenuNextFrame = isPanning;
+
+            // Handle zoom
+            if (isCanvasHovered)
+            {
+                const f32 wheel = io.MouseWheel;
+
+                if (wheel != 0.0f)
+                {
+                    const ImVec2 mouseInCanvas = io.MousePos - canvasPos - panOffset;
+                    const f32 prevZoom = zoom;
+                    zoom = ImClamp(zoom + wheel * g_ZoomSpeed, g_MinZoom, g_MaxZoom);
+                    panOffset -= mouseInCanvas * (zoom - prevZoom);
+                }
+            }
+
+            const ImVec2 origin = canvasPos + panOffset;
+
+            const ImRect canvasAabb{canvasPos, canvasPos + canvasSize};
+
+            // Draw grid
+            const f32 gridStep = 64.f * zoom;
+
+            for (f32 x = std::fmodf(panOffset.x, gridStep); x < canvasSize.x; x += gridStep)
+            {
+                drawList->AddLine(ImVec2(canvasPos.x + x, canvasPos.y),
+                    ImVec2(canvasPos.x + x, canvasPos.y + canvasSize.y),
+                    gridColor);
+            }
+
+            for (f32 y = std::fmodf(panOffset.y, gridStep); y < canvasSize.y; y += gridStep)
+            {
+                drawList->AddLine(ImVec2(canvasPos.x, canvasPos.y + y),
+                    ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + y),
+                    gridColor);
+            }
+
+            dynamic_array<h32<node_graph_node>> nodes;
+            graph->fetch_nodes(nodes);
+
+            // Should maybe increase it to avoid running GC too often
+            constexpr u32 gcThreshold = 0;
+
+            const bool shouldGC = nodes.size() > gcThreshold + nodeUiData.size();
+
+            h32_flat_extpool_dense_set<node_graph_node> gcSet;
+
+            if (shouldGC)
+            {
+                gcSet.reserve_dense(nodeUiData.size());
+                gcSet.reserve_sparse(nodeUiData.size());
+
+                for (const h32 node : nodeUiData.keys())
+                {
+                    gcSet.emplace(node);
+                }
+            }
+
+            // Add all new nodes to the nodeUiData map, calculate new screenPositions
+            for (const h32 node : nodes)
+            {
+                const auto [it, inserted] = nodeUiData.emplace(node);
+
+                if (inserted)
+                {
+                    it->zOrder = increment_z_order();
+                }
+                else if (shouldGC)
+                {
+                    gcSet.erase(node);
+                }
+
+                const auto [posX, posY] = graph->get_ui_position(node);
+                const ImVec2 pos{posX, posY};
+
+                // TODO: Actually need to calculate the size properly
+                const ImVec2 nodeSizeLogical{ImVec2(250, 350)};
+
+                it->screenPosition = logical_to_screen(pos, origin);
+                it->screenSize = nodeSizeLogical * zoom;
+            }
+
+            if (shouldGC)
+            {
+                for (const h32 removedNode : gcSet.keys())
+                {
+                    nodeUiData.erase(removedNode);
+                }
+            }
+
+            data_document schemaDoc;
+            data_document propertiesDoc;
+
+            dynamic_array<h32<node_graph_in_pin>> inputPins;
+            dynamic_array<h32<node_graph_out_pin>> outputPins;
+
+            bool clickedOnAnyNode = false;
+            graph_element mouseHoveringElement = graph_element::nil;
+
+            ImVec2 hoveredPinScreenPos;
+
+            // Sort by Z order before drawing
+            std::sort(nodes.begin(),
+                nodes.end(),
+                [this](const h32<node_graph_node> lhs, const h32<node_graph_node> rhs)
+                { return nodeUiData.at(lhs).zOrder < nodeUiData.at(rhs).zOrder; });
+
+            // Settings for the looks and positioning of pins
+            constexpr f32 pinInvisibleButtonPadding = 1.0f;
+            constexpr f32 pinRadius = 5.0f;
+            constexpr f32 pinTextMargin = 4.0f;
+            constexpr f32 pinRowMargin = 4.0f;
+            constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
+            constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
+
+            const f32 firstY = (g_TitleBarHeight + pinRowMargin);
+            const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
+
+            // We may want to have fonts available with different sizes, so it doesn't look as bad as it does when
+            // zooming in/out
+            ImFont* const font = ImGui::GetFont();
+            const f32 fontSize = ImGui::GetFontSize() * zoom;
+
+            // Draw nodes
+            drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
+
+            const f32 rounding = g_NodeRounding * zoom;
+            const f32 titleBarScreenHeight = g_TitleBarHeight * zoom;
+
+            string_builder stringBuilder;
+
+            for (const h32 node : nodes)
+            {
+                const auto& uiData = nodeUiData.at(node);
+
+                const ImVec2 nodeScreenPos = uiData.screenPosition;
+                const ImVec2 nodeScreenSize = uiData.screenSize;
+                const ImVec2 nodeRectMin = nodeScreenPos;
+                const ImVec2 nodeRectMax = nodeScreenPos + nodeScreenSize;
+
+                // Used for clipping, we might still want to draw edges even when clipping nodes
+                const ImVec2 nodeClipPadding{16.f, 16.f};
+                const ImRect nodeClipRect{nodeRectMin - nodeClipPadding, nodeRectMax + nodeClipPadding};
+
+                const bool isNodeVisible = is_visible(canvasAabb, nodeClipRect);
+
+                if (isNodeVisible)
+                {
+                    ImGui::SetCursorScreenPos(nodeScreenPos);
+                    ImGui::SetNextItemAllowOverlap();
+                    ImGui::InvisibleButton(stringBuilder.clear().format("##node{}", node.value).c_str(),
+                        nodeScreenSize);
+
+                    // Draw node body
+                    drawList->AddRectFilled(nodeScreenPos + ImVec2(0, titleBarScreenHeight),
+                        nodeRectMax,
+                        nodeBackgroundColor,
+                        rounding,
+                        ImDrawFlags_RoundCornersBottom);
+
+                    // Draw title bar
+                    drawList->AddRectFilled(nodeRectMin,
+                        nodeScreenPos + ImVec2(nodeScreenSize.x, titleBarScreenHeight),
+                        g_TitleBackground,
+                        rounding,
+                        ImDrawFlags_RoundCornersTop);
+
+                    // Highlight selected nodes with a white border
+                    drawList->AddRect(nodeRectMin,
+                        nodeRectMax,
+                        selectedNode == node ? selectedNodeBorderColor : nodeBorderColor,
+                        rounding);
+
+                    cstring_view titleBarContent;
+
+                    const uuid& nodeType = graph->get_type(node);
+
+                    if (auto* const desc = graph->get_registry().find_node(nodeType))
+                    {
+                        titleBarContent = desc->name;
+                    }
+                    else
+                    {
+                        titleBarContent = "Unknown node";
+                    }
+
+                    drawList->AddText(font,
+                        fontSize,
+                        nodeScreenPos + g_TitleTextMargin * zoom,
+                        textColor,
+                        titleBarContent.c_str());
+                }
+
+                bool inputConsumed = false;
+
+                const f32 pinInvisibleButtonSize = max(1.f, (pinInvisibleButtonPadding + pinRadius * 2) * zoom);
+                const ImVec2 pinInvisibleButtonSize2d{pinInvisibleButtonSize, pinInvisibleButtonSize};
+
+                // Draw input pins, when the node is not visible we might still want to draw edges, if those are not
+                // clipped (e.g. the source is visible)
+
+                inputPins.clear();
+                graph->fetch_in_pins(node, inputPins);
+
+                for (u32 i = 0; i < inputPins.size32(); ++i)
+                {
+                    const h32 pin = inputPins[i];
+
+                    if (isNodeVisible)
+                    {
+                        drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
+
+                        const f32 y = firstY + pinRowHeight * i;
+                        const ImVec2 pinScreenPos =
+                            nodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(y, pinRowHeight, zoom)};
+                        drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
+
+                        // Use an invisible button for input pin
+                        ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
+
+                        const bool isPinPressed =
+                            ImGui::InvisibleButton(stringBuilder.format("##ipin{}", pin.value).c_str(),
+                                ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
+                                ImGuiButtonFlags_PressedOnClick);
+
+                        const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+                        if (isPinHovered)
+                        {
+                            // Draw pin highlight when hovered
+                            drawList->AddCircle(pinScreenPos,
+                                pinRadius * zoom,
+                                g_PinHoverColor,
+                                0,
+                                g_PinHoverThickness);
+                        }
+
+                        // Handle dragging inputs
+                        if (isPinPressed)
+                        {
+                            dragOffset = screen_to_logical(pinScreenPos, origin);
+                            set_drag_source(pin);
+                            inputConsumed = true;
+
+                            // Clear input on click regardless
+                            graph->clear_connected_output(pin);
+                        }
+                        else if (isPinHovered)
+                        {
+                            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                            {
+                                // If we were dragging an edge, connect it
+                                if (dragSource == graph_element::out_pin)
+                                {
+                                    graph->clear_connected_output(pin);
+                                    graph->connect(draggedOutPin, pin);
+                                }
+
+                                reset_drag_source();
+                            }
+
+                            mouseHoveringElement = graph_element::in_pin;
+                            hoveredPinScreenPos = pinScreenPos;
+                        }
+
+                        const cstring_view name = graph->get_name(pin);
+
+                        drawList->AddText(font,
+                            fontSize,
+                            pinScreenPos + ImVec2(pinRadius + pinTextMargin, -ImGui::GetFontSize() * .5f) * zoom,
+                            textColor,
+                            name.c_str());
+                    }
+
+                    if (const auto srcPin = graph->get_connected_output(pin))
+                    {
+                        const auto srcNode = graph->get_owner_node(srcPin);
+
+                        const auto& srcNodeUiData = nodeUiData.at(srcNode);
+                        const auto& dstNodeUiData = nodeUiData.at(node);
+
+                        const ImVec2 srcNodeScreenPos = srcNodeUiData.screenPosition;
+                        const ImVec2 dstNodeScreenPos = dstNodeUiData.screenPosition;
+
+                        const f32 dstY = firstY + pinRowHeight * i;
+
+                        const ImVec2 dstPinScreenPos =
+                            dstNodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(dstY, pinRowHeight, zoom)};
+
+                        // Find the pin index at the source to calculate
+                        outputPins.clear();
+                        graph->fetch_out_pins(srcNode, outputPins);
+
+                        u32 srcIndex = 0;
+
+                        for (u32 j = 0; j < outputPins.size32(); ++j)
+                        {
+                            if (outputPins[j] == srcPin)
+                            {
+                                srcIndex = j;
+                                break;
+                            }
+                        }
+
+                        const f32 srcY = firstY + pinRowHeight * srcIndex;
+
+                        const ImVec2 srcPinScreenPos = srcNodeScreenPos +
+                            ImVec2{srcNodeUiData.screenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
+
+                        // TODO: Clipping of the edge
+                        const auto curve = calculate_edge_control_points(srcPinScreenPos, dstPinScreenPos);
+
+                        if (is_visible(canvasAabb, curve))
+                        {
+                            drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
+                            draw_edge(*drawList, curve, g_EdgeColor);
+                        }
+                    }
+                }
+
+                if (isNodeVisible)
+                {
+                    // Draw output pins, only if the node is visible
+                    outputPins.clear();
+                    graph->fetch_out_pins(node, outputPins);
+
+                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
+
+                    for (u32 i = 0; i < outputPins.size32(); ++i)
+                    {
+                        const h32 pin = outputPins[i];
+
+                        const f32 y = firstY + pinRowHeight * i;
+                        const ImVec2 pinScreenPos =
+                            nodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(y, pinRowHeight, zoom)};
+                        drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
+
+                        // Use an invisible button for output pin
+                        ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
+                        const bool isPinPressed =
+                            ImGui::InvisibleButton(stringBuilder.format("##opin{}", pin.value).c_str(),
+                                ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
+                                ImGuiButtonFlags_PressedOnClick);
+
+                        const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+                        if (isPinHovered)
+                        {
+                            // Draw pin highlight when hovered
+                            drawList->AddCircle(pinScreenPos,
+                                pinRadius * zoom,
+                                g_PinHoverColor,
+                                0,
+                                g_PinHoverThickness);
+                        }
+
+                        const cstring_view name = graph->get_name(pin);
+                        const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+
+                        drawList->AddText(font,
+                            fontSize,
+                            pinScreenPos -
+                                ImVec2(textSize.x + pinRadius + pinTextMargin, ImGui::GetFontSize() * .5f) * zoom,
+                            textColor,
+                            name.c_str());
+
+                        // Handle dragging outputs
+                        if (isPinPressed)
+                        {
+                            dragOffset = screen_to_logical(pinScreenPos, origin);
+                            set_drag_source(pin);
+                            inputConsumed = true;
+                        }
+                        else if (isPinHovered)
+                        {
+                            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                            {
+                                // If we were dragging an edge, connect it
+                                if (dragSource == graph_element::in_pin)
+                                {
+                                    graph->clear_connected_output(draggedInPin);
+                                    graph->connect(pin, draggedInPin);
+                                }
+
+                                reset_drag_source();
+                            }
+
+                            mouseHoveringElement = graph_element::out_pin;
+                            hoveredPinScreenPos = pinScreenPos;
+                        }
+                    }
+
+                    // Draw the properties inside the node
+                    schemaDoc.init();
+                    propertiesDoc.init();
+
+                    graph->fill_properties_schema(node, schemaDoc, schemaDoc.get_root());
+
+                    if (schemaDoc.children_count(schemaDoc.get_root() > 0))
+                    {
+                        graph->store_properties(node, propertiesDoc, propertiesDoc.get_root());
+
+                        ImGui::PushStyleColor(ImGuiCol_TableRowBg, nodeBackgroundColor);
+                        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, nodeBackgroundColor);
+
+                        ImGui::SetCursorScreenPos({nodeScreenPos.x + pinTextMargin, ImGui::GetCursorScreenPos().y});
+                        ImGui::SetNextWindowSize({nodeScreenSize.x - 2.f * pinTextMargin, 200});
+
+                        ImGui::BeginChild(stringBuilder.clear().format("##props{}", node.value).c_str(),
+                            {},
+                            true,
+                            ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar);
+
+                        if (editor::ui::property_table::begin())
+                        {
+                            bool modified = false;
+
+                            for (const u32 child : schemaDoc.children(schemaDoc.get_root()))
+                            {
+                                const auto valueType = schemaDoc.read_string(child);
+
+                                if (valueType)
+                                {
+                                    modified |= handle_property(hashed_string_view{valueType->str()},
+                                        schemaDoc,
+                                        propertiesDoc,
+                                        child);
+                                }
+                            }
+
+                            if (modified)
+                            {
+                                graph->load_properties(node, propertiesDoc, propertiesDoc.get_root());
+                            }
+
+                            editor::ui::property_table::end();
+                        }
+
+                        ImGui::EndChild();
+
+                        ImGui::PopStyleColor(2);
+                    }
+                }
+
+                if (!inputConsumed && ImGui::IsMouseHoveringRect(nodeRectMin, nodeRectMax) &&
+                    ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                {
+                    // Start the node dragging, store the offset to set the frame of reference over multiple frames
+                    set_drag_source(node);
+                    select_node(node);
+
+                    const vec2 uiPosition = graph->get_ui_position(node);
+                    dragOffset = screen_to_logical(io.MousePos, origin) - ImVec2{uiPosition.x, uiPosition.y};
+                    clickedOnAnyNode = true;
+                }
+            }
+
+            // Move node if dragging
+            if (dragSource == graph_element::node && draggedNode && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            {
+                const auto [newX, newY] = screen_to_logical(io.MousePos, origin) - dragOffset;
+                graph->set_ui_position(draggedNode, {newX, newY});
+            }
+            else if (!clickedOnAnyNode && isCanvasHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+            {
+                reset_selection();
+            }
+
+            if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            {
+                reset_drag_source();
+            }
+
+            // While dragging, update the dragged edge that will be draw next frame
+            if (dragSource == graph_element::out_pin || dragSource == graph_element::in_pin)
+            {
+                const ImVec2 dragSourceScreen = logical_to_screen(dragOffset, origin);
+
+                ImVec2 curveEndPos = io.MousePos;
+
+                if (mouseHoveringElement != graph_element::nil && dragSource != mouseHoveringElement)
+                {
+                    curveEndPos = hoveredPinScreenPos;
+                }
+
+                const auto curve = calculate_edge_control_points(dragSourceScreen, curveEndPos);
+
+                if (is_visible(canvasAabb, curve))
+                {
+                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
+                    draw_edge(*drawList, curve, g_EdgeColor);
+                }
+            }
+
+            // We are done drawing nodes and edges
+            drawListSplitter.Merge(drawList);
+
+            // Handle node deletion
+            if (isCanvasFocused && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
+            {
+                if (selectedNode)
+                {
+                    graph->remove_node(selectedNode);
+
+                    reset_selection();
+                    reset_drag_source();
+                }
+            }
+
+            if (isCanvasFocused && ImGui::IsKeyPressed(ImGuiKey_Space, false))
+            {
+                // When space is pressed, open the dialog at mouse position
+                ImGui::OpenPopup(g_AddNodePopup);
+                ImGui::SetNextWindowPos(io.MousePos, ImGuiCond_Appearing);
+            }
+
+            draw_add_node_dialog(origin);
+        }
 
         cubic_bezier calculate_edge_control_points(const ImVec2& src, const ImVec2& dst) const;
 
@@ -215,500 +813,6 @@ namespace oblo
     void node_editor::update()
     {
         m_impl->update();
-    }
-
-    void node_editor::impl::update()
-    {
-        auto& io = ImGui::GetIO();
-
-        const u32 nodeBackgroundColor = ImGui::GetColorU32(ImGuiCol_TableRowBgAlt, g_NodeBackgroundAlpha);
-        const u32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
-        const u32 nodeBorderColor = ImGui::GetColorU32(ImGuiCol_Border);
-        const u32 selectedNodeBorderColor = ImGui::GetColorU32(ImGuiCol_Text);
-        const u32 gridColor = ImGui::GetColorU32(ImGuiCol_Border);
-
-        const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-
-        ImGui::SetNextItemAllowOverlap();
-        ImGui::InvisibleButton("canvas",
-            canvasSize,
-            ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
-
-        const bool isCanvasHovered = ImGui::IsItemHovered();
-        const bool isCanvasActive = ImGui::IsItemActive();
-        const bool isCanvasFocused = ImGui::IsItemFocused();
-
-        const ImVec2 canvasPos = ImGui::GetItemRectMin();
-        ImDrawList* const drawList = ImGui::GetWindowDrawList();
-
-        drawListSplitter.Clear();
-        drawListSplitter.Split(drawList, i32(draw_list_channel::enum_max));
-
-        // Handle panning
-        const bool isPanning = isCanvasActive && ImGui::IsMouseDragging(ImGuiMouseButton_Right);
-
-        if (isPanning)
-        {
-            panOffset += io.MouseDelta;
-        }
-        else if (!disableRightClickContextMenuNextFrame)
-        {
-            ImGui::OpenPopupOnItemClick(g_AddNodePopup, ImGuiPopupFlags_MouseButtonRight);
-        }
-
-        disableRightClickContextMenuNextFrame = isPanning;
-
-        // Handle zoom
-        if (isCanvasHovered)
-        {
-            const f32 wheel = io.MouseWheel;
-
-            if (wheel != 0.0f)
-            {
-                const ImVec2 mouseInCanvas = io.MousePos - canvasPos - panOffset;
-                const f32 prevZoom = zoom;
-                zoom = ImClamp(zoom + wheel * g_ZoomSpeed, g_MinZoom, g_MaxZoom);
-                panOffset -= mouseInCanvas * (zoom - prevZoom);
-            }
-        }
-
-        const ImVec2 origin = canvasPos + panOffset;
-
-        const ImRect canvasAabb{canvasPos, canvasPos + canvasSize};
-
-        // Draw grid
-        const f32 gridStep = 64.f * zoom;
-
-        for (f32 x = std::fmodf(panOffset.x, gridStep); x < canvasSize.x; x += gridStep)
-        {
-            drawList->AddLine(ImVec2(canvasPos.x + x, canvasPos.y),
-                ImVec2(canvasPos.x + x, canvasPos.y + canvasSize.y),
-                gridColor);
-        }
-
-        for (f32 y = std::fmodf(panOffset.y, gridStep); y < canvasSize.y; y += gridStep)
-        {
-            drawList->AddLine(ImVec2(canvasPos.x, canvasPos.y + y),
-                ImVec2(canvasPos.x + canvasSize.x, canvasPos.y + y),
-                gridColor);
-        }
-
-        dynamic_array<h32<node_graph_node>> nodes;
-        graph->fetch_nodes(nodes);
-
-        // Should maybe increase it to avoid running GC too often
-        constexpr u32 gcThreshold = 0;
-
-        const bool shouldGC = nodes.size() > gcThreshold + nodeUiData.size();
-
-        h32_flat_extpool_dense_set<node_graph_node> gcSet;
-
-        if (shouldGC)
-        {
-            gcSet.reserve_dense(nodeUiData.size());
-            gcSet.reserve_sparse(nodeUiData.size());
-
-            for (const h32 node : nodeUiData.keys())
-            {
-                gcSet.emplace(node);
-            }
-        }
-
-        // Add all new nodes to the nodeUiData map, calculate new screenPositions
-        for (const h32 node : nodes)
-        {
-            const auto [it, inserted] = nodeUiData.emplace(node);
-
-            if (inserted)
-            {
-                it->zOrder = increment_z_order();
-            }
-            else if (shouldGC)
-            {
-                gcSet.erase(node);
-            }
-
-            const auto [posX, posY] = graph->get_ui_position(node);
-            const ImVec2 pos{posX, posY};
-
-            // TODO: Actually need to calculate the size properly
-            const ImVec2 nodeSizeLogical{ImVec2(250, 350)};
-
-            it->screenPosition = logical_to_screen(pos, origin);
-            it->screenSize = nodeSizeLogical * zoom;
-        }
-
-        if (shouldGC)
-        {
-            for (const h32 removedNode : gcSet.keys())
-            {
-                nodeUiData.erase(removedNode);
-            }
-        }
-
-        dynamic_array<h32<node_graph_in_pin>> inputPins;
-        dynamic_array<h32<node_graph_out_pin>> outputPins;
-
-        bool clickedOnAnyNode = false;
-        graph_element mouseHoveringElement = graph_element::nil;
-
-        ImVec2 hoveredPinScreenPos;
-
-        // Sort by Z order before drawing
-        std::sort(nodes.begin(),
-            nodes.end(),
-            [this](const h32<node_graph_node> lhs, const h32<node_graph_node> rhs)
-            { return nodeUiData.at(lhs).zOrder < nodeUiData.at(rhs).zOrder; });
-
-        // Settings for the looks and positioning of pins
-        constexpr f32 pinInvisibleButtonPadding = 1.0f;
-        constexpr f32 pinRadius = 5.0f;
-        constexpr f32 pinTextMargin = 4.0f;
-        constexpr f32 pinRowMargin = 4.0f;
-        constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
-        constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
-
-        const f32 firstY = (g_TitleBarHeight + pinRowMargin);
-        const f32 pinRowHeight = ImGui::GetFontSize() + pinRowMargin;
-
-        // We may want to have fonts available with different sizes, so it doesn't look as bad as it does when
-        // zooming in/out
-        ImFont* const font = ImGui::GetFont();
-        const f32 fontSize = ImGui::GetFontSize() * zoom;
-
-        // Draw nodes
-        drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
-
-        const f32 rounding = g_NodeRounding * zoom;
-
-        string_builder stringBuilder;
-
-        for (const h32 node : nodes)
-        {
-            const auto& uiData = nodeUiData.at(node);
-
-            const ImVec2 nodeScreenPos = uiData.screenPosition;
-            const ImVec2 nodeScreenSize = uiData.screenSize;
-            const ImVec2 nodeRectMin = nodeScreenPos;
-            const ImVec2 nodeRectMax = nodeScreenPos + nodeScreenSize;
-
-            // Used for clipping, we might still want to draw edges even when clipping nodes
-            const ImVec2 nodeClipPadding{16.f, 16.f};
-            const ImRect nodeClipRect{nodeRectMin - nodeClipPadding, nodeRectMax + nodeClipPadding};
-
-            const bool isNodeVisible = is_visible(canvasAabb, nodeClipRect);
-
-            if (isNodeVisible)
-            {
-                ImGui::SetCursorScreenPos(nodeScreenPos);
-                ImGui::InvisibleButton(stringBuilder.clear().format("##node{}", node.value).c_str(), nodeScreenSize);
-
-                // Draw node body
-                drawList->AddRectFilled(nodeScreenPos + ImVec2(0, g_TitleBarHeight * zoom),
-                    nodeRectMax,
-                    nodeBackgroundColor,
-                    rounding,
-                    ImDrawFlags_RoundCornersBottom);
-
-                // Draw title bar
-                drawList->AddRectFilled(nodeRectMin,
-                    nodeScreenPos + ImVec2(nodeScreenSize.x, g_TitleBarHeight * zoom),
-                    g_TitleBackground,
-                    rounding,
-                    ImDrawFlags_RoundCornersTop);
-
-                // Highlight selected nodes with a white border
-                drawList->AddRect(nodeRectMin,
-                    nodeRectMax,
-                    selectedNode == node ? selectedNodeBorderColor : nodeBorderColor,
-                    rounding);
-
-                cstring_view titleBarContent;
-
-                const uuid& nodeType = graph->get_type(node);
-
-                if (auto* const desc = graph->get_registry().find_node(nodeType))
-                {
-                    titleBarContent = desc->name;
-                }
-                else
-                {
-                    titleBarContent = "Unknown node";
-                }
-
-                drawList->AddText(font,
-                    fontSize,
-                    nodeScreenPos + g_TitleTextMargin * zoom,
-                    textColor,
-                    titleBarContent.c_str());
-            }
-
-            bool inputConsumed = false;
-
-            const f32 pinInvisibleButtonSize = max(1.f, (pinInvisibleButtonPadding + pinRadius * 2) * zoom);
-            const ImVec2 pinInvisibleButtonSize2d{pinInvisibleButtonSize, pinInvisibleButtonSize};
-
-            // Draw input pins, when the node is not visible we might still want to draw edges, if those are not clipped
-            // (e.g. the source is visible)
-
-            inputPins.clear();
-            graph->fetch_in_pins(node, inputPins);
-
-            for (u32 i = 0; i < inputPins.size32(); ++i)
-            {
-                const h32 pin = inputPins[i];
-
-                if (isNodeVisible)
-                {
-                    drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
-
-                    const f32 y = firstY + pinRowHeight * i;
-                    const ImVec2 pinScreenPos =
-                        nodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(y, pinRowHeight, zoom)};
-                    drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
-
-                    // Use an invisible button for input pin
-                    ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
-
-                    const bool isPinPressed =
-                        ImGui::InvisibleButton(stringBuilder.format("##ipin{}", pin.value).c_str(),
-                            ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
-                            ImGuiButtonFlags_PressedOnClick);
-
-                    const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-
-                    if (isPinHovered)
-                    {
-                        // Draw pin highlight when hovered
-                        drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
-                    }
-
-                    // Handle dragging inputs
-                    if (isPinPressed)
-                    {
-                        dragOffset = screen_to_logical(pinScreenPos, origin);
-                        set_drag_source(pin);
-                        inputConsumed = true;
-
-                        // Clear input on click regardless
-                        graph->clear_connected_output(pin);
-                    }
-                    else if (isPinHovered)
-                    {
-                        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-                        {
-                            // If we were dragging an edge, connect it
-                            if (dragSource == graph_element::out_pin)
-                            {
-                                graph->clear_connected_output(pin);
-                                graph->connect(draggedOutPin, pin);
-                            }
-
-                            reset_drag_source();
-                        }
-
-                        mouseHoveringElement = graph_element::in_pin;
-                        hoveredPinScreenPos = pinScreenPos;
-                    }
-
-                    const cstring_view name = graph->get_name(pin);
-
-                    drawList->AddText(font,
-                        fontSize,
-                        pinScreenPos + ImVec2(pinRadius + pinTextMargin, -ImGui::GetFontSize() * .5f) * zoom,
-                        textColor,
-                        name.c_str());
-                }
-
-                if (const auto srcPin = graph->get_connected_output(pin))
-                {
-                    const auto srcNode = graph->get_owner_node(srcPin);
-
-                    const auto& srcNodeUiData = nodeUiData.at(srcNode);
-                    const auto& dstNodeUiData = nodeUiData.at(node);
-
-                    const ImVec2 srcNodeScreenPos = srcNodeUiData.screenPosition;
-                    const ImVec2 dstNodeScreenPos = dstNodeUiData.screenPosition;
-
-                    const f32 dstY = firstY + pinRowHeight * i;
-
-                    const ImVec2 dstPinScreenPos =
-                        dstNodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(dstY, pinRowHeight, zoom)};
-
-                    // Find the pin index at the source to calculate
-                    outputPins.clear();
-                    graph->fetch_out_pins(srcNode, outputPins);
-
-                    u32 srcIndex = 0;
-
-                    for (u32 j = 0; j < outputPins.size32(); ++j)
-                    {
-                        if (outputPins[j] == srcPin)
-                        {
-                            srcIndex = j;
-                            break;
-                        }
-                    }
-
-                    const f32 srcY = firstY + pinRowHeight * srcIndex;
-
-                    const ImVec2 srcPinScreenPos = srcNodeScreenPos +
-                        ImVec2{srcNodeUiData.screenSize.x, calculate_pin_y_offset(srcY, pinRowHeight, zoom)};
-
-                    // TODO: Clipping of the edge
-                    const auto curve = calculate_edge_control_points(srcPinScreenPos, dstPinScreenPos);
-
-                    if (is_visible(canvasAabb, curve))
-                    {
-                        drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
-                        draw_edge(*drawList, curve, g_EdgeColor);
-                    }
-                }
-            }
-
-            // Draw output pins, only if the node is visible
-
-            if (isNodeVisible)
-            {
-                outputPins.clear();
-                graph->fetch_out_pins(node, outputPins);
-
-                drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::nodes));
-
-                for (u32 i = 0; i < outputPins.size32(); ++i)
-                {
-                    const h32 pin = outputPins[i];
-
-                    const f32 y = firstY + pinRowHeight * i;
-                    const ImVec2 pinScreenPos =
-                        nodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(y, pinRowHeight, zoom)};
-                    drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
-
-                    // Use an invisible button for output pin
-                    ImGui::SetCursorScreenPos(pinScreenPos - ImVec2(pinRadius * zoom, pinRadius * zoom));
-                    const bool isPinPressed =
-                        ImGui::InvisibleButton(stringBuilder.format("##opin{}", pin.value).c_str(),
-                            ImVec2(pinRadius * 2 * zoom, pinRadius * 2 * zoom),
-                            ImGuiButtonFlags_PressedOnClick);
-
-                    const bool isPinHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-
-                    if (isPinHovered)
-                    {
-                        // Draw pin highlight when hovered
-                        drawList->AddCircle(pinScreenPos, pinRadius * zoom, g_PinHoverColor, 0, g_PinHoverThickness);
-                    }
-
-                    const cstring_view name = graph->get_name(pin);
-                    const ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
-
-                    drawList->AddText(font,
-                        fontSize,
-                        pinScreenPos -
-                            ImVec2(textSize.x + pinRadius + pinTextMargin, ImGui::GetFontSize() * .5f) * zoom,
-                        textColor,
-                        name.c_str());
-
-                    // Handle dragging outputs
-                    if (isPinPressed)
-                    {
-                        dragOffset = screen_to_logical(pinScreenPos, origin);
-                        set_drag_source(pin);
-                        inputConsumed = true;
-                    }
-                    else if (isPinHovered)
-                    {
-                        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-                        {
-                            // If we were dragging an edge, connect it
-                            if (dragSource == graph_element::in_pin)
-                            {
-                                graph->clear_connected_output(draggedInPin);
-                                graph->connect(pin, draggedInPin);
-                            }
-
-                            reset_drag_source();
-                        }
-
-                        mouseHoveringElement = graph_element::out_pin;
-                        hoveredPinScreenPos = pinScreenPos;
-                    }
-                }
-            }
-
-            if (!inputConsumed && ImGui::IsMouseHoveringRect(nodeRectMin, nodeRectMax) &&
-                ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-            {
-                // Start the node dragging, store the offset to set the frame of reference over multiple frames
-                set_drag_source(node);
-                select_node(node);
-
-                const vec2 uiPosition = graph->get_ui_position(node);
-                dragOffset = screen_to_logical(io.MousePos, origin) - ImVec2{uiPosition.x, uiPosition.y};
-                clickedOnAnyNode = true;
-            }
-        }
-
-        // Move node if dragging
-        if (dragSource == graph_element::node && draggedNode && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-        {
-            const auto [newX, newY] = screen_to_logical(io.MousePos, origin) - dragOffset;
-            graph->set_ui_position(draggedNode, {newX, newY});
-        }
-        else if (!clickedOnAnyNode && isCanvasHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-        {
-            reset_selection();
-        }
-
-        if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
-        {
-            reset_drag_source();
-        }
-
-        // While dragging, update the dragged edge that will be draw next frame
-        if (dragSource == graph_element::out_pin || dragSource == graph_element::in_pin)
-        {
-            const ImVec2 dragSourceScreen = logical_to_screen(dragOffset, origin);
-
-            ImVec2 curveEndPos = io.MousePos;
-
-            if (mouseHoveringElement != graph_element::nil && dragSource != mouseHoveringElement)
-            {
-                curveEndPos = hoveredPinScreenPos;
-            }
-
-            const auto curve = calculate_edge_control_points(dragSourceScreen, curveEndPos);
-
-            if (is_visible(canvasAabb, curve))
-            {
-                drawListSplitter.SetCurrentChannel(drawList, i32(draw_list_channel::edges));
-                draw_edge(*drawList, curve, g_EdgeColor);
-            }
-        }
-
-        // We are done drawing nodes and edges
-        drawListSplitter.Merge(drawList);
-
-        // Handle node deletion
-        if (isCanvasFocused && ImGui::IsKeyPressed(ImGuiKey_Delete, false))
-        {
-            if (selectedNode)
-            {
-                graph->remove_node(selectedNode);
-
-                reset_selection();
-                reset_drag_source();
-            }
-        }
-
-        if (isCanvasFocused && ImGui::IsKeyPressed(ImGuiKey_Space, false))
-        {
-            // When space is pressed, open the dialog at mouse position
-            ImGui::OpenPopup(g_AddNodePopup);
-            ImGui::SetNextWindowPos(io.MousePos, ImGuiCond_Appearing);
-        }
-
-        draw_add_node_dialog(origin);
     }
 
     cubic_bezier node_editor::impl::calculate_edge_control_points(const ImVec2& src, const ImVec2& dst) const

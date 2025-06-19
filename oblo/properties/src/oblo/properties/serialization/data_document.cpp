@@ -59,15 +59,18 @@ namespace oblo
 
     void data_document::init(u32 firstChunkSize)
     {
-        m_firstChunkSize = firstChunkSize;
-
         if (!m_firstChunk)
         {
+            m_firstChunkSize = firstChunkSize;
             m_firstChunk = allocate_chunk(1);
             m_chunksCount = 1;
         }
         else
         {
+            // This is not necessary, although we are ignoring the "hint", if we have a different value here we may want
+            // a different behaviour
+            OBLO_ASSERT(m_firstChunkSize == firstChunkSize);
+
             for (auto* chunk = m_firstChunk; chunk != nullptr; chunk = chunk->next)
             {
                 chunk->used = 0;
