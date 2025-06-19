@@ -185,6 +185,7 @@ namespace oblo
 
         ImDrawListSplitter drawListSplitter;
         ImGuiTextFilter addNodeFilter;
+        ImVec2 addNodePosition;
 
         dynamic_array<node_type_info> nodeTypesInfo;
     };
@@ -741,6 +742,7 @@ namespace oblo
             if (isAppearing)
             {
                 addNodeFilter.Clear();
+                addNodePosition = ImGui::GetMousePos();
             }
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
@@ -775,8 +777,7 @@ namespace oblo
 
                     if (newNode)
                     {
-                        const ImVec2 addNodePos = ImGui::GetWindowPos();
-                        const ImVec2 logicalPos = screen_to_logical(addNodePos, origin);
+                        const ImVec2 logicalPos = screen_to_logical(addNodePosition, origin);
 
                         graph->set_ui_position(newNode, {logicalPos.x, logicalPos.y});
                     }
