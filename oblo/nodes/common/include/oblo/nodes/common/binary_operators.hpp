@@ -2,9 +2,9 @@
 
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/nodes/common/zero_properties_node.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
-#include <oblo/nodes/zero_properties_node.hpp>
 
 namespace oblo
 {

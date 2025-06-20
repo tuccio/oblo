@@ -14,8 +14,10 @@
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/modules/utility/registration.hpp>
-#include <oblo/nodes/binary_operators.hpp>
-#include <oblo/nodes/constant_nodes.hpp>
+#include <oblo/nodes/common/binary_operators.hpp>
+#include <oblo/nodes/common/constant_nodes.hpp>
+#include <oblo/nodes/common/fundamental_types.hpp>
+#include <oblo/nodes/common/input_node.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -129,6 +131,13 @@ namespace oblo
 
         bool finalize() override
         {
+            // Types
+            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>());
+            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>());
+
+            // Nodes
+            m_scriptRegistry.register_node(make_node_descriptor<input_node>());
+
             m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>());
             m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>());
 
