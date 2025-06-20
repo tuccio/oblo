@@ -302,6 +302,8 @@ namespace oblo
                 }
             }
 
+            const node_graph_registry& nodeGraphRegistry = graph->get_registry();
+
             data_document schemaDoc;
             data_document propertiesDoc;
 
@@ -663,12 +665,16 @@ namespace oblo
 
                             for (const u32 child : schemaDoc.children(schemaDoc.get_root()))
                             {
-                                const auto valueType = schemaDoc.read_u32(child);
+                                const auto valueType = schemaDoc.read_uuid(child);
 
-                                if (valueType && *valueType < u32(node_primitive_kind::enum_max))
+                                if (valueType)
                                 {
-                                    const auto kind = node_primitive_kind(*valueType);
-                                    modified |= add_property(kind, schemaDoc, propertiesDoc, child);
+                                    auto* const primitiveType = nodeGraphRegistry.find_primitive_type(*valueType);
+
+                                    if (primitiveType)
+                                    {
+                                        modified |= add_property(primitiveType->kind, schemaDoc, propertiesDoc, child);
+                                    }
                                 }
                             }
 

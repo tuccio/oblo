@@ -133,7 +133,7 @@ namespace oblo
         {
             // Types
             m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>());
-            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>());
+            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>());
 
             // Nodes
             m_scriptRegistry.register_node(make_node_descriptor<input_node>());

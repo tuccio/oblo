@@ -28,9 +28,7 @@ namespace oblo
 
         void fill_properties_schema(data_document& doc, u32 nodeIndex) const override
         {
-            doc.child_value(nodeIndex,
-                "value"_hsv,
-                property_value_wrapper{std::underlying_type_t<node_primitive_kind>(Kind)});
+            doc.child_value(nodeIndex, "value"_hsv, property_value_wrapper{get_node_primitive_type_id<Kind>()});
         }
 
         void store_properties(data_document& doc, u32 nodeIndex) const override
@@ -76,5 +74,4 @@ namespace oblo
             return doc.read_f32(nodeIndex);
         }
     };
-
 }
