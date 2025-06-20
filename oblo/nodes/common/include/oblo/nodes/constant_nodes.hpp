@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/type_id.hpp>
+#include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>

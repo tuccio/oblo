@@ -14,14 +14,14 @@
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/modules/utility/registration.hpp>
+#include <oblo/nodes/binary_operators.hpp>
+#include <oblo/nodes/constant_nodes.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
-#include <oblo/script/nodes/binary_operators.hpp>
-#include <oblo/script/nodes/constant_nodes.hpp>
 
 namespace oblo
 {

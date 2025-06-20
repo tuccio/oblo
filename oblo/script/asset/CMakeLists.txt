@@ -5,6 +5,7 @@ oblo_register_asset_module(script_asset)
 target_link_libraries(
     oblo_script_asset
     PUBLIC
+    oblo::nodes::common
     oblo::nodes::core
     PRIVATE
     oblo::asset
