@@ -14,6 +14,7 @@ namespace oblo
     struct node_graph_node;
     struct node_graph_in_pin;
     struct node_graph_out_pin;
+    struct node_property_descriptor;
     struct pin_descriptor;
     struct uuid;
     struct vec2;
@@ -49,9 +50,11 @@ namespace oblo
         void fetch_in_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_in_pin>>& pins) const;
         void fetch_out_pins(h32<node_graph_node> nodeHandle, dynamic_array<h32<node_graph_out_pin>>& pins) const;
 
-        void fill_properties_schema(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const;
-        void store_properties(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const;
-        void load_properties(h32<node_graph_node> nodeHandle, const data_document& doc, u32 docNodeIndex);
+        void fetch_properties_descriptors(h32<node_graph_node> nodeHandle,
+            dynamic_array<node_property_descriptor>& outPropertyDescriptors) const;
+
+        void store(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const;
+        void load(h32<node_graph_node> nodeHandle, const data_document& doc, u32 docNodeIndex);
 
         bool can_connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst) const;
         bool connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst);

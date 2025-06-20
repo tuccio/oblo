@@ -7,10 +7,10 @@ namespace oblo
     class zero_properties_node : public node_interface
     {
     public:
-        void fill_properties_schema(data_document&, u32) const override {}
+        void fetch_properties_descriptors(dynamic_array<node_property_descriptor>&) const override {}
 
-        void store_properties(data_document&, u32) const override {}
+        void store(data_document&, u32) const override {}
 
-        void load_properties(const data_document&, u32) override {}
+        void load(const data_document&, u32) override {}
     };
 }

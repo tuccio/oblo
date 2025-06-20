@@ -4,6 +4,7 @@
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
+#include <oblo/nodes/node_property_descriptor.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 
@@ -26,17 +27,20 @@ namespace oblo
             OBLO_ASSERT(false, "This should not happen, we have no inputs");
         }
 
-        void fill_properties_schema(data_document& doc, u32 nodeIndex) const override
+        void fetch_properties_descriptors(dynamic_array<node_property_descriptor>& outDescriptors) const override
         {
-            doc.child_value(nodeIndex, "value"_hsv, property_value_wrapper{get_node_primitive_type_id<Kind>()});
+            outDescriptors.push_back({
+                .name = "value",
+                .typeId = get_node_primitive_type_id<Kind>(),
+            });
         }
 
-        void store_properties(data_document& doc, u32 nodeIndex) const override
+        void store(data_document& doc, u32 nodeIndex) const override
         {
             doc.child_value(nodeIndex, "value"_hsv, property_value_wrapper{m_value});
         }
 
-        void load_properties(const data_document& doc, u32 nodeIndex) override
+        void load(const data_document& doc, u32 nodeIndex) override
         {
             const auto childIndex = doc.find_child(nodeIndex, "value"_hsv);
             const auto r = Base::read_value(doc, childIndex);

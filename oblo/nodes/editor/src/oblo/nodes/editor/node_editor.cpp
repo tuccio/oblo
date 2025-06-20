@@ -16,6 +16,7 @@
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
 #include <oblo/nodes/node_primitive_type.hpp>
+#include <oblo/nodes/node_property_descriptor.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 
@@ -134,14 +135,11 @@ namespace oblo
             return modified;
         }
 
-        [[nodiscard]] bool add_property(node_primitive_kind kind,
-            const oblo::data_document& schemaDoc,
-            oblo::data_document& propertiesDoc,
-            oblo::u32 child)
+        [[nodiscard]] bool add_property(
+            const hashed_string_view propertyName, node_primitive_kind kind, oblo::data_document& propertiesDoc)
         {
             bool modified = false;
 
-            const auto propertyName = schemaDoc.get_node_name(child);
             const u32 propertyChild = propertiesDoc.find_child(propertiesDoc.get_root(), propertyName);
 
             switch (kind)
@@ -304,7 +302,8 @@ namespace oblo
 
             const node_graph_registry& nodeGraphRegistry = graph->get_registry();
 
-            data_document schemaDoc;
+            dynamic_array<node_property_descriptor> propertyDescriptors;
+            propertyDescriptors.reserve(32);
             data_document propertiesDoc;
 
             dynamic_array<h32<node_graph_in_pin>> inputPins;
@@ -330,10 +329,10 @@ namespace oblo
 
                     const u32 maxNumPins = max(inputPins.size32(), outputPins.size32());
 
-                    schemaDoc.init();
-                    graph->fill_properties_schema(node, schemaDoc, schemaDoc.get_root());
+                    propertyDescriptors.clear();
+                    graph->fetch_properties_descriptors(node, propertyDescriptors);
 
-                    const u32 numProperties = schemaDoc.children_count(schemaDoc.get_root());
+                    const u32 numProperties = propertyDescriptors.size32();
 
                     // The row height is problematic because ImGui doesn't allow scaling items, so we add extra padding
                     constexpr f32 rowPadding = 5.f;
@@ -635,14 +634,14 @@ namespace oblo
                     }
 
                     // Draw the properties inside the node
-                    schemaDoc.init();
-                    propertiesDoc.init();
+                    propertyDescriptors.clear();
 
-                    graph->fill_properties_schema(node, schemaDoc, schemaDoc.get_root());
+                    graph->fetch_properties_descriptors(node, propertyDescriptors);
 
-                    if (schemaDoc.children_count(schemaDoc.get_root() > 0))
+                    if (!propertyDescriptors.empty())
                     {
-                        graph->store_properties(node, propertiesDoc, propertiesDoc.get_root());
+                        propertiesDoc.init();
+                        graph->store(node, propertiesDoc, propertiesDoc.get_root());
 
                         ImGui::PushStyleVar(ImGuiStyleVar_TabBorderSize, 0);
                         ImGui::PushStyleColor(ImGuiCol_TableBorderStrong, 0);
@@ -663,24 +662,21 @@ namespace oblo
                         {
                             bool modified = false;
 
-                            for (const u32 child : schemaDoc.children(schemaDoc.get_root()))
+                            for (const node_property_descriptor& propertyDesc : propertyDescriptors)
                             {
-                                const auto valueType = schemaDoc.read_uuid(child);
+                                auto* const primitiveType = nodeGraphRegistry.find_primitive_type(propertyDesc.typeId);
 
-                                if (valueType)
+                                if (primitiveType)
                                 {
-                                    auto* const primitiveType = nodeGraphRegistry.find_primitive_type(*valueType);
-
-                                    if (primitiveType)
-                                    {
-                                        modified |= add_property(primitiveType->kind, schemaDoc, propertiesDoc, child);
-                                    }
+                                    modified |= add_property(hashed_string_view{propertyDesc.name},
+                                        primitiveType->kind,
+                                        propertiesDoc);
                                 }
                             }
 
                             if (modified)
                             {
-                                graph->load_properties(node, propertiesDoc, propertiesDoc.get_root());
+                                graph->load(node, propertiesDoc, propertiesDoc.get_root());
                             }
 
                             editor::ui::property_table::end();
