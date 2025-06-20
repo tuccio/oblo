@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/type_id.hpp>
+#include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
@@ -8,7 +9,7 @@
 
 namespace oblo
 {
-    template <typename T, typename Base>
+    template <node_primitive_kind Kind, typename T, typename Base>
     class constant_node_base : public node_interface
     {
     public:
@@ -27,8 +28,9 @@ namespace oblo
 
         void fill_properties_schema(data_document& doc, u32 nodeIndex) const override
         {
-            constexpr type_id type = get_type_id<T>();
-            doc.child_value(nodeIndex, "value"_hsv, property_value_wrapper{type.name});
+            doc.child_value(nodeIndex,
+                "value"_hsv,
+                property_value_wrapper{std::underlying_type_t<node_primitive_kind>(Kind)});
         }
 
         void store_properties(data_document& doc, u32 nodeIndex) const override
@@ -47,11 +49,11 @@ namespace oblo
             }
         }
 
-    protected:
+    private:
         T m_value{};
     };
 
-    class bool_constant_node final : public constant_node_base<bool, bool_constant_node>
+    class bool_constant_node final : public constant_node_base<node_primitive_kind::boolean, bool, bool_constant_node>
     {
     public:
         static constexpr uuid id = "07a7955f-4aa9-4ae6-a781-9d8417755249"_uuid;
@@ -63,7 +65,7 @@ namespace oblo
         }
     };
 
-    class f32_constant_node final : public constant_node_base<f32, f32_constant_node>
+    class f32_constant_node final : public constant_node_base<node_primitive_kind::f32, f32, f32_constant_node>
     {
     public:
         static constexpr uuid id = "53b6e2bf-f0fc-43e3-ade4-25f3a74a42e1"_uuid;

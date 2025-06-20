@@ -1,3 +1,5 @@
+#pragma once
+
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/nodes/node_primitive_type.hpp>
 
@@ -7,30 +9,30 @@ namespace oblo
     constexpr uuid get_node_primitive_type_id();
 
     template <>
-    constexpr uuid get_node_primitive_type_id<node_primitive_kind::boolean>()
+    inline constexpr uuid get_node_primitive_type_id<node_primitive_kind::boolean>()
     {
         return "f6f7e858-2703-442f-8897-40aecbc40c31"_uuid;
-    }
-
-    template <node_primitive_kind Kind>
-    constexpr cstring_view get_node_primitive_type_name();
-
-    template <>
-    constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::boolean>()
-    {
-        return "bool";
-    }
-
-    template <>
-    constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::f32>()
-    {
-        return "f32";
     }
 
     template <>
     constexpr uuid get_node_primitive_type_id<node_primitive_kind::f32>()
     {
         return "a2a92ae2-84e2-42f3-9887-c8c48b4798b6"_uuid;
+    }
+
+    template <node_primitive_kind Kind>
+    constexpr cstring_view get_node_primitive_type_name();
+
+    template <>
+    inline constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::boolean>()
+    {
+        return "bool";
+    }
+
+    template <>
+    inline constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::f32>()
+    {
+        return "f32";
     }
 
     template <node_primitive_kind Kind>

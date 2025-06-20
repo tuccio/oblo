@@ -15,6 +15,7 @@
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
+#include <oblo/nodes/node_primitive_type.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 
@@ -133,7 +134,7 @@ namespace oblo
             return modified;
         }
 
-        [[nodiscard]] bool add_property(hashed_string_view valueType,
+        [[nodiscard]] bool add_property(node_primitive_kind kind,
             const oblo::data_document& schemaDoc,
             oblo::data_document& propertiesDoc,
             oblo::u32 child)
@@ -143,15 +144,19 @@ namespace oblo
             const auto propertyName = schemaDoc.get_node_name(child);
             const u32 propertyChild = propertiesDoc.find_child(propertiesDoc.get_root(), propertyName);
 
-            if (valueType == get_type_id<f32>().name)
+            switch (kind)
             {
+            case node_primitive_kind::f32: {
                 f32 value = propertiesDoc.read_f32(propertyChild).value_or(0.f);
                 modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
             }
-            else if (valueType == get_type_id<bool>().name)
-            {
+            break;
+
+            case node_primitive_kind::boolean: {
                 bool value = propertiesDoc.read_bool(propertyChild).value_or(false);
                 modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
+            }
+            break;
             }
 
             return modified;
@@ -160,8 +165,27 @@ namespace oblo
 
     struct node_editor::impl
     {
-
         void update()
+        {
+            const ImGuiID dockspaceId = ImGui::GetID("oblo_node_editor_dock");
+            ImGui::DockSpace(dockspaceId);
+
+            if (ImGui::Begin("Nodes"))
+            {
+                draw_workspace();
+            }
+
+            ImGui::End();
+
+            if (ImGui::Begin("Inputs"))
+            {
+                // TODO
+            }
+
+            ImGui::End();
+        }
+
+        void draw_workspace()
         {
             auto& io = ImGui::GetIO();
 
@@ -171,7 +195,8 @@ namespace oblo
             const u32 selectedNodeBorderColor = ImGui::GetColorU32(ImGuiCol_Text);
             const u32 gridColor = ImGui::GetColorU32(ImGuiCol_Border);
 
-            const ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+            const auto [contentRegionX, contentRegionY] = ImGui::GetContentRegionAvail();
+            const ImVec2 canvasSize{max(1.f, contentRegionX), max(1.f, contentRegionY)};
 
             ImGui::SetNextItemAllowOverlap();
             ImGui::InvisibleButton("canvas",
@@ -638,14 +663,12 @@ namespace oblo
 
                             for (const u32 child : schemaDoc.children(schemaDoc.get_root()))
                             {
-                                const auto valueType = schemaDoc.read_string(child);
+                                const auto valueType = schemaDoc.read_u32(child);
 
-                                if (valueType)
+                                if (valueType && *valueType < u32(node_primitive_kind::enum_max))
                                 {
-                                    modified |= add_property(hashed_string_view{valueType->str()},
-                                        schemaDoc,
-                                        propertiesDoc,
-                                        child);
+                                    const auto kind = node_primitive_kind(*valueType);
+                                    modified |= add_property(kind, schemaDoc, propertiesDoc, child);
                                 }
                             }
 
