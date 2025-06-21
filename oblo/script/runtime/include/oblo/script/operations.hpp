@@ -73,5 +73,9 @@ namespace oblo
         subf64,
         subi64,
         subu64,
+
+        /// @brief Calls a native API function, looking it up by name using a string in the data segment identified by
+        /// the u16 id in the payload.
+        callapipu16,
     };
 }

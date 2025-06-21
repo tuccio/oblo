@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
@@ -10,7 +11,10 @@
 
 namespace oblo
 {
-    struct function;
+    struct script_function;
+    class interpreter;
+
+    using script_api_fn = function_ref<void(interpreter&)>;
 
     class interpreter
     {
@@ -19,9 +23,11 @@ namespace oblo
 
         void load_module(const bytecode_module& m);
 
-        h32<function> find_function(hashed_string_view name) const;
+        void register_api(string_view name, script_api_fn fn);
 
-        void call_function(h32<function> f);
+        h32<script_function> find_function(hashed_string_view name) const;
+
+        void call_function(h32<script_function> f);
 
         f32 read_f32(u32 stackOffset) const;
         u32 read_u32(u32 stackOffset) const;
@@ -53,6 +59,12 @@ namespace oblo
             instruction_idx address;
         };
 
+        struct read_only_string
+        {
+            string data;
+            usize hash;
+        };
+
     private:
         byte* allocate_stack(u32 size);
         void finish_call();
@@ -65,6 +77,8 @@ namespace oblo
         dynamic_array<call_frame> m_callFrame;
         byte* m_stackMax{};
         dynamic_array<function_info> m_functions;
+        dynamic_array<read_only_string> m_readOnlyStrings;
         std::unordered_map<string, u32, transparent_string_hash, std::equal_to<>> m_functionNames;
+        std::unordered_map<string, script_api_fn, transparent_string_hash, std::equal_to<>> m_apiFunctions;
     };
 }

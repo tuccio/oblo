@@ -1,5 +1,6 @@
 #include <oblo/script/interpreter.hpp>
 
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/unreachable.hpp>
 
 namespace oblo
@@ -119,6 +120,8 @@ namespace oblo
         m_nextInstruction = 0;
         m_code.clear();
         m_callFrame.clear();
+        m_readOnlyStrings.clear();
+        m_apiFunctions.clear();
 
         // The first function is just a dummy for the invalid handle, we could consider using it for an entry point
         m_functions.assign(1, {});
@@ -147,15 +150,31 @@ namespace oblo
                 });
             }
         }
+
+        m_readOnlyStrings.clear();
+        m_readOnlyStrings.reserve(m.readOnlyStrings.size());
+
+        for (const auto& str : m.readOnlyStrings)
+        {
+            m_readOnlyStrings.push_back({
+                .data = str,
+                .hash = hash<string>{}(str),
+            });
+        }
     }
 
-    h32<function> interpreter::find_function(hashed_string_view name) const
+    void interpreter::register_api(string_view name, script_api_fn fn)
+    {
+        m_apiFunctions[string{name}] = fn;
+    }
+
+    h32<script_function> interpreter::find_function(hashed_string_view name) const
     {
         const auto it = m_functionNames.find(name);
-        return it == m_functionNames.end() ? h32<function>{} : h32<function>{it->second};
+        return it == m_functionNames.end() ? h32<script_function>{} : h32<script_function>{it->second};
     }
 
-    void interpreter::call_function(h32<function> f)
+    void interpreter::call_function(h32<script_function> f)
     {
         const auto fnInfo = m_functions[f.value];
 
@@ -426,6 +445,25 @@ namespace oblo
 
             case bytecode_op::instraddr:
                 push_u32(m_nextInstruction);
+                ++m_nextInstruction;
+                break;
+
+            case bytecode_op::callapipu16: {
+                u16 stringId;
+                bytecode_payload::unpack_u16(bytecode.payload, stringId);
+
+                const auto& readOnlyStr = m_readOnlyStrings[stringId];
+
+                const auto it = m_apiFunctions.find(hashed_string_view{readOnlyStr.data, readOnlyStr.hash});
+                OBLO_ASSERT(it != m_apiFunctions.end());
+
+                if (it != m_apiFunctions.end())
+                {
+                    const script_api_fn fn = it->second;
+                    fn(*this);
+                }
+            }
+
                 ++m_nextInstruction;
                 break;
 

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/script/bytecode_module.hpp>
 #include <oblo/script/interpreter.hpp>
 
@@ -117,5 +118,31 @@ namespace oblo
 
         ASSERT_EQ(interp.read_u32(0), N);
         ASSERT_EQ(interp.read_u32(sizeof(u32)), Expected);
+    }
+
+    TEST(script_test, call_native)
+    {
+        bytecode_module m;
+
+        m.readOnlyStrings = {"my_native_fun"};
+
+        m.text = {
+            {bytecode_op::callapipu16, bytecode_payload::pack_u16(0)},
+            {bytecode_op::ret},
+        };
+
+        interpreter interp;
+
+        interp.init(1u << 10);
+        interp.load_module(m);
+        interp.register_api("my_native_fun", [](interpreter& i) { i.push_u32(42); });
+
+        ASSERT_EQ(interp.used_stack_size(), 0);
+        interp.run();
+
+        ASSERT_EQ(interp.used_stack_size(), sizeof(u32));
+
+        const u32 r = interp.read_u32(0);
+        ASSERT_EQ(r, 42);
     }
 }

@@ -19,5 +19,6 @@ namespace oblo
     {
         dynamic_array<exported_function> functions;
         dynamic_array<bytecode_instruction> text;
+        dynamic_array<string> readOnlyStrings;
     };
 }

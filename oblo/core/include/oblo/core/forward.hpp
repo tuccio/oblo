@@ -15,4 +15,7 @@ namespace oblo
 
     template <typename T>
     struct hash;
+
+    template <typename>
+    class function_ref;
 }
