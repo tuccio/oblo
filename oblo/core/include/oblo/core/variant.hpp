@@ -178,4 +178,8 @@ namespace oblo
     {
         return v.visit(std::forward<F>(f));
     }
+
+    struct monostate
+    {
+    };
 }
