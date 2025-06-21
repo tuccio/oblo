@@ -15,6 +15,7 @@ namespace oblo
         root,
         function,
         function_parameter,
+        function_body,
         binary_operator,
         i64_constant,
         u64_constant,
@@ -42,6 +43,11 @@ namespace oblo
 
         string_view name;
         string_view type;
+    };
+
+    struct ast_function_body
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::function_body;
     };
 
     struct ast_binary_operator
@@ -106,6 +112,7 @@ namespace oblo
             ast_root root;
             ast_function function;
             ast_function_parameter functionParameter;
+            ast_function_body functionBody;
             ast_binary_operator binaryOp;
             ast_i64_constant i64;
             ast_u64_constant u64;
@@ -116,6 +123,7 @@ namespace oblo
         } node = {.root = {}};
     };
 
+    /// @brief Abstract syntax tree for stripped down C-like languages.
     class abstract_syntax_tree
     {
     public:
@@ -148,6 +156,12 @@ namespace oblo
         {
             n.kind = ast_node_kind::function_parameter;
             n.node.functionParameter = v;
+        }
+
+        void set_node(ast_node& n, const ast_function_body& v)
+        {
+            n.kind = ast_node_kind::function_body;
+            n.node.functionBody = v;
         }
 
         void set_node(ast_node& n, const ast_binary_operator& v)
