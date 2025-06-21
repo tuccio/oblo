@@ -11,10 +11,10 @@ namespace oblo
 
         // Performs 27 + 15
         m.text = {
-            {opcode::push32lo16, bytecode_payload::pack_u16(15)},
-            {opcode::push32lo16, bytecode_payload::pack_u16(27)},
-            {opcode::addu32},
-            {opcode::ret},
+            {bytecode_op::push32lo16, bytecode_payload::pack_u16(15)},
+            {bytecode_op::push32lo16, bytecode_payload::pack_u16(27)},
+            {bytecode_op::addu32},
+            {bytecode_op::ret},
         };
 
         interpreter interp;
@@ -37,10 +37,10 @@ namespace oblo
 
         // Performs 15 - 27
         m.text = {
-            {opcode::push32lo16, bytecode_payload::pack_u16(27)},
-            {opcode::push32lo16, bytecode_payload::pack_u16(15)},
-            {opcode::subi32},
-            {opcode::ret},
+            {bytecode_op::push32lo16, bytecode_payload::pack_u16(27)},
+            {bytecode_op::push32lo16, bytecode_payload::pack_u16(15)},
+            {bytecode_op::subi32},
+            {bytecode_op::ret},
         };
 
         interpreter interp;
@@ -65,41 +65,41 @@ namespace oblo
         constexpr u16 N = 42;
 
         m.text = {
-            {opcode::push32lo16, bytecode_payload::pack_u16(0)}, // result := 0
-            {opcode::push32lo16, bytecode_payload::pack_u16(B)}, // i := B
+            {bytecode_op::push32lo16, bytecode_payload::pack_u16(0)}, // result := 0
+            {bytecode_op::push32lo16, bytecode_payload::pack_u16(B)}, // i := B
 
             // Copy i to the top of the stack, because leu32 will consume it
-            {opcode::pushcppso, bytecode_payload::pack_2xu8(sizeof(u32), 0)},
-            {opcode::push32lo16, bytecode_payload::pack_u16(N)},
+            {bytecode_op::pushcppso, bytecode_payload::pack_2xu8(sizeof(u32), 0)},
+            {bytecode_op::push32lo16, bytecode_payload::pack_u16(N)},
 
-            {opcode::leu32},
+            {bytecode_op::leu32},
 
             // Load the address to jump to
-            {opcode::instraddr},
+            {bytecode_op::instraddr},
             // Increment address to jump at the end (i.e. the ret instruction)
-            {opcode::incu32pu16, bytecode_payload::pack_u16(10)},
+            {bytecode_op::incu32pu16, bytecode_payload::pack_u16(10)},
 
-            {opcode::jnz32}, // Jump to end if N <= i
+            {bytecode_op::jnz32}, // Jump to end if N <= i
 
             // Copy result and i to the top of the stack
-            {opcode::pushcppso, bytecode_payload::pack_2xu8(sizeof(u32) * 2, 0)},
+            {bytecode_op::pushcppso, bytecode_payload::pack_2xu8(sizeof(u32) * 2, 0)},
 
             // Add them up
-            {opcode::addu32},
+            {bytecode_op::addu32},
 
             // Store the result
-            {opcode::stru32pso, bytecode_payload::pack_2xu8(sizeof(u32), sizeof(u32))},
+            {bytecode_op::stru32pso, bytecode_payload::pack_2xu8(sizeof(u32), sizeof(u32))},
 
             // Increment i by 1
-            {opcode::incu32poi, bytecode_payload::pack_2xu8(0, 1)},
+            {bytecode_op::incu32poi, bytecode_payload::pack_2xu8(0, 1)},
 
             // Jump at the beginning of the loop
-            {opcode::instraddr},
-            {opcode::decu32pu16, bytecode_payload::pack_u16(10)},
+            {bytecode_op::instraddr},
+            {bytecode_op::decu32pu16, bytecode_payload::pack_u16(10)},
 
-            {opcode::jmp},
+            {bytecode_op::jmp},
 
-            {opcode::ret},
+            {bytecode_op::ret},
         };
 
         interpreter interp;

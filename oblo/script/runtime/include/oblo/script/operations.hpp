@@ -4,7 +4,7 @@
 
 namespace oblo
 {
-    enum class opcode : u16
+    enum class bytecode_op : u16
     {
         /// @brief Returns from function, freeing the stack.
         ret,

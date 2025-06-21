@@ -17,12 +17,21 @@ namespace oblo
         function_parameter,
         function_body,
         binary_operator,
+        i32_constant,
+        u32_constant,
         i64_constant,
         u64_constant,
         f32_constant,
         f64_constant,
         variable_declaration,
         variable_reference,
+        return_statement,
+    };
+
+    enum class ast_binary_operator_kind
+    {
+        add_f32,
+        sub_f32,
     };
 
     struct ast_root
@@ -54,7 +63,21 @@ namespace oblo
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::binary_operator;
 
-        string_view op;
+        ast_binary_operator_kind op;
+    };
+
+    struct ast_i32_constant
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::i32_constant;
+
+        i32 value;
+    };
+
+    struct ast_u32_constant
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::u32_constant;
+
+        u32 value;
     };
 
     struct ast_i64_constant
@@ -100,6 +123,11 @@ namespace oblo
         string_view name;
     };
 
+    struct ast_return_statement
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::return_statement;
+    };
+
     struct ast_node
     {
         h32<ast_node> firstChild{};
@@ -114,12 +142,15 @@ namespace oblo
             ast_function_parameter functionParameter;
             ast_function_body functionBody;
             ast_binary_operator binaryOp;
+            ast_i32_constant i32;
+            ast_u32_constant u32;
             ast_i64_constant i64;
             ast_u64_constant u64;
             ast_f32_constant f32;
             ast_f64_constant f64;
             ast_variable_declaration varDecl;
             ast_variable_reference varRef;
+            ast_return_statement retStmt;
         } node = {.root = {}};
     };
 
@@ -170,6 +201,18 @@ namespace oblo
             n.node.binaryOp = v;
         }
 
+        void set_node(ast_node& n, const ast_i32_constant& v)
+        {
+            n.kind = ast_node_kind::i32_constant;
+            n.node.i32 = v;
+        }
+
+        void set_node(ast_node& n, const ast_u32_constant& v)
+        {
+            n.kind = ast_node_kind::u32_constant;
+            n.node.u32 = v;
+        }
+
         void set_node(ast_node& n, const ast_i64_constant& v)
         {
             n.kind = ast_node_kind::i64_constant;
@@ -204,6 +247,12 @@ namespace oblo
         {
             n.kind = ast_node_kind::variable_reference;
             n.node.varRef = v;
+        }
+
+        void set_node(ast_node& n, const ast_return_statement& v)
+        {
+            n.kind = ast_node_kind::return_statement;
+            n.node.retStmt = v;
         }
 
     private:

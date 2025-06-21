@@ -10,6 +10,8 @@ target_link_libraries(
     PRIVATE
     oblo::asset
     oblo::modules
+    oblo::script::compiler
+    oblo::script::resource
 )
 
 add_library(oblo::script::asset ALIAS oblo_script_asset)

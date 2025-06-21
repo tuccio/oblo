@@ -32,7 +32,7 @@ namespace oblo
 
     struct bytecode_instruction
     {
-        opcode op;
+        bytecode_op op;
         bytecode_payload payload;
     };
 }

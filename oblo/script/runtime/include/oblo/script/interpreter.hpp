@@ -23,6 +23,7 @@ namespace oblo
 
         void call_function(h32<function> f);
 
+        f32 read_f32(u32 stackOffset) const;
         u32 read_u32(u32 stackOffset) const;
         i32 read_i32(u32 stackOffset) const;
 

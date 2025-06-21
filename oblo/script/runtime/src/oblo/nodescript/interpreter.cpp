@@ -194,10 +194,10 @@ namespace oblo
 
             switch (bytecode.op)
             {
-            case opcode::ret:
+            case bytecode_op::ret:
                 return;
 
-            case opcode::push32lo16: {
+            case bytecode_op::push32lo16: {
                 u16 v;
                 bytecode_payload::unpack_u16(bytecode.payload, v);
                 push_u32(v);
@@ -206,7 +206,23 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::pushcppso: {
+            case bytecode_op::or32hi16: {
+                u16 v;
+                bytecode_payload::unpack_u16(bytecode.payload, v);
+
+                byte* const ptr = stack_addr<u32>(m_stackTop, 0);
+
+                u32 val;
+                std::memcpy(&val, ptr, sizeof(u32));
+                val |= u32{v} << 16;
+
+                std::memcpy(ptr, &val, sizeof(u32));
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case bytecode_op::pushcppso: {
                 u8 size, offset;
                 bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
                 const byte* const src = m_stackTop - offset - size;
@@ -217,7 +233,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::stru32pso: {
+            case bytecode_op::stru32pso: {
                 u8 size, offset;
                 bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
                 auto* newTop = m_stackTop - sizeof(u32);
@@ -229,13 +245,13 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::retvpso: {
+            case bytecode_op::retvpso: {
                 u8 size, offset;
                 bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
 
                 // Maybe somehow add an assert to check that the range is within the return value part of the stack
                 auto* const rvEnd = m_callFrame.back().restoreStackPtr;
-                auto* const dst = rvEnd - offset;
+                auto* const dst = rvEnd - offset - size;
                 auto* const src = m_stackTop - size;
 
                 std::memcpy(dst, src, size);
@@ -246,83 +262,83 @@ namespace oblo
 
                 // Binary add
 
-            case opcode::addu32:
+            case bytecode_op::addu32:
                 deallocate_stack(m_stackTop, binary_add<u32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::addi32:
+            case bytecode_op::addi32:
                 deallocate_stack(m_stackTop, binary_add<i32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::addf32:
+            case bytecode_op::addf32:
                 deallocate_stack(m_stackTop, binary_add<f32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::addu64:
+            case bytecode_op::addu64:
                 deallocate_stack(m_stackTop, binary_add<u64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::addi64:
+            case bytecode_op::addi64:
                 deallocate_stack(m_stackTop, binary_add<i64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::addf64:
+            case bytecode_op::addf64:
                 deallocate_stack(m_stackTop, binary_add<f64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
                 // Binary sub
 
-            case opcode::subu32:
+            case bytecode_op::subu32:
                 deallocate_stack(m_stackTop, binary_sub<u32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::subi32:
+            case bytecode_op::subi32:
                 deallocate_stack(m_stackTop, binary_sub<i32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::subf32:
+            case bytecode_op::subf32:
                 deallocate_stack(m_stackTop, binary_sub<f32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::subu64:
+            case bytecode_op::subu64:
                 deallocate_stack(m_stackTop, binary_sub<u64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::subi64:
+            case bytecode_op::subi64:
                 deallocate_stack(m_stackTop, binary_sub<i64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::subf64:
+            case bytecode_op::subf64:
                 deallocate_stack(m_stackTop, binary_sub<f64>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
                 // Comparison
 
-            case opcode::geu32:
+            case bytecode_op::geu32:
                 deallocate_stack(m_stackTop, compare_ge<u32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
-            case opcode::leu32:
+            case bytecode_op::leu32:
                 deallocate_stack(m_stackTop, compare_le<u32>(m_stackTop));
                 ++m_nextInstruction;
                 break;
 
                 // Jump
 
-            case opcode::jmp: {
+            case bytecode_op::jmp: {
                 const auto addr = read_stack<address_offset>(m_stackTop, 0);
                 m_nextInstruction = addr;
                 pop(sizeof(address_offset));
@@ -330,7 +346,7 @@ namespace oblo
 
             break;
 
-            case opcode::jnz32: {
+            case bytecode_op::jnz32: {
                 const auto addr = read_stack<address_offset>(m_stackTop, 0);
                 const auto cond = read_stack<u32>(m_stackTop, sizeof(address_offset));
                 pop(sizeof(u32) + sizeof(address_offset));
@@ -340,7 +356,7 @@ namespace oblo
 
             break;
 
-            case opcode::jz32: {
+            case bytecode_op::jz32: {
                 const auto addr = read_stack<address_offset>(m_stackTop, 0);
                 const auto cond = read_stack<u32>(m_stackTop, sizeof(address_offset));
                 pop(sizeof(u32) + sizeof(address_offset));
@@ -352,7 +368,7 @@ namespace oblo
 
                 // Increments
 
-            case opcode::incu32pu16: {
+            case bytecode_op::incu32pu16: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -362,7 +378,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::inci32pu16: {
+            case bytecode_op::inci32pu16: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -372,7 +388,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::incu32poi: {
+            case bytecode_op::incu32poi: {
                 u8 offset, inc;
                 bytecode_payload::unpack_2xu8(bytecode.payload, offset, inc);
 
@@ -388,7 +404,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::decu32pu16: {
+            case bytecode_op::decu32pu16: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -398,7 +414,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::deci32pu16: {
+            case bytecode_op::deci32pu16: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -408,7 +424,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case opcode::instraddr:
+            case bytecode_op::instraddr:
                 push_u32(m_nextInstruction);
                 ++m_nextInstruction;
                 break;
@@ -436,6 +452,11 @@ namespace oblo
         deallocate_stack(m_stackTop, f.restoreStackPtr);
 
         m_callFrame.pop_back();
+    }
+
+    f32 interpreter::read_f32(u32 stackOffset) const
+    {
+        return read_stack<f32>(m_stackTop, stackOffset);
     }
 
     u32 interpreter::read_u32(u32 stackOffset) const
