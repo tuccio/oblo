@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/core/utility.hpp>
 
 namespace oblo
 {
@@ -78,5 +79,17 @@ namespace oblo
     constexpr vec2 operator*(const vec2& lhs, f32 rhs) noexcept
     {
         return rhs * lhs;
+    }
+
+    template <>
+    constexpr vec2 min<vec2>(const vec2 lhs, const vec2 rhs) noexcept
+    {
+        return {min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
+    }
+
+    template <>
+    constexpr vec2 max<vec2>(const vec2 lhs, const vec2 rhs) noexcept
+    {
+        return {max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
     }
 }
