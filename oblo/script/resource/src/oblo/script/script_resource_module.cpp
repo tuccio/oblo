@@ -23,13 +23,8 @@ namespace oblo
                     .typeUuid = resource_type<compiled_script>,
                     .create = []() -> void* { return new compiled_script{}; },
                     .destroy = [](void* ptr) { delete static_cast<compiled_script*>(ptr); },
-                    .load =
-                        [](void*, cstring_view, const any&)
-                    {
-                        // TODO
-
-                        return true;
-                    },
+                    .load = [](void* r, cstring_view source, const any&)
+                    { return load(*static_cast<compiled_script*>(r), source); },
                 });
             }
         };
@@ -53,6 +48,22 @@ namespace oblo
 
         void shutdown() override {}
     };
+
+    bool save(const compiled_script& script, cstring_view destination)
+    {
+        // TODO
+        (void) script;
+        (void) destination;
+        return true;
+    }
+
+    bool load(compiled_script& script, cstring_view source)
+    {
+        // TODO
+        (void) script;
+        (void) source;
+        return true;
+    }
 }
 
 OBLO_MODULE_REGISTER(oblo::script_resource_module)

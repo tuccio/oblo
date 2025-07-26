@@ -576,7 +576,7 @@ namespace oblo
                 import_config{
                     .sourceFile = fileSourcePath.as<string>(),
                 },
-                nativeAssetIt->second.createImporter(),
+                nativeAssetIt->second.createImporter(nativeAssetIt->second.userdata),
             };
 
             importer.set_native_asset_type(meta.nativeAssetType);
@@ -641,7 +641,7 @@ namespace oblo
             return unspecified_error;
         }
 
-        auto fileImporter = desc.createImporter();
+        auto fileImporter = desc.createImporter(desc.userdata);
 
         if (!fileImporter)
         {
@@ -833,7 +833,7 @@ namespace oblo
             {
                 if (importerExt == ext)
                 {
-                    return assetImporter.create();
+                    return assetImporter.create(any{});
                 }
             }
         }
@@ -1886,7 +1886,7 @@ namespace oblo
                         import_config{
                             .sourceFile = sourceFile.as<string>(),
                         },
-                        assetImporter.create(),
+                        assetImporter.create(any{}),
                     };
                 }
             }

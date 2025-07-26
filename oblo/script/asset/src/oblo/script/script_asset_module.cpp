@@ -2,6 +2,7 @@
 #include <oblo/asset/import/copy_importer.hpp>
 #include <oblo/asset/import/import_context.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
+#include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
@@ -24,28 +25,118 @@
 #include <oblo/properties/serialization/json.hpp>
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
+#include <oblo/script/compiler/bytecode_generator.hpp>
+#include <oblo/script/resources/compiled_script.hpp>
+#include <oblo/script/resources/traits.hpp>
 
 namespace oblo
 {
     namespace
     {
-        class dummy_importer : public file_importer
+        bool load_graph(script_graph& g, const node_graph_registry& reg, cstring_view source)
         {
+            g.init(reg);
+
+            data_document doc;
+
+            if (!json::read(doc, source) || !g.deserialize(doc, doc.get_root()))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        class script_graph_importer : public file_importer
+        {
+            static constexpr cstring_view g_ArtifactName = "bytecode.ocscript";
+
         public:
-            bool init(const import_config&, import_preview&) override
+            explicit script_graph_importer(const node_graph_registry& registry) : m_registry{registry} {}
+
+            bool init(const import_config& config, import_preview& preview)
             {
+                m_source = config.sourceFile;
+
+                auto& n = preview.nodes.emplace_back();
+                n.artifactType = resource_type<compiled_script>;
+                n.name = g_ArtifactName;
+
                 return true;
             }
 
-            bool import(import_context) override
+            bool import(import_context ctx)
             {
+                const std::span configs = ctx.get_import_node_configs();
+
+                const auto& nodeConfig = configs[0];
+
+                if (!nodeConfig.enabled)
+                {
+                    return true;
+                }
+
+                string_builder destination;
+                ctx.get_output_path(nodeConfig.id, destination);
+
+                if (!filesystem::create_directories(destination))
+                {
+                    return false;
+                }
+
+                destination.append_path(g_ArtifactName);
+
+                script_graph sg;
+
+                if (!load_graph(sg, m_registry, m_source))
+                {
+                    return false;
+                }
+
+                abstract_syntax_tree ast;
+                ast.init();
+
+                // TODO: Generate the AST
+
+                auto module = bytecode_generator{}.generate_module(ast);
+
+                if (!module)
+                {
+                    return false;
+                }
+
+                compiled_script script;
+                script.module = std::move(*module);
+
+                if (!save(script, destination))
+                {
+                    return false;
+                }
+
+                m_sourceFiles.emplace_back(m_source);
+
+                m_artifact.id = nodeConfig.id;
+                m_artifact.name = g_ArtifactName;
+                m_artifact.path = destination.as<string>();
+                m_artifact.type = resource_type<compiled_script>;
+
                 return true;
             }
 
-            file_import_results get_results() override
+            file_import_results get_results()
             {
-                return {};
+                file_import_results r;
+                r.artifacts = {&m_artifact, 1};
+                r.sourceFiles = m_sourceFiles;
+                r.mainArtifactHint = m_artifact.id;
+                return r;
             }
+
+        private:
+            const node_graph_registry& m_registry{};
+            import_artifact m_artifact{};
+            string m_source;
+            dynamic_array<string> m_sourceFiles;
         };
 
         class script_graph_provider final : public native_asset_provider
@@ -75,7 +166,7 @@ namespace oblo
                         return any_asset{std::move(g)};
                     },
                     .load =
-                        [](any_asset& asset, cstring_view, const any&)
+                        [](any_asset& asset, cstring_view source, const any&)
                     {
                         auto* const self = module_manager::get().find_unique_service<script_graph_provider>();
 
@@ -85,23 +176,41 @@ namespace oblo
                         }
 
                         script_graph g;
-                        g.init(self->m_registry);
+
+                        if (!load_graph(g, self->m_registry, source))
+                        {
+                            return false;
+                        }
 
                         asset.emplace<script_graph>(std::move(g));
-
                         return true;
                     },
                     .save =
-                        [](const any_asset&, cstring_view, cstring_view, const any&)
+                        [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
                     {
-                        return true;
-                        // TODO
+                        auto* const g = asset.as<script_graph>();
+
+                        if (!g)
+                        {
+                            return false;
+                        }
+
+                        data_document doc;
+                        doc.init();
+
+                        if (!g->serialize(doc, doc.get_root()))
+                        {
+                            return false;
+                        }
+
+                        return json::write(doc, destination).has_value();
                     },
-                    .createImporter = []() -> unique_ptr<file_importer>
+                    .createImporter = [](const any& userdata) -> unique_ptr<file_importer>
                     {
-                        // TODO: Actually need to build the script from the graph
-                        return allocate_unique<dummy_importer>();
+                        auto* const* const reg = userdata.as<const node_graph_registry*>();
+                        return allocate_unique<script_graph_importer>(**reg);
                     },
+                    .userdata = make_any<const node_graph_registry*>(&m_registry),
                 });
             }
 

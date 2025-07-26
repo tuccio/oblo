@@ -10,6 +10,15 @@ namespace oblo
         f32 x;
         f32 y;
 
+        constexpr f32& operator[](u32 index)
+        {
+            return *(&x + index);
+        }
+        constexpr const f32& operator[](u32 index) const
+        {
+            return *(&x + index);
+        }
+
         constexpr f32 dot(const vec2& rhs) const noexcept
         {
             return x * rhs.x + y * rhs.y;

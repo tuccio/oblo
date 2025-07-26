@@ -1,4 +1,5 @@
 add_subdirectory(asset)
+add_subdirectory(behaviour)
 add_subdirectory(compiler)
 add_subdirectory(editor)
 add_subdirectory(resource)

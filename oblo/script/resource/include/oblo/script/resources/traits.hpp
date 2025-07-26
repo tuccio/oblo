@@ -4,7 +4,7 @@
 
 namespace oblo
 {
-    class compiled_script;
+    struct compiled_script;
 
     template <>
     struct resource_traits<compiled_script>

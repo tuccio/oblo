@@ -122,6 +122,20 @@ namespace oblo
             return *reinterpret_cast<const U*>(m_buffer);
         }
 
+        template <typename U>
+        U* try_get() noexcept
+            requires(index_of<U>() < types_count)
+        {
+            return is<U>() ? reinterpret_cast<const U*>(m_buffer) : nullptr;
+        }
+
+        template <typename U>
+        const U* try_get() const noexcept
+            requires(index_of<U>() < types_count)
+        {
+            return is<U>() ? reinterpret_cast<const U*>(m_buffer) : nullptr;
+        }
+
         template <typename F>
         decltype(auto) visit(F&& f)
         {
@@ -149,7 +163,7 @@ namespace oblo
         static consteval index_type index_of() noexcept
         {
             constexpr std::array types{meta_id<T>...};
-            constexpr auto target = meta_id<U>;
+            constexpr auto target = meta_id<std::decay_t<std::remove_const_t<U>>>;
 
             for (index_type i = 0; i < types_count; ++i)
             {

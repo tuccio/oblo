@@ -871,11 +871,6 @@ namespace oblo
         m_impl->graph = &g;
 
         m_impl->init_node_types();
-
-        // Add two constant nodes and an add node for testing purposes
-        m_impl->graph->add_node("53b6e2bf-f0fc-43e3-ade4-25f3a74a42e1"_uuid);
-        m_impl->graph->add_node("53b6e2bf-f0fc-43e3-ade4-25f3a74a42e1"_uuid);
-        m_impl->graph->add_node("13514366-b0af-4a25-a4c6-384bd7277a35"_uuid);
     }
 
     void node_editor::update()

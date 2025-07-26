@@ -8,9 +8,10 @@
 
 namespace oblo
 {
+    class any;
     class file_importer;
 
-    using create_file_importer_fn = unique_ptr<file_importer> (*)();
+    using create_file_importer_fn = unique_ptr<file_importer> (*)(const any& userdata);
 
     struct file_importer_descriptor
     {

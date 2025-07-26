@@ -1,12 +1,14 @@
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/asset_editor.hpp>
 #include <oblo/editor/services/editor_directories.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -15,7 +17,10 @@
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
 
+#include <IconsFontAwesome6.h>
+
 #include <imgui.h>
+#include <imgui_internal.h>
 
 namespace oblo::editor
 {
@@ -48,15 +53,15 @@ namespace oblo::editor
                     return false;
                 }
 
-                auto* const sg = asset->as<script_graph>();
+                m_asset = std::move(*asset);
+                auto* const sg = m_asset.as<script_graph>();
 
                 if (!sg)
                 {
                     return false;
                 }
 
-                m_graph = std::move(*sg);
-                m_editor.init(m_graph);
+                m_editor.init(*sg);
 
                 return true;
             }
@@ -69,8 +74,29 @@ namespace oblo::editor
 
                 if (ImGui::Begin("Node Editor",
                         &isOpen,
-                        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+                        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_MenuBar))
                 {
+                    if (ImGui::BeginMenuBar())
+                    {
+                        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(5, 0));
+                        ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+
+                        if (ImGui::Button(ICON_FA_FLOPPY_DISK))
+                        {
+                            if (!save_asset(m_assetRegistry))
+                            {
+                                log::error("Failed to save asset {}", m_assetId);
+                            }
+                        }
+
+                        ImGui::Separator();
+
+                        ImGui::PopStyleColor();
+                        ImGui::PopStyleVar();
+
+                        ImGui::EndMenuBar();
+                    }
+
                     m_editor.update();
                 }
 
@@ -81,15 +107,15 @@ namespace oblo::editor
                 return isOpen;
             }
 
-            expected<> save_asset(asset_registry&) const
+            expected<> save_asset(asset_registry& reg) const
             {
-                return unspecified_error;
+                return reg.save_asset(m_asset, m_assetId);
             }
 
         private:
             asset_registry& m_assetRegistry;
             uuid m_assetId;
-            script_graph m_graph;
+            any_asset m_asset;
             node_editor m_editor;
         };
 

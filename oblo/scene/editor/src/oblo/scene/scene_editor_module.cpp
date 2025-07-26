@@ -70,7 +70,7 @@ namespace oblo
 
                         return m->save(destination);
                     },
-                    .createImporter = []() -> unique_ptr<file_importer>
+                    .createImporter = [](const any&) -> unique_ptr<file_importer>
                     { return allocate_unique<copy_importer>(resource_type<material>, "material"); },
                 });
 
@@ -137,7 +137,7 @@ namespace oblo
 
                         return m->save(destination, *ctx.as<entity_hierarchy_serialization_context>()).has_value();
                     },
-                    .createImporter = []() -> unique_ptr<file_importer>
+                    .createImporter = [](const any&) -> unique_ptr<file_importer>
                     { return allocate_unique<copy_importer>(resource_type<entity_hierarchy>, "scene"); },
                     .userdata = std::move(sceneCtx),
                 });

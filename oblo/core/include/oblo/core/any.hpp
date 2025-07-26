@@ -125,4 +125,12 @@ namespace oblo
     private:
         unique_ptr<any_wrapper> m_wrapper{};
     };
+
+    template <typename T, typename... Args>
+    any make_any(Args&&... args)
+    {
+        any r;
+        r.emplace<T>(std::forward<Args>(args)...);
+        return r;
+    }
 }

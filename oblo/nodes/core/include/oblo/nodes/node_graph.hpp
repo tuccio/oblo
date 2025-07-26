@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/graph/directed_graph.hpp>
+#include <oblo/core/expected.hpp>
 
 #include <span>
 
@@ -72,6 +73,9 @@ namespace oblo
 
         h32<node_graph_node> get_owner_node(h32<node_graph_in_pin> pin) const;
         h32<node_graph_node> get_owner_node(h32<node_graph_out_pin> pin) const;
+
+        expected<> serialize(data_document& doc, u32 nodeIndex) const;
+        expected<> deserialize(const data_document& doc, u32 nodeIndex);
 
     private:
         friend class node_graph_context;

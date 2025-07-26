@@ -3,11 +3,14 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
+#include <oblo/core/overload.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/variant.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
 
 namespace oblo
 {
@@ -19,6 +22,12 @@ namespace oblo
         {
             input_changed,
             enum_max,
+        };
+
+        enum class pin_kind : u8
+        {
+            input,
+            output,
         };
 
         struct node_data
@@ -40,6 +49,9 @@ namespace oblo
 
         struct pin_data
         {
+            // Unique within the node, identifies the pin, used in serialization too.
+            uuid id{};
+
             // The currently deduced type for the pin.
             uuid deducedType{};
 
@@ -47,6 +59,8 @@ namespace oblo
             string name;
 
             node_graph_vertex_handle ownerNode{};
+
+            pin_kind kind;
         };
 
         constexpr node_graph_vertex_handle to_vertex_handle(h32<node_graph_node> h)
@@ -343,8 +357,10 @@ namespace oblo
         const auto pinVertex = m_graph->add_vertex(node_graph::vertex_type{
             .data =
                 pin_data{
+                    .id = desc.id,
                     .name = desc.name,
                     .ownerNode = m_node,
+                    .kind = pin_kind::input,
                 },
         });
 
@@ -363,8 +379,10 @@ namespace oblo
         const auto pinVertex = m_graph->add_vertex(node_graph::vertex_type{
             .data =
                 pin_data{
+                    .id = desc.id,
                     .name = desc.name,
                     .ownerNode = m_node,
+                    .kind = pin_kind::output,
                 },
         });
 
@@ -412,5 +430,229 @@ namespace oblo
         const auto pinVertex = to_vertex_handle(pin);
         const auto& pinData = m_graph.get(pinVertex).data.as<pin_data>();
         return to_node_handle(pinData.ownerNode);
+    }
+
+    namespace
+    {
+        constexpr hashed_string_view g_DocNodesArray = "nodes"_hsv;
+        constexpr hashed_string_view g_DocEdgesArray = "edges"_hsv;
+
+        constexpr hashed_string_view g_DocNodeData = "data"_hsv;
+        constexpr hashed_string_view g_DocNodeId = "id"_hsv;
+        constexpr hashed_string_view g_DocNodeType = "type"_hsv;
+        constexpr hashed_string_view g_DocNodeUIPosition = "uiPosition"_hsv;
+
+        constexpr hashed_string_view g_DocEdgeSourceNode = "sourceNode"_hsv;
+        constexpr hashed_string_view g_DocEdgeSourcePin = "sourcePin"_hsv;
+        constexpr hashed_string_view g_DocEdgeTargetNode = "targetNode"_hsv;
+        constexpr hashed_string_view g_DocEdgeTargetPin = "targetPin"_hsv;
+    }
+
+    expected<> oblo::node_graph::serialize(data_document& doc, u32 nodeIndex) const
+    {
+        const u32 nodesArray = doc.child_array(nodeIndex, g_DocNodesArray);
+        const u32 edgesArray = doc.child_array(nodeIndex, g_DocEdgesArray);
+
+        for (const h32 v : m_graph.get_vertices())
+        {
+            m_graph[v].data.visit(overload{
+                [this, &doc, v, nodesArray](const node_data& node)
+                {
+                    const u32 nodeObj = doc.array_push_back(nodesArray);
+                    doc.make_object(nodeObj);
+
+                    doc.child_value(nodeObj, g_DocNodeId, property_value_wrapper{v.value});
+                    doc.child_value(nodeObj, g_DocNodeType, property_value_wrapper{node.typeId});
+
+                    const u32 uiPosition = doc.child_array(nodeObj, g_DocNodeUIPosition, 2);
+                    const u32 uiPositionX = doc.child_next(uiPosition, data_node::Invalid);
+                    const u32 uiPositionY = doc.child_next(uiPosition, uiPositionX);
+
+                    doc.make_value(uiPositionX, property_value_wrapper{node.uiPosition.x});
+                    doc.make_value(uiPositionY, property_value_wrapper{node.uiPosition.y});
+
+                    const u32 dataNodeIndex = doc.child_object(nodeObj, g_DocNodeType);
+                    store(to_node_handle(v), doc, dataNodeIndex);
+                },
+                [this, &doc, v, edgesArray](const pin_data& srcPin)
+                {
+                    // We visit output pins only, write down edges from the owner to the destination's owner
+                    if (srcPin.kind == pin_kind::input)
+                    {
+                        return;
+                    }
+
+                    const h32 srcVertex = srcPin.ownerNode;
+
+                    for (auto& e : m_graph.get_out_edges(v))
+                    {
+                        const pin_data* const dstPin = m_graph[e.vertex].data.try_get<pin_data>();
+
+                        if (!dstPin)
+                        {
+                            OBLO_ASSERT(dstPin);
+                            continue;
+                        }
+
+                        OBLO_ASSERT(dstPin->kind == pin_kind::input);
+                        const h32 targetVertex = dstPin->ownerNode;
+
+                        const u32 edgeObj = doc.array_push_back(edgesArray);
+                        doc.make_object(edgeObj);
+
+                        doc.child_value(edgeObj, g_DocEdgeSourceNode, property_value_wrapper{srcVertex.value});
+                        doc.child_value(edgeObj, g_DocEdgeTargetNode, property_value_wrapper{targetVertex.value});
+                        doc.child_value(edgeObj, g_DocEdgeSourcePin, property_value_wrapper{srcPin.id});
+                        doc.child_value(edgeObj, g_DocEdgeTargetPin, property_value_wrapper{dstPin->id});
+                    }
+                },
+            });
+        }
+
+        return no_error;
+    }
+
+    expected<> oblo::node_graph::deserialize(const data_document& doc, u32 nodeIndex)
+    {
+        const u32 nodesArray = doc.find_child(nodeIndex, g_DocNodesArray);
+        const u32 edgesArray = doc.find_child(nodeIndex, g_DocEdgesArray);
+
+        if (nodesArray == data_node::Invalid || edgesArray == data_node::Invalid)
+        {
+            return unspecified_error;
+        }
+
+        bool anyNodeFailed = false;
+        bool anyEdgeFailed = false;
+
+        std::unordered_map<u32, h32<node_graph_node>> idToNode;
+
+        for (const u32 nodeObj : doc.children(nodesArray))
+        {
+            const u32 nodeTypeIndex = doc.find_child(nodeObj, g_DocNodeType);
+            const u32 nodeIdIndex = doc.find_child(nodeObj, g_DocNodeId);
+            const u32 nodeUiPosIndex = doc.find_child(nodeObj, g_DocNodeUIPosition);
+            const u32 nodeDataIndex = doc.find_child(nodeObj, g_DocNodeData);
+
+            if (nodeTypeIndex == data_node::Invalid || nodeIdIndex == data_node::Invalid)
+            {
+                anyNodeFailed = true;
+                continue;
+            }
+
+            const auto typeId = doc.read_uuid(nodeTypeIndex);
+            const h32 handle = add_node(*typeId);
+
+            if (!typeId)
+            {
+                anyNodeFailed = true;
+                continue;
+            }
+
+            const auto id = doc.read_u32(nodeIdIndex);
+
+            if (id)
+            {
+                idToNode.emplace(*id, handle);
+            }
+
+            node_data& node = m_graph[to_vertex_handle(handle)].data.as<node_data>();
+
+            if (doc.children_count(nodeUiPosIndex) == 2)
+            {
+                const auto range = doc.children(nodeUiPosIndex);
+
+                u32 i = 0;
+
+                for (const u32 posIndex : doc.children(nodeUiPosIndex))
+                {
+                    node.uiPosition[i] = doc.read_f32(posIndex).value_or(0.f);
+                    ++i;
+
+                    if (i > 2) [[unlikely]]
+                    {
+                        OBLO_ASSERT(false);
+                        break;
+                    }
+                }
+            }
+
+            if (nodeDataIndex != data_node::Invalid)
+            {
+                load(handle, doc, nodeDataIndex);
+            }
+        }
+
+        for (const u32 edgeObj : doc.children(edgesArray))
+        {
+            const u32 edgeSrcNode = doc.find_child(edgeObj, g_DocEdgeSourceNode);
+            const u32 edgeSrcPin = doc.find_child(edgeObj, g_DocEdgeSourcePin);
+            const u32 edgeTargetNode = doc.find_child(edgeObj, g_DocEdgeTargetNode);
+            const u32 edgeTargetPin = doc.find_child(edgeObj, g_DocEdgeTargetPin);
+
+            if (edgeSrcNode == data_node::Invalid || edgeSrcPin == data_node::Invalid ||
+                edgeTargetNode == data_node::Invalid || edgeTargetPin == data_node::Invalid)
+            {
+                anyEdgeFailed = true;
+                continue;
+            }
+
+            const auto srcId = doc.read_u32(edgeSrcNode);
+            const auto dstId = doc.read_u32(edgeTargetNode);
+            const auto srcPin = doc.read_uuid(edgeSrcPin);
+            const auto dstPin = doc.read_uuid(edgeTargetPin);
+
+            if (!srcId || !dstId || !srcPin || !dstPin)
+            {
+                anyEdgeFailed = true;
+                continue;
+            }
+
+            const auto srcNodeIt = idToNode.find(*srcId);
+            const auto dstNodeIt = idToNode.find(*dstId);
+
+            if (srcNodeIt == idToNode.end() || dstNodeIt == idToNode.end())
+            {
+                anyEdgeFailed = true;
+                continue;
+            }
+
+            const h32 srcHandle = to_vertex_handle(srcNodeIt->second);
+            const h32 dstHandle = to_vertex_handle(dstNodeIt->second);
+
+            const node_data& srcNode = m_graph[srcHandle].data.as<node_data>();
+            const node_data& dstNode = m_graph[dstHandle].data.as<node_data>();
+
+            const auto findPinById = [this](std::span<const node_graph_vertex_handle> pins,
+                                         const uuid& id) -> node_graph_vertex_handle
+            {
+                for (const h32 pin : pins)
+                {
+                    if (m_graph[pin].data.as<pin_data>().id == id)
+                    {
+                        return pin;
+                    }
+                }
+
+                return {};
+            };
+
+            const h32 srcPinHandle = findPinById(srcNode.outputPins, *srcPin);
+            const h32 dstPinHandle = findPinById(dstNode.inputPins, *dstPin);
+
+            anyEdgeFailed |= !connect(to_out_pin_handle(srcPinHandle), to_in_pin_handle(dstPinHandle));
+        }
+
+        if (anyNodeFailed)
+        {
+            return unspecified_error;
+        }
+
+        if (anyEdgeFailed)
+        {
+            return unspecified_error;
+        }
+
+        return no_error;
     }
 }
