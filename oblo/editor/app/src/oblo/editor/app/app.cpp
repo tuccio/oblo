@@ -633,10 +633,13 @@ namespace oblo::editor
 
     void app::impl::shutdown()
     {
+        // Shutdown all registries first
         m_windowManager.shutdown();
+        m_assetRegistry.shutdown();
         m_runtimeRegistry.shutdown();
-        platform::shutdown();
 
+        // Shutdown modules, which may also unload shared librariies
+        platform::shutdown();
         module_manager::get().shutdown();
 
         m_jobManager.shutdown();
