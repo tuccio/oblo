@@ -1,12 +1,18 @@
 #pragma once
 
 #include <oblo/core/forward.hpp>
+#include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
+
+#include <span>
 
 namespace oblo
 {
+    class abstract_syntax_tree;
     class data_document;
     class node_graph_context;
+
+    struct ast_node;
 
     struct node_property_descriptor;
 
@@ -23,5 +29,11 @@ namespace oblo
 
         virtual void store(data_document& doc, u32 nodeIndex) const = 0;
         virtual void load(const data_document& doc, u32 nodeIndex) = 0;
+
+        virtual [[nodiscard]] bool generate(const node_graph_context& g,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>> inputs,
+            dynamic_array<h32<ast_node>>& outputs) const = 0;
     };
 }

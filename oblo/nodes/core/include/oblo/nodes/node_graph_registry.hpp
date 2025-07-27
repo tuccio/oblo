@@ -1,14 +1,15 @@
 #pragma once
 
 #include <oblo/core/forward.hpp>
+#include <oblo/core/pair.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/nodes/node_primitive_type.hpp>
 
 #include <unordered_map>
 
 namespace oblo
 {
     struct node_descriptor;
-    struct node_primitive_type;
 
     class node_graph_registry
     {
@@ -30,8 +31,15 @@ namespace oblo
         void fetch_nodes(dynamic_array<const node_descriptor*>& outNodes) const;
         void fetch_primitive_types(dynamic_array<const node_primitive_type*>& outPrimitiveTypes) const;
 
+        uuid find_promotion_rule(const uuid& lhs, const uuid& rhs) const;
+
     private:
-        std::unordered_map<uuid, node_descriptor, hash<uuid>> m_descriptors;
-        std::unordered_map<uuid, node_primitive_type, hash<uuid>> m_primitiveTypes;
+        template <typename Key, typename Value>
+        using unordered_map = std::unordered_map<Key, Value, hash<Key>>;
+
+    private:
+        unordered_map<uuid, node_descriptor> m_descriptors;
+        unordered_map<uuid, node_primitive_type> m_primitiveTypes;
+        uuid m_primitiveKindToTypeId[u32(node_primitive_kind::enum_max)]{};
     };
 }

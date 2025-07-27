@@ -31,6 +31,8 @@ namespace oblo
     enum class ast_binary_operator_kind
     {
         add_f32,
+        div_f32,
+        mul_f32,
         sub_f32,
     };
 

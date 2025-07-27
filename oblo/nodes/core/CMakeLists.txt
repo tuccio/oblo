@@ -3,6 +3,7 @@ oblo_add_library(nodes_core)
 target_link_libraries(
     oblo_nodes_core
     PUBLIC
+    oblo::ast
     oblo::core
     oblo::properties
 )

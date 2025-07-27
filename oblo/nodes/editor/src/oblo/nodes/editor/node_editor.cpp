@@ -49,6 +49,19 @@ namespace oblo
         constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
         constexpr u32 g_PinHoverColor{g_EdgeColor};
 
+        constexpr u32 g_TypesColorPalette[] = {
+            IM_COL32(230, 70, 70, 255),  // Soft Red
+            IM_COL32(70, 180, 230, 255), // Sky Blue
+            IM_COL32(250, 190, 60, 255), // Amber
+            IM_COL32(90, 220, 120, 255), // Light Green
+            IM_COL32(180, 90, 210, 255), // Lavender
+            IM_COL32(255, 130, 60, 255), // Coral
+            IM_COL32(70, 200, 190, 255), // Teal
+            IM_COL32(160, 100, 60, 255), // Copper Brown
+            IM_COL32(60, 120, 230, 255), // Blue
+            IM_COL32(190, 80, 150, 255), // Rose
+        };
+
         constexpr const char* g_AddNodePopup = "AddNodePopup";
 
         enum class draw_list_channel : u8
@@ -159,6 +172,12 @@ namespace oblo
 
             return modified;
         }
+
+        u32 get_type_color(const uuid& type)
+        {
+            const usize index = hash<uuid>{}(type) % array_size(g_TypesColorPalette);
+            return g_TypesColorPalette[index];
+        }
     }
 
     struct node_editor::impl
@@ -265,8 +284,6 @@ namespace oblo
             constexpr f32 pinRadius = 5.0f;
             constexpr f32 pinTextMargin = 4.0f;
             constexpr f32 pinRowMargin = 4.0f;
-            constexpr u32 inputColor = IM_COL32(200, 80, 80, 255);
-            constexpr u32 outputColor = IM_COL32(80, 200, 100, 255);
 
             const f32 rounding = g_NodeRounding * zoom;
             const f32 titleBarScreenHeight = g_TitleBarHeight * zoom;
@@ -457,6 +474,10 @@ namespace oblo
                         const f32 y = firstY + pinRowHeight * i;
                         const ImVec2 pinScreenPos =
                             nodeScreenPos + ImVec2{0.f, calculate_pin_y_offset(y, pinRowHeight, zoom)};
+
+                        const uuid pinType = graph->get_deduced_type(pin);
+                        const u32 inputColor = get_type_color(pinType);
+
                         drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, inputColor);
 
                         // Use an invisible button for input pin
@@ -477,6 +498,8 @@ namespace oblo
                                 g_PinHoverColor,
                                 0,
                                 g_PinHoverThickness);
+
+                            draw_pin_tooltip(nodeGraphRegistry, pinType);
                         }
 
                         // Handle dragging inputs
@@ -577,6 +600,10 @@ namespace oblo
                         const f32 y = firstY + pinRowHeight * i;
                         const ImVec2 pinScreenPos =
                             nodeScreenPos + ImVec2{nodeScreenSize.x, calculate_pin_y_offset(y, pinRowHeight, zoom)};
+
+                        const uuid pinType = graph->get_deduced_type(pin);
+                        const u32 outputColor = get_type_color(pinType);
+
                         drawList->AddCircleFilled(pinScreenPos, pinRadius * zoom, outputColor);
 
                         // Use an invisible button for output pin
@@ -596,6 +623,8 @@ namespace oblo
                                 g_PinHoverColor,
                                 0,
                                 g_PinHoverThickness);
+
+                            draw_pin_tooltip(nodeGraphRegistry, pinType);
                         }
 
                         const cstring_view name = graph->get_name(pin);
@@ -830,6 +859,21 @@ namespace oblo
         void draw_add_node_dialog(const ImVec2& origin);
 
         void init_node_types();
+
+        void draw_pin_tooltip(const node_graph_registry& reg, const uuid& pinType)
+        {
+            if (ImGui::BeginTooltip())
+            {
+                auto* const typeDesc = reg.find_primitive_type(pinType);
+
+                if (typeDesc)
+                {
+                    ImGui::TextUnformatted(typeDesc->name.data(), typeDesc->name.data() + typeDesc->name.size());
+                }
+
+                ImGui::EndTooltip();
+            }
+        }
 
         u64 nextZOrder{};
         node_graph* graph{};

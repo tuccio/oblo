@@ -18,7 +18,20 @@ namespace oblo
 
     bool node_graph_registry::register_primitive_type(const node_primitive_type& desc)
     {
+        const u32 kindIdx = u32(desc.kind);
+
+        if (!m_primitiveKindToTypeId[kindIdx].is_nil())
+        {
+            return false;
+        }
+
         const auto [it, inserted] = m_primitiveTypes.emplace(desc.id, desc);
+
+        if (inserted)
+        {
+            m_primitiveKindToTypeId[kindIdx] = desc.id;
+        }
+
         return inserted;
     }
 
@@ -52,5 +65,59 @@ namespace oblo
         {
             outPrimitiveTypes.emplace_back(&desc);
         }
+    }
+
+    namespace
+    {
+        struct promotion_rules
+        {
+            static constexpr u32 N = u32(node_primitive_kind::enum_max);
+
+            node_primitive_kind rule[N][N];
+
+            consteval promotion_rules()
+            {
+                for (u32 i = 0; i < N; ++i)
+                {
+                    for (u32 j = 0; j < N; ++j)
+                    {
+                        rule[i][j] = i == j ? static_cast<node_primitive_kind>(i) : node_primitive_kind::enum_max;
+                    }
+                }
+
+                rule[u32(node_primitive_kind::boolean)][u32(node_primitive_kind::i32)] = node_primitive_kind::i32;
+                rule[u32(node_primitive_kind::i32)][u32(node_primitive_kind::boolean)] = node_primitive_kind::i32;
+
+                rule[u32(node_primitive_kind::i32)][u32(node_primitive_kind::f32)] = node_primitive_kind::f32;
+                rule[u32(node_primitive_kind::f32)][u32(node_primitive_kind::i32)] = node_primitive_kind::f32;
+            }
+
+            constexpr const node_primitive_kind at(node_primitive_kind a, node_primitive_kind b) const
+            {
+                return rule[u32(a)][u32(b)];
+            }
+        };
+
+        static constexpr promotion_rules g_PromotionRules;
+    }
+
+    uuid node_graph_registry::find_promotion_rule(const uuid& lhs, const uuid& rhs) const
+    {
+        const auto lhsIt = m_primitiveTypes.find(lhs);
+        const auto rhsIt = m_primitiveTypes.find(rhs);
+
+        if (lhsIt == m_primitiveTypes.end() || rhsIt == m_primitiveTypes.end())
+        {
+            return {};
+        }
+
+        const node_primitive_kind outKind = g_PromotionRules.at(lhsIt->second.kind, rhsIt->second.kind);
+
+        if (outKind == node_primitive_kind::enum_max)
+        {
+            return {};
+        }
+
+        return m_primitiveKindToTypeId[u32(outKind)];
     }
 }

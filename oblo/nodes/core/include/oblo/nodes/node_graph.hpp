@@ -1,12 +1,13 @@
 #pragma once
 
-#include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/graph/directed_graph.hpp>
 
 #include <span>
 
 namespace oblo
 {
+    class abstract_syntax_tree;
     class cstring_view;
     class data_document;
     class node_graph_context;
@@ -74,8 +75,13 @@ namespace oblo
         h32<node_graph_node> get_owner_node(h32<node_graph_in_pin> pin) const;
         h32<node_graph_node> get_owner_node(h32<node_graph_out_pin> pin) const;
 
+        uuid get_deduced_type(h32<node_graph_in_pin> h) const;
+        uuid get_deduced_type(h32<node_graph_out_pin> h) const;
+
         expected<> serialize(data_document& doc, u32 nodeIndex) const;
         expected<> deserialize(const data_document& doc, u32 nodeIndex);
+
+        expected<> generate_ast(abstract_syntax_tree& ast) const;
 
     private:
         friend class node_graph_context;
@@ -99,7 +105,18 @@ namespace oblo
         void mark_modified(h32<node_graph_in_pin> h) const;
         void mark_modified(h32<node_graph_out_pin> h) const;
 
+        uuid get_incoming_type(h32<node_graph_in_pin> h) const;
+
+        uuid get_deduced_type(h32<node_graph_in_pin> h) const;
+        void set_deduced_type(h32<node_graph_in_pin> h, const uuid& type) const;
+
+        uuid get_deduced_type(h32<node_graph_out_pin> h) const;
+        void set_deduced_type(h32<node_graph_out_pin> h, const uuid& type) const;
+
+        uuid find_promotion_rule(const uuid& lhs, const uuid& rhs) const;
+
     private:
+        const node_graph_registry* m_registry{};
         node_graph::graph_type* m_graph{};
         node_graph::graph_type::vertex_handle m_node{};
     };

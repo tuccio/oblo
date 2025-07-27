@@ -16,10 +16,12 @@ namespace oblo
     public:
         void on_create(const node_graph_context& g) override
         {
-            g.add_out_pin({
+            const h32 out = g.add_out_pin({
                 .id = "3168ae07-af54-4a01-a861-7c56d7d90418"_uuid,
                 .name = "Value",
             });
+
+            g.set_deduced_type(out, get_node_primitive_type_id<Kind>());
         }
 
         void on_input_change(const node_graph_context&) override
@@ -51,7 +53,7 @@ namespace oblo
             }
         }
 
-    private:
+    protected:
         T m_value{};
     };
 
@@ -59,11 +61,52 @@ namespace oblo
     {
     public:
         static constexpr uuid id = "07a7955f-4aa9-4ae6-a781-9d8417755249"_uuid;
-        static constexpr cstring_view name = "Bool Constant";
+        static constexpr cstring_view name = "Boolean Constant";
 
         static auto read_value(const data_document& doc, u32 nodeIndex)
         {
             return doc.read_bool(nodeIndex);
+        }
+
+        bool generate(const node_graph_context&,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>>,
+            dynamic_array<h32<ast_node>>& outputs) const override
+        {
+            const h32 out = ast.add_node(parent, ast_u32_constant{.value = u32{m_value}});
+            outputs.emplace_back(out);
+            return true;
+        }
+    };
+
+    class i32_constant_node final : public constant_node_base<node_primitive_kind::i32, i32, i32_constant_node>
+    {
+    public:
+        static constexpr uuid id = "e6b96480-a66f-4b08-83e8-235722d79a7a"_uuid;
+        static constexpr cstring_view name = "Integer Constant";
+
+        static expected<i32> read_value(const data_document& doc, u32 nodeIndex)
+        {
+            const expected v = doc.read_f64(nodeIndex);
+
+            if (!v)
+            {
+                return unspecified_error;
+            }
+
+            return i32(*v);
+        }
+
+        bool generate(const node_graph_context&,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>>,
+            dynamic_array<h32<ast_node>>& outputs) const override
+        {
+            const h32 out = ast.add_node(parent, ast_i32_constant{.value = m_value});
+            outputs.emplace_back(out);
+            return true;
         }
     };
 
@@ -71,11 +114,22 @@ namespace oblo
     {
     public:
         static constexpr uuid id = "53b6e2bf-f0fc-43e3-ade4-25f3a74a42e1"_uuid;
-        static constexpr cstring_view name = "F32 Constant";
+        static constexpr cstring_view name = "Float Constant";
 
         static auto read_value(const data_document& doc, u32 nodeIndex)
         {
             return doc.read_f32(nodeIndex);
+        }
+
+        bool generate(const node_graph_context&,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>>,
+            dynamic_array<h32<ast_node>>& outputs) const override
+        {
+            const h32 out = ast.add_node(parent, ast_f32_constant{.value = m_value});
+            outputs.emplace_back(out);
+            return true;
         }
     };
 }

@@ -1,5 +1,6 @@
 #include <oblo/nodes/node_graph.hpp>
 
+#include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
@@ -91,6 +92,24 @@ namespace oblo
         constexpr h32<node_graph_out_pin> to_out_pin_handle(node_graph_vertex_handle h)
         {
             return h32<node_graph_out_pin>{h.value};
+        }
+
+        template <typename PinKind>
+        uuid get_deduced_type_impl(const node_graph::graph_type& g, h32<PinKind> h)
+        {
+            OBLO_ASSERT(h);
+
+            const pin_data& outPin = g.get(to_vertex_handle(h)).data.as<pin_data>();
+            return outPin.deducedType;
+        }
+
+        template <typename PinKind>
+        void set_deduced_type_impl(node_graph::graph_type& g, h32<PinKind> h, const uuid& type)
+        {
+            OBLO_ASSERT(h);
+
+            pin_data& outPin = g.get(to_vertex_handle(h)).data.as<pin_data>();
+            outPin.deducedType = type;
         }
     }
 
@@ -347,77 +366,6 @@ namespace oblo
         return pinData.name;
     }
 
-    node_graph_context::node_graph_context(node_graph& g, node_graph_vertex_handle node) :
-        m_graph{&g.m_graph}, m_node{node}
-    {
-    }
-
-    h32<node_graph_in_pin> node_graph_context::add_in_pin(const pin_descriptor& desc) const
-    {
-        const auto pinVertex = m_graph->add_vertex(node_graph::vertex_type{
-            .data =
-                pin_data{
-                    .id = desc.id,
-                    .name = desc.name,
-                    .ownerNode = m_node,
-                    .kind = pin_kind::input,
-                },
-        });
-
-        auto& nodeVertex = m_graph->get(m_node);
-        node_data& nodeData = nodeVertex.data.as<node_data>();
-        nodeData.inputPins.emplace_back(pinVertex);
-
-        // Add edge from input pin to vertex to ensure topological order
-        m_graph->add_edge(pinVertex, m_node);
-
-        return to_in_pin_handle(pinVertex);
-    }
-
-    h32<node_graph_out_pin> node_graph_context::add_out_pin(const pin_descriptor& desc) const
-    {
-        const auto pinVertex = m_graph->add_vertex(node_graph::vertex_type{
-            .data =
-                pin_data{
-                    .id = desc.id,
-                    .name = desc.name,
-                    .ownerNode = m_node,
-                    .kind = pin_kind::output,
-                },
-        });
-
-        auto& nodeVertex = m_graph->get(m_node);
-        node_data& nodeData = nodeVertex.data.as<node_data>();
-        nodeData.outputPins.emplace_back(pinVertex);
-
-        // Add edge from vertex to output pin to ensure topological order
-        m_graph->add_edge(m_node, pinVertex);
-
-        return to_out_pin_handle(pinVertex);
-    }
-
-    void node_graph_context::fetch_in_pins(dynamic_array<h32<node_graph_in_pin>>& pins) const
-    {
-        fetch_input_pins(*m_graph, m_node, pins);
-    }
-
-    void node_graph_context::fetch_out_pins(dynamic_array<h32<node_graph_out_pin>>& pins) const
-    {
-        fetch_output_pins(*m_graph, m_node, pins);
-    }
-
-    void node_graph_context::mark_modified(h32<node_graph_out_pin> h) const
-    {
-        for (const auto e : m_graph->get_out_edges(to_vertex_handle(h)))
-        {
-            const auto dstPinVertex = e.vertex;
-            const pin_data& dstPinData = m_graph->get(dstPinVertex).data.as<pin_data>();
-            node_data& dstNodeData = m_graph->get(dstPinData.ownerNode).data.as<node_data>();
-
-            dstNodeData.flags.set(node_flag::input_changed);
-        }
-    }
-
     h32<node_graph_node> node_graph::get_owner_node(h32<node_graph_in_pin> pin) const
     {
         const auto pinVertex = to_vertex_handle(pin);
@@ -430,6 +378,16 @@ namespace oblo
         const auto pinVertex = to_vertex_handle(pin);
         const auto& pinData = m_graph.get(pinVertex).data.as<pin_data>();
         return to_node_handle(pinData.ownerNode);
+    }
+
+    uuid node_graph::get_deduced_type(h32<node_graph_in_pin> h) const
+    {
+        return get_deduced_type_impl(m_graph, h);
+    }
+
+    uuid node_graph::get_deduced_type(h32<node_graph_out_pin> h) const
+    {
+        return get_deduced_type_impl(m_graph, h);
     }
 
     namespace
@@ -654,5 +612,170 @@ namespace oblo
         }
 
         return no_error;
+    }
+
+    expected<> node_graph::generate_ast(abstract_syntax_tree& ast) const
+    {
+        ast.init();
+
+        // 5
+        //    +
+        // 3
+        //
+        // Func() / *
+        //        \ 
+
+
+        // Visit
+        // Post-visit ?
+        // On post visit:
+        // FOR EACH OUTPUT PIN? NOT NODE?
+        // If output pin is not connected, do nothing
+        // - Generate expression for PIN (each pin has different expression?)
+        // -  OR: Generate expression for node and let it output expressions for each pin
+        // - Look at output pins
+        //   - Is one more than one output PIN connected? Then store it as a variable (name based on node id maybe?)
+        //
+        // - Look at input pins
+        //   - Was it generated already? It should mean
+        //
+
+        // OR
+
+        // INPUT first might be better, e.g. say we have i32 and f32 constant and binary add, the binary add wants to
+        // check the type of the inputs and convert them this is NOT per node, e.g. an i32 constant might be connected
+        // to a binary add that needs promotion and one that does not
+
+        // topological sort
+        // Optional: Mark all nodes that lead to an output
+        //
+        // If node: is any output pin connected?
+        //  - No: skip
+        //  - Yes:
+        //    - Gather all inputs, if one input is variable-set expression, add variable-ref expression, otherwise use
+        //    as-is
+        //    - Generate node with expressions for all output pins (it should need input expressions), add all
+        //    expressions under root (or maybe under "unused" dummy, so we can cull unused expressions later?)
+        //      - This depends on how we want to generate, do we want to look at input expressions or should
+        //      node_interface::generate look at input pins by itself?
+        //    - IMPORTANT: Check that node::generate reparented the inputs?
+        // If output pin:
+        //  - If node was skipped or pin is not connected, skip
+        //  - If pin is connected to 1 pin that's the expression
+        //  - If connected to more than one, add variable-set expression and push it to tree under parent
+
+        return no_error;
+    }
+
+    node_graph_context::node_graph_context(node_graph& g, node_graph_vertex_handle node) :
+        m_registry{g.m_registry}, m_graph{&g.m_graph}, m_node{node}
+    {
+    }
+
+    h32<node_graph_in_pin> node_graph_context::add_in_pin(const pin_descriptor& desc) const
+    {
+        const auto pinVertex = m_graph->add_vertex(node_graph::vertex_type{
+            .data =
+                pin_data{
+                    .id = desc.id,
+                    .name = desc.name,
+                    .ownerNode = m_node,
+                    .kind = pin_kind::input,
+                },
+        });
+
+        auto& nodeVertex = m_graph->get(m_node);
+        node_data& nodeData = nodeVertex.data.as<node_data>();
+        nodeData.inputPins.emplace_back(pinVertex);
+
+        // Add edge from input pin to vertex to ensure topological order
+        m_graph->add_edge(pinVertex, m_node);
+
+        return to_in_pin_handle(pinVertex);
+    }
+
+    h32<node_graph_out_pin> node_graph_context::add_out_pin(const pin_descriptor& desc) const
+    {
+        const auto pinVertex = m_graph->add_vertex(node_graph::vertex_type{
+            .data =
+                pin_data{
+                    .id = desc.id,
+                    .name = desc.name,
+                    .ownerNode = m_node,
+                    .kind = pin_kind::output,
+                },
+        });
+
+        auto& nodeVertex = m_graph->get(m_node);
+        node_data& nodeData = nodeVertex.data.as<node_data>();
+        nodeData.outputPins.emplace_back(pinVertex);
+
+        // Add edge from vertex to output pin to ensure topological order
+        m_graph->add_edge(m_node, pinVertex);
+
+        return to_out_pin_handle(pinVertex);
+    }
+
+    void node_graph_context::fetch_in_pins(dynamic_array<h32<node_graph_in_pin>>& pins) const
+    {
+        fetch_input_pins(*m_graph, m_node, pins);
+    }
+
+    void node_graph_context::fetch_out_pins(dynamic_array<h32<node_graph_out_pin>>& pins) const
+    {
+        fetch_output_pins(*m_graph, m_node, pins);
+    }
+
+    void node_graph_context::mark_modified(h32<node_graph_out_pin> h) const
+    {
+        for (const auto e : m_graph->get_out_edges(to_vertex_handle(h)))
+        {
+            const auto dstPinVertex = e.vertex;
+            const pin_data& dstPinData = m_graph->get(dstPinVertex).data.as<pin_data>();
+            node_data& dstNodeData = m_graph->get(dstPinData.ownerNode).data.as<node_data>();
+
+            dstNodeData.flags.set(node_flag::input_changed);
+        }
+    }
+
+    uuid node_graph_context::get_incoming_type(h32<node_graph_in_pin> h) const
+    {
+        OBLO_ASSERT(h);
+
+        const std::span inEdges = m_graph->get_in_edges(to_vertex_handle(h));
+
+        if (inEdges.size() != 1)
+        {
+            return {};
+        }
+
+        const h32 sourcePin = inEdges[0].vertex;
+
+        return get_deduced_type(to_out_pin_handle(sourcePin));
+    }
+
+    uuid node_graph_context::get_deduced_type(h32<node_graph_in_pin> h) const
+    {
+        return get_deduced_type_impl(*m_graph, h);
+    }
+
+    void node_graph_context::set_deduced_type(h32<node_graph_in_pin> h, const uuid& type) const
+    {
+        return set_deduced_type_impl(*m_graph, h, type);
+    }
+
+    uuid node_graph_context::get_deduced_type(h32<node_graph_out_pin> h) const
+    {
+        return get_deduced_type_impl(*m_graph, h);
+    }
+
+    void node_graph_context::set_deduced_type(h32<node_graph_out_pin> h, const uuid& type) const
+    {
+        return set_deduced_type_impl(*m_graph, h, type);
+    }
+
+    uuid node_graph_context::find_promotion_rule(const uuid& lhs, const uuid& rhs) const
+    {
+        return m_registry->find_promotion_rule(lhs, rhs);
     }
 }

@@ -94,9 +94,11 @@ namespace oblo
                 }
 
                 abstract_syntax_tree ast;
-                ast.init();
 
-                // TODO: Generate the AST
+                if (!sg.generate_ast(ast))
+                {
+                    return false;
+                }
 
                 auto module = bytecode_generator{}.generate_module(ast);
 
@@ -242,12 +244,14 @@ namespace oblo
         {
             // Types
             m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>());
+            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::i32>());
             m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>());
 
             // Nodes
             m_scriptRegistry.register_node(make_node_descriptor<input_node>());
 
             m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>());
+            m_scriptRegistry.register_node(make_node_descriptor<i32_constant_node>());
             m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>());
 
             m_scriptRegistry.register_node(make_node_descriptor<add_operator>());

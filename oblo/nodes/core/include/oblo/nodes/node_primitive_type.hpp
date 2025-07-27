@@ -8,6 +8,7 @@ namespace oblo
     enum class node_primitive_kind : u8
     {
         boolean,
+        i32,
         f32,
         enum_max,
     };

@@ -13,6 +13,11 @@ namespace oblo
     {
         return "f6f7e858-2703-442f-8897-40aecbc40c31"_uuid;
     }
+    template <>
+    constexpr uuid get_node_primitive_type_id<node_primitive_kind::i32>()
+    {
+        return "de3421c2-2979-4fb8-8627-6f0b692abc85"_uuid;
+    }
 
     template <>
     constexpr uuid get_node_primitive_type_id<node_primitive_kind::f32>()
@@ -27,6 +32,12 @@ namespace oblo
     inline constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::boolean>()
     {
         return "bool";
+    }
+
+    template <>
+    inline constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::i32>()
+    {
+        return "i32";
     }
 
     template <>
