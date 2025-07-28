@@ -108,7 +108,7 @@ namespace oblo
 
         expected<std::span<const byte>> try_get_data(const dynamic_array<byte>& data, u32 offset, u32 size)
         {
-            if (size != 0 && offset + size >= data.size())
+            if (size != 0 && offset + size > data.size())
             {
                 return unspecified_error;
             }
@@ -136,6 +136,7 @@ namespace oblo
         {
             bytecode_module_header h{};
 
+            h.magicBytes = g_MagicBytes;
             h.byteswap = g_ByteSwapCheck;
             h.version = g_CurrentVersion;
             h.functionsCount = script.module.functions.size32();
@@ -180,12 +181,12 @@ namespace oblo
         {
             for (const auto& str : script.module.readOnlyStrings)
             {
-                stringsBuffer.append(str.begin(), str.end());
-
                 const bytecode_string_ref strRef{
                     .offset = stringsBuffer.size32(),
                     .length = str.size32(),
                 };
+
+                stringsBuffer.append(str.begin(), str.end());
 
                 const std::span dataSpan = as_bytes(std::span{&strRef, 1});
                 data.append(dataSpan.begin(), dataSpan.end());
@@ -288,6 +289,8 @@ namespace oblo
             script.module.text.resize_default(header.textCount);
             OBLO_ASSERT(script.module.text.size_bytes() == textBytesSize);
             std::memcpy(script.module.text.data(), textBytes->data(), textBytesSize);
+
+            currentOffset += textBytesSize;
         }
 
         if (currentOffset != readOnlyStringsBegin)
