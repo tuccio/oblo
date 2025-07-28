@@ -106,6 +106,11 @@ namespace oblo
             return m_string.size() - 1;
         }
 
+        OBLO_FORCEINLINE u32 size32() const noexcept
+        {
+            return m_string.size32() - 1;
+        }
+
         OBLO_FORCEINLINE bool empty() const noexcept
         {
             OBLO_ASSERT(!m_string.empty());

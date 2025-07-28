@@ -49,7 +49,7 @@ namespace oblo
 
         class script_graph_importer : public file_importer
         {
-            static constexpr cstring_view g_ArtifactName = "bytecode.ocscript";
+            static constexpr cstring_view g_ArtifactName = "script.obytecode";
 
         public:
             explicit script_graph_importer(const node_graph_registry& registry) : m_registry{registry} {}
