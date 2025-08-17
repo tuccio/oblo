@@ -37,7 +37,7 @@ namespace oblo
 
             switch (node.kind)
             {
-            case ast_node_kind::function: {
+            case ast_node_kind::function_declaration: {
                 // Assuming there are no parameters here
                 h32<ast_node> body{};
 
@@ -85,7 +85,7 @@ namespace oblo
             u8 returnSize = 0;
 
             // TODO: Make a more extensible type system
-            if (const ast_node& decl = ast.get(f.declaration); decl.node.function.returnType == "f32")
+            if (const ast_node& decl = ast.get(f.declaration); decl.node.functionDecl.returnType == "f32")
             {
                 returnSize = sizeof(f32);
             }
@@ -169,7 +169,7 @@ namespace oblo
 
             m.text.push_back({.op = bytecode_op::ret});
 
-            const auto& functionDecl = ast.get(f.declaration).node.function;
+            const auto& functionDecl = ast.get(f.declaration).node.functionDecl;
 
             auto& newFunction = m.functions.emplace_back();
             newFunction.id = functionDecl.name;

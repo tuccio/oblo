@@ -14,7 +14,7 @@ namespace oblo
 
         const auto root = ast.get_root();
 
-        const auto hFunc = ast.add_node(root, ast_function{.name = "add_sub", .returnType = "f32"});
+        const auto hFunc = ast.add_node(root, ast_function_declaration{.name = "add_sub", .returnType = "f32"});
         const auto hBody = ast.add_node(hFunc, ast_function_body{});
         const auto hReturn = ast.add_node(hBody, ast_return_statement{});
 

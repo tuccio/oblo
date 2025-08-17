@@ -3,7 +3,9 @@
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/graph/topological_sort.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
+#include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/variant.hpp>
@@ -618,30 +620,6 @@ namespace oblo
     {
         ast.init();
 
-        // 5
-        //    +
-        // 3
-        //
-        // Func() / *
-        //        \ 
-
-
-        // Visit
-        // Post-visit ?
-        // On post visit:
-        // FOR EACH OUTPUT PIN? NOT NODE?
-        // If output pin is not connected, do nothing
-        // - Generate expression for PIN (each pin has different expression?)
-        // -  OR: Generate expression for node and let it output expressions for each pin
-        // - Look at output pins
-        //   - Is one more than one output PIN connected? Then store it as a variable (name based on node id maybe?)
-        //
-        // - Look at input pins
-        //   - Was it generated already? It should mean
-        //
-
-        // OR
-
         // INPUT first might be better, e.g. say we have i32 and f32 constant and binary add, the binary add wants to
         // check the type of the inputs and convert them this is NOT per node, e.g. an i32 constant might be connected
         // to a binary add that needs promotion and one that does not
@@ -663,6 +641,117 @@ namespace oblo
         //  - If node was skipped or pin is not connected, skip
         //  - If pin is connected to 1 pin that's the expression
         //  - If connected to more than one, add variable-set expression and push it to tree under parent
+
+        dynamic_array<node_graph_vertex_handle> sortedVertices;
+
+        const bool wasSorted = topological_sort(m_graph, sortedVertices);
+
+        if (!wasSorted)
+        {
+            return unspecified_error;
+        }
+
+        const h32 root = ast.get_root();
+
+        const h32 executeDecl = ast.add_node(root,
+            ast_function_declaration{
+                .name = "node_graph_execute",
+            });
+
+        const h32 executeBody = ast.add_node(root, ast_function_body{});
+
+        // We create a temporary node were we add new nodes that will later be moved when actually used.
+        // Everything remaning under temporary will be culled as unused.
+        const h32 temporary = ast.add_node(root, ast_return_statement{});
+
+        h32_flat_extpool_dense_map<node_graph_vertex_handle::tag_type, h32<ast_node>> outputPins;
+
+        dynamic_array<h32<ast_node>> inputs;
+        dynamic_array<h32<ast_node>> outputs;
+
+        inputs.reserve(32);
+        outputs.reserve(32);
+
+        for (const h32 currentVertex : sortedVertices)
+        {
+            auto& vertexData = m_graph[currentVertex].data;
+
+            if (vertexData.is<pin_data>())
+            {
+                const pin_data& pin = m_graph[currentVertex].data.as<pin_data>();
+
+                if (pin.kind == pin_kind::output)
+                {
+                    // When we find output pins, they should have already been generated
+                    OBLO_ASSERT(outputPins.try_find(currentVertex));
+
+                    // If they are only connected to 1 pin, we already have our expression.
+                    // If the output pin is connected to multiple pins we would like to calculate the value once.
+                    // Otherwise to be able to handle branching we probably need to:
+                    //  - Declare a variable at the root (i.e. a global) to check whether the value was already
+                    //  calculated
+                    //  - Declare and define function that calculates the value
+                    // Then we either rely on optimizations later to inline the function.
+
+                    // For now we only deal with outputs with max 1 connection to a pin.
+                    OBLO_ASSERT(m_graph.get_out_edges(currentVertex).size() < 2);
+
+                    if (m_graph.get_out_edges(currentVertex).size() >= 2)
+                    {
+                        return unspecified_error;
+                    }
+                }
+            }
+            else if (vertexData.is<node_data>())
+            {
+                const node_data& node = m_graph[currentVertex].data.as<node_data>();
+
+                inputs.clear();
+                outputs.clear();
+
+                for (const h32 inPin : node.inputPins)
+                {
+                    auto& inputAstNode = inputs.emplace_back();
+
+                    for (const auto& edge : m_graph.get_in_edges(inPin))
+                    {
+                        if (!m_graph[edge.vertex].data.is<pin_data>())
+                        {
+                            continue;
+                        }
+
+                        auto* const astNode = outputPins.try_find(edge.vertex);
+
+                        if (!astNode || *astNode)
+                        {
+                            return unspecified_error;
+                        }
+
+                        inputAstNode = *astNode;
+                    }
+                }
+
+                // TODO: Parametrize graph context for const/non-const
+                const node_graph_context ctx{*const_cast<node_graph*>(this), currentVertex};
+
+                if (!node.node->generate(ctx, ast, temporary, inputs, outputs))
+                {
+                    return unspecified_error;
+                }
+
+                if (node.outputPins.size() != node.outputPins.size())
+                {
+                    return unspecified_error;
+                }
+
+                for (const auto [outPin, astNode] : zip_range(node.outputPins, outputs))
+                {
+                    outputPins.emplace(outPin, astNode);
+                }
+            }
+        }
+
+        // TODO: Remove temporary node and its children
 
         return no_error;
     }

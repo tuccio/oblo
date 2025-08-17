@@ -10,7 +10,7 @@ namespace oblo
         abstract_syntax_tree ast;
         ast.init();
 
-        ast_function func{.name = "main", .returnType = "void"};
+        ast_function_declaration func{.name = "main", .returnType = "void"};
 
         const auto root = ast.get_root();
 
@@ -20,9 +20,9 @@ namespace oblo
             ? ast.get(*ast.children(root).begin())
             : throw std::runtime_error("Function node not added");
 
-        ASSERT_EQ(node.kind, ast_node_kind::function);
-        ASSERT_EQ(node.node.function.name, "main");
-        ASSERT_EQ(node.node.function.returnType, "void");
+        ASSERT_EQ(node.kind, ast_node_kind::function_declaration);
+        ASSERT_EQ(node.node.functionDecl.name, "main");
+        ASSERT_EQ(node.node.functionDecl.returnType, "void");
     }
 
     TEST(abstract_syntax_tree, add_constants)

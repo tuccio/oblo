@@ -13,7 +13,7 @@ namespace oblo
     enum class ast_node_kind : u8
     {
         root,
-        function,
+        function_declaration,
         function_parameter,
         function_body,
         binary_operator,
@@ -40,9 +40,9 @@ namespace oblo
     {
     };
 
-    struct ast_function
+    struct ast_function_declaration
     {
-        static constexpr ast_node_kind node_kind = ast_node_kind::function;
+        static constexpr ast_node_kind node_kind = ast_node_kind::function_declaration;
 
         string_view name;
         string_view returnType;
@@ -140,7 +140,7 @@ namespace oblo
 
         union {
             ast_root root;
-            ast_function function;
+            ast_function_declaration functionDecl;
             ast_function_parameter functionParameter;
             ast_function_body functionBody;
             ast_binary_operator binaryOp;
@@ -179,10 +179,10 @@ namespace oblo
     private:
         void add_child(h32<ast_node> parent, h32<ast_node> child);
 
-        void set_node(ast_node& n, const ast_function& v)
+        void set_node(ast_node& n, const ast_function_declaration& v)
         {
-            n.kind = ast_node_kind::function;
-            n.node.function = v;
+            n.kind = ast_node_kind::function_declaration;
+            n.node.functionDecl = v;
         }
 
         void set_node(ast_node& n, const ast_function_parameter& v)
