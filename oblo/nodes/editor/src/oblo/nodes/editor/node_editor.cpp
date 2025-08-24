@@ -1,5 +1,3 @@
-#pragma once
-
 #define IMGUI_DEFINE_MATH_OPERATORS
 
 #include <oblo/core/array_size.hpp>
@@ -7,6 +5,7 @@
 #include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/ui/property_table.hpp>
 #include <oblo/math/vec2.hpp>
@@ -19,6 +18,7 @@
 #include <oblo/nodes/node_property_descriptor.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
+
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -163,11 +163,21 @@ namespace oblo
             }
             break;
 
+            case node_primitive_kind::i32: {
+                const f64 valuef64 = propertiesDoc.read_f64(propertyChild).value_or(0.);
+                i32 value = narrow_cast<i32>(valuef64);
+                modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
+            }
+            break;
+
             case node_primitive_kind::boolean: {
                 bool value = propertiesDoc.read_bool(propertyChild).value_or(false);
                 modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
             }
             break;
+
+            default:
+                unreachable();
             }
 
             return modified;

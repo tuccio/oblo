@@ -37,6 +37,15 @@ namespace oblo
             void store(data_document&, u32) const override {}
             void load(const data_document&, u32) override {}
 
+            bool generate(const node_graph_context&,
+                abstract_syntax_tree&,
+                h32<ast_node>,
+                const std::span<const h32<ast_node>>,
+                dynamic_array<h32<ast_node>>&) const override
+            {
+                return false;
+            }
+
         private:
             h32<node_graph_in_pin> m_firstOperand{};
             h32<node_graph_in_pin> m_secondOperand{};
@@ -63,6 +72,15 @@ namespace oblo
             {
                 const auto valueIndex = doc.find_child(nodeIndex, "value"_hsv);
                 m_value = doc.read_f32(valueIndex).value_or(0.f);
+            }
+
+            bool generate(const node_graph_context&,
+                abstract_syntax_tree&,
+                h32<ast_node>,
+                const std::span<const h32<ast_node>>,
+                dynamic_array<h32<ast_node>>&) const override
+            {
+                return false;
             }
 
         private:

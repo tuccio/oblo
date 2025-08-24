@@ -19,6 +19,15 @@ namespace oblo
     class interpreter
     {
     public:
+        interpreter();
+        interpreter(const interpreter&) = delete;
+        interpreter(interpreter&&) noexcept = delete;
+
+        ~interpreter();
+
+        interpreter& operator=(const interpreter&) = delete;
+        interpreter& operator=(interpreter&&) noexcept = delete;
+
         void init(u32 stackSize);
 
         void load_module(const bytecode_module& m);

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <oblo/core/handle.hpp>
-
 namespace oblo::ecs
 {
     struct system_update_context;
@@ -28,8 +26,5 @@ namespace oblo
         vk::draw_registry* m_drawRegistry{};
         const resource_registry* m_resourceRegistry;
         vk::resource_cache* m_resourceCache;
-        h32<vk::draw_buffer> m_transformBuffer{};
-        h32<vk::draw_buffer> m_materialsBuffer{};
-        h32<vk::draw_buffer> m_entityIdBuffer{};
     };
 }

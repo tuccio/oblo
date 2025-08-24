@@ -2,7 +2,6 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
@@ -20,6 +19,7 @@ namespace oblo
 {
     class mesh;
     class resource_registry;
+    class string_interner;
 
     template <typename>
     struct resource_ref;
@@ -114,7 +114,6 @@ namespace oblo::vk
         vulkan_context* m_ctx{};
 
         staging_buffer* m_stagingBuffer{};
-        string_interner* m_interner{};
         const resource_registry* m_resourceRegistry{};
         mesh_database m_meshes;
         ecs::entity_registry* m_entities{};

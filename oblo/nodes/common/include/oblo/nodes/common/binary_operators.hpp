@@ -4,6 +4,7 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/common/zero_properties_node.hpp>
+#include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
 
@@ -55,7 +56,7 @@ namespace oblo
 
         void on_input_change(const node_graph_context& g) override
         {
-            return static_cast<Base*>(this)->on_input_change(g);
+            return static_cast<Base*>(this)->on_input_change_impl(g);
         }
 
         bool generate(const node_graph_context& g,
@@ -79,7 +80,7 @@ namespace oblo
         static constexpr uuid id = "13514366-b0af-4a25-a4c6-384bd7277a35"_uuid;
         static constexpr cstring_view name = "Add";
 
-        void on_input_change(const node_graph_context& g) const
+        void on_input_change_impl(const node_graph_context& g) const
         {
             constexpr uuid defaultType = get_node_primitive_type_id<node_primitive_kind::f32>();
 
@@ -154,7 +155,7 @@ namespace oblo
         static constexpr uuid id = "f8b0b90c-3f18-4235-b694-c45f9657a317"_uuid;
         static constexpr cstring_view name = "Multiply";
 
-        void on_input_change(const node_graph_context& g) const
+        void on_input_change_impl(const node_graph_context& g) const
         {
             constexpr uuid defaultType = get_node_primitive_type_id<node_primitive_kind::f32>();
 

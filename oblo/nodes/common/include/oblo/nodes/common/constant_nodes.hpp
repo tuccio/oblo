@@ -2,6 +2,7 @@
 
 #include <oblo/core/type_id.hpp>
 #include <oblo/nodes/common/fundamental_types.hpp>
+#include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
 #include <oblo/nodes/node_property_descriptor.hpp>

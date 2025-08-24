@@ -37,17 +37,17 @@ namespace oblo
 
         for (usize i = 0; i < src.module.functions.size(); ++i)
         {
-            ASSERT_TRUE(struct_compare<std::equal_to>(src.module.functions[i], dst.module.functions[i]));
+            ASSERT_TRUE(struct_compare<equal_to>(src.module.functions[i], dst.module.functions[i]));
         }
 
         for (usize i = 0; i < src.module.text.size(); ++i)
         {
-            ASSERT_TRUE(struct_compare<std::equal_to>(src.module.text[i], dst.module.text[i]));
+            ASSERT_TRUE(struct_compare<equal_to>(src.module.text[i], dst.module.text[i]));
         }
 
         for (usize i = 0; i < src.module.readOnlyStrings.size(); ++i)
         {
-            ASSERT_TRUE(struct_compare<std::equal_to>(src.module.readOnlyStrings[i], dst.module.readOnlyStrings[i]));
+            ASSERT_TRUE(struct_compare<equal_to>(src.module.readOnlyStrings[i], dst.module.readOnlyStrings[i]));
         }
     }
 }

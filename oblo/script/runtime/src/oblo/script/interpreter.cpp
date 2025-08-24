@@ -28,7 +28,7 @@ namespace oblo
         }
 
         template <typename T>
-        OBLO_FORCEINLINE [[nodiscard]] byte* binary_add(byte* stackTop)
+        [[nodiscard]] OBLO_FORCEINLINE byte* binary_add(byte* stackTop)
         {
             const T lhs = read_stack<T>(stackTop, 0);
             const T rhs = read_stack<T>(stackTop, sizeof(T));
@@ -43,7 +43,7 @@ namespace oblo
         }
 
         template <typename T>
-        OBLO_FORCEINLINE [[nodiscard]] byte* binary_sub(byte* stackTop)
+        [[nodiscard]] OBLO_FORCEINLINE byte* binary_sub(byte* stackTop)
         {
             const T lhs = read_stack<T>(stackTop, 0);
             const T rhs = read_stack<T>(stackTop, sizeof(T));
@@ -58,7 +58,7 @@ namespace oblo
         }
 
         template <typename T>
-        OBLO_FORCEINLINE [[nodiscard]] byte* compare_ge(byte* stackTop)
+        [[nodiscard]] OBLO_FORCEINLINE byte* compare_ge(byte* stackTop)
         {
             using result_t = u32;
 
@@ -75,7 +75,7 @@ namespace oblo
         }
 
         template <typename T>
-        OBLO_FORCEINLINE [[nodiscard]] byte* compare_le(byte* stackTop)
+        [[nodiscard]] OBLO_FORCEINLINE byte* compare_le(byte* stackTop)
         {
             using result_t = u32;
 
@@ -111,6 +111,10 @@ namespace oblo
             prevTop = newTop;
         }
     }
+
+    interpreter::interpreter() = default;
+
+    interpreter::~interpreter() = default;
 
     void interpreter::init(u32 stackSize)
     {

@@ -130,15 +130,13 @@ namespace oblo
         {
             m_hasValue = other.m_hasValue;
 
-            switch (other.m_hasValue)
+            if (other.m_hasValue)
             {
-            case false:
-                m_error = other.m_error;
-                break;
-
-            case true:
                 new (m_buffer) T{*other};
-                break;
+            }
+            else
+            {
+                m_error = other.m_error;
             }
         }
 

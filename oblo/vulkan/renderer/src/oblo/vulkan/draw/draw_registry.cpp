@@ -8,6 +8,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
@@ -31,6 +32,7 @@
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
+
 
 #include <array>
 #include <charconv>
@@ -753,8 +755,8 @@ namespace oblo::vk
         for (auto&& chunk : entityRange)
         {
             for (const auto&& [mesh, drawInstanceId, transform] : chunk.zip<const draw_mesh_component,
-                                                                  const draw_instance_id_component,
-                                                                  const global_transform_component>())
+                     const draw_instance_id_component,
+                     const global_transform_component>())
             {
                 auto* const blas = m_meshToBlas.try_find(mesh.mesh);
 
@@ -778,7 +780,7 @@ namespace oblo::vk
                     const mesh_handle meshHandle = std::bit_cast<mesh_handle>(mesh.mesh);
 
                     if (!m_meshes
-                             .fetch_buffers(meshHandle, positionAttribute, positionBuffer, nullptr, {}, {}, nullptr))
+                            .fetch_buffers(meshHandle, positionAttribute, positionBuffer, nullptr, {}, {}, nullptr))
                     {
                         continue;
                     }

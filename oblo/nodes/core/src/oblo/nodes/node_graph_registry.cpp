@@ -92,7 +92,7 @@ namespace oblo
                 rule[u32(node_primitive_kind::f32)][u32(node_primitive_kind::i32)] = node_primitive_kind::f32;
             }
 
-            constexpr const node_primitive_kind at(node_primitive_kind a, node_primitive_kind b) const
+            constexpr node_primitive_kind at(node_primitive_kind a, node_primitive_kind b) const
             {
                 return rule[u32(a)][u32(b)];
             }

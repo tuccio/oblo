@@ -30,7 +30,7 @@ namespace oblo
         virtual void store(data_document& doc, u32 nodeIndex) const = 0;
         virtual void load(const data_document& doc, u32 nodeIndex) = 0;
 
-        virtual [[nodiscard]] bool generate(const node_graph_context& g,
+        [[nodiscard]] virtual bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
             const std::span<const h32<ast_node>> inputs,

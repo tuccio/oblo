@@ -27,11 +27,15 @@ namespace oblo
             b = u8(p.data);
         }
 
+        bool operator==(const bytecode_payload&) const noexcept = default;
+
         u16 data;
     };
 
     struct bytecode_instruction
     {
+        bool operator==(const bytecode_instruction&) const noexcept = default;
+
         bytecode_op op;
         bytecode_payload payload;
     };

@@ -13,8 +13,8 @@ namespace oblo
         static constexpr cstring_view name = "Input";
 
     public:
-        void on_create(const node_graph_context& g);
-        void on_input_change(const node_graph_context& g);
+        void on_create(const node_graph_context& g) override;
+        void on_input_change(const node_graph_context& g) override;
 
         void fetch_properties_descriptors(dynamic_array<node_property_descriptor>& outDescriptors) const override;
 

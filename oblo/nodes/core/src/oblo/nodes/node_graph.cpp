@@ -101,7 +101,7 @@ namespace oblo
         {
             OBLO_ASSERT(h);
 
-            const pin_data& outPin = g.get(to_vertex_handle(h)).data.as<pin_data>();
+            const pin_data& outPin = g.get(to_vertex_handle(h)).data.template as<pin_data>();
             return outPin.deducedType;
         }
 
@@ -110,7 +110,7 @@ namespace oblo
         {
             OBLO_ASSERT(h);
 
-            pin_data& outPin = g.get(to_vertex_handle(h)).data.as<pin_data>();
+            pin_data& outPin = g.get(to_vertex_handle(h)).data.template as<pin_data>();
             outPin.deducedType = type;
         }
     }
@@ -520,8 +520,6 @@ namespace oblo
 
             if (doc.children_count(nodeUiPosIndex) == 2)
             {
-                const auto range = doc.children(nodeUiPosIndex);
-
                 u32 i = 0;
 
                 for (const u32 posIndex : doc.children(nodeUiPosIndex))
@@ -658,7 +656,7 @@ namespace oblo
                 .name = "node_graph_execute",
             });
 
-        const h32 executeBody = ast.add_node(root, ast_function_body{});
+        const h32 executeBody = ast.add_node(executeDecl, ast_function_body{});
 
         // We create a temporary node were we add new nodes that will later be moved when actually used.
         // Everything remaning under temporary will be culled as unused.
@@ -752,6 +750,9 @@ namespace oblo
         }
 
         // TODO: Remove temporary node and its children
+
+        // TODO: Fill execution body
+        (void)executeBody;
 
         return no_error;
     }

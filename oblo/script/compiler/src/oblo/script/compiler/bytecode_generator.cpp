@@ -2,19 +2,20 @@
 
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/deque.hpp>
+#include <oblo/core/unreachable.hpp>
 
 namespace oblo
 {
     namespace
     {
-        constexpr u16 lo16(u32 val)
+        constexpr bytecode_payload lo16(u32 val)
         {
-            return u16(val & 0xff);
+            return {u16(val & 0xff)};
         }
 
-        constexpr u16 hi16(u32 val)
+        constexpr bytecode_payload hi16(u32 val)
         {
-            return u16(val >> 16);
+            return {u16(val >> 16)};
         }
 
     }
@@ -37,6 +38,10 @@ namespace oblo
 
             switch (node.kind)
             {
+            default:
+                unreachable();
+                break;
+
             case ast_node_kind::function_declaration: {
                 // Assuming there are no parameters here
                 h32<ast_node> body{};
@@ -121,8 +126,8 @@ namespace oblo
                     case ast_node_kind::f32_constant: {
                         const u32 val = std::bit_cast<u32>(n.node.f32.value);
 
-                        m.text.push_back({.op = bytecode_op::push32lo16, .payload = lo16(val)});
-                        m.text.push_back({.op = bytecode_op::or32hi16, .payload = hi16(val)});
+                        m.text.push_back(bytecode_instruction{.op = bytecode_op::push32lo16, .payload = lo16(val)});
+                        m.text.push_back(bytecode_instruction{.op = bytecode_op::or32hi16, .payload = hi16(val)});
                     }
                     break;
 

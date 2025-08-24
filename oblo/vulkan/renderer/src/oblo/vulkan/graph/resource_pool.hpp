@@ -139,7 +139,6 @@ namespace oblo::vk
 
         VmaAllocation m_allocation{};
         VmaAllocation m_lastFrameAllocation{};
-        VkMemoryRequirements m_requirements{};
 
         u32 m_frame{};
     };

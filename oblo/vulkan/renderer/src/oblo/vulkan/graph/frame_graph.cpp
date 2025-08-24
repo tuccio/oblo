@@ -427,7 +427,7 @@ namespace oblo::vk
 
             for (const auto e : m_impl->graph.get_out_edges(v))
             {
-                if (auto* const src = m_impl->graph.try_get(e.vertex))
+                if ([[maybe_unused]] auto* const src = m_impl->graph.try_get(e.vertex))
                 {
                     edgesToRemove.push_back(e.handle);
                 }
@@ -435,7 +435,7 @@ namespace oblo::vk
 
             for (const auto e : m_impl->graph.get_in_edges(v))
             {
-                if (auto* const dst = m_impl->graph.try_get(e.vertex))
+                if ([[maybe_unused]] auto* const dst = m_impl->graph.try_get(e.vertex))
                 {
                     edgesToRemove.push_back(e.handle);
                 }

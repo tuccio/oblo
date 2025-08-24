@@ -22,9 +22,6 @@ namespace oblo
     {
         static_assert(sizeof...(T) > 0);
 
-        template <typename First, typename...>
-        using first_type = First;
-
     public:
         using index_type = u8;
         static constexpr index_type types_count = index_type(sizeof...(T));
@@ -32,7 +29,8 @@ namespace oblo
     public:
         variant() : m_index{0}
         {
-            new (m_buffer) first_type<T...>{};
+            using first_type = typename std::tuple_element<0, std::tuple<T...>>::type;
+            new (m_buffer) first_type{};
         }
 
         variant(const variant& other)
@@ -75,13 +73,13 @@ namespace oblo
 
         variant& operator=(const variant& other)
         {
-            oblo::visit([this]<typename U>(U& o) OBLO_FORCEINLINE_LAMBDA { emplace<U>(o); }, other);
+            oblo::visit([this]<typename U>(U& o) OBLO_FORCEINLINE_LAMBDA { this->emplace<U>(o); }, other);
             return *this;
         }
 
         variant& operator=(variant&& other) noexcept
         {
-            oblo::visit([this]<typename U>(U& o) OBLO_FORCEINLINE_LAMBDA { emplace<U>(std::move(o)); }, other);
+            oblo::visit([this]<typename U>(U& o) OBLO_FORCEINLINE_LAMBDA { this->emplace<U>(std::move(o)); }, other);
             return *this;
         }
 
