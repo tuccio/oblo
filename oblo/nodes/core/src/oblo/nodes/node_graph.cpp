@@ -5,6 +5,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
+#include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/unique_ptr.hpp>
@@ -670,7 +671,7 @@ namespace oblo
         inputs.reserve(32);
         outputs.reserve(32);
 
-        for (const h32 currentVertex : sortedVertices)
+        for (const h32 currentVertex : reverse_range(sortedVertices))
         {
             auto& vertexData = m_graph[currentVertex].data;
 
@@ -752,7 +753,7 @@ namespace oblo
         // TODO: Remove temporary node and its children
 
         // TODO: Fill execution body
-        (void)executeBody;
+        (void) executeBody;
 
         return no_error;
     }
