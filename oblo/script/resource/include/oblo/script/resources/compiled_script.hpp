@@ -1,7 +1,9 @@
 #pragma once
 
 #include <oblo/reflection/codegen/annotations.hpp>
+#include <oblo/resource/resource_traits.hpp>
 #include <oblo/script/bytecode_module.hpp>
+#include <oblo/script/resources/traits.hpp>
 
 namespace oblo
 {
