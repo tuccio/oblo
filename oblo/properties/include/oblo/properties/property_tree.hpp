@@ -61,4 +61,8 @@ namespace oblo
         dynamic_array<property_attribute> attributes;
         dynamic_array<property_array> arrays;
     };
+
+    class string_builder;
+
+    void create_property_path(string_builder& builder, const property_tree& tree, const property& property);
 }

@@ -1,6 +1,7 @@
 #include <oblo/properties/property_registry.hpp>
 
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_tree.hpp>
@@ -313,5 +314,29 @@ namespace oblo
     const reflection::reflection_registry& oblo::property_registry::get_reflection_registry() const
     {
         return *m_impl->reflection;
+    }
+
+    namespace
+    {
+        void post_visit_append(string_builder& builder, const property_tree& tree, u32 id)
+        {
+            if (id == 0)
+            {
+                return;
+            }
+
+            const auto& node = tree.nodes[id];
+            post_visit_append(builder, tree, node.parent);
+
+            builder.append(node.name);
+            builder.append(".");
+        }
+
+    }
+
+    void create_property_path(string_builder& builder, const property_tree& tree, const property& property)
+    {
+        post_visit_append(builder, tree, property.parent);
+        builder.append(property.name);
     }
 }

@@ -47,6 +47,8 @@ namespace oblo
 
     void string_interner::init(u32 estimatedStringsCount)
     {
+        shutdown();
+
         OBLO_ASSERT(!m_impl);
         m_impl = new impl{};
         m_impl->sparse.reserve(estimatedStringsCount);

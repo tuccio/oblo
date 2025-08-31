@@ -9,6 +9,8 @@ namespace oblo
 
         n.kind = ast_node_kind::root;
         n.node.root = {};
+
+        m_stringInterner.init(0);
     }
 
     h32<ast_node> abstract_syntax_tree::get_root() const

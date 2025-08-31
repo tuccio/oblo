@@ -10,6 +10,7 @@
 #include <oblo/core/platform/process.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
@@ -21,11 +22,17 @@
 #include <oblo/nodes/common/input_node.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
+#include <oblo/properties/property_registry.hpp>
+#include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
+#include <oblo/reflection/reflection_module.hpp>
+#include <oblo/reflection/tags/ecs.hpp>
+#include <oblo/runtime/runtime_module.hpp>
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
 #include <oblo/script/compiler/bytecode_generator.hpp>
+#include <oblo/script/nodes/ecs_nodes.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
 #include <oblo/script/resources/traits.hpp>
 
@@ -226,7 +233,7 @@ namespace oblo
             return {
                 .id = T::id,
                 .name = string{T::name},
-                .instantiate = []() -> unique_ptr<node_interface> { return allocate_unique<T>(); },
+                .instantiate = [](const any&) -> unique_ptr<node_interface> { return allocate_unique<T>(); },
             };
         }
     }
@@ -237,6 +244,11 @@ namespace oblo
         bool startup(const module_initializer& initializer) override
         {
             initializer.services->add<script_graph_provider>().as<native_asset_provider>().unique(m_scriptRegistry);
+
+            // Load the runtime module to make sure it gets finalized before us, since we want to register the
+            // components properties from its property registry
+            module_manager::get().load<runtime_module>();
+
             return true;
         }
 
@@ -256,6 +268,119 @@ namespace oblo
 
             m_scriptRegistry.register_node(make_node_descriptor<add_operator>());
             m_scriptRegistry.register_node(make_node_descriptor<mul_operator>());
+
+            auto* const runtimeModule = module_manager::get().find<runtime_module>();
+
+            if (runtimeModule)
+            {
+                const auto& propertyRegistry = runtimeModule->get_property_registry();
+                const auto& reflectionRegistry = propertyRegistry.get_reflection_registry();
+
+                deque<reflection::type_handle> componentTypes;
+                reflectionRegistry.find_by_tag<ecs::component_type_tag>(componentTypes);
+
+                const uuid_namespace_generator getPropertyIdGen{"598e9195-326b-4ab8-a397-004d85a9c036"_uuid};
+                const uuid_namespace_generator setPropertyIdGen{"b05cf6fe-ecbb-4699-9a8f-ad48a7889086"_uuid};
+
+                string_builder nodeName;
+                string_builder propertyPath;
+
+                for (const auto& componentType : componentTypes)
+                {
+                    const auto& typeData = reflectionRegistry.get_type_data(componentType);
+
+                    auto* const propertyTree = propertyRegistry.try_get(typeData.type);
+
+                    if (propertyTree)
+                    {
+                        for (auto& property : propertyTree->properties)
+                        {
+                            struct ecs_property_userdata
+                            {
+                                type_id componentType;
+                                string propertyPath;
+                                uuid nodeGraphType;
+                            };
+
+                            uuid nodeGraphType{};
+
+                            switch (property.kind)
+                            {
+                            case property_kind::boolean:
+                                nodeGraphType = get_node_primitive_type_id<node_primitive_kind::boolean>();
+                                break;
+
+                            case property_kind::f32:
+                                nodeGraphType = get_node_primitive_type_id<node_primitive_kind::f32>();
+                                break;
+
+                            case property_kind::i32:
+                                nodeGraphType = get_node_primitive_type_id<node_primitive_kind::i32>();
+                                break;
+
+                            default:
+                                break;
+                            }
+
+                            if (nodeGraphType.is_nil())
+                            {
+                                continue;
+                            }
+
+                            propertyPath.clear();
+                            create_property_path(propertyPath, *propertyTree, property);
+
+                            const ecs_property_userdata userdata{
+                                .componentType = typeData.type,
+                                .propertyPath = propertyPath.as<string>(),
+                                .nodeGraphType = nodeGraphType,
+                            };
+
+                            nodeName.clear()
+                                .append("Get ")
+                                .append(typeData.type.name)
+                                .append("::")
+                                .append(propertyPath);
+
+                            m_scriptRegistry.register_node({
+                                .id = getPropertyIdGen.generate(propertyPath.view()),
+                                .name = nodeName.as<string>(),
+                                .instantiate = [](const any& userdata) -> unique_ptr<node_interface>
+                                {
+                                    auto* const propertyUserdata = userdata.as<ecs_property_userdata>();
+
+                                    return allocate_unique<ecs_nodes::get_component_property_node>(
+                                        propertyUserdata->componentType,
+                                        propertyUserdata->propertyPath,
+                                        propertyUserdata->nodeGraphType);
+                                },
+                                .userdata = make_any<ecs_property_userdata>(userdata),
+                            });
+
+                            nodeName.clear()
+                                .append("Set ")
+                                .append(typeData.type.name)
+                                .append("::")
+                                .append(propertyPath);
+
+                            m_scriptRegistry.register_node({
+                                .id = setPropertyIdGen.generate(propertyPath.view()),
+                                .name = nodeName.as<string>(),
+                                .instantiate = [](const any& userdata) -> unique_ptr<node_interface>
+                                {
+                                    auto* const propertyUserdata = userdata.as<ecs_property_userdata>();
+
+                                    return allocate_unique<ecs_nodes::set_component_property_node>(
+                                        propertyUserdata->componentType,
+                                        propertyUserdata->propertyPath,
+                                        propertyUserdata->nodeGraphType);
+                                },
+                                .userdata = make_any<ecs_property_userdata>(userdata),
+                            });
+                        }
+                    }
+                }
+            }
 
             return true;
         }

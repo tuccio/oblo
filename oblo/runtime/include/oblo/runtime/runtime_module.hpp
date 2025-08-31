@@ -5,6 +5,7 @@
 
 namespace oblo
 {
+    class property_registry;
     class runtime_registry;
 
     class runtime_module final : public module_interface
@@ -27,6 +28,8 @@ namespace oblo
         bool finalize() override;
 
         RUNTIME_API runtime_registry create_runtime_registry() const;
+
+        RUNTIME_API const property_registry& get_property_registry() const;
 
     private:
         struct impl;

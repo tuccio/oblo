@@ -191,7 +191,7 @@ namespace oblo
             return {};
         }
 
-        unique_ptr nodeInstance = desc->instantiate();
+        unique_ptr nodeInstance = desc->instantiate(desc->userdata);
         auto* const nodePtr = nodeInstance.get();
 
         const auto nodeVertex = m_graph.add_vertex(vertex_type{

@@ -87,4 +87,10 @@ namespace oblo
     {
         return runtime_registry{&m_impl->propertyRegistry};
     }
+
+    const property_registry& runtime_module::get_property_registry() const
+    {
+        return m_impl->propertyRegistry;
+    }
+
 }

@@ -10,6 +10,8 @@ target_link_libraries(
     PRIVATE
     oblo::asset
     oblo::modules
+    oblo::properties
+    oblo::runtime
     oblo::script::compiler
     oblo::script::resource
 )

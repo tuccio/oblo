@@ -5,6 +5,7 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/iterator/iterator_range.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
@@ -16,6 +17,8 @@ namespace oblo
         function_declaration,
         function_parameter,
         function_body,
+        function_call,
+        function_argument,
         binary_operator,
         i32_constant,
         u32_constant,
@@ -23,6 +26,7 @@ namespace oblo
         u64_constant,
         f32_constant,
         f64_constant,
+        string_constant,
         variable_declaration,
         variable_reference,
         return_statement,
@@ -59,6 +63,20 @@ namespace oblo
     struct ast_function_body
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::function_body;
+    };
+
+    struct ast_function_call
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::function_call;
+
+        string_view name;
+    };
+
+    struct ast_function_argument
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::function_argument;
+
+        string_view name;
     };
 
     struct ast_binary_operator
@@ -110,6 +128,14 @@ namespace oblo
         f64 value;
     };
 
+    struct ast_string_constant
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::string_constant;
+
+        string_view value;
+        h32<string> interned{};
+    };
+
     struct ast_variable_declaration
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::variable_declaration;
@@ -145,6 +171,8 @@ namespace oblo
             ast_function_declaration functionDecl;
             ast_function_parameter functionParameter;
             ast_function_body functionBody;
+            ast_function_call functionCall;
+            ast_function_argument functionArgument;
             ast_binary_operator binaryOp;
             ast_i32_constant i32;
             ast_u32_constant u32;
@@ -152,6 +180,7 @@ namespace oblo
             ast_u64_constant u64;
             ast_f32_constant f32;
             ast_f64_constant f64;
+            ast_string_constant string;
             ast_variable_declaration varDecl;
             ast_variable_reference varRef;
             ast_return_statement retStmt;
@@ -207,6 +236,18 @@ namespace oblo
             n.node.functionBody = v;
         }
 
+        void set_node(ast_node& n, const ast_function_call& v)
+        {
+            n.kind = ast_node_kind::function_call;
+            n.node.functionCall = v;
+        }
+
+        void set_node(ast_node& n, const ast_function_argument& v)
+        {
+            n.kind = ast_node_kind::function_argument;
+            n.node.functionArgument = v;
+        }
+
         void set_node(ast_node& n, const ast_binary_operator& v)
         {
             n.kind = ast_node_kind::binary_operator;
@@ -249,6 +290,15 @@ namespace oblo
             n.node.f64 = v;
         }
 
+        void set_node(ast_node& n, const ast_string_constant& v)
+        {
+            const h32 interned = m_stringInterner.get_or_add(v.value);
+
+            n.kind = ast_node_kind::string_constant;
+            n.node.string.interned = interned;
+            n.node.string.value = m_stringInterner.str(interned).as<string_view>();
+        }
+
         void set_node(ast_node& n, const ast_variable_declaration& v)
         {
             n.kind = ast_node_kind::variable_declaration;
@@ -268,6 +318,7 @@ namespace oblo
         }
 
     private:
+        string_interner m_stringInterner;
         deque<ast_node> m_nodes;
     };
 
