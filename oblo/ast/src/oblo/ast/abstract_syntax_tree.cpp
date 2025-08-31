@@ -16,6 +16,17 @@ namespace oblo
         return {};
     }
 
+    void abstract_syntax_tree::reparent(h32<ast_node> node, h32<ast_node> newParent)
+    {
+        unlink_parent(node);
+        link_parent(node, newParent);
+    }
+
+    void abstract_syntax_tree::unlink_subtree(h32<ast_node> root)
+    {
+        unlink_parent(root);
+    }
+
     h32<ast_node> abstract_syntax_tree::child_next(h32<ast_node> parent, h32<ast_node> previous) const
     {
         if (!previous)
@@ -34,7 +45,7 @@ namespace oblo
         };
     }
 
-    void abstract_syntax_tree::add_child(h32<ast_node> parent, h32<ast_node> child)
+    void abstract_syntax_tree::link_parent(h32<ast_node> parent, h32<ast_node> child)
     {
         OBLO_ASSERT(child);
 
@@ -50,7 +61,49 @@ namespace oblo
             get(p.lastChild).nextSibling = child;
         }
 
+        auto& c = get(child);
+        c.parent = parent;
+        c.prevSibling = p.lastChild;
+
+        // Make sure we update the last child of the parent after prevSibling is set
         p.lastChild = child;
+    }
+
+    void abstract_syntax_tree::unlink_parent(h32<ast_node> child)
+    {
+        OBLO_ASSERT(child);
+
+        auto& c = get(child);
+
+        auto& p = get(c.parent);
+
+        OBLO_ASSERT(p.firstChild);
+
+        if (p.firstChild == child)
+        {
+            p.firstChild = c.nextSibling;
+        }
+
+        if (p.lastChild == child)
+        {
+            p.lastChild = c.prevSibling;
+        }
+
+        if (c.prevSibling)
+        {
+            auto& prev = get(c.prevSibling);
+            prev.nextSibling = c.nextSibling;
+        }
+
+        if (c.nextSibling)
+        {
+            auto& next = get(c.nextSibling);
+            next.prevSibling = c.prevSibling;
+        }
+
+        c.parent = {};
+        c.nextSibling = {};
+        c.prevSibling = {};
     }
 
     const ast_node& abstract_syntax_tree::get(h32<ast_node> node) const

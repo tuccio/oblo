@@ -134,7 +134,9 @@ namespace oblo
     {
         h32<ast_node> firstChild{};
         h32<ast_node> lastChild{};
+        h32<ast_node> prevSibling{};
         h32<ast_node> nextSibling{};
+        h32<ast_node> parent{};
 
         ast_node_kind kind{ast_node_kind::root};
 
@@ -170,6 +172,13 @@ namespace oblo
         template <typename T>
         h32<ast_node> add_node(h32<ast_node> parent, T&& node);
 
+        void reparent(h32<ast_node> node, h32<ast_node> newParent);
+
+        /// @brief Removes the links of the node from its parent, without destroying the node or the subtree, but
+        /// effectively excluding it from visits.
+        /// @param root The root of the subtree to unlink.
+        void unlink_subtree(h32<ast_node> root);
+
         h32<ast_node> child_next(h32<ast_node> parent, h32<ast_node> previous) const;
         iterator_range<children_iterator> children(h32<ast_node> node) const;
 
@@ -177,7 +186,8 @@ namespace oblo
         ast_node& get(h32<ast_node> node);
 
     private:
-        void add_child(h32<ast_node> parent, h32<ast_node> child);
+        void link_parent(h32<ast_node> parent, h32<ast_node> child);
+        void unlink_parent(h32<ast_node> child);
 
         void set_node(ast_node& n, const ast_function_declaration& v)
         {
@@ -270,7 +280,7 @@ namespace oblo
         auto& newNode = m_nodes.emplace_back();
 
         set_node(newNode, std::forward<T>(node));
-        add_child(parent, id);
+        link_parent(parent, id);
 
         return id;
     }

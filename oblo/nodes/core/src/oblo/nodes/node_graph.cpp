@@ -659,10 +659,6 @@ namespace oblo
 
         const h32 executeBody = ast.add_node(executeDecl, ast_function_body{});
 
-        // We create a temporary node were we add new nodes that will later be moved when actually used.
-        // Everything remaning under temporary will be culled as unused.
-        const h32 temporary = ast.add_node(root, ast_return_statement{});
-
         h32_flat_extpool_dense_map<node_graph_vertex_handle::tag_type, h32<ast_node>> outputPins;
 
         dynamic_array<h32<ast_node>> inputs;
@@ -721,7 +717,7 @@ namespace oblo
 
                         auto* const astNode = outputPins.try_find(edge.vertex);
 
-                        if (!astNode || *astNode)
+                        if (!astNode || !*astNode)
                         {
                             return unspecified_error;
                         }
@@ -733,7 +729,7 @@ namespace oblo
                 // TODO: Parametrize graph context for const/non-const
                 const node_graph_context ctx{*const_cast<node_graph*>(this), currentVertex};
 
-                if (!node.node->generate(ctx, ast, temporary, inputs, outputs))
+                if (!node.node->generate(ctx, ast, executeBody, inputs, outputs))
                 {
                     return unspecified_error;
                 }
@@ -743,17 +739,13 @@ namespace oblo
                     return unspecified_error;
                 }
 
+                // Store the generated AST node for each output pin, they will be used to feed the connected inputs
                 for (const auto [outPin, astNode] : zip_range(node.outputPins, outputs))
                 {
                     outputPins.emplace(outPin, astNode);
                 }
             }
         }
-
-        // TODO: Remove temporary node and its children
-
-        // TODO: Fill execution body
-        (void) executeBody;
 
         return no_error;
     }

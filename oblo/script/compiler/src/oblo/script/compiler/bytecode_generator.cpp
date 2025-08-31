@@ -57,6 +57,7 @@ namespace oblo
                         break;
 
                     default:
+                        OBLO_ASSERT(false);
                         return unspecified_error;
                     }
                 }

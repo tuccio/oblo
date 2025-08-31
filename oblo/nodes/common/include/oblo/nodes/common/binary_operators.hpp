@@ -2,6 +2,7 @@
 
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/nodes/common/ast_utils.hpp>
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/common/zero_properties_node.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
@@ -87,13 +88,12 @@ namespace oblo
             uniform_binary_operator::on_input_change(g, m_lhs, m_rhs, m_out, defaultType);
         }
 
-        bool generate([[maybe_unused]] const node_graph_context& g,
-            [[maybe_unused]] abstract_syntax_tree& ast,
-            [[maybe_unused]] h32<ast_node> parent,
-            [[maybe_unused]] const std::span<const h32<ast_node>> inputs,
-            [[maybe_unused]] dynamic_array<h32<ast_node>>& outputs) const
+        bool generate(const node_graph_context& g,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>> inputs,
+            dynamic_array<h32<ast_node>>& outputs) const
         {
-#if 0
             if (inputs.size() != 2)
             {
                 return false;
@@ -109,12 +109,12 @@ namespace oblo
 
             if (lhsType != outType)
             {
-                lhsExpr = generate_conversion_expression(ast, lhsExpr, lhsType, outType);
+                lhsExpr = ast_utils::make_type_conversion(ast, lhsExpr, lhsType, outType);
             }
 
             if (rhsType != outType)
             {
-                rhsExpr = generate_conversion_expression(ast, rhsExpr, rhsType, outType);
+                rhsExpr = ast_utils::make_type_conversion(ast, rhsExpr, rhsType, outType);
             }
 
             if (!lhsExpr || !rhsExpr)
@@ -142,8 +142,6 @@ namespace oblo
             ast.reparent(rhsExpr, outExpr);
 
             outputs.emplace_back(outExpr);
-
-#endif
 
             return true;
         }
