@@ -21,7 +21,7 @@ namespace oblo
     void abstract_syntax_tree::reparent(h32<ast_node> node, h32<ast_node> newParent)
     {
         unlink_parent(node);
-        link_parent(node, newParent);
+        link_parent(newParent, node);
     }
 
     void abstract_syntax_tree::unlink_subtree(h32<ast_node> root)
