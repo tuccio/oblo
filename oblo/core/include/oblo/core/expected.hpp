@@ -120,6 +120,17 @@ namespace oblo
         };
     };
 
+    // Implementation for void type
+    template <trivial_type E>
+    class [[nodiscard]] expected<void, E> : public expected<success_tag, E>
+    {
+    public:
+        using expected<success_tag, E>::expected;
+
+        using expected<success_tag, E>::operator bool;
+        using expected<success_tag, E>::error;
+    };
+
     // Implementation for non trivial types
     template <non_trivial_type T, trivial_type E>
     class [[nodiscard]] expected<T, E>

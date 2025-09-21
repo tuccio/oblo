@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
@@ -15,6 +16,8 @@ namespace oblo
     class interpreter;
 
     using script_api_fn = function_ref<void(interpreter&)>;
+
+    enum class interpreter_error : u8;
 
     class interpreter
     {
@@ -36,20 +39,20 @@ namespace oblo
 
         h32<script_function> find_function(hashed_string_view name) const;
 
-        void call_function(h32<script_function> f);
+        expected<void, interpreter_error> call_function(h32<script_function> f);
 
-        f32 read_f32(u32 stackOffset) const;
-        u32 read_u32(u32 stackOffset) const;
-        i32 read_i32(u32 stackOffset) const;
+        expected<f32, interpreter_error> read_f32(u32 stackOffset) const;
+        expected<u32, interpreter_error> read_u32(u32 stackOffset) const;
+        expected<i32, interpreter_error> read_i32(u32 stackOffset) const;
 
         void push_u32(u32 value);
 
-        void pop(u32 stackSize);
+        expected<void, interpreter_error> pop(u32 stackSize);
 
         u32 used_stack_size() const;
         u32 available_stack_size() const;
 
-        void run();
+        expected<void, interpreter_error> run();
 
     private:
         using address_offset = u32;
@@ -89,5 +92,11 @@ namespace oblo
         dynamic_array<read_only_string> m_readOnlyStrings;
         std::unordered_map<string, u32, transparent_string_hash, std::equal_to<>> m_functionNames;
         std::unordered_map<string, script_api_fn, transparent_string_hash, std::equal_to<>> m_apiFunctions;
+    };
+
+    enum class interpreter_error : u8
+    {
+        unknown_instruction,
+        stack_underflow,
     };
 }

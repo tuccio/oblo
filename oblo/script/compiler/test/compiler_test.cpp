@@ -36,11 +36,12 @@ namespace oblo
         const h32 hFuncInstance = rt.find_function("add_sub"_hsv);
         ASSERT_TRUE(hFuncInstance);
 
-        rt.call_function(hFuncInstance);
+        ASSERT_TRUE(rt.call_function(hFuncInstance));
 
         // We should have the result at the top
-        const f32 r = rt.read_f32(0);
+        const expected<f32, interpreter_error> r = rt.read_f32(0);
+        ASSERT_TRUE(r);
 
-        ASSERT_FLOAT_EQ(r, 42.f);
+        ASSERT_FLOAT_EQ(*r, 42.f);
     }
 }

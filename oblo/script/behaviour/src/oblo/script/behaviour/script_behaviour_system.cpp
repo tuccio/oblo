@@ -85,11 +85,14 @@ namespace oblo
 
         deferred.apply(*ctx.entities);
 
-        for (auto&& chunk : ctx.entities->range<script_behaviour_state_component, script_behaviour_update_tag>())
+        for (auto&& chunk : ctx.entities->range<script_behaviour_state_component>().with<script_behaviour_update_tag>())
         {
             for (auto&& [e, state] : chunk.zip<ecs::entity, script_behaviour_state_component>())
             {
-                state.runtime->run();
+                if (!state.runtime->run())
+                {
+                    log::debug("Script execution failed for entity {}", e.value);
+                }
             }
         }
     }
