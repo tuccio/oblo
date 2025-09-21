@@ -86,14 +86,31 @@ namespace oblo
         deque<visit_info> visitStack;
         deque<node_info> nodeInfo;
 
+        const auto pushReadOnlyString = [&m](string_view str) -> u32
+        {
+            const u32 id = m.readOnlyStrings.size32();
+            m.readOnlyStrings.emplace_back(str);
+            return id;
+        };
+
         for (const ast_function_ref& f : functions)
         {
             u8 returnSize = 0;
 
             // TODO: Make a more extensible type system
-            if (const ast_node& decl = ast.get(f.declaration); decl.node.functionDecl.returnType == "f32")
+            const ast_node& fDecl = ast.get(f.declaration);
+
+            if (fDecl.node.functionDecl.returnType.empty())
+            {
+                returnSize = 0;
+            }
+            else if (fDecl.node.functionDecl.returnType == "f32")
             {
                 returnSize = sizeof(f32);
+            }
+            else
+            {
+                return unspecified_error;
             }
 
             const u32 textOffset = m.text.size32();
@@ -127,8 +144,14 @@ namespace oblo
                     case ast_node_kind::f32_constant: {
                         const u32 val = std::bit_cast<u32>(n.node.f32.value);
 
-                        m.text.push_back(bytecode_instruction{.op = bytecode_op::push32lo16, .payload = lo16(val)});
-                        m.text.push_back(bytecode_instruction{.op = bytecode_op::or32hi16, .payload = hi16(val)});
+                        m.text.push_back({.op = bytecode_op::push_32lo16, .payload = lo16(val)});
+                        m.text.push_back({.op = bytecode_op::or_32hi16, .payload = hi16(val)});
+                    }
+                    break;
+
+                    case ast_node_kind::string_constant: {
+                        const u32 stringId = pushReadOnlyString(n.node.string.value);
+                        m.text.push_back({.op = bytecode_op::push_read_only_string_view, .payload = lo16(stringId)});
                     }
                     break;
 
@@ -136,11 +159,11 @@ namespace oblo
                         switch (n.node.binaryOp.op)
                         {
                         case ast_binary_operator_kind::add_f32:
-                            m.text.push_back({.op = bytecode_op::addf32});
+                            m.text.push_back({.op = bytecode_op::add_f32});
                             break;
 
                         case ast_binary_operator_kind::sub_f32:
-                            m.text.push_back({.op = bytecode_op::subf32});
+                            m.text.push_back({.op = bytecode_op::sub_f32});
                             break;
 
                         default:
@@ -150,8 +173,20 @@ namespace oblo
                     break;
 
                     case ast_node_kind::return_statement: {
-                        m.text.push_back(
-                            {.op = bytecode_op::retvpso, .payload = bytecode_payload::pack_2xu8(returnSize, 0)});
+                        m.text.push_back({.op = bytecode_op::push_value_sizeoffset,
+                            .payload = bytecode_payload::pack_2xu8(returnSize, 0)});
+                    }
+                    break;
+
+                    case ast_node_kind::function_call: {
+                        const u32 stringId = pushReadOnlyString(n.node.functionCall.name);
+                        m.text.push_back({.op = bytecode_op::call_api_static, .payload = lo16(stringId)});
+                    }
+                    break;
+
+                    case ast_node_kind::function_argument: {
+                        // TODO: How to deal with function argument? Since we are visiting bottom up we get the argument
+                        // before the function call On the stack we should have the argument right now
                     }
                     break;
 

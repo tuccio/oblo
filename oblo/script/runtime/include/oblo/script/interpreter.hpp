@@ -98,5 +98,7 @@ namespace oblo
     {
         unknown_instruction,
         stack_underflow,
+        invalid_string,
+        unknown_function,
     };
 }
