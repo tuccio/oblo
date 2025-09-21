@@ -10,29 +10,32 @@ namespace oblo
         ret,
 
         /// @brief Push a 32-bit value on the stack, setting the low 16 bits using the payload value.
-        push32lo16,
+        push_32lo16,
 
         /// @brief Copies values from somewhere on the stack to the top, using [size: u8, offset: u8] as payload.
-        pushcppso,
+        push_copy_sizeoffset,
+
+        /// @brief Pushes a string view from the read-only strings, using [read-only string id: u16].
+        push_read_only_string_view,
 
         /// @brief Modifies the 32-bit value at top of the stack, setting the payload values as high 16 bits.
-        or32hi16,
+        or_32hi16,
 
         // @brief Overwrite value on stack with the value on top of the stack, using [size: u8, offset: u8] as payload.
-        stru32pso,
+        store_32_sizeoffset,
 
         /// @brief Push value at the top of the stack to return value, using [size: u8, offset: u8] as payload.
-        retvpso,
+        push_value_sizeoffset,
 
         /// @brief Checks the 2 elements at the top of the stack for a == b. Pushes 1 if they are equal, 0 otherwise.
-        equ32,
-        eqi32 = equ32,
+        eq_u32,
+        eq_i32 = eq_u32,
 
         /// @brief Checks the 2 elements at the top of the stack for a >= b. Pushes 1 if true, 0 otherwise.
-        geu32,
+        ge_u32,
 
         /// @brief Checks the 2 elements at the top of the stack for a <= b. Pushes 1 if true, 0 otherwise.
-        leu32,
+        le_u32,
 
         /// @brief Unconditional jump to the address at the top of the stack.
         jmp,
@@ -44,38 +47,38 @@ namespace oblo
         jz32,
 
         /// @brief Pushes the current instruction address at the top of the stack.
-        instraddr,
+        push_current_instruction_address,
 
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.
-        incu32pu16,
+        increment_u32_val,
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.
-        inci32pu16,
+        increment_i32_val,
 
         /// @brief Increments the value at the given offset with payload [offset: u8, amount: u8].
-        incu32poi,
+        increment_stackref_u32_offsetval,
 
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.
-        decu32pu16,
+        decrement_u32_u16,
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.
-        deci32pu16,
+        decrement_i32_val,
 
         // Binary operations: consume operands on stack, push result.
-        addf32,
-        addi32,
-        addu32,
-        addf64,
-        addi64,
-        addu64,
+        add_f32,
+        add_i32,
+        add_u32,
+        add_f64,
+        add_i64,
+        add_u64,
 
-        subf32,
-        subi32,
-        subu32,
-        subf64,
-        subi64,
-        subu64,
+        sub_f32,
+        sub_i32,
+        sub_u32,
+        sub_f64,
+        sub_i64,
+        sub_u64,
 
         /// @brief Calls a native API function, looking it up by name using a string in the data segment identified by
         /// the u16 id in the payload.
-        callapipu16,
+        call_api_static,
     };
 }

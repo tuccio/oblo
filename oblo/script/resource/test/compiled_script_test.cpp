@@ -22,7 +22,7 @@ namespace oblo
         src.module.readOnlyStrings = {"my_string"};
 
         src.module.text = {
-            {bytecode_op::callapipu16, bytecode_payload::pack_u16(0)},
+            {bytecode_op::call_api_static, bytecode_payload::pack_u16(0)},
             {bytecode_op::ret},
         };
 

@@ -34,6 +34,16 @@ namespace oblo
             return addr;
         }
 
+        OBLO_FORCEINLINE expected<byte*, interpreter_error> check_stack_addr(byte* addr, byte* stackMemory)
+        {
+            if (addr < stackMemory) [[unlikely]]
+            {
+                return interpreter_error::stack_underflow;
+            }
+
+            return addr;
+        }
+
         template <typename T>
         OBLO_FORCEINLINE expected<T, interpreter_error> read_stack(byte* stackTop, u32 stackOffset, byte* stackMemory)
         {
@@ -294,7 +304,7 @@ namespace oblo
             case bytecode_op::ret:
                 return no_error;
 
-            case bytecode_op::push32lo16: {
+            case bytecode_op::push_32lo16: {
                 u16 v;
                 bytecode_payload::unpack_u16(bytecode.payload, v);
                 push_u32(v);
@@ -303,7 +313,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::or32hi16: {
+            case bytecode_op::or_32hi16: {
                 u16 v;
                 bytecode_payload::unpack_u16(bytecode.payload, v);
 
@@ -320,18 +330,21 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::pushcppso: {
+            case bytecode_op::push_copy_sizeoffset: {
                 u8 size, offset;
                 bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
-                const byte* const src = m_stackTop - offset - size;
+
+                const expected srcAddr = check_stack_addr(m_stackTop - offset - size, m_stackMemory.get());
+                OBLO_INTERPRETER_RETURN_ON_ERROR(srcAddr);
+
                 byte* const dst = allocate_stack(size);
-                std::memcpy(dst, src, size);
+                std::memcpy(dst, *srcAddr, size);
             }
 
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::stru32pso: {
+            case bytecode_op::store_32_sizeoffset: {
                 u8 size, offset;
                 bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
                 const expected dstAddr = stack_addr<u32>(m_stackTop, offset, m_stackMemory.get());
@@ -347,7 +360,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::retvpso: {
+            case bytecode_op::push_value_sizeoffset: {
                 u8 size, offset;
                 bytecode_payload::unpack_2xu8(bytecode.payload, size, offset);
 
@@ -364,7 +377,7 @@ namespace oblo
 
                 // Binary add
 
-            case bytecode_op::addu32: {
+            case bytecode_op::add_u32: {
                 const expected v = binary_add<u32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -372,7 +385,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::addi32: {
+            case bytecode_op::add_i32: {
                 const expected v = binary_add<i32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -380,7 +393,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::addf32: {
+            case bytecode_op::add_f32: {
                 const expected v = binary_add<f32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -388,7 +401,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::addu64: {
+            case bytecode_op::add_u64: {
                 const expected v = binary_add<u64>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -396,7 +409,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::addi64: {
+            case bytecode_op::add_i64: {
                 const expected v = binary_add<i64>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -404,7 +417,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::addf64: {
+            case bytecode_op::add_f64: {
                 const expected v = binary_add<f64>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -414,7 +427,7 @@ namespace oblo
 
                 // Binary sub
 
-            case bytecode_op::subu32: {
+            case bytecode_op::sub_u32: {
                 const expected v = binary_sub<u32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -422,7 +435,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::subi32: {
+            case bytecode_op::sub_i32: {
                 const expected v = binary_sub<i32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -430,7 +443,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::subf32: {
+            case bytecode_op::sub_f32: {
                 const expected v = binary_sub<f32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -438,7 +451,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::subu64: {
+            case bytecode_op::sub_u64: {
                 const expected v = binary_sub<u64>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -446,7 +459,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::subi64: {
+            case bytecode_op::sub_i64: {
                 const expected v = binary_sub<i64>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -454,7 +467,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::subf64: {
+            case bytecode_op::sub_f64: {
                 const expected v = binary_sub<f64>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -464,7 +477,7 @@ namespace oblo
 
                 // Comparison
 
-            case bytecode_op::geu32: {
+            case bytecode_op::ge_u32: {
                 const expected v = compare_ge<u32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -472,7 +485,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::leu32: {
+            case bytecode_op::le_u32: {
                 const expected v = compare_le<u32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_RETURN_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -516,7 +529,7 @@ namespace oblo
 
                 // Increments
 
-            case bytecode_op::incu32pu16: {
+            case bytecode_op::increment_u32_val: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -526,7 +539,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::inci32pu16: {
+            case bytecode_op::increment_i32_val: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -536,7 +549,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::incu32poi: {
+            case bytecode_op::increment_stackref_u32_offsetval: {
                 u8 offset, inc;
                 bytecode_payload::unpack_2xu8(bytecode.payload, offset, inc);
 
@@ -552,7 +565,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::decu32pu16: {
+            case bytecode_op::decrement_u32_u16: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -562,7 +575,7 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::deci32pu16: {
+            case bytecode_op::decrement_i32_val: {
                 u16 inc;
                 bytecode_payload::unpack_u16(bytecode.payload, inc);
 
@@ -572,12 +585,12 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::instraddr:
+            case bytecode_op::push_current_instruction_address:
                 push_u32(m_nextInstruction);
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::callapipu16: {
+            case bytecode_op::call_api_static: {
                 u16 stringId;
                 bytecode_payload::unpack_u16(bytecode.payload, stringId);
 
