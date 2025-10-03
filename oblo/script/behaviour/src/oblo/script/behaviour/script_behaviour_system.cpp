@@ -27,6 +27,7 @@ namespace oblo
 
         struct script_api_context
         {
+            time currentTime;
             ecs::entity entityId;
         };
     }
@@ -49,7 +50,15 @@ namespace oblo
 
         void register_api_functions(interpreter& i)
         {
+            i.register_api("__get_time", [this](interpreter& interp) { return get_time_impl(interp); });
             i.register_api("__ecs_set_property", [this](interpreter& interp) { return ecs_set_property_impl(interp); });
+        }
+
+        expected<void, interpreter_error> get_time_impl(interpreter& interp)
+        {
+            const f32 t = to_f32_seconds(m_ctx.currentTime);
+            interp.push_u32(std::bit_cast<u32>(t));
+            return no_error;
         }
 
         expected<void, interpreter_error> ecs_set_property_impl(interpreter& interp)
@@ -98,9 +107,9 @@ namespace oblo
             return no_error;
         }
 
-        void set_context(const script_api_context& ctx)
+        script_api_context& global_context()
         {
-            m_ctx = ctx;
+            return m_ctx;
         }
 
     private:
@@ -252,13 +261,13 @@ namespace oblo
 
         deferred.apply(*ctx.entities);
 
+        auto& apiCtx = m_scriptApi->global_context();
+
         for (auto&& chunk : ctx.entities->range<script_behaviour_state_component>().with<script_behaviour_update_tag>())
         {
             for (auto&& [e, state] : chunk.zip<ecs::entity, script_behaviour_state_component>())
             {
-                m_scriptApi->set_context({
-                    .entityId = e,
-                });
+                apiCtx.entityId = e;
 
                 if (!state.runtime->run())
                 {
@@ -268,6 +277,8 @@ namespace oblo
                 state.runtime->reset_execution();
             }
         }
+
+        apiCtx.currentTime = apiCtx.currentTime + ctx.dt;
     }
 
     void script_behaviour_system::shutdown() {}

@@ -20,6 +20,7 @@
 #include <oblo/nodes/common/constant_nodes.hpp>
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/common/input_node.hpp>
+#include <oblo/nodes/common/math_nodes.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
 #include <oblo/properties/property_registry.hpp>
@@ -32,6 +33,7 @@
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
 #include <oblo/script/compiler/bytecode_generator.hpp>
+#include <oblo/script/nodes/api_nodes.hpp>
 #include <oblo/script/nodes/ecs_nodes.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
 #include <oblo/script/resources/traits.hpp>
@@ -268,6 +270,13 @@ namespace oblo
 
             m_scriptRegistry.register_node(make_node_descriptor<add_operator>());
             m_scriptRegistry.register_node(make_node_descriptor<mul_operator>());
+
+            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::cosine_node>());
+            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::sine_node>());
+            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::tangent_node>());
+            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::arctangent_node>());
+
+            m_scriptRegistry.register_node(make_node_descriptor<api_nodes::get_time_node>());
 
             auto* const runtimeModule = module_manager::get().find<runtime_module>();
 

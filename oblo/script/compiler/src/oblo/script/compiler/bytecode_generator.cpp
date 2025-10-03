@@ -213,18 +213,48 @@ namespace oblo
                     break;
 
                     case ast_node_kind::function_call: {
-                        const expected<u16> stringId = pushReadOnlyString16(n.node.functionCall.name);
-
-                        if (!stringId)
+                        if (n.node.functionCall.name.starts_with("__intrin_"))
                         {
-                            return unspecified_error;
+                            if (n.node.functionCall.name == "__intrin_sin"_hsv)
+                            {
+                                m.text.push_back({.op = bytecode_op::sin_f32});
+                                thisNodeInfo.expressionResultSize = sizeof(f32);
+                            }
+                            else if (n.node.functionCall.name == "__intrin_cos"_hsv)
+                            {
+                                m.text.push_back({.op = bytecode_op::cos_f32});
+                                thisNodeInfo.expressionResultSize = sizeof(f32);
+                            }
+                            else if (n.node.functionCall.name == "__intrin_tan"_hsv)
+                            {
+                                m.text.push_back({.op = bytecode_op::tan_f32});
+                                thisNodeInfo.expressionResultSize = sizeof(f32);
+                            }
+                            else if (n.node.functionCall.name == "__intrin_atan"_hsv)
+                            {
+                                m.text.push_back({.op = bytecode_op::atan_f32});
+                                thisNodeInfo.expressionResultSize = sizeof(f32);
+                            }
+                            else
+                            {
+                                return unspecified_error;
+                            }
                         }
+                        else
+                        {
+                            const expected<u16> stringId = pushReadOnlyString16(n.node.functionCall.name);
 
-                        m.text.push_back({.op = bytecode_op::call_api_static, .payload = *stringId});
+                            if (!stringId)
+                            {
+                                return unspecified_error;
+                            }
 
-                        // TODO: We might have to consider return types, which might mean we need function declarations
-                        // for API calls.
-                        thisNodeInfo.expressionResultSize = 0;
+                            m.text.push_back({.op = bytecode_op::call_api_static, .payload = *stringId});
+
+                            // TODO: We might have to consider return types, which might mean we need function
+                            // declarations for API calls.
+                            thisNodeInfo.expressionResultSize = 0;
+                        }
                     }
                     break;
 

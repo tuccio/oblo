@@ -343,7 +343,7 @@ namespace oblo
 
         while (true)
         {
-            const auto& bytecode = m_code[m_nextInstruction];
+            const bytecode_instruction bytecode = m_code[m_nextInstruction];
 
             switch (bytecode.op)
             {
@@ -743,6 +743,56 @@ namespace oblo
                 {
                     OBLO_INTERPRETER_ABORT(interpreter_error::unknown_function);
                 }
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case bytecode_op::cos_f32:
+                [[fallthrough]];
+
+            case bytecode_op::sin_f32:
+                [[fallthrough]];
+
+            case bytecode_op::tan_f32:
+                [[fallthrough]];
+
+            case bytecode_op::atan_f32: {
+                const expected arg = read_stack<f32>(m_stackTop, 0, m_stackMemory.get());
+
+                if (!arg) [[unlikely]]
+                {
+                    return arg.error();
+                }
+
+                const f32 a = *arg;
+                f32 r;
+
+                switch (bytecode.op)
+                {
+                case bytecode_op::cos_f32:
+                    r = std::cos(a);
+                    break;
+
+                case bytecode_op::sin_f32:
+                    r = std::sin(a);
+                    break;
+
+                case bytecode_op::tan_f32:
+                    r = std::tan(a);
+                    break;
+
+                case bytecode_op::atan_f32:
+                    r = std::atan(a);
+                    break;
+
+                default:
+                    unreachable();
+                }
+
+                // Consume the arg
+                auto* const resPtr = m_stackTop - sizeof(f32);
+                std::memcpy(resPtr, &r, sizeof(f32));
             }
 
                 ++m_nextInstruction;
