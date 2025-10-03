@@ -1,6 +1,7 @@
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
+#include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
@@ -26,6 +27,129 @@ namespace oblo::editor
 {
     namespace
     {
+        void draw_ast_node(string_builder& builder, const abstract_syntax_tree& ast, h32<ast_node> node)
+        {
+            // If the node has children, open a tree node
+            builder.clear().format("Node {}", node.value);
+
+            const auto& nodeData = ast.get(node);
+
+            switch (nodeData.kind)
+            {
+            case ast_node_kind::root:
+                builder.format(" [root]");
+                break;
+
+            case ast_node_kind::function_declaration:
+                builder.format(" [f_decl: {}]", nodeData.node.functionDecl.name);
+                break;
+
+            case ast_node_kind::function_body:
+                builder.format(" [f_body]");
+                break;
+
+            case ast_node_kind::function_parameter:
+                builder.format(" [f_param: {}]", nodeData.node.functionParameter.name);
+                break;
+
+            case ast_node_kind::function_argument:
+                builder.format(" [f_arg: {}]", nodeData.node.functionArgument.name);
+                break;
+
+            case ast_node_kind::f32_constant:
+                builder.format(" [f32: {}]", nodeData.node.f32.value);
+                break;
+
+            case ast_node_kind::u32_constant:
+                builder.format(" [u32: {}]", nodeData.node.u32.value);
+                break;
+
+            case ast_node_kind::i32_constant:
+                builder.format(" [i32: {}]", nodeData.node.i32.value);
+                break;
+
+            case ast_node_kind::string_constant:
+                builder.format(" [string: \"{}\"]", nodeData.node.string.value);
+                break;
+
+            case ast_node_kind::function_call:
+                builder.format(" [call: {}]", nodeData.node.functionCall.name);
+                break;
+
+            case ast_node_kind::binary_operator:
+                builder.format(" [binop: {}]", u32(nodeData.node.binaryOp.op));
+                break;
+
+            case ast_node_kind::variable_declaration:
+                builder.format(" [var_decl: {}]", nodeData.node.varDecl.name);
+                break;
+
+            case ast_node_kind::variable_definition:
+                builder.format(" [var_def]");
+                break;
+
+            case ast_node_kind::variable_reference:
+                builder.format(" [var_ref: {}]", nodeData.node.varRef.name);
+                break;
+            default:
+                break;
+            }
+
+            auto children = ast.children(node);
+
+            if (children.begin() != children.end())
+            {
+                if (ImGui::TreeNodeEx(builder.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    for (const h32 child : children)
+                    {
+                        draw_ast_node(builder, ast, child);
+                    }
+
+                    ImGui::TreePop();
+                }
+            }
+            else
+            {
+                ImGui::TreeNodeEx(builder.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+            }
+        }
+
+        class visualize_ast_window
+        {
+        public:
+            explicit visualize_ast_window(abstract_syntax_tree ast) : m_ast{std::move(ast)} {}
+
+            bool update(const window_update_context&)
+            {
+                bool isOpen = true;
+
+                if (ImGui::Begin("Visualize AST",
+                        &isOpen,
+                        ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+                {
+
+                    if (m_ast.is_initialized())
+                    {
+                        const h32 root = m_ast.get_root();
+                        string_builder builder;
+                        draw_ast_node(builder, m_ast, root);
+                    }
+                    else
+                    {
+                        ImGui::TextUnformatted("AST is empty.");
+                    }
+                }
+
+                ImGui::End();
+
+                return isOpen;
+            }
+
+        private:
+            abstract_syntax_tree m_ast;
+        };
+
         class script_graph_window
         {
         public:
@@ -66,7 +190,7 @@ namespace oblo::editor
                 return true;
             }
 
-            bool update(const window_update_context&)
+            bool update(const window_update_context& ctx)
             {
                 bool isOpen = true;
 
@@ -86,6 +210,26 @@ namespace oblo::editor
                             if (!save_asset(m_assetRegistry))
                             {
                                 log::error("Failed to save asset {}", m_assetId);
+                            }
+                        }
+
+                        if (ImGui::Button(ICON_FA_TREE))
+                        {
+                            auto* const sg = m_asset.as<script_graph>();
+
+                            if (sg)
+                            {
+                                abstract_syntax_tree ast;
+
+                                if (!sg->generate_ast(ast))
+                                {
+                                    log::error("Failed to generate AST");
+                                }
+
+                                ctx.windowManager.create_child_window<visualize_ast_window>(ctx.windowHandle,
+                                    window_flags::unique_sibling,
+                                    {},
+                                    std::move(ast));
                             }
                         }
 

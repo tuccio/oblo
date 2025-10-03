@@ -202,6 +202,8 @@ namespace oblo
     public:
         void init();
 
+        bool is_initialized() const;
+
         h32<ast_node> get_root() const;
 
         template <typename T>

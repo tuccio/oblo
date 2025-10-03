@@ -13,6 +13,11 @@ namespace oblo
         m_stringInterner.init(0);
     }
 
+    bool abstract_syntax_tree::is_initialized() const
+    {
+        return !m_nodes.empty();
+    }
+
     h32<ast_node> abstract_syntax_tree::get_root() const
     {
         return {};
