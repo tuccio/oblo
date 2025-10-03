@@ -432,7 +432,7 @@ namespace oblo
                     doc.make_value(uiPositionX, property_value_wrapper{node.uiPosition.x});
                     doc.make_value(uiPositionY, property_value_wrapper{node.uiPosition.y});
 
-                    const u32 dataNodeIndex = doc.child_object(nodeObj, g_DocNodeType);
+                    const u32 dataNodeIndex = doc.child_object(nodeObj, g_DocNodeData);
                     store(to_node_handle(v), doc, dataNodeIndex);
                 },
                 [this, &doc, v, edgesArray](const pin_data& srcPin)
