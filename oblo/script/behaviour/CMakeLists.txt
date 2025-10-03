@@ -10,6 +10,7 @@ target_link_libraries(
     oblo::ecs
     oblo::log
     oblo::modules
+    oblo::properties
     oblo::reflection
     oblo::resource
     oblo::script::runtime

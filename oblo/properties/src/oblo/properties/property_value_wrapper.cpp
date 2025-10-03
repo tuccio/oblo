@@ -83,6 +83,14 @@ namespace oblo
             *this = property_value_wrapper{*reinterpret_cast<const string*>(src)};
             break;
 
+        case property_kind::f32:
+            *this = property_value_wrapper{*reinterpret_cast<const f32*>(src)};
+            break;
+
+        case property_kind::f64:
+            *this = property_value_wrapper{*reinterpret_cast<const f64*>(src)};
+            break;
+
         case property_kind::u8:
             *this = property_value_wrapper{*reinterpret_cast<const u8*>(src)};
             break;

@@ -3,12 +3,16 @@
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/properties/property_registry.hpp>
+#include <oblo/properties/property_tree.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/script/behaviour/script_behaviour_component.hpp>
@@ -30,6 +34,19 @@ namespace oblo
     class script_behaviour_system::script_api_impl
     {
     public:
+        bool init(const property_registry& propertyRegistry, ecs::entity_registry& entities)
+        {
+            m_propertyRegistry = &propertyRegistry;
+            m_entities = &entities;
+
+            return true;
+        }
+
+        bool is_initialized() const
+        {
+            return m_propertyRegistry != nullptr;
+        }
+
         void register_api_functions(interpreter& i)
         {
             i.register_api("__ecs_set_property", [this](interpreter& interp) { return ecs_set_property_impl(interp); });
@@ -46,11 +63,37 @@ namespace oblo
                 return interpreter_error::invalid_arguments;
             }
 
-            log::debug("Set {}::{} on entity {} ({} bytes)",
-                *componentType,
-                *property,
-                m_ctx.entityId.value,
-                dataRef->size_bytes());
+            const auto entry =
+                get_or_add_to_cache(hashed_string_view{*componentType}, *property, m_entities->get_type_registry());
+
+            if (!entry.tree || entry.propertyIdx >= entry.tree->properties.size()) [[unlikely]]
+            {
+                log::error("Failed to locate property {}::{}", *componentType, *property);
+                return interpreter_error::invalid_arguments;
+            }
+
+            const auto& propertyData = entry.tree->properties[entry.propertyIdx];
+
+            if (propertyData.kind == property_kind::string)
+            {
+                log::error("Unsupported property type {}::{}", *componentType, *property);
+                return interpreter_error::invalid_arguments;
+            }
+
+            byte* componentPtr[1];
+            const ecs::component_type types[1] = {entry.componentId};
+            m_entities->get(m_ctx.entityId, types, componentPtr);
+
+            if (!componentPtr[0])
+            {
+                log::debug("Entity {} has no component {}", m_ctx.entityId.value, *componentType);
+            }
+
+            property_value_wrapper w;
+            w.assign_from(propertyData.kind, dataRef->data());
+            w.assign_to(propertyData.kind, componentPtr[0] + propertyData.offset);
+
+            m_entities->notify(m_ctx.entityId);
 
             return no_error;
         }
@@ -61,7 +104,72 @@ namespace oblo
         }
 
     private:
+        using property_hash = usize;
+
+        struct property_entry
+        {
+            const property_tree* tree;
+            ecs::component_type componentId;
+            u32 propertyIdx;
+        };
+
+    private:
+        property_entry get_or_add_to_cache(
+            hashed_string_view typeName, string_view property, const ecs::type_registry& types)
+        {
+            const property_hash propertyHash = hash_all<hash>(typeName, property);
+
+            const auto [it, inserted] = m_componentProperties.emplace(propertyHash, property_entry{});
+
+            if (!inserted)
+            {
+                return it->second;
+            }
+
+            const type_id typeId{.name = typeName};
+            auto* const tree = m_propertyRegistry->try_get(typeId);
+
+            // Cache the result pointer since the map is stable and iterators will be invalidated
+            auto& result = it->second;
+
+            // Let's cache all properties for the component, this will invalidate the map iterator
+            if (tree)
+            {
+                const auto componentId = types.find_component(typeId);
+
+                string_builder builder;
+
+                for (u32 propertyIdx = 0; propertyIdx < tree->properties.size32(); ++propertyIdx)
+                {
+                    builder.clear();
+                    create_property_path(builder, *tree, tree->properties[propertyIdx]);
+
+                    const property_hash newPropertyHash = hash_all<hash>(typeId, builder);
+
+                    auto& newProperty = m_componentProperties[newPropertyHash];
+
+                    if (newProperty.tree) [[unlikely]]
+                    {
+                        log::error("A hash conflict between properties was detected");
+                        continue;
+                    }
+
+                    newProperty = property_entry{
+                        .tree = tree,
+                        .componentId = componentId,
+                        .propertyIdx = propertyIdx,
+                    };
+                }
+            }
+
+            return result;
+        }
+
+    private:
         script_api_context m_ctx{};
+        const property_registry* m_propertyRegistry{};
+        ecs::entity_registry* m_entities{};
+        std::unordered_map<property_hash, property_entry> m_componentProperties;
     };
 
     script_behaviour_system::script_behaviour_system() = default;
@@ -70,15 +178,26 @@ namespace oblo
     void script_behaviour_system::first_update(const ecs::system_update_context& ctx)
     {
         m_scriptApi = allocate_unique<script_api_impl>();
+
+        auto* const propertyRegistry = ctx.services->find<const property_registry>();
+
+        if (!propertyRegistry || !m_scriptApi->init(*propertyRegistry, *ctx.entities))
+        {
+            log::error("Failed to initialized script API");
+        }
+
         m_resourceRegistry = ctx.services->find<const resource_registry>();
         update(ctx);
     }
 
     void script_behaviour_system::update(const ecs::system_update_context& ctx)
     {
-        ecs::deferred deferred;
+        if (!m_scriptApi->is_initialized()) [[unlikely]]
+        {
+            return;
+        }
 
-        const auto updatedScripts = m_resourceRegistry->get_updated_events<compiled_script>();
+        ecs::deferred deferred;
 
         for (auto&& chunk :
             ctx.entities->range<script_behaviour_component>().exclude<script_behaviour_state_component>())
@@ -111,7 +230,7 @@ namespace oblo
             {
                 if (state.script.is_invalidated() || state.script.as_ref() != b.script)
                 {
-                    deferred.remove<script_behaviour_state_component>(e);
+                    deferred.remove<script_behaviour_state_component, script_behaviour_update_tag>(e);
                     continue;
                 }
 
