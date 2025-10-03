@@ -102,6 +102,48 @@ namespace oblo
         }
 
         template <typename T>
+        [[nodiscard]] OBLO_FORCEINLINE expected<byte*, interpreter_error> binary_mul(byte* stackTop, byte* stackMemory)
+        {
+            const expected lhs = read_stack<T>(stackTop, 0, stackMemory);
+            const expected rhs = read_stack<T>(stackTop, sizeof(T), stackMemory);
+
+            if (!lhs || !rhs) [[unlikely]]
+            {
+                return !lhs ? lhs.error() : rhs.error();
+            }
+
+            const T r = *lhs * *rhs;
+
+            // Consume 2 args but keep space for the result
+            auto* resPtr = stackTop - 2 * sizeof(T);
+            std::memcpy(resPtr, &r, sizeof(T));
+
+            // Return new stack top
+            return resPtr + sizeof(T);
+        }
+
+        template <typename T>
+        [[nodiscard]] OBLO_FORCEINLINE expected<byte*, interpreter_error> binary_div(byte* stackTop, byte* stackMemory)
+        {
+            const expected lhs = read_stack<T>(stackTop, 0, stackMemory);
+            const expected rhs = read_stack<T>(stackTop, sizeof(T), stackMemory);
+
+            if (!lhs || !rhs) [[unlikely]]
+            {
+                return !lhs ? lhs.error() : rhs.error();
+            }
+
+            const T r = *lhs / *rhs;
+
+            // Consume 2 args but keep space for the result
+            auto* resPtr = stackTop - 2 * sizeof(T);
+            std::memcpy(resPtr, &r, sizeof(T));
+
+            // Return new stack top
+            return resPtr + sizeof(T);
+        }
+
+        template <typename T>
         [[nodiscard]] OBLO_FORCEINLINE expected<byte*, interpreter_error> compare_ge(byte* stackTop, byte* stackMemory)
         {
             using result_t = u32;
@@ -530,6 +572,24 @@ namespace oblo
 
             case bytecode_op::sub_f64: {
                 const expected v = binary_sub<f64>(m_stackTop, m_stackMemory.get());
+                OBLO_INTERPRETER_ABORT_ON_ERROR(v);
+                deallocate_stack_unsafe(m_stackTop, *v);
+            }
+                ++m_nextInstruction;
+                break;
+
+                // Binary mul
+            case bytecode_op::mul_f32: {
+                const expected v = binary_mul<f32>(m_stackTop, m_stackMemory.get());
+                OBLO_INTERPRETER_ABORT_ON_ERROR(v);
+                deallocate_stack_unsafe(m_stackTop, *v);
+            }
+                ++m_nextInstruction;
+                break;
+
+                // Binary div
+            case bytecode_op::div_f32: {
+                const expected v = binary_mul<f32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_ABORT_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
             }

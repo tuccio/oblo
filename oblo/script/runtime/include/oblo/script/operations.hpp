@@ -87,6 +87,10 @@ namespace oblo
         sub_i64,
         sub_u64,
 
+        mul_f32,
+
+        div_f32,
+
         // Trascendental functions
         sin_f32,
         cos_f32,

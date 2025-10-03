@@ -31,6 +31,65 @@ namespace oblo
             g.set_deduced_type(rhs, outType);
             g.set_deduced_type(out, outType);
         }
+
+        template <typename F>
+        bool generate(const node_graph_context& g,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>> inputs,
+            dynamic_array<h32<ast_node>>& outputs,
+            h32<node_graph_in_pin> lhs,
+            h32<node_graph_in_pin> rhs,
+            h32<node_graph_out_pin> out,
+            F&& selectOp)
+        {
+            if (inputs.size() != 2)
+            {
+                return false;
+            }
+
+            const auto lhsType = g.get_incoming_type(lhs);
+            const auto rhsType = g.get_incoming_type(rhs);
+
+            const auto outType = g.get_deduced_type(out);
+
+            h32<ast_node> lhsExpr = inputs[0];
+            h32<ast_node> rhsExpr = inputs[1];
+
+            if (lhsType != outType)
+            {
+                lhsExpr = ast_utils::make_type_conversion(ast, lhsExpr, lhsType, outType);
+            }
+
+            if (rhsType != outType)
+            {
+                rhsExpr = ast_utils::make_type_conversion(ast, rhsExpr, rhsType, outType);
+            }
+
+            if (!lhsExpr || !rhsExpr)
+            {
+                return false;
+            }
+
+            const expected<ast_binary_operator_kind> kind = selectOp(outType);
+
+            if (!kind)
+            {
+                return false;
+            }
+
+            const h32 outExpr = ast.add_node(parent,
+                ast_binary_operator{
+                    .op = *kind,
+                });
+
+            ast.reparent(lhsExpr, outExpr);
+            ast.reparent(rhsExpr, outExpr);
+
+            outputs.emplace_back(outExpr);
+
+            return true;
+        }
     }
 
     template <typename Base>
@@ -94,56 +153,23 @@ namespace oblo
             const std::span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const
         {
-            if (inputs.size() != 2)
-            {
-                return false;
-            }
+            return uniform_binary_operator::generate(g,
+                ast,
+                parent,
+                inputs,
+                outputs,
+                m_lhs,
+                m_rhs,
+                m_out,
+                [this](const uuid& outType) -> expected<ast_binary_operator_kind>
+                {
+                    if (outType == get_node_primitive_type_id<node_primitive_kind::f32>())
+                    {
+                        return ast_binary_operator_kind::add_f32;
+                    }
 
-            const auto lhsType = g.get_incoming_type(m_lhs);
-            const auto rhsType = g.get_incoming_type(m_rhs);
-
-            const auto outType = g.get_deduced_type(m_out);
-
-            h32<ast_node> lhsExpr = inputs[0];
-            h32<ast_node> rhsExpr = inputs[1];
-
-            if (lhsType != outType)
-            {
-                lhsExpr = ast_utils::make_type_conversion(ast, lhsExpr, lhsType, outType);
-            }
-
-            if (rhsType != outType)
-            {
-                rhsExpr = ast_utils::make_type_conversion(ast, rhsExpr, rhsType, outType);
-            }
-
-            if (!lhsExpr || !rhsExpr)
-            {
-                return false;
-            }
-
-            ast_binary_operator_kind kind;
-
-            if (outType == get_node_primitive_type_id<node_primitive_kind::f32>())
-            {
-                kind = ast_binary_operator_kind::add_f32;
-            }
-            else
-            {
-                return false;
-            }
-
-            const h32 outExpr = ast.add_node(parent,
-                ast_binary_operator{
-                    .op = kind,
+                    return unspecified_error;
                 });
-
-            ast.reparent(lhsExpr, outExpr);
-            ast.reparent(rhsExpr, outExpr);
-
-            outputs.emplace_back(outExpr);
-
-            return true;
         }
     };
 
@@ -160,13 +186,29 @@ namespace oblo
             uniform_binary_operator::on_input_change(g, m_lhs, m_rhs, m_out, defaultType);
         }
 
-        bool generate([[maybe_unused]] const node_graph_context& g,
-            [[maybe_unused]] abstract_syntax_tree& ast,
-            [[maybe_unused]] h32<ast_node> parent,
-            [[maybe_unused]] const std::span<const h32<ast_node>> inputs,
-            [[maybe_unused]] dynamic_array<h32<ast_node>>& outputs) const
+        bool generate(const node_graph_context& g,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>> inputs,
+            dynamic_array<h32<ast_node>>& outputs) const
         {
-            return true;
+            return uniform_binary_operator::generate(g,
+                ast,
+                parent,
+                inputs,
+                outputs,
+                m_lhs,
+                m_rhs,
+                m_out,
+                [this](const uuid& outType) -> expected<ast_binary_operator_kind>
+                {
+                    if (outType == get_node_primitive_type_id<node_primitive_kind::f32>())
+                    {
+                        return ast_binary_operator_kind::mul_f32;
+                    }
+
+                    return unspecified_error;
+                });
         }
     };
 }

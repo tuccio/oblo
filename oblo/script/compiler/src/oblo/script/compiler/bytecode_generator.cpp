@@ -200,6 +200,16 @@ namespace oblo
                             thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
+                        case ast_binary_operator_kind::mul_f32:
+                            m.text.push_back({.op = bytecode_op::mul_f32});
+                            thisNodeInfo.expressionResultSize = sizeof(f32);
+                            break;
+
+                        case ast_binary_operator_kind::div_f32:
+                            m.text.push_back({.op = bytecode_op::div_f32});
+                            thisNodeInfo.expressionResultSize = sizeof(f32);
+                            break;
+
                         default:
                             return unspecified_error;
                         }
