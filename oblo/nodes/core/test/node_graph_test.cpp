@@ -87,36 +87,46 @@ namespace oblo
             f32 m_value{};
         };
 
-        const node_descriptor g_AddFloatsNode{
-            .id = "f46ed757-59b5-414c-bc62-c7935c254904"_uuid,
-            .name = "Add Floats",
-            .instantiate = []() -> unique_ptr<node_interface> { return allocate_unique<add_f32_node>(); },
-        };
+        constexpr uuid g_AddFloatsNodeId = "f46ed757-59b5-414c-bc62-c7935c254904"_uuid;
+        constexpr uuid g_FloatConstantNodeId = "5349df64-09e7-465a-aea6-c57b16fd7490"_uuid;
 
-        const node_descriptor g_FloatConstantNode{
-            .id = "5349df64-09e7-465a-aea6-c57b16fd7490"_uuid,
-            .name = "Float Constant",
-            .instantiate = []() -> unique_ptr<node_interface> { return allocate_unique<f32_constant_node>(); },
-        };
+        node_descriptor make_add_floats_node()
+        {
+            return {
+                .id = "f46ed757-59b5-414c-bc62-c7935c254904"_uuid,
+                .name = "Add Floats",
+                .instantiate = [](const any&) -> unique_ptr<node_interface> { return allocate_unique<add_f32_node>(); },
+            };
+        }
+
+        node_descriptor make_float_constant_node()
+        {
+            return {
+                .id = "5349df64-09e7-465a-aea6-c57b16fd7490"_uuid,
+                .name = "Float Constant",
+                .instantiate = [](const any&) -> unique_ptr<node_interface>
+                { return allocate_unique<f32_constant_node>(); },
+            };
+        }
     }
 
     TEST(node_graph, add_floats)
     {
         node_graph_registry registry;
 
-        registry.register_node(g_AddFloatsNode);
-        registry.register_node(g_FloatConstantNode);
+        registry.register_node(make_add_floats_node());
+        registry.register_node(make_float_constant_node());
 
         node_graph g;
         g.init(registry);
 
-        const h32 addNodeHandle = g.add_node(g_AddFloatsNode.id);
+        const h32 addNodeHandle = g.add_node(g_AddFloatsNodeId);
         ASSERT_TRUE(addNodeHandle);
 
-        const h32 f32ConstA = g.add_node(g_FloatConstantNode.id);
+        const h32 f32ConstA = g.add_node(g_FloatConstantNodeId);
         ASSERT_TRUE(f32ConstA);
 
-        const h32 f32ConstB = g.add_node(g_FloatConstantNode.id);
+        const h32 f32ConstB = g.add_node(g_FloatConstantNodeId);
         ASSERT_TRUE(f32ConstB);
 
         dynamic_array<h32<node_graph_out_pin>> outA, outB, outAdd;

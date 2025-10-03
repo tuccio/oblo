@@ -6,10 +6,10 @@ target_link_libraries(
     oblo_script_resource
     PUBLIC
     oblo::script::runtime
+    oblo::resource
     PRIVATE
     oblo::modules
     oblo::reflection
-    oblo::resource
 )
 
 add_library(oblo::script::resource ALIAS oblo_script_resource)

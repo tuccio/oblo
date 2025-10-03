@@ -143,7 +143,12 @@ namespace oblo
 
         interp.init(1u << 10);
         interp.load_module(m);
-        interp.register_api("my_native_fun", [](interpreter& i) { i.push_u32(42); });
+        interp.register_api("my_native_fun",
+            [](interpreter& i) -> expected<void, interpreter_error>
+            {
+                i.push_u32(42);
+                return no_error;
+            });
 
         ASSERT_EQ(interp.used_stack_size(), 0);
         ASSERT_TRUE(interp.run());
