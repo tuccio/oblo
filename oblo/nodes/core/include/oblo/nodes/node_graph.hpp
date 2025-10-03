@@ -87,6 +87,9 @@ namespace oblo
         friend class node_graph_context;
 
     private:
+        void call_on_input_change(dynamic_array<graph_type::vertex_handle>& root);
+
+    private:
         const node_graph_registry* m_registry{};
         graph_type m_graph;
     };

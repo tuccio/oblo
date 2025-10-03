@@ -124,7 +124,7 @@ namespace oblo
         U* try_get() noexcept
         {
             static_assert(index_of<U>() < types_count);
-            return is<U>() ? reinterpret_cast<const U*>(m_buffer) : nullptr;
+            return is<U>() ? reinterpret_cast<U*>(m_buffer) : nullptr;
         }
 
         template <typename U>

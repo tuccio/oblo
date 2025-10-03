@@ -128,6 +128,54 @@ namespace oblo
             return false;
         }
 
+        void remove_all_edges(vertex_handle v)
+        {
+            vertex_storage* const storage = m_vertices.try_find(v);
+
+            if (!storage)
+            {
+                return;
+            }
+
+            for (const edge_reference& e : storage->inEdges)
+            {
+                vertex_storage* const src = m_vertices.try_find(e.vertex);
+
+                if (src)
+                {
+                    for (auto it = src->outEdges.begin(); it != src->outEdges.end(); ++it)
+                    {
+                        if (it->vertex == v)
+                        {
+                            src->outEdges.erase_unordered(it);
+                            break;
+                        }
+                    }
+                }
+
+                m_edges.erase(e.handle);
+            }
+
+            for (const edge_reference& e : storage->outEdges)
+            {
+                vertex_storage* const dst = m_vertices.try_find(e.vertex);
+
+                if (dst)
+                {
+                    for (auto it = dst->inEdges.begin(); it != dst->inEdges.end(); ++it)
+                    {
+                        if (it->vertex == v)
+                        {
+                            dst->inEdges.erase_unordered(it);
+                            break;
+                        }
+                    }
+                }
+
+                m_edges.erase(e.handle);
+            }
+        }
+
         bool has_edge(vertex_handle from, vertex_handle to)
         {
             vertex_storage* const src = m_vertices.try_find(from);

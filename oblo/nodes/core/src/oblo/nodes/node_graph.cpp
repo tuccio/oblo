@@ -210,11 +210,49 @@ namespace oblo
 
     void node_graph::remove_node(h32<node_graph_node> nodeHandle)
     {
-        // Find node
-        // Find all pins
-        // Remove pins
-        // Call on change on all nodes connected to pins
-        (void) nodeHandle;
+        const auto nodeVertex = to_vertex_handle(nodeHandle);
+
+        node_data* const nodeData = m_graph.get(nodeVertex).data.try_get<node_data>();
+
+        if (!nodeData)
+        {
+            return;
+        }
+
+        if (!m_graph.get(nodeVertex).data.is<node_data>())
+        {
+            return;
+        }
+
+        for (const auto& inPin : nodeData->inputPins)
+        {
+            m_graph.remove_all_edges(inPin);
+            m_graph.remove_vertex(inPin);
+        }
+
+        dynamic_array<node_graph_vertex_handle> stack;
+        stack.reserve(256);
+
+        for (const auto& outPin : nodeData->outputPins)
+        {
+            for (const auto e : m_graph.get_out_edges(outPin))
+            {
+                auto* const dstNode = m_graph[e.vertex].data.try_get<node_data>();
+
+                if (dstNode && dstNode->flags.contains(node_flag::input_changed))
+                {
+                    stack.emplace_back(e.vertex);
+                    dstNode->flags.set(node_flag::input_changed);
+                }
+            }
+
+            m_graph.remove_all_edges(outPin);
+            m_graph.remove_vertex(outPin);
+        }
+
+        m_graph.remove_vertex(nodeVertex);
+
+        call_on_input_change(stack);
     }
 
     void node_graph::fetch_nodes(dynamic_array<h32<node_graph_node>>& nodes) const
@@ -259,20 +297,9 @@ namespace oblo
         nodeData.node->load(doc, docNodeIndex);
     }
 
-    bool node_graph::connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst)
+    void node_graph::call_on_input_change(dynamic_array<node_graph_vertex_handle>& stack)
     {
-        const h32 srcPinVertex = to_vertex_handle(src);
-        const h32 dstPinVertex = to_vertex_handle(dst);
-
-        m_graph.add_edge(srcPinVertex, dstPinVertex);
-
-        const pin_data& pinData = m_graph[dstPinVertex].data.as<pin_data>();
-
         buffered_array<h32<node_graph_out_pin>, 16> outPinsBuffer;
-
-        dynamic_array<node_graph_vertex_handle> stack;
-        stack.reserve(256);
-        stack.emplace_back(pinData.ownerNode);
 
         while (!stack.empty())
         {
@@ -300,6 +327,22 @@ namespace oblo
                 }
             }
         }
+    }
+
+    bool node_graph::connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst)
+    {
+        const h32 srcPinVertex = to_vertex_handle(src);
+        const h32 dstPinVertex = to_vertex_handle(dst);
+
+        m_graph.add_edge(srcPinVertex, dstPinVertex);
+
+        const pin_data& pinData = m_graph[dstPinVertex].data.as<pin_data>();
+
+        dynamic_array<node_graph_vertex_handle> stack;
+        stack.reserve(256);
+        stack.emplace_back(pinData.ownerNode);
+
+        call_on_input_change(stack);
 
         return true;
     }
