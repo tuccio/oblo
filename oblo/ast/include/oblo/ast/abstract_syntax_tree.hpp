@@ -11,6 +11,8 @@
 
 namespace oblo
 {
+    struct ast_node;
+
     enum class ast_node_kind : u8
     {
         root,
@@ -28,6 +30,7 @@ namespace oblo
         f64_constant,
         string_constant,
         variable_declaration,
+        variable_definition,
         variable_reference,
         return_statement,
     };
@@ -139,15 +142,17 @@ namespace oblo
     struct ast_variable_declaration
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::variable_declaration;
-
         string_view name;
-        string_view type;
+    };
+
+    struct ast_variable_definition
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::variable_definition;
     };
 
     struct ast_variable_reference
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::variable_reference;
-
         string_view name;
     };
 
@@ -182,6 +187,7 @@ namespace oblo
             ast_f64_constant f64;
             ast_string_constant string;
             ast_variable_declaration varDecl;
+            ast_variable_definition varDef;
             ast_variable_reference varRef;
             ast_return_statement retStmt;
         } node = {.root = {}};
@@ -209,6 +215,7 @@ namespace oblo
         void unlink_subtree(h32<ast_node> root);
 
         h32<ast_node> child_next(h32<ast_node> parent, h32<ast_node> previous) const;
+        h32<ast_node> child_prev(h32<ast_node> parent, h32<ast_node> next) const;
         iterator_range<children_iterator> children(h32<ast_node> node) const;
 
         const ast_node& get(h32<ast_node> node) const;
@@ -305,6 +312,12 @@ namespace oblo
             n.node.varDecl = v;
         }
 
+        void set_node(ast_node& n, const ast_variable_definition& v)
+        {
+            n.kind = ast_node_kind::variable_definition;
+            n.node.varDef = v;
+        }
+
         void set_node(ast_node& n, const ast_variable_reference& v)
         {
             n.kind = ast_node_kind::variable_reference;
@@ -366,6 +379,19 @@ namespace oblo
         {
             auto tmp = *this;
             ++(*this);
+            return tmp;
+        }
+
+        OBLO_FORCEINLINE children_iterator operator--()
+        {
+            m_current = m_ast->child_prev(m_node, m_current);
+            return *this;
+        }
+
+        OBLO_FORCEINLINE children_iterator operator--(int)
+        {
+            auto tmp = *this;
+            --(*this);
             return tmp;
         }
 

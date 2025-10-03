@@ -2,6 +2,7 @@
 
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/deque.hpp>
+#include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/unreachable.hpp>
 
 namespace oblo
@@ -81,16 +82,39 @@ namespace oblo
         {
             bool visited{};
             bool processed{};
+            u32 expressionResultSize{}; // Maybe it should be a type instead
         };
 
         deque<visit_info> visitStack;
         deque<node_info> nodeInfo;
 
-        const auto pushReadOnlyString = [&m](string_view str) -> u32
+        string_interner readOnlyStringsInterner;
+        readOnlyStringsInterner.init(256);
+
+        const auto pushReadOnlyString16 = [&m, &readOnlyStringsInterner](string_view str) -> expected<u16>
         {
-            const u32 id = m.readOnlyStrings.size32();
-            m.readOnlyStrings.emplace_back(str);
-            return id;
+            // We use the string interner to make strings unique
+            // Id 0 is not used in that to avoid the null handle, so we translate the id
+            const h32 id = readOnlyStringsInterner.get_or_add(str);
+
+            if (!id)
+            {
+                return unspecified_error;
+            }
+
+            const u32 translatedId = id.value - 1;
+
+            if (translatedId == m.readOnlyStrings.size())
+            {
+                m.readOnlyStrings.emplace_back(str);
+            }
+
+            if (translatedId > std::numeric_limits<u16>::max())
+            {
+                return unspecified_error;
+            }
+
+            return u16(translatedId);
         };
 
         for (const ast_function_ref& f : functions)
@@ -146,12 +170,20 @@ namespace oblo
 
                         m.text.push_back({.op = bytecode_op::push_32lo16, .payload = lo16(val)});
                         m.text.push_back({.op = bytecode_op::or_32hi16, .payload = hi16(val)});
+                        thisNodeInfo.expressionResultSize = sizeof(f32);
                     }
                     break;
 
                     case ast_node_kind::string_constant: {
-                        const u32 stringId = pushReadOnlyString(n.node.string.value);
-                        m.text.push_back({.op = bytecode_op::push_read_only_string_view, .payload = lo16(stringId)});
+                        const expected<u16> stringId = pushReadOnlyString16(n.node.string.value);
+
+                        if (!stringId)
+                        {
+                            return unspecified_error;
+                        }
+
+                        m.text.push_back({.op = bytecode_op::push_read_only_string_view, .payload = *stringId});
+                        thisNodeInfo.expressionResultSize = script_string_ref_size();
                     }
                     break;
 
@@ -160,10 +192,12 @@ namespace oblo
                         {
                         case ast_binary_operator_kind::add_f32:
                             m.text.push_back({.op = bytecode_op::add_f32});
+                            thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
                         case ast_binary_operator_kind::sub_f32:
                             m.text.push_back({.op = bytecode_op::sub_f32});
+                            thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
                         default:
@@ -179,14 +213,84 @@ namespace oblo
                     break;
 
                     case ast_node_kind::function_call: {
-                        const u32 stringId = pushReadOnlyString(n.node.functionCall.name);
-                        m.text.push_back({.op = bytecode_op::call_api_static, .payload = lo16(stringId)});
+                        const expected<u16> stringId = pushReadOnlyString16(n.node.functionCall.name);
+
+                        if (!stringId)
+                        {
+                            return unspecified_error;
+                        }
+
+                        m.text.push_back({.op = bytecode_op::call_api_static, .payload = *stringId});
+
+                        // TODO: We might have to consider return types, which might mean we need function declarations
+                        // for API calls.
+                        thisNodeInfo.expressionResultSize = 0;
                     }
                     break;
 
                     case ast_node_kind::function_argument: {
                         // TODO: How to deal with function argument? Since we are visiting bottom up we get the argument
                         // before the function call On the stack we should have the argument right now
+                    }
+                    break;
+
+                    case ast_node_kind::variable_declaration:
+                        break;
+
+                    case ast_node_kind::variable_definition: {
+                        if (!n.parent)
+                        {
+                            return unspecified_error;
+                        }
+
+                        auto& decl = ast.get(n.parent);
+
+                        if (decl.kind != ast_node_kind::variable_declaration)
+                        {
+                            return unspecified_error;
+                        }
+
+                        const expected varName = pushReadOnlyString16(decl.node.varDecl.name);
+
+                        if (!varName)
+                        {
+                            return unspecified_error;
+                        }
+
+                        const auto children = ast.children(node);
+
+                        if (auto it = children.begin(); it != children.end())
+                        {
+                            // We can get the expression result type/size from the child
+                            const h32<ast_node> childNode = *it;
+
+                            const auto variableSize = nodeInfo[childNode.value].expressionResultSize;
+                            thisNodeInfo.expressionResultSize = variableSize;
+                            ++it;
+
+                            m.text.push_back({.op = bytecode_op::push_stack_top_ref, .payload = u16(variableSize)});
+                            m.text.push_back({.op = bytecode_op::tag_data_ref_static, .payload = *varName});
+
+                            // We expect a single child for the definition, i.e. the expression the variable is
+                            // initialized with
+                            if (it != children.end())
+                            {
+                                return unspecified_error;
+                            }
+                        }
+                    }
+                    break;
+
+                    case ast_node_kind::variable_reference: {
+                        const expected varName = pushReadOnlyString16(n.node.varRef.name);
+
+                        if (!varName)
+                        {
+                            return unspecified_error;
+                        }
+
+                        m.text.push_back({.op = bytecode_op::push_tagged_data_ref_static, .payload = *varName});
+                        thisNodeInfo.expressionResultSize = script_data_ref_size();
                     }
                     break;
 

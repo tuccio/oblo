@@ -6,6 +6,8 @@ namespace oblo
 {
     struct bytecode_payload
     {
+        using data_type = u16;
+
         static constexpr bytecode_payload pack_u16(u16 v)
         {
             return {.data = v};
@@ -29,7 +31,7 @@ namespace oblo
 
         bool operator==(const bytecode_payload&) const noexcept = default;
 
-        u16 data;
+        data_type data;
     };
 
     struct bytecode_instruction

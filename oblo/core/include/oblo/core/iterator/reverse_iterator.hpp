@@ -25,12 +25,14 @@ namespace oblo
 
         OBLO_FORCEINLINE constexpr decltype(auto) operator*() const
         {
-            return *(m_current - 1);
+            It prev = m_current;
+            return *(--prev);
         }
 
         OBLO_FORCEINLINE constexpr decltype(auto) operator->() const
         {
-            return &*(m_current - 1);
+            It prev = m_current;
+            return &*(--prev);
         }
 
         OBLO_FORCEINLINE constexpr reverse_iterator& operator++()

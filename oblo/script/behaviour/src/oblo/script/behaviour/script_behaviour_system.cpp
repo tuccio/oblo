@@ -20,10 +20,56 @@ namespace oblo
     namespace
     {
         constexpr u32 g_StackSize = 4096;
+
+        struct script_api_context
+        {
+            ecs::entity entityId;
+        };
     }
+
+    class script_behaviour_system::script_api_impl
+    {
+    public:
+        void register_api_functions(interpreter& i)
+        {
+            i.register_api("__ecs_set_property", [this](interpreter& interp) { return ecs_set_property_impl(interp); });
+        }
+
+        expected<void, interpreter_error> ecs_set_property_impl(interpreter& interp)
+        {
+            const expected componentType = interp.get_string_view(0);
+            const expected property = interp.get_string_view(script_string_ref_size());
+            const expected dataRef = interp.get_data_view(2 * script_string_ref_size());
+
+            if (!componentType || !property || !dataRef)
+            {
+                return interpreter_error::invalid_arguments;
+            }
+
+            log::debug("Set {}::{} on entity {} ({} bytes)",
+                *componentType,
+                *property,
+                m_ctx.entityId.value,
+                dataRef->size_bytes());
+
+            return no_error;
+        }
+
+        void set_context(const script_api_context& ctx)
+        {
+            m_ctx = ctx;
+        }
+
+    private:
+        script_api_context m_ctx{};
+    };
+
+    script_behaviour_system::script_behaviour_system() = default;
+    script_behaviour_system::~script_behaviour_system() = default;
 
     void script_behaviour_system::first_update(const ecs::system_update_context& ctx)
     {
+        m_scriptApi = allocate_unique<script_api_impl>();
         m_resourceRegistry = ctx.services->find<const resource_registry>();
         update(ctx);
     }
@@ -76,6 +122,8 @@ namespace oblo
                     state.runtime->init(g_StackSize);
                     state.runtime->load_module(state.script->module);
 
+                    m_scriptApi->register_api_functions(*state.runtime);
+
                     // Assume the whole module is an update function for now
                     // TODO: Handle multiple entry points (e.g. init, update)
                     deferred.add<script_behaviour_update_tag>(e);
@@ -89,10 +137,16 @@ namespace oblo
         {
             for (auto&& [e, state] : chunk.zip<ecs::entity, script_behaviour_state_component>())
             {
+                m_scriptApi->set_context({
+                    .entityId = e,
+                });
+
                 if (!state.runtime->run())
                 {
                     log::debug("Script execution failed for entity {}", e.value);
                 }
+
+                state.runtime->reset_execution();
             }
         }
     }

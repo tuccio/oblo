@@ -39,6 +39,16 @@ namespace oblo
         return get(previous).nextSibling;
     }
 
+    h32<ast_node> abstract_syntax_tree::child_prev(h32<ast_node> parent, h32<ast_node> next) const
+    {
+        if (!next)
+        {
+            return get(parent).lastChild;
+        }
+
+        return get(next).prevSibling;
+    }
+
     iterator_range<abstract_syntax_tree::children_iterator> abstract_syntax_tree::children(h32<ast_node> node) const
     {
         return {

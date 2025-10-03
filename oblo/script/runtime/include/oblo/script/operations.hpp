@@ -49,6 +49,16 @@ namespace oblo
         /// @brief Pushes the current instruction address at the top of the stack.
         push_current_instruction_address,
 
+        /// @brief Pushes a data ref to the N bytes at the top of the stack. The size is passed as u16 payload.
+        push_stack_top_ref,
+
+        /// @brief Tags the data ref at the top of the stack with a name. The payload is the u16 read-only string id.
+        /// Consumes the data ref.
+        tag_data_ref_static,
+
+        /// @brief Pushes a previously tagged stack address. The payload is the u16 read-only string id.
+        push_tagged_data_ref_static,
+
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.
         increment_u32_val,
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.
@@ -81,4 +91,14 @@ namespace oblo
         /// the u16 id in the payload.
         call_api_static,
     };
+
+    consteval u32 script_string_ref_size()
+    {
+        return 8u;
+    }
+
+    consteval u32 script_data_ref_size()
+    {
+        return 8u;
+    }
 }

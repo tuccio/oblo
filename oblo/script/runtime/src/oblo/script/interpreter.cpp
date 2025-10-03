@@ -188,12 +188,46 @@ namespace oblo
             return no_error;
         }
 
-        struct stack_string_ref
+        struct script_string_ref
         {
             u32 isReadOnlyString : 1;
-            u32 stackAddressOrReadOnlyId : 31;
+            u32 stackStringLength : 31;
+            u32 stackAddressOrReadOnlyId;
+        };
+
+        struct script_data_ref
+        {
+            u32 dataLength;
+            u32 stackAddress;
         };
     }
+
+    static_assert(script_string_ref_size() == sizeof(script_string_ref));
+    static_assert(script_data_ref_size() == sizeof(script_data_ref));
+
+    struct interpreter::call_frame
+    {
+        instruction_idx returnAddr;
+        byte* restoreStackPtr;
+    };
+
+    struct interpreter::function_info
+    {
+        u32 paramsSize;
+        u32 returnSize;
+        instruction_idx address;
+    };
+
+    struct interpreter::read_only_string
+    {
+        string data;
+        usize hash;
+    };
+
+    struct interpreter::runtime_tag
+    {
+        script_data_ref dataRef;
+    };
 
     interpreter::interpreter() = default;
 
@@ -208,6 +242,7 @@ namespace oblo
         m_code.clear();
         m_callFrame.clear();
         m_readOnlyStrings.clear();
+        m_runtimeTags.clear();
         m_apiFunctions.clear();
 
         // The first function is just a dummy for the invalid handle, we could consider using it for an entry point
@@ -359,12 +394,12 @@ namespace oblo
                 u16 stringId;
                 bytecode_payload::unpack_u16(bytecode.payload, stringId);
 
-                const stack_string_ref strRef{
+                const script_string_ref strRef{
                     .isReadOnlyString = true,
                     .stackAddressOrReadOnlyId = stringId,
                 };
 
-                push_u32(std::bit_cast<u32>(strRef));
+                OBLO_INTERPRETER_ABORT_ON_ERROR(push_data(as_bytes(std::span{&strRef, 1})));
             }
 
                 ++m_nextInstruction;
@@ -616,23 +651,93 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-            case bytecode_op::call_api_static: {
+            case bytecode_op::tag_data_ref_static: {
                 u16 stringId;
                 bytecode_payload::unpack_u16(bytecode.payload, stringId);
-
-                const auto& readOnlyStr = m_readOnlyStrings[stringId];
 
                 if (stringId >= m_readOnlyStrings.size()) [[unlikely]]
                 {
                     OBLO_INTERPRETER_ABORT(interpreter_error::invalid_string);
                 }
 
+                if (stringId >= m_runtimeTags.size())
+                {
+                    m_runtimeTags.resize_default(stringId + 1);
+                }
+
+                const expected dataRef = read_stack<script_data_ref>(m_stackTop, 0, m_stackMemory.get());
+
+                if (!dataRef)
+                {
+                    return dataRef.error();
+                }
+
+                m_runtimeTags[stringId] = {
+                    .dataRef = *dataRef,
+                };
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case bytecode_op::push_stack_top_ref: {
+                u16 size;
+                bytecode_payload::unpack_u16(bytecode.payload, size);
+
+                const auto address = m_stackTop - m_stackMemory.get() - size;
+
+                if (address < 0)
+                {
+                    return interpreter_error::stack_underflow;
+                }
+
+                const expected e = push_data_view(stack_address(address), size);
+
+                if (!e)
+                {
+                    return e.error();
+                }
+            }
+
+                ++m_nextInstruction;
+                break;
+
+            case bytecode_op::push_tagged_data_ref_static: {
+                u16 stringId;
+                bytecode_payload::unpack_u16(bytecode.payload, stringId);
+
+                if (stringId >= m_runtimeTags.size()) [[unlikely]]
+                {
+                    OBLO_INTERPRETER_ABORT(interpreter_error::invalid_tag);
+                }
+
+                const auto& dataRef = m_runtimeTags[stringId].dataRef;
+                const expected e = push_data_view(dataRef.stackAddress, dataRef.dataLength);
+
+                if (!e)
+                {
+                    return e.error();
+                }
+            }
+                ++m_nextInstruction;
+                break;
+
+            case bytecode_op::call_api_static: {
+                u16 stringId;
+                bytecode_payload::unpack_u16(bytecode.payload, stringId);
+
+                if (stringId >= m_readOnlyStrings.size()) [[unlikely]]
+                {
+                    OBLO_INTERPRETER_ABORT(interpreter_error::invalid_string);
+                }
+
+                const auto& readOnlyStr = m_readOnlyStrings[stringId];
                 const auto it = m_apiFunctions.find(hashed_string_view{readOnlyStr.data, readOnlyStr.hash});
 
                 if (it != m_apiFunctions.end())
                 {
                     const script_api_fn fn = it->second;
-                    fn(*this);
+                    OBLO_INTERPRETER_ABORT_ON_ERROR(fn(*this));
                 }
                 else
                 {
@@ -650,6 +755,14 @@ namespace oblo
         }
 
         return no_error;
+    }
+
+    void interpreter::reset_execution()
+    {
+        m_nextInstruction = 0;
+        deallocate_stack_unsafe(m_stackTop, m_stackMemory.get());
+
+        m_callFrame.clear();
     }
 
     byte* interpreter::allocate_stack(u32 size)
@@ -686,10 +799,106 @@ namespace oblo
         return read_stack<i32>(m_stackTop, stackOffset, m_stackMemory.get());
     }
 
+    expected<string_view, interpreter_error> interpreter::get_string_view(u32 stackOffset) const
+    {
+        const expected stringRef = read_stack<script_string_ref>(m_stackTop, stackOffset, m_stackMemory.get());
+
+        if (!stringRef)
+        {
+            return stringRef.error();
+        }
+
+        if (stringRef->isReadOnlyString)
+        {
+            return m_readOnlyStrings[stringRef->stackAddressOrReadOnlyId].data;
+        }
+        else
+        {
+            const auto address = stringRef->stackAddressOrReadOnlyId;
+            const auto length = stringRef->stackStringLength;
+
+            const byte* stringBegin = m_stackMemory.get() + address;
+            const byte* stringEnd = stringBegin + length;
+
+            if (stringEnd > m_stackMemory.get()) [[unlikely]]
+            {
+                return interpreter_error::stack_overflow;
+            }
+
+            return string_view{reinterpret_cast<const char*>(stringBegin), reinterpret_cast<const char*>(stringEnd)};
+        }
+    }
+
+    expected<std::span<const byte>, interpreter_error> interpreter::get_data_view(u32 stackOffset) const
+    {
+        const expected dataRef = read_stack<script_data_ref>(m_stackTop, stackOffset, m_stackMemory.get());
+
+        if (!dataRef)
+        {
+            return dataRef.error();
+        }
+
+        const auto address = dataRef->stackAddress;
+        const auto length = dataRef->dataLength;
+
+        const byte* dataBegin = m_stackMemory.get() + address;
+        const byte* dataEnd = dataBegin + length;
+
+        if (dataEnd > m_stackTop) [[unlikely]]
+        {
+            return interpreter_error::stack_overflow;
+        }
+
+        return std::span{dataBegin, dataEnd};
+    }
+
     void interpreter::push_u32(u32 value)
     {
         byte* const dst = allocate_stack(sizeof(u32));
         std::memcpy(dst, &value, sizeof(u32));
+    }
+
+    expected<interpreter::stack_address, interpreter_error> interpreter::push_data(std::span<const byte> data)
+    {
+        const u32 bytesCount = u32(data.size());
+        byte* const dst = allocate_stack(bytesCount);
+        std::memcpy(dst, data.data(), bytesCount);
+        return narrow_cast<u32>(m_stackTop - m_stackMemory.get());
+    }
+
+    expected<void, interpreter_error> interpreter::push_data_view(stack_address address, u32 size)
+    {
+        const script_data_ref dataRef{
+            .dataLength = size,
+            .stackAddress = address,
+        };
+
+        const auto e = push_data(as_bytes(std::span{&dataRef, 1}));
+
+        if (!e)
+        {
+            return e.error();
+        }
+
+        return no_error;
+    }
+
+    expected<void, interpreter_error> interpreter::push_string_view(stack_address address, u32 size)
+    {
+        const script_string_ref strRef{
+            .isReadOnlyString = false,
+            .stackStringLength = size,
+            .stackAddressOrReadOnlyId = address,
+        };
+
+        const auto e = push_data(as_bytes(std::span{&strRef, 1}));
+
+        if (!e)
+        {
+            return e.error();
+        }
+
+        return no_error;
     }
 
     expected<void, interpreter_error> interpreter::pop(u32 stackSize)

@@ -107,13 +107,15 @@ namespace oblo::ecs_nodes
             const std::span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>&) const override
         {
-            const h32 getPropertyCall = ast.add_node(parent,
+            constexpr string_view setPropertyDataName = "__ecs_set_property_data";
+
+            const h32 callNode = ast.add_node(parent,
                 ast_function_call{
                     .name = "__ecs_set_property"_hsv,
                 });
 
             {
-                const h32 propertyParameter = ast.add_node(getPropertyCall,
+                const h32 propertyParameter = ast.add_node(callNode,
                     ast_function_argument{
                         .name = "componentType"_hsv,
                     });
@@ -125,7 +127,7 @@ namespace oblo::ecs_nodes
             }
 
             {
-                const h32 propertyParameter = ast.add_node(getPropertyCall,
+                const h32 propertyParameter = ast.add_node(callNode,
                     ast_function_argument{
                         .name = "property"_hsv,
                     });
@@ -137,21 +139,34 @@ namespace oblo::ecs_nodes
             }
 
             {
-                const h32 valueParameter = ast.add_node(getPropertyCall,
+                const h32 valueParameter = ast.add_node(callNode,
                     ast_function_argument{
                         .name = "value"_hsv,
                     });
 
-                h32 value = inputs[0];
+                ast.add_node(valueParameter, ast_variable_reference{.name = setPropertyDataName});
+            }
+
+            // Add this last so it gets executed before the call
+            {
+                const h32 dataVarDecl = ast.add_node(parent,
+                    ast_variable_declaration{
+                        .name = setPropertyDataName,
+                    });
+
+                const h32 dataVarDef = ast.add_node(dataVarDecl, ast_variable_definition{});
+
+                // Initialize the value on the stack
+                h32 valueExpression = inputs[0];
 
                 const auto inType = g.get_incoming_type(m_input);
 
                 if (inType != m_type)
                 {
-                    value = ast_utils::make_type_conversion(ast, value, inType, m_type);
+                    valueExpression = ast_utils::make_type_conversion(ast, valueExpression, inType, m_type);
                 }
 
-                ast.reparent(value, valueParameter);
+                ast.reparent(valueExpression, dataVarDef);
             }
 
             return true;

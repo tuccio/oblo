@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
@@ -8,6 +9,7 @@
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/script/bytecode_module.hpp>
 
+#include <functional>
 #include <unordered_map>
 
 namespace oblo
@@ -15,12 +17,15 @@ namespace oblo
     struct script_function;
     class interpreter;
 
-    using script_api_fn = function_ref<void(interpreter&)>;
-
     enum class interpreter_error : u8;
+
+    using script_api_fn = std::function<expected<void, interpreter_error>(interpreter&)>;
 
     class interpreter
     {
+    public:
+        using stack_address = u32;
+
     public:
         interpreter();
         interpreter(const interpreter&) = delete;
@@ -45,7 +50,18 @@ namespace oblo
         expected<u32, interpreter_error> read_u32(u32 stackOffset) const;
         expected<i32, interpreter_error> read_i32(u32 stackOffset) const;
 
+        expected<string_view, interpreter_error> get_string_view(u32 stackOffset) const;
+        expected<std::span<const byte>, interpreter_error> get_data_view(u32 stackOffset) const;
+
         void push_u32(u32 value);
+
+        /// @brief Pushes a sequence of bytes onto the data stack.
+        /// @param data A span representing the sequence of bytes to be pushed onto the stack.
+        /// @return An expected value containing the stack address on success, or an interpreter error on failure.
+        expected<stack_address, interpreter_error> push_data(std::span<const byte> data);
+
+        expected<void, interpreter_error> push_data_view(stack_address address, u32 size);
+        expected<void, interpreter_error> push_string_view(stack_address address, u32 size);
 
         expected<void, interpreter_error> pop(u32 stackSize);
 
@@ -53,29 +69,17 @@ namespace oblo
         u32 available_stack_size() const;
 
         expected<void, interpreter_error> run();
+        
+        void reset_execution();
 
     private:
         using address_offset = u32;
         using instruction_idx = u32;
 
-        struct call_frame
-        {
-            instruction_idx returnAddr;
-            byte* restoreStackPtr;
-        };
-
-        struct function_info
-        {
-            u32 paramsSize;
-            u32 returnSize;
-            instruction_idx address;
-        };
-
-        struct read_only_string
-        {
-            string data;
-            usize hash;
-        };
+        struct call_frame;
+        struct function_info;
+        struct read_only_string;
+        struct runtime_tag;
 
     private:
         byte* allocate_stack(u32 size);
@@ -90,6 +94,7 @@ namespace oblo
         byte* m_stackMax{};
         dynamic_array<function_info> m_functions;
         dynamic_array<read_only_string> m_readOnlyStrings;
+        deque<runtime_tag> m_runtimeTags;
         std::unordered_map<string, u32, transparent_string_hash, std::equal_to<>> m_functionNames;
         std::unordered_map<string, script_api_fn, transparent_string_hash, std::equal_to<>> m_apiFunctions;
     };
@@ -97,8 +102,11 @@ namespace oblo
     enum class interpreter_error : u8
     {
         unknown_instruction,
+        stack_overflow,
         stack_underflow,
+        invalid_arguments,
         invalid_string,
+        invalid_tag,
         unknown_function,
     };
 }
