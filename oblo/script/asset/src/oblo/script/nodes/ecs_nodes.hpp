@@ -69,7 +69,7 @@ namespace oblo::ecs_nodes
 
                 ast.add_node(propertyParameter,
                     ast_string_constant{
-                        .value = m_propertyPath,
+                        .value = hashed_string_view{m_propertyPath},
                     });
             }
 
@@ -108,7 +108,7 @@ namespace oblo::ecs_nodes
             const std::span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>&) const override
         {
-            constexpr string_view setPropertyDataName = "__ecs_set_property_data";
+            constexpr hashed_string_view setPropertyDataName = "__ecs_set_property_data"_hsv;
 
             const h32 callNode = ast.add_node(parent,
                 ast_function_call{
@@ -135,7 +135,7 @@ namespace oblo::ecs_nodes
 
                 ast.add_node(propertyParameter,
                     ast_string_constant{
-                        .value = m_propertyPath,
+                        .value = hashed_string_view{m_propertyPath},
                     });
             }
 

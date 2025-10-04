@@ -5,6 +5,7 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/iterator/iterator_range.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/types.hpp>
@@ -144,14 +145,14 @@ namespace oblo
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::string_constant;
 
-        string_view value;
+        hashed_string_view value;
         h32<string> interned{};
     };
 
     struct ast_variable_declaration
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::variable_declaration;
-        string_view name;
+        hashed_string_view name;
     };
 
     struct ast_variable_definition
@@ -162,7 +163,7 @@ namespace oblo
     struct ast_variable_reference
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::variable_reference;
-        string_view name;
+        hashed_string_view name;
     };
 
     struct ast_return_statement
@@ -241,18 +242,23 @@ namespace oblo
         {
             n.kind = ast_node_kind::type_declaration;
             n.node.typeDecl = v;
+            n.node.typeDecl.name = intern_h_str(v.name);
         }
 
         void set_node(ast_node& n, const ast_function_declaration& v)
         {
             n.kind = ast_node_kind::function_declaration;
             n.node.functionDecl = v;
+            n.node.functionDecl.name = intern_h_str(v.name);
+            n.node.functionDecl.returnType = intern_h_str(v.returnType);
         }
 
         void set_node(ast_node& n, const ast_function_parameter& v)
         {
             n.kind = ast_node_kind::function_parameter;
             n.node.functionParameter = v;
+            n.node.functionParameter.name = intern_h_str(v.name);
+            n.node.functionParameter.type = intern_h_str(v.type);
         }
 
         void set_node(ast_node& n, const ast_function_body& v)
@@ -265,12 +271,14 @@ namespace oblo
         {
             n.kind = ast_node_kind::function_call;
             n.node.functionCall = v;
+            n.node.functionCall.name = intern_h_str(v.name);
         }
 
         void set_node(ast_node& n, const ast_function_argument& v)
         {
             n.kind = ast_node_kind::function_argument;
             n.node.functionArgument = v;
+            n.node.functionArgument.name = intern_h_str(v.name);
         }
 
         void set_node(ast_node& n, const ast_binary_operator& v)
@@ -321,13 +329,14 @@ namespace oblo
 
             n.kind = ast_node_kind::string_constant;
             n.node.string.interned = interned;
-            n.node.string.value = m_stringInterner.str(interned).as<string_view>();
+            n.node.string.value = m_stringInterner.h_str(interned);
         }
 
         void set_node(ast_node& n, const ast_variable_declaration& v)
         {
             n.kind = ast_node_kind::variable_declaration;
             n.node.varDecl = v;
+            n.node.varDecl.name = intern_h_str(v.name);
         }
 
         void set_node(ast_node& n, const ast_variable_definition& v)
@@ -340,12 +349,19 @@ namespace oblo
         {
             n.kind = ast_node_kind::variable_reference;
             n.node.varRef = v;
+            n.node.varRef.name = intern_h_str(v.name);
         }
 
         void set_node(ast_node& n, const ast_return_statement& v)
         {
             n.kind = ast_node_kind::return_statement;
             n.node.retStmt = v;
+        }
+
+        hashed_string_view intern_h_str(hashed_string_view str)
+        {
+            const h32 id = m_stringInterner.get_or_add(str);
+            return m_stringInterner.h_str(id);
         }
 
     private:

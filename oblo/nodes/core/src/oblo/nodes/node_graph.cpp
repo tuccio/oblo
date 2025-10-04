@@ -8,6 +8,7 @@
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/overload.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/variant.hpp>
 #include <oblo/math/vec2.hpp>
@@ -155,6 +156,14 @@ namespace oblo
             {
                 pins.emplace_back(to_out_pin_handle(pin));
             }
+        }
+
+        template <typename T>
+        h32<ast_node> create_variable_decl_or_ref(abstract_syntax_tree& ast, string_builder& buffer, h32<ast_node> expr)
+        {
+            const h32 parent = ast.get(expr).parent;
+            buffer.clear().format("__$n{}", expr.value);
+            return ast.add_node(parent, T{.name = buffer.as<hashed_string_view>()});
         }
     }
 
@@ -687,6 +696,8 @@ namespace oblo
         //  - If pin is connected to 1 pin that's the expression
         //  - If connected to more than one, add variable-set expression and push it to tree under parent
 
+        string_builder builderBuffer;
+
         dynamic_array<node_graph_vertex_handle> sortedVertices;
 
         const bool wasSorted = topological_sort(m_graph, sortedVertices);
@@ -706,7 +717,13 @@ namespace oblo
 
         const h32 executeBody = ast.add_node(executeDecl, ast_function_body{});
 
-        h32_flat_extpool_dense_map<node_graph_vertex_handle::tag_type, h32<ast_node>> outputPins;
+        struct output_pin_data
+        {
+            h32<ast_node> expression;
+            h32<ast_node> varDecl;
+        };
+
+        h32_flat_extpool_dense_map<node_graph_vertex_handle::tag_type, output_pin_data> outputPins;
 
         dynamic_array<h32<ast_node>> inputs;
         dynamic_array<h32<ast_node>> outputs;
@@ -724,23 +741,30 @@ namespace oblo
 
                 if (pin.kind == pin_kind::output)
                 {
+                    auto* const outPin = outputPins.try_find(currentVertex);
+
                     // When we find output pins, they should have already been generated
-                    OBLO_ASSERT(outputPins.try_find(currentVertex));
+                    OBLO_ASSERT(outPin && outPin->expression && !outPin->varDecl);
 
-                    // If they are only connected to 1 pin, we already have our expression.
-                    // If the output pin is connected to multiple pins we would like to calculate the value once.
-                    // Otherwise to be able to handle branching we probably need to:
-                    //  - Declare a variable at the root (i.e. a global) to check whether the value was already
-                    //  calculated
-                    //  - Declare and define function that calculates the value
-                    // Then we either rely on optimizations later to inline the function.
-
-                    // For now we only deal with outputs with max 1 connection to a pin.
-                    OBLO_ASSERT(m_graph.get_out_edges(currentVertex).size() < 2);
-
-                    if (m_graph.get_out_edges(currentVertex).size() >= 2)
+                    if (!outPin || !outPin->expression || outPin->varDecl)
                     {
                         return unspecified_error;
+                    }
+
+                    // If they are only connected to 1 pin, we already have our expression.
+                    // Otherwise we create a variable definition to put the value in.
+                    // Nodes that consume the pin should then make variable references instead.
+                    if (m_graph.get_out_edges(currentVertex).size() >= 2)
+                    {
+                        const h32 decl = create_variable_decl_or_ref<ast_variable_declaration>(ast,
+                            builderBuffer,
+                            outPin->expression);
+
+                        const h32 def = ast.add_node(decl, ast_variable_definition{});
+
+                        ast.reparent(outPin->expression, def);
+
+                        outPin->varDecl = decl;
                     }
                 }
             }
@@ -764,12 +788,23 @@ namespace oblo
 
                         auto* const astNode = outputPins.try_find(edge.vertex);
 
-                        if (!astNode || !*astNode)
+                        if (!astNode || !astNode->expression)
                         {
                             return unspecified_error;
                         }
 
-                        inputAstNode = *astNode;
+                        if (astNode->varDecl)
+                        {
+                            // This means that the node was referenced by more than one input, so we reference the
+                            // variable.
+                            inputAstNode = create_variable_decl_or_ref<ast_variable_reference>(ast,
+                                builderBuffer,
+                                astNode->expression);
+                        }
+                        else
+                        {
+                            inputAstNode = astNode->expression;
+                        }
                     }
                 }
 
