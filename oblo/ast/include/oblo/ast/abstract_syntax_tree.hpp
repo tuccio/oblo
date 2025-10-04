@@ -72,14 +72,14 @@ namespace oblo
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::function_call;
 
-        string_view name;
+        hashed_string_view name;
     };
 
     struct ast_function_argument
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::function_argument;
 
-        string_view name;
+        hashed_string_view name;
     };
 
     struct ast_binary_operator

@@ -19,6 +19,33 @@ namespace oblo
             return {u16(val >> 16)};
         }
 
+        expected<u32> handle_intrinsic_function(bytecode_module& m, hashed_string_view name)
+        {
+            if (name == "__intrin_sin"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::sin_f32});
+                return sizeof(f32);
+            }
+            else if (name == "__intrin_cos"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::cos_f32});
+                return sizeof(f32);
+            }
+            else if (name == "__intrin_tan"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::tan_f32});
+                return sizeof(f32);
+            }
+            else if (name == "__intrin_atan"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::atan_f32});
+                return sizeof(f32);
+            }
+            else
+            {
+                return unspecified_error;
+            }
+        }
     }
 
     expected<bytecode_module> bytecode_generator::generate_module(const abstract_syntax_tree& ast)
@@ -225,30 +252,14 @@ namespace oblo
                     case ast_node_kind::function_call: {
                         if (n.node.functionCall.name.starts_with("__intrin_"))
                         {
-                            if (n.node.functionCall.name == "__intrin_sin"_hsv)
-                            {
-                                m.text.push_back({.op = bytecode_op::sin_f32});
-                                thisNodeInfo.expressionResultSize = sizeof(f32);
-                            }
-                            else if (n.node.functionCall.name == "__intrin_cos"_hsv)
-                            {
-                                m.text.push_back({.op = bytecode_op::cos_f32});
-                                thisNodeInfo.expressionResultSize = sizeof(f32);
-                            }
-                            else if (n.node.functionCall.name == "__intrin_tan"_hsv)
-                            {
-                                m.text.push_back({.op = bytecode_op::tan_f32});
-                                thisNodeInfo.expressionResultSize = sizeof(f32);
-                            }
-                            else if (n.node.functionCall.name == "__intrin_atan"_hsv)
-                            {
-                                m.text.push_back({.op = bytecode_op::atan_f32});
-                                thisNodeInfo.expressionResultSize = sizeof(f32);
-                            }
-                            else
+                            const expected exprResultSize = handle_intrinsic_function(m, n.node.functionCall.name);
+
+                            if (!exprResultSize)
                             {
                                 return unspecified_error;
                             }
+
+                            thisNodeInfo.expressionResultSize = *exprResultSize;
                         }
                         else
                         {
