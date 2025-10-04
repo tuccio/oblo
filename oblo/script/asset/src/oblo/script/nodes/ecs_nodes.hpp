@@ -11,6 +11,7 @@
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
+#include <oblo/script/resources/builtin_api.hpp>
 
 namespace oblo::ecs_nodes
 {
@@ -45,7 +46,7 @@ namespace oblo::ecs_nodes
         {
             const h32 getPropertyCall = ast.add_node(parent,
                 ast_function_call{
-                    .name = "__ecs_get_property"_hsv,
+                    .name = script_api::ecs::get_property,
                 });
 
             {
@@ -111,7 +112,7 @@ namespace oblo::ecs_nodes
 
             const h32 callNode = ast.add_node(parent,
                 ast_function_call{
-                    .name = "__ecs_set_property"_hsv,
+                    .name = script_api::ecs::set_property,
                 });
 
             {

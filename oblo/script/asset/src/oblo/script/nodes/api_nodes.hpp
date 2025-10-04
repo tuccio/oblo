@@ -9,6 +9,7 @@
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
+#include <oblo/script/resources/builtin_api.hpp>
 
 namespace oblo::api_nodes
 {
@@ -41,7 +42,7 @@ namespace oblo::api_nodes
         {
             const h32 call = ast.add_node(parent,
                 ast_function_call{
-                    .name = "__get_time"_hsv,
+                    .name = script_api::get_time,
                 });
 
             outputs.emplace_back(call);

@@ -17,6 +17,7 @@
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/script/behaviour/script_behaviour_component.hpp>
 #include <oblo/script/interpreter.hpp>
+#include <oblo/script/resources/builtin_api.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
 
 namespace oblo
@@ -50,8 +51,9 @@ namespace oblo
 
         void register_api_functions(interpreter& i)
         {
-            i.register_api("__get_time", [this](interpreter& interp) { return get_time_impl(interp); });
-            i.register_api("__ecs_set_property", [this](interpreter& interp) { return ecs_set_property_impl(interp); });
+            i.register_api(script_api::get_time, [this](interpreter& interp) { return get_time_impl(interp); });
+            i.register_api(script_api::ecs::set_property,
+                [this](interpreter& interp) { return ecs_set_property_impl(interp); });
         }
 
         expected<void, interpreter_error> get_time_impl(interpreter& interp)

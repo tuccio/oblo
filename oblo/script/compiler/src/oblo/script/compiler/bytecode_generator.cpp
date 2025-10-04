@@ -3,7 +3,10 @@
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/unreachable.hpp>
+
+#include <unordered_map>
 
 namespace oblo
 {
@@ -19,7 +22,7 @@ namespace oblo
             return {u16(val >> 16)};
         }
 
-        expected<u32> handle_intrinsic_function(bytecode_module& m, hashed_string_view name)
+        expected<u8> handle_intrinsic_function(bytecode_module& m, hashed_string_view name)
         {
             if (name == "__intrin_sin"_hsv)
             {
@@ -58,7 +61,20 @@ namespace oblo
             h32<ast_node> body;
         };
 
+        struct ast_function_decl_ref
+        {
+            hashed_string_view returnType;
+        };
+
+        struct ast_type_ref
+        {
+            u8 size;
+        };
+
         deque<ast_function_ref> functions;
+
+        std::unordered_map<hashed_string_view, ast_function_decl_ref, transparent_string_hash> functionDeclarations;
+        std::unordered_map<hashed_string_view, ast_type_ref, transparent_string_hash> types;
 
         for (const h32 childHandle : ast.children(ast.get_root()))
         {
@@ -68,6 +84,13 @@ namespace oblo
             {
             default:
                 unreachable();
+                break;
+
+            case ast_node_kind::type_declaration:
+                types[node.node.typeDecl.name] = {
+                    .size = node.node.typeDecl.size,
+                };
+
                 break;
 
             case ast_node_kind::function_declaration: {
@@ -92,8 +115,15 @@ namespace oblo
 
                 if (body)
                 {
-                    functions.push_back({.declaration = childHandle, .body = body});
+                    functions.push_back({
+                        .declaration = childHandle,
+                        .body = body,
+                    });
                 }
+
+                functionDeclarations[node.node.functionDecl.name] = {
+                    .returnType = node.node.functionDecl.returnType,
+                };
             }
 
             break;
@@ -109,7 +139,7 @@ namespace oblo
         {
             bool visited{};
             bool processed{};
-            u32 expressionResultSize{}; // Maybe it should be a type instead
+            u8 expressionResultSize{};
         };
 
         deque<visit_info> visitStack;
@@ -148,16 +178,11 @@ namespace oblo
         {
             u8 returnSize = 0;
 
-            // TODO: Make a more extensible type system
             const ast_node& fDecl = ast.get(f.declaration);
 
-            if (fDecl.node.functionDecl.returnType.empty())
+            if (const auto it = types.find(fDecl.node.functionDecl.returnType); it != types.end())
             {
-                returnSize = 0;
-            }
-            else if (fDecl.node.functionDecl.returnType == "f32")
-            {
-                returnSize = sizeof(f32);
+                returnSize = it->second.size;
             }
             else
             {
@@ -263,6 +288,20 @@ namespace oblo
                         }
                         else
                         {
+                            const auto fnIt = functionDeclarations.find(n.node.functionCall.name);
+
+                            if (fnIt == functionDeclarations.end())
+                            {
+                                return unspecified_error;
+                            }
+
+                            const auto typeIt = types.find(fnIt->second.returnType);
+
+                            if (typeIt == types.end())
+                            {
+                                return unspecified_error;
+                            }
+
                             const expected<u16> stringId = pushReadOnlyString16(n.node.functionCall.name);
 
                             if (!stringId)
@@ -271,10 +310,7 @@ namespace oblo
                             }
 
                             m.text.push_back({.op = bytecode_op::call_api_static, .payload = *stringId});
-
-                            // TODO: We might have to consider return types, which might mean we need function
-                            // declarations for API calls.
-                            thisNodeInfo.expressionResultSize = 0;
+                            thisNodeInfo.expressionResultSize = typeIt->second.size;
                         }
                     }
                     break;
@@ -368,7 +404,7 @@ namespace oblo
             const auto& functionDecl = ast.get(f.declaration).node.functionDecl;
 
             auto& newFunction = m.functions.emplace_back();
-            newFunction.id = functionDecl.name;
+            newFunction.id = string{functionDecl.name};
             newFunction.textOffset = textOffset;
             newFunction.returnSize = returnSize;
         }

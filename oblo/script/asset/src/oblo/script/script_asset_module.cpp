@@ -30,6 +30,7 @@
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
 #include <oblo/runtime/runtime_module.hpp>
+#include <oblo/script/assets/providers/script_api_provider.hpp>
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
 #include <oblo/script/compiler/bytecode_generator.hpp>
@@ -103,6 +104,16 @@ namespace oblo
                 }
 
                 abstract_syntax_tree ast;
+
+                ast.init();
+
+                for (auto* const apiProvider : module_manager::get().find_services<script_api_provider>())
+                {
+                    if (!apiProvider->fetch_api(ast))
+                    {
+                        log::error("An error occurred while fetching Script API for {}", typeid(apiProvider).name());
+                    }
+                }
 
                 if (!sg.generate_ast(ast))
                 {
@@ -229,6 +240,47 @@ namespace oblo
             const node_graph_registry& m_registry;
         };
 
+        class behaviour_api_provider final : public script_api_provider
+        {
+        public:
+            bool fetch_api(abstract_syntax_tree& tree) const override
+            {
+                const h32 root = tree.get_root();
+
+                tree.add_node(root,
+                    ast_type_declaration{
+                        .name = script_api::void_t,
+                        .size = 0,
+                    });
+
+                tree.add_node(root,
+                    ast_type_declaration{
+                        .name = script_api::f32_t,
+                        .size = sizeof(f32),
+                    });
+
+                tree.add_node(root,
+                    ast_type_declaration{
+                        .name = script_api::i32_t,
+                        .size = sizeof(i32),
+                    });
+
+                tree.add_node(root,
+                    ast_function_declaration{
+                        .name = script_api::get_time,
+                        .returnType = script_api::f32_t,
+                    });
+
+                tree.add_node(root,
+                    ast_function_declaration{
+                        .name = script_api::ecs::set_property,
+                        .returnType = script_api::void_t,
+                    });
+
+                return true;
+            }
+        };
+
         template <typename T>
         node_descriptor make_node_descriptor()
         {
@@ -246,6 +298,7 @@ namespace oblo
         bool startup(const module_initializer& initializer) override
         {
             initializer.services->add<script_graph_provider>().as<native_asset_provider>().unique(m_scriptRegistry);
+            initializer.services->add<behaviour_api_provider>().as<script_api_provider>().unique();
 
             // Load the runtime module to make sure it gets finalized before us, since we want to register the
             // components properties from its property registry

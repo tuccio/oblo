@@ -5,8 +5,8 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/iterator/iterator_range.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_interner.hpp>
-#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
@@ -16,6 +16,7 @@ namespace oblo
     enum class ast_node_kind : u8
     {
         root,
+        type_declaration,
         function_declaration,
         function_parameter,
         function_body,
@@ -47,20 +48,28 @@ namespace oblo
     {
     };
 
+    struct ast_type_declaration
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::type_declaration;
+
+        hashed_string_view name;
+        u8 size;
+    };
+
     struct ast_function_declaration
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::function_declaration;
 
-        string_view name;
-        string_view returnType;
+        hashed_string_view name;
+        hashed_string_view returnType;
     };
 
     struct ast_function_parameter
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::function_parameter;
 
-        string_view name;
-        string_view type;
+        hashed_string_view name;
+        hashed_string_view type;
     };
 
     struct ast_function_body
@@ -173,6 +182,7 @@ namespace oblo
 
         union {
             ast_root root;
+            ast_type_declaration typeDecl;
             ast_function_declaration functionDecl;
             ast_function_parameter functionParameter;
             ast_function_body functionBody;
@@ -226,6 +236,12 @@ namespace oblo
     private:
         void link_parent(h32<ast_node> parent, h32<ast_node> child);
         void unlink_parent(h32<ast_node> child);
+
+        void set_node(ast_node& n, const ast_type_declaration& v)
+        {
+            n.kind = ast_node_kind::type_declaration;
+            n.node.typeDecl = v;
+        }
 
         void set_node(ast_node& n, const ast_function_declaration& v)
         {

@@ -660,7 +660,10 @@ namespace oblo
 
     expected<> node_graph::generate_ast(abstract_syntax_tree& ast) const
     {
-        ast.init();
+        if (!ast.is_initialized())
+        {
+            ast.init();
+        }
 
         // INPUT first might be better, e.g. say we have i32 and f32 constant and binary add, the binary add wants to
         // check the type of the inputs and convert them this is NOT per node, e.g. an i32 constant might be connected
@@ -698,6 +701,7 @@ namespace oblo
         const h32 executeDecl = ast.add_node(root,
             ast_function_declaration{
                 .name = "node_graph_execute",
+                .returnType = "void",
             });
 
         const h32 executeBody = ast.add_node(executeDecl, ast_function_body{});
