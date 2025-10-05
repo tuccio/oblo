@@ -203,13 +203,6 @@ namespace oblo
             }
 
             ImGui::End();
-
-            if (ImGui::Begin("Inputs"))
-            {
-                // TODO
-            }
-
-            ImGui::End();
         }
 
         void draw_workspace()

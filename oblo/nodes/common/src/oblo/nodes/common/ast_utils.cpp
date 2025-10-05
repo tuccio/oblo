@@ -12,7 +12,7 @@ namespace oblo::ast_utils
             return expression;
         }
 
-        // TODO: Actually convert types
+        // TODO (#79): Implement type conversions
         (void) ast;
         OBLO_ASSERT(false);
 
