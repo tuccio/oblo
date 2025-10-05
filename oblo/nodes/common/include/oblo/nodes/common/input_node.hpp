@@ -11,6 +11,7 @@ namespace oblo
     public:
         static constexpr uuid id = "d7bb0a4d-6598-4fb7-b4a7-2e014a82979f"_uuid;
         static constexpr cstring_view name = "Input";
+        static constexpr cstring_view category = "Graph";
 
     public:
         void on_create(const node_graph_context& g) override;

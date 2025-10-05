@@ -18,6 +18,7 @@ namespace oblo::api_nodes
     public:
         static constexpr uuid id = "c02a725e-f8d0-46d0-80e6-78081db8d2ec"_uuid;
         static constexpr cstring_view name = "Get Time";
+        static constexpr cstring_view category = "World";
 
         void on_create(const node_graph_context& g) override
         {

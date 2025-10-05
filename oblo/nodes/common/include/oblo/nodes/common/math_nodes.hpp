@@ -63,6 +63,7 @@ namespace oblo::math_nodes
     public:
         static constexpr uuid id = "23f1f6d1-e626-4e56-8ac7-ac3700569268"_uuid;
         static constexpr cstring_view name = "Sine";
+        static constexpr cstring_view category = "Math";
         static constexpr hashed_string_view intrisic_id = "__intrin_sin"_hsv;
     };
 
@@ -71,6 +72,7 @@ namespace oblo::math_nodes
     public:
         static constexpr uuid id = "722e8cf8-c8f7-4ad6-8652-791574f4fc86"_uuid;
         static constexpr cstring_view name = "Cosine";
+        static constexpr cstring_view category = "Math";
         static constexpr hashed_string_view intrisic_id = "__intrin_cos"_hsv;
     };
 
@@ -79,6 +81,7 @@ namespace oblo::math_nodes
     public:
         static constexpr uuid id = "4b45ca3d-894b-4c36-bebc-ce8753658dc5"_uuid;
         static constexpr cstring_view name = "Tangent";
+        static constexpr cstring_view category = "Math";
         static constexpr hashed_string_view intrisic_id = "__intrin_tan"_hsv;
     };
 
@@ -87,6 +90,7 @@ namespace oblo::math_nodes
     public:
         static constexpr uuid id = "db40d485-ae43-4dbf-b13b-9158dd22b372"_uuid;
         static constexpr cstring_view name = "Arctangent";
+        static constexpr cstring_view category = "Math";
         static constexpr hashed_string_view intrisic_id = "__intrin_atan"_hsv;
     };
 }

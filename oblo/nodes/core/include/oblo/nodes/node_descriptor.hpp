@@ -33,7 +33,10 @@ namespace oblo
         /// @brief A user-friendly name for the node type.
         string name;
 
-        /// @brief Creates an isntance of the node.
+        /// @brief The category of the node, used in the UI to group related nodes.
+        string category;
+
+        /// @brief Creates an instance of the node.
         instantiate_node_fn instantiate{};
 
         /// @brief Userdata that will be passed to the instantiate call.

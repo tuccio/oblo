@@ -96,6 +96,9 @@ namespace oblo
     class binary_operator_base : public zero_properties_node
     {
     public:
+        static constexpr cstring_view category = "Math";
+
+    public:
         void on_create(const node_graph_context& g) override
         {
             m_lhs = g.add_in_pin({

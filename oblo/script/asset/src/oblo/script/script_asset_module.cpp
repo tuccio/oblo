@@ -27,6 +27,7 @@
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/json.hpp>
+#include <oblo/reflection/concepts/pretty_name.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
 #include <oblo/runtime/runtime_module.hpp>
@@ -293,6 +294,7 @@ namespace oblo
             return {
                 .id = T::id,
                 .name = string{T::name},
+                .category = string{T::category},
                 .instantiate = [](const any&) -> unique_ptr<node_interface> { return allocate_unique<T>(); },
             };
         }
@@ -420,11 +422,16 @@ namespace oblo
                                 .propertyPath = propertyPath.as<string>(),
                             };
 
-                            nodeName.clear()
-                                .append("Get ")
-                                .append(typeData.type.name)
-                                .append("::")
-                                .append(propertyPath);
+                            typeData.type;
+
+                            const std::optional prettyName =
+                                reflectionRegistry.find_concept<reflection::pretty_name>(componentType);
+
+                            const string_view componentName =
+                                prettyName.value_or(reflection::pretty_name{.identifier = typeData.type.name})
+                                    .identifier;
+
+                            nodeName.clear().append("Get ").append(componentName).append("::").append(propertyPath);
 
                             m_scriptRegistry.register_node({
                                 .id = getPropertyIdGen.generate(propertyPath.view()),
@@ -433,11 +440,7 @@ namespace oblo
                                 .userdata = make_any<ecs_property_userdata>(userdata),
                             });
 
-                            nodeName.clear()
-                                .append("Set ")
-                                .append(typeData.type.name)
-                                .append("::")
-                                .append(propertyPath);
+                            nodeName.clear().append("Set ").append(componentName).append("::").append(propertyPath);
 
                             m_scriptRegistry.register_node({
                                 .id = setPropertyIdGen.generate(propertyPath.view()),

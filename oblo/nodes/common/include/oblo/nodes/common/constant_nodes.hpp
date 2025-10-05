@@ -15,6 +15,9 @@ namespace oblo
     class constant_node_base : public node_interface
     {
     public:
+        static constexpr cstring_view category = "Constants";
+
+    public:
         void on_create(const node_graph_context& g) override
         {
             const h32 out = g.add_out_pin({
