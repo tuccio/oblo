@@ -15,11 +15,17 @@
 
 namespace oblo::ecs_nodes
 {
+    template <node_primitive_kind Kind>
     class get_component_property_node final : public zero_properties_node
     {
     public:
-        explicit get_component_property_node(type_id componentType, string_view propertyPath, const uuid& type) :
-            m_componentType{componentType}, m_propertyPath{propertyPath}, m_type{type}
+        static consteval uuid get_type_uuid()
+        {
+            return get_node_primitive_type_id<Kind>();
+        }
+
+        explicit get_component_property_node(type_id componentType, string_view propertyPath) :
+            m_componentType{componentType}, m_propertyPath{propertyPath}
         {
         }
 
@@ -30,7 +36,7 @@ namespace oblo::ecs_nodes
                 .name = "Get",
             });
 
-            g.set_deduced_type(outPin, m_type);
+            g.set_deduced_type(outPin, get_type_uuid());
         }
 
         void on_input_change(const node_graph_context&) override
@@ -46,7 +52,7 @@ namespace oblo::ecs_nodes
         {
             const h32 getPropertyCall = ast.add_node(parent,
                 ast_function_call{
-                    .name = script_api::ecs::get_property,
+                    .name = script_api::ecs::get_property_f32,
                 });
 
             {
@@ -81,14 +87,19 @@ namespace oblo::ecs_nodes
     private:
         type_id m_componentType;
         string m_propertyPath;
-        uuid m_type;
     };
 
+    template <node_primitive_kind Kind>
     class set_component_property_node final : public zero_properties_node
     {
     public:
-        explicit set_component_property_node(type_id componentType, string_view propertyPath, const uuid& type) :
-            m_componentType{componentType}, m_propertyPath{propertyPath}, m_type{type}
+        static consteval uuid get_type_uuid()
+        {
+            return get_node_primitive_type_id<Kind>();
+        }
+
+        explicit set_component_property_node(type_id componentType, string_view propertyPath) :
+            m_componentType{componentType}, m_propertyPath{propertyPath}
         {
         }
 
@@ -98,6 +109,8 @@ namespace oblo::ecs_nodes
                 .id = "efa8ae2b-c1dd-4741-a280-47e970977fa3"_uuid,
                 .name = "Set",
             });
+
+            g.set_deduced_type(m_input, get_type_uuid());
         }
 
         void on_input_change(const node_graph_context&) override {}
@@ -108,11 +121,9 @@ namespace oblo::ecs_nodes
             const std::span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>&) const override
         {
-            constexpr hashed_string_view setPropertyDataName = "__ecs_set_property_data"_hsv;
-
             const h32 callNode = ast.add_node(parent,
                 ast_function_call{
-                    .name = script_api::ecs::set_property,
+                    .name = script_api::ecs::set_property_f32,
                 });
 
             {
@@ -145,29 +156,17 @@ namespace oblo::ecs_nodes
                         .name = "value"_hsv,
                     });
 
-                ast.add_node(valueParameter, ast_variable_reference{.name = setPropertyDataName});
-            }
-
-            // Add this last so it gets executed before the call
-            {
-                const h32 dataVarDecl = ast.add_node(parent,
-                    ast_variable_declaration{
-                        .name = setPropertyDataName,
-                    });
-
-                const h32 dataVarDef = ast.add_node(dataVarDecl, ast_variable_definition{});
-
                 // Initialize the value on the stack
                 h32 valueExpression = inputs[0];
 
                 const auto inType = g.get_incoming_type(m_input);
 
-                if (inType != m_type)
+                if (inType != get_type_uuid())
                 {
-                    valueExpression = ast_utils::make_type_conversion(ast, valueExpression, inType, m_type);
+                    valueExpression = ast_utils::make_type_conversion(ast, valueExpression, inType, get_type_uuid());
                 }
 
-                ast.reparent(valueExpression, dataVarDef);
+                ast.reparent(valueExpression, valueParameter);
             }
 
             return true;
@@ -176,7 +175,6 @@ namespace oblo::ecs_nodes
     private:
         type_id m_componentType;
         string m_propertyPath;
-        uuid m_type{};
         h32<node_graph_in_pin> m_input{};
     };
 }

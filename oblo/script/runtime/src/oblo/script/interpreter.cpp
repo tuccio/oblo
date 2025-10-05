@@ -250,7 +250,9 @@ namespace oblo
     struct interpreter::call_frame
     {
         instruction_idx returnAddr;
+        u32 returnSize;
         byte* restoreStackPtr;
+        byte returnBuffer[16];
     };
 
     struct interpreter::function_info
@@ -269,6 +271,13 @@ namespace oblo
     struct interpreter::runtime_tag
     {
         script_data_ref dataRef;
+    };
+
+    struct interpreter::native_function
+    {
+        script_api_fn fn;
+        u32 paramsSize;
+        u32 returnSize;
     };
 
     interpreter::interpreter() = default;
@@ -327,9 +336,13 @@ namespace oblo
         }
     }
 
-    void interpreter::register_api(string_view name, script_api_fn fn)
+    void interpreter::register_api(string_view name, script_api_fn fn, u32 paramsSize, u32 returnSize)
     {
-        m_apiFunctions[string{name}] = fn;
+        m_apiFunctions[string{name}] = {
+            .fn = fn,
+            .paramsSize = paramsSize,
+            .returnSize = returnSize,
+        };
     }
 
     h32<script_function> interpreter::find_function(hashed_string_view name) const
@@ -342,13 +355,10 @@ namespace oblo
     {
         const auto fnInfo = m_functions[f.value];
 
-        OBLO_ASSERT(used_stack_size() >= fnInfo.paramsSize);
-
-        allocate_stack(fnInfo.returnSize);
-
-        auto& callFrame = m_callFrame.push_back_default();
-        callFrame.returnAddr = m_nextInstruction;
-        callFrame.restoreStackPtr = m_stackTop;
+        if (const auto e = begin_call(fnInfo.paramsSize, fnInfo.returnSize, m_nextInstruction))
+        {
+            return e.error();
+        }
 
         m_nextInstruction = fnInfo.address;
 
@@ -356,6 +366,19 @@ namespace oblo
         finish_call();
 
         return e;
+    }
+
+    expected<void, interpreter_error> interpreter::set_function_return(std::span<const byte> data)
+    {
+        auto& callFrame = m_callFrame.back();
+
+        if (data.size() != callFrame.returnSize)
+        {
+            return interpreter_error::invalid_arguments;
+        }
+
+        std::memcpy(callFrame.returnBuffer, data.data(), data.size());
+        return no_error;
     }
 
     u32 interpreter::used_stack_size() const
@@ -782,6 +805,27 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
+            case bytecode_op::push_tagged_data_copy_static: {
+                u16 stringId;
+                bytecode_payload::unpack_u16(bytecode.payload, stringId);
+
+                if (stringId >= m_runtimeTags.size()) [[unlikely]]
+                {
+                    OBLO_INTERPRETER_ABORT(interpreter_error::invalid_tag);
+                }
+
+                const auto& dataRef = m_runtimeTags[stringId].dataRef;
+
+                const expected e = push_data(std::span(m_stackMemory.get() + dataRef.stackAddress, dataRef.dataLength));
+
+                if (!e)
+                {
+                    return e.error();
+                }
+            }
+                ++m_nextInstruction;
+                break;
+
             case bytecode_op::call_api_static: {
                 u16 stringId;
                 bytecode_payload::unpack_u16(bytecode.payload, stringId);
@@ -796,8 +840,14 @@ namespace oblo
 
                 if (it != m_apiFunctions.end())
                 {
-                    const script_api_fn fn = it->second;
-                    OBLO_INTERPRETER_ABORT_ON_ERROR(fn(*this));
+                    const native_function nativeFunc = it->second;
+
+                    OBLO_INTERPRETER_ABORT_ON_ERROR(
+                        begin_call(nativeFunc.paramsSize, nativeFunc.returnSize, m_nextInstruction + 1));
+
+                    OBLO_INTERPRETER_ABORT_ON_ERROR(nativeFunc.fn(*this));
+
+                    finish_call();
                 }
                 else
                 {
@@ -805,8 +855,7 @@ namespace oblo
                 }
             }
 
-                ++m_nextInstruction;
-                break;
+            break;
 
             case bytecode_op::cos_f32:
                 [[fallthrough]];
@@ -884,12 +933,38 @@ namespace oblo
         return r;
     }
 
+    expected<void, interpreter_error> interpreter::begin_call(
+        u32 paramsSize, u32 returnSize, instruction_idx returnAddr)
+    {
+        if (used_stack_size() < paramsSize)
+        {
+            return interpreter_error::invalid_arguments;
+        }
+
+        if (returnSize > sizeof(call_frame::returnBuffer))
+        {
+            return interpreter_error::stack_overflow;
+        }
+
+        auto& callFrame = m_callFrame.push_back_default();
+        callFrame.returnSize = returnSize;
+        callFrame.returnAddr = returnAddr;
+        callFrame.restoreStackPtr = m_stackTop - paramsSize + returnSize;
+
+        return no_error;
+    }
+
     void interpreter::finish_call()
     {
         const auto& f = m_callFrame.back();
 
         m_nextInstruction = f.returnAddr;
-        deallocate_stack_unsafe(m_stackTop, f.restoreStackPtr);
+        m_stackTop = f.restoreStackPtr;
+
+        if (f.returnSize > 0)
+        {
+            std::memcpy(f.restoreStackPtr - f.returnSize, f.returnBuffer, f.returnSize);
+        }
 
         m_callFrame.pop_back();
     }

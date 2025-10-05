@@ -273,8 +273,14 @@ namespace oblo
 
                 tree.add_node(root,
                     ast_function_declaration{
-                        .name = script_api::ecs::set_property,
+                        .name = script_api::ecs::set_property_f32,
                         .returnType = script_api::void_t,
+                    });
+
+                tree.add_node(root,
+                    ast_function_declaration{
+                        .name = script_api::ecs::get_property_f32,
+                        .returnType = script_api::f32_t,
                     });
 
                 return true;
@@ -290,6 +296,30 @@ namespace oblo
                 .instantiate = [](const any&) -> unique_ptr<node_interface> { return allocate_unique<T>(); },
             };
         }
+    }
+
+    struct ecs_property_userdata
+    {
+        type_id componentType;
+        string propertyPath;
+    };
+
+    template <node_primitive_kind Kind>
+    unique_ptr<node_interface> instantiate_get_property_node(const any& userdata)
+    {
+        auto* const propertyUserdata = userdata.as<ecs_property_userdata>();
+
+        return allocate_unique<ecs_nodes::get_component_property_node<Kind>>(propertyUserdata->componentType,
+            propertyUserdata->propertyPath);
+    }
+
+    template <node_primitive_kind Kind>
+    unique_ptr<node_interface> instantiate_set_property_node(const any& userdata)
+    {
+        auto* const propertyUserdata = userdata.as<ecs_property_userdata>();
+
+        return allocate_unique<ecs_nodes::set_component_property_node<Kind>>(propertyUserdata->componentType,
+            propertyUserdata->propertyPath);
     }
 
     class script_asset_module final : public module_interface
@@ -357,34 +387,27 @@ namespace oblo
                     {
                         for (auto& property : propertyTree->properties)
                         {
-                            struct ecs_property_userdata
-                            {
-                                type_id componentType;
-                                string propertyPath;
-                                uuid nodeGraphType;
-                            };
-
-                            uuid nodeGraphType{};
+                            instantiate_node_fn instantiateGetFn{};
+                            instantiate_node_fn instantiateSetFn{};
 
                             switch (property.kind)
                             {
                             case property_kind::boolean:
-                                nodeGraphType = get_node_primitive_type_id<node_primitive_kind::boolean>();
                                 break;
 
                             case property_kind::f32:
-                                nodeGraphType = get_node_primitive_type_id<node_primitive_kind::f32>();
+                                instantiateGetFn = instantiate_get_property_node<node_primitive_kind::f32>;
+                                instantiateSetFn = instantiate_set_property_node<node_primitive_kind::f32>;
                                 break;
 
                             case property_kind::i32:
-                                nodeGraphType = get_node_primitive_type_id<node_primitive_kind::i32>();
                                 break;
 
                             default:
                                 break;
                             }
 
-                            if (nodeGraphType.is_nil())
+                            if (!instantiateSetFn || !instantiateGetFn)
                             {
                                 continue;
                             }
@@ -395,7 +418,6 @@ namespace oblo
                             const ecs_property_userdata userdata{
                                 .componentType = typeData.type,
                                 .propertyPath = propertyPath.as<string>(),
-                                .nodeGraphType = nodeGraphType,
                             };
 
                             nodeName.clear()
@@ -407,15 +429,7 @@ namespace oblo
                             m_scriptRegistry.register_node({
                                 .id = getPropertyIdGen.generate(propertyPath.view()),
                                 .name = nodeName.as<string>(),
-                                .instantiate = [](const any& userdata) -> unique_ptr<node_interface>
-                                {
-                                    auto* const propertyUserdata = userdata.as<ecs_property_userdata>();
-
-                                    return allocate_unique<ecs_nodes::get_component_property_node>(
-                                        propertyUserdata->componentType,
-                                        propertyUserdata->propertyPath,
-                                        propertyUserdata->nodeGraphType);
-                                },
+                                .instantiate = instantiateGetFn,
                                 .userdata = make_any<ecs_property_userdata>(userdata),
                             });
 
@@ -428,15 +442,7 @@ namespace oblo
                             m_scriptRegistry.register_node({
                                 .id = setPropertyIdGen.generate(propertyPath.view()),
                                 .name = nodeName.as<string>(),
-                                .instantiate = [](const any& userdata) -> unique_ptr<node_interface>
-                                {
-                                    auto* const propertyUserdata = userdata.as<ecs_property_userdata>();
-
-                                    return allocate_unique<ecs_nodes::set_component_property_node>(
-                                        propertyUserdata->componentType,
-                                        propertyUserdata->propertyPath,
-                                        propertyUserdata->nodeGraphType);
-                                },
+                                .instantiate = instantiateSetFn,
                                 .userdata = make_any<ecs_property_userdata>(userdata),
                             });
                         }

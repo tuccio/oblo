@@ -23,6 +23,11 @@ namespace oblo
         return {};
     }
 
+    h32<ast_node> abstract_syntax_tree::get_parent(h32<ast_node> node) const
+    {
+        return get(node).parent;
+    }
+
     void abstract_syntax_tree::reparent(h32<ast_node> node, h32<ast_node> newParent)
     {
         unlink_parent(node);

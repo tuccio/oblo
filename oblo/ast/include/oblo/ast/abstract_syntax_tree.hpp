@@ -23,6 +23,7 @@ namespace oblo
         function_body,
         function_call,
         function_argument,
+        compound,
         binary_operator,
         i32_constant,
         u32_constant,
@@ -90,6 +91,11 @@ namespace oblo
         static constexpr ast_node_kind node_kind = ast_node_kind::function_argument;
 
         hashed_string_view name;
+    };
+
+    struct ast_compound
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::compound;
     };
 
     struct ast_binary_operator
@@ -189,6 +195,7 @@ namespace oblo
             ast_function_body functionBody;
             ast_function_call functionCall;
             ast_function_argument functionArgument;
+            ast_compound compound;
             ast_binary_operator binaryOp;
             ast_i32_constant i32;
             ast_u32_constant u32;
@@ -216,6 +223,8 @@ namespace oblo
         bool is_initialized() const;
 
         h32<ast_node> get_root() const;
+
+        h32<ast_node> get_parent(h32<ast_node>) const;
 
         template <typename T>
         h32<ast_node> add_node(h32<ast_node> parent, T&& node);
@@ -279,6 +288,12 @@ namespace oblo
             n.kind = ast_node_kind::function_argument;
             n.node.functionArgument = v;
             n.node.functionArgument.name = intern_h_str(v.name);
+        }
+
+        void set_node(ast_node& n, const ast_compound& v)
+        {
+            n.kind = ast_node_kind::compound;
+            n.node.compound = v;
         }
 
         void set_node(ast_node& n, const ast_binary_operator& v)

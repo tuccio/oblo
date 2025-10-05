@@ -715,7 +715,12 @@ namespace oblo
                 .returnType = "void",
             });
 
-        const h32 executeBody = ast.add_node(executeDecl, ast_function_body{});
+        const h32 functionBody = ast.add_node(executeDecl, ast_function_body{});
+
+        // We use a compound for statements we need to execute before the rest (e.g. variables we store because they are
+        // used by multiple nodes)
+        const h32 executeStatements = ast.add_node(functionBody, ast_compound{});
+        const h32 preExecuteStatements = ast.add_node(functionBody, ast_compound{});
 
         struct output_pin_data
         {
@@ -800,6 +805,11 @@ namespace oblo
                             inputAstNode = create_variable_decl_or_ref<ast_variable_reference>(ast,
                                 builderBuffer,
                                 astNode->expression);
+
+                            if (ast.get_parent(astNode->varDecl) != preExecuteStatements)
+                            {
+                                ast.reparent(astNode->varDecl, preExecuteStatements);
+                            }
                         }
                         else
                         {
@@ -811,7 +821,7 @@ namespace oblo
                 // TODO: Parametrize graph context for const/non-const
                 const node_graph_context ctx{*const_cast<node_graph*>(this), currentVertex};
 
-                if (!node.node->generate(ctx, ast, executeBody, inputs, outputs))
+                if (!node.node->generate(ctx, ast, executeStatements, inputs, outputs))
                 {
                     return unspecified_error;
                 }

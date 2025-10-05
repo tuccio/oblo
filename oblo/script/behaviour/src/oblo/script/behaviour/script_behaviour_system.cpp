@@ -51,35 +51,114 @@ namespace oblo
 
         void register_api_functions(interpreter& i)
         {
-            i.register_api(script_api::get_time, [this](interpreter& interp) { return get_time_impl(interp); });
-            i.register_api(script_api::ecs::set_property,
-                [this](interpreter& interp) { return ecs_set_property_impl(interp); });
+            i.register_api(
+                script_api::get_time,
+                [this](interpreter& interp) { return get_time_impl(interp); },
+                0,
+                sizeof(f32));
+
+            i.register_api(
+                script_api::ecs::set_property_f32,
+                [this](interpreter& interp) { return ecs_set_property_impl<f32>(interp); },
+                script_string_ref_size() * 2 + sizeof(f32),
+                0);
+
+            i.register_api(
+                script_api::ecs::get_property_f32,
+                [this](interpreter& interp) { return ecs_get_property_impl<f32>(interp); },
+                script_string_ref_size() * 2 + sizeof(f32),
+                sizeof(f32));
         }
 
+        script_api_context& global_context()
+        {
+            return m_ctx;
+        }
+
+    private:
         expected<void, interpreter_error> get_time_impl(interpreter& interp)
         {
             const f32 t = to_f32_seconds(m_ctx.currentTime);
-            interp.push_u32(std::bit_cast<u32>(t));
-            return no_error;
+            return interp.set_function_return(as_bytes(std::span{&t, 1}));
         }
 
+        template <typename T>
         expected<void, interpreter_error> ecs_set_property_impl(interpreter& interp)
         {
             const expected componentType = interp.get_string_view(0);
             const expected property = interp.get_string_view(script_string_ref_size());
-            const expected dataRef = interp.get_data_view(2 * script_string_ref_size());
 
-            if (!componentType || !property || !dataRef)
+            if (!componentType || !property)
             {
                 return interpreter_error::invalid_arguments;
             }
 
+            T inData;
+
+            if constexpr (sizeof(T) == sizeof(u32))
+            {
+                const expected data = interp.read_u32(2 * script_string_ref_size());
+
+                if (!data)
+                {
+                    return data.error();
+                }
+
+                std::memcpy(&inData, &data.value(), sizeof(u32));
+            }
+            else
+            {
+                OBLO_ASSERT(false);
+                return interpreter_error::invalid_arguments;
+            }
+
+            const oblo::property* propertyData{};
+            const expected propertyPtr = fetch_component_property_ptr(*componentType, *property, &propertyData);
+
+            if (!propertyPtr)
+            {
+                return propertyPtr.error();
+            }
+
+            property_value_wrapper w;
+            w.assign_from(propertyData->kind, &inData);
+            w.assign_to(propertyData->kind, *propertyPtr);
+
+            m_entities->notify(m_ctx.entityId);
+
+            return no_error;
+        }
+
+        template <typename T>
+        expected<void, interpreter_error> ecs_get_property_impl(interpreter& interp)
+        {
+            const expected componentType = interp.get_string_view(0);
+            const expected property = interp.get_string_view(script_string_ref_size());
+
+            if (!componentType || !property)
+            {
+                return interpreter_error::invalid_arguments;
+            }
+
+            const expected propertyPtr = fetch_component_property_ptr(*componentType, *property);
+
+            if (!propertyPtr)
+            {
+                return propertyPtr.error();
+            }
+
+            return interp.set_function_return({*propertyPtr, sizeof(T)});
+        }
+
+        OBLO_FORCEINLINE expected<byte*, interpreter_error> fetch_component_property_ptr(
+            string_view componentType, string_view property, const oblo::property** outProperty = nullptr)
+        {
             const auto entry =
-                get_or_add_to_cache(hashed_string_view{*componentType}, *property, m_entities->get_type_registry());
+                get_or_add_to_cache(hashed_string_view{componentType}, property, m_entities->get_type_registry());
 
             if (!entry.tree || entry.propertyIdx >= entry.tree->properties.size()) [[unlikely]]
             {
-                log::error("Failed to locate property {}::{}", *componentType, *property);
+                log::error("Failed to locate property {}::{}", componentType, property);
                 return interpreter_error::invalid_arguments;
             }
 
@@ -87,7 +166,7 @@ namespace oblo
 
             if (propertyData.kind == property_kind::string)
             {
-                log::error("Unsupported property type {}::{}", *componentType, *property);
+                log::error("Unsupported property type {}::{}", componentType, property);
                 return interpreter_error::invalid_arguments;
             }
 
@@ -97,21 +176,16 @@ namespace oblo
 
             if (!componentPtr[0])
             {
-                log::debug("Entity {} has no component {}", m_ctx.entityId.value, *componentType);
+                log::debug("Entity {} has no component {}", m_ctx.entityId.value, componentType);
+                return interpreter_error::invalid_arguments;
             }
 
-            property_value_wrapper w;
-            w.assign_from(propertyData.kind, dataRef->data());
-            w.assign_to(propertyData.kind, componentPtr[0] + propertyData.offset);
+            if (outProperty)
+            {
+                *outProperty = &propertyData;
+            }
 
-            m_entities->notify(m_ctx.entityId);
-
-            return no_error;
-        }
-
-        script_api_context& global_context()
-        {
-            return m_ctx;
+            return componentPtr[0] + propertyData.offset;
         }
 
     private:

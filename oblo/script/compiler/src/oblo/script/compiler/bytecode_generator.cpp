@@ -376,10 +376,13 @@ namespace oblo
                             return unspecified_error;
                         }
 
-                        m.text.push_back({.op = bytecode_op::push_tagged_data_ref_static, .payload = *varName});
+                        m.text.push_back({.op = bytecode_op::push_tagged_data_copy_static, .payload = *varName});
                         thisNodeInfo.expressionResultSize = script_data_ref_size();
                     }
                     break;
+
+                    case ast_node_kind::compound:
+                        break;
 
                     default:
                         return unspecified_error;

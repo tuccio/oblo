@@ -6,8 +6,8 @@ namespace oblo::script_api
 {
     namespace ecs
     {
-        constexpr hashed_string_view get_property = "__ecs_get_property"_hsv;
-        constexpr hashed_string_view set_property = "__ecs_set_property"_hsv;
+        constexpr hashed_string_view get_property_f32 = "__ecs_get_property_f32"_hsv;
+        constexpr hashed_string_view set_property_f32 = "__ecs_set_property_f32"_hsv;
     }
 
     constexpr hashed_string_view get_time = "__get_time"_hsv;

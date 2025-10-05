@@ -59,6 +59,9 @@ namespace oblo
         /// @brief Pushes a previously tagged stack address. The payload is the u16 read-only string id.
         push_tagged_data_ref_static,
 
+        /// @brief Pushes a full copy of a previously tagged data slice. The payload is the u16 read-only string id.
+        push_tagged_data_copy_static,
+
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.
         increment_u32_val,
         /// @brief Increments the value at the top of the stack with the u16 value in the payload.

@@ -40,11 +40,15 @@ namespace oblo
 
         void load_module(const bytecode_module& m);
 
-        void register_api(string_view name, script_api_fn fn);
+        void register_api(string_view name, script_api_fn fn, u32 paramsSize, u32 returnSize);
 
         h32<script_function> find_function(hashed_string_view name) const;
 
         expected<void, interpreter_error> call_function(h32<script_function> f);
+
+        /// @brief It can be used by native functions to set the return value.
+        /// @param data The value to return from the function, it needs to match the function return size.
+        expected<void, interpreter_error> set_function_return(std::span<const byte> data);
 
         expected<f32, interpreter_error> read_f32(u32 stackOffset) const;
         expected<u32, interpreter_error> read_u32(u32 stackOffset) const;
@@ -69,7 +73,7 @@ namespace oblo
         u32 available_stack_size() const;
 
         expected<void, interpreter_error> run();
-        
+
         void reset_execution();
 
     private:
@@ -80,9 +84,12 @@ namespace oblo
         struct function_info;
         struct read_only_string;
         struct runtime_tag;
+        struct native_function;
 
     private:
         byte* allocate_stack(u32 size);
+
+        expected<void, interpreter_error> begin_call(u32 paramsSize, u32 returnSize, instruction_idx returnAddr);
         void finish_call();
 
     private:
@@ -96,7 +103,7 @@ namespace oblo
         dynamic_array<read_only_string> m_readOnlyStrings;
         deque<runtime_tag> m_runtimeTags;
         std::unordered_map<string, u32, transparent_string_hash, std::equal_to<>> m_functionNames;
-        std::unordered_map<string, script_api_fn, transparent_string_hash, std::equal_to<>> m_apiFunctions;
+        std::unordered_map<string, native_function, transparent_string_hash, std::equal_to<>> m_apiFunctions;
     };
 
     enum class interpreter_error : u8

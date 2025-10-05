@@ -141,14 +141,66 @@ namespace oblo
 
         interpreter interp;
 
+        static constexpr u32 expectedRes = 42;
+
         interp.init(1u << 10);
         interp.load_module(m);
-        interp.register_api("my_native_fun",
+        interp.register_api(
+            "my_native_fun",
+            [](interpreter& i) -> expected<void, interpreter_error>
+            { return i.set_function_return(as_bytes(std::span{&expectedRes, 1})); },
+            0,
+            sizeof(u32));
+
+        ASSERT_EQ(interp.used_stack_size(), 0);
+        ASSERT_TRUE(interp.run());
+
+        ASSERT_EQ(interp.used_stack_size(), sizeof(u32));
+
+        const expected<u32, interpreter_error> r = interp.read_u32(0);
+        ASSERT_TRUE(r);
+        ASSERT_EQ(*r, expectedRes);
+    }
+
+    TEST(script_test, call_native_with_args)
+    {
+        bytecode_module m;
+
+        m.readOnlyStrings = {"multiply_u32"};
+
+        m.text = {
+            {bytecode_op::push_32lo16, bytecode_payload::pack_u16(2)},
+            {bytecode_op::push_32lo16, bytecode_payload::pack_u16(21)},
+            {bytecode_op::call_api_static, bytecode_payload::pack_u16(0)},
+            {bytecode_op::ret},
+        };
+
+        interpreter interp;
+
+        interp.init(1u << 10);
+        interp.load_module(m);
+        interp.register_api(
+            "multiply_u32",
             [](interpreter& i) -> expected<void, interpreter_error>
             {
-                i.push_u32(42);
-                return no_error;
-            });
+                const expected lhs = i.read_u32(0);
+                const expected rhs = i.read_u32(sizeof(u32));
+
+                if (!lhs)
+                {
+                    return lhs.error();
+                }
+
+                if (!rhs)
+                {
+                    return rhs.error();
+                }
+
+                const u32 res = *lhs * *rhs;
+                return i.set_function_return(as_bytes(std::span{&res, 1}));
+            },
+            sizeof(u32) * 2,
+            sizeof(u32));
 
         ASSERT_EQ(interp.used_stack_size(), 0);
         ASSERT_TRUE(interp.run());
