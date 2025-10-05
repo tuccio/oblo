@@ -806,9 +806,11 @@ namespace oblo
                                 builderBuffer,
                                 astNode->expression);
 
+                            // We lazily reparent the statements when they are used
+                            // We need to preserve the topological order when reparenting
                             if (ast.get_parent(astNode->varDecl) != preExecuteStatements)
                             {
-                                ast.reparent(astNode->varDecl, preExecuteStatements);
+                                ast.reparent_first(astNode->varDecl, preExecuteStatements);
                             }
                         }
                         else

@@ -34,6 +34,12 @@ namespace oblo
         link_parent(newParent, node);
     }
 
+    void abstract_syntax_tree::reparent_first(h32<ast_node> node, h32<ast_node> newParent)
+    {
+        unlink_parent(node);
+        link_parent_first(newParent, node);
+    }
+
     void abstract_syntax_tree::unlink_subtree(h32<ast_node> root)
     {
         unlink_parent(root);
@@ -89,6 +95,30 @@ namespace oblo
 
         // Make sure we update the last child of the parent after prevSibling is set
         p.lastChild = child;
+    }
+
+    void abstract_syntax_tree::link_parent_first(h32<ast_node> parent, h32<ast_node> child)
+    {
+        OBLO_ASSERT(child);
+
+        auto& p = get(parent);
+        auto& c = get(child);
+
+        c.parent = parent;
+        c.nextSibling = p.firstChild;
+        c.prevSibling = {};
+
+        if (p.firstChild)
+        {
+            get(p.firstChild).prevSibling = child;
+        }
+
+        if (!p.lastChild)
+        {
+            p.lastChild = child;
+        }
+
+        p.firstChild = child;
     }
 
     void abstract_syntax_tree::unlink_parent(h32<ast_node> child)

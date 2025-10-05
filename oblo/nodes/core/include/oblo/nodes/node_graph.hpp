@@ -58,7 +58,6 @@ namespace oblo
         void store(h32<node_graph_node> nodeHandle, data_document& doc, u32 docNodeIndex) const;
         void load(h32<node_graph_node> nodeHandle, const data_document& doc, u32 docNodeIndex);
 
-        bool can_connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst) const;
         bool connect(h32<node_graph_out_pin> src, h32<node_graph_in_pin> dst);
 
         void clear_connected_output(h32<node_graph_in_pin> inPin);

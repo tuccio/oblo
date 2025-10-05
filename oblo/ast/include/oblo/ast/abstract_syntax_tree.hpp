@@ -229,7 +229,11 @@ namespace oblo
         template <typename T>
         h32<ast_node> add_node(h32<ast_node> parent, T&& node);
 
+        template <typename T>
+        h32<ast_node> add_node_first(h32<ast_node> parent, T&& node);
+
         void reparent(h32<ast_node> node, h32<ast_node> newParent);
+        void reparent_first(h32<ast_node> node, h32<ast_node> newParent);
 
         /// @brief Removes the links of the node from its parent, without destroying the node or the subtree, but
         /// effectively excluding it from visits.
@@ -245,6 +249,7 @@ namespace oblo
 
     private:
         void link_parent(h32<ast_node> parent, h32<ast_node> child);
+        void link_parent_first(h32<ast_node> parent, h32<ast_node> child);
         void unlink_parent(h32<ast_node> child);
 
         void set_node(ast_node& n, const ast_type_declaration& v)
@@ -394,6 +399,20 @@ namespace oblo
 
         set_node(newNode, std::forward<T>(node));
         link_parent(parent, id);
+
+        return id;
+    }
+
+    template <typename T>
+    h32<ast_node> abstract_syntax_tree::add_node_first(h32<ast_node> parent, T&& node)
+    {
+        const h32<ast_node> id{m_nodes.size32()};
+        OBLO_ASSERT(id);
+
+        auto& newNode = m_nodes.emplace_back();
+
+        set_node(newNode, std::forward<T>(node));
+        link_parent_first(parent, id);
 
         return id;
     }
