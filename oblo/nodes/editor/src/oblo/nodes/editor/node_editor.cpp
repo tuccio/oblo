@@ -1060,12 +1060,18 @@ namespace oblo
                         }
                     }
 
+                    bool currentlyExpanded = true;
+
                     for (usize d = commonDepth; d < lastCategory.directory.size(); ++d)
                     {
-                        if (isExpanded[d])
+                        currentlyExpanded = isExpanded[d];
+
+                        if (!currentlyExpanded)
                         {
-                            ImGui::TreePop();
+                            break;
                         }
+
+                        ImGui::TreePop();
                     }
 
                     isExpanded.resize(commonDepth);
@@ -1073,13 +1079,27 @@ namespace oblo
 
                     for (usize d = commonDepth; d < thisCategory.directory.size(); ++d)
                     {
+                        if (!currentlyExpanded)
+                        {
+                            isExpanded[d] = false;
+                            continue;
+                        }
+
                         builder.clear().append(thisCategory.directory[d]);
-                        isExpanded[d] = ImGui::TreeNodeEx(builder.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+                        currentlyExpanded = ImGui::TreeNodeEx(builder.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+                        isExpanded[d] = currentlyExpanded;
                     }
                 }
 
                 if (!isExpanded.empty() && isExpanded.back())
                 {
+                    if (string_view{desc.name}.ends_with("far"))
+                    {
+                        while (0)
+                        {
+                        };
+                    }
+
                     if (ImGui::TreeNodeEx(desc.name.c_str(), ImGuiTreeNodeFlags_Leaf))
                     {
                         ImGui::TreePop();
