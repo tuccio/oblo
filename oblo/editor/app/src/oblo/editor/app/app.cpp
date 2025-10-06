@@ -361,6 +361,9 @@ namespace oblo::editor
 
         m_impl->startup_ui();
 
+        auto& globalRegistry = m_impl->m_windowManager.get_global_service_registry();
+        globalRegistry.add<ImGuiContext>().externally_owned(app.get_imgui_context());
+
         auto& mainWindow = app.get_main_window();
 
         setup_icon(m_impl->m_runtimeRegistry.get_resource_registry(), mainWindow);
@@ -630,10 +633,13 @@ namespace oblo::editor
 
     void app::impl::shutdown()
     {
+        // Shutdown all registries first
         m_windowManager.shutdown();
+        m_assetRegistry.shutdown();
         m_runtimeRegistry.shutdown();
-        platform::shutdown();
 
+        // Shutdown modules, which may also unload shared librariies
+        platform::shutdown();
         module_manager::get().shutdown();
 
         m_jobManager.shutdown();

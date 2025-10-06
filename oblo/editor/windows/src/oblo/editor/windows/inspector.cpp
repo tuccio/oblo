@@ -134,8 +134,23 @@ namespace oblo::editor
                         [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
                         [&ptr, &ctx, &tree, &modified, &nextStringBufferIdx](const property& property)
                         {
-                            const auto makeId = [&property]
-                            { return (int(hash_mix(property.offset, property.parent))); };
+                            const auto makeId = [&property]() -> ui::property_table::id_t
+                            {
+                                struct hash_data
+                                {
+                                    u32 stackTop;
+                                    u32 offset;
+                                    u32 parent;
+                                };
+
+                                const hash_data h{
+                                    .stackTop = ImGui::GetItemID(),
+                                    .offset = property.offset,
+                                    .parent = property.parent,
+                                };
+
+                                return std::bit_cast<ui::property_table::id_t>(hash_xxh32(&h, sizeof(h)));
+                            };
 
                             byte* const propertyPtr = ptr + property.offset;
 

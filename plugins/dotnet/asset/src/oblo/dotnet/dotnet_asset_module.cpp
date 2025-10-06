@@ -302,7 +302,7 @@ public class Behaviour : IBehaviour
 
                         return true;
                     },
-                    .createImporter = []() -> unique_ptr<file_importer>
+                    .createImporter = [](const any&) -> unique_ptr<file_importer>
                     { return allocate_unique<dotnet_script_importer>(); },
                 });
             }

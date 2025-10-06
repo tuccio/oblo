@@ -8,6 +8,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_interner.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
@@ -161,27 +162,27 @@ namespace oblo::vk
         mesh_attribute_description attributes[u32(vertex_attributes::enum_max)]{};
 
         attributes[u32(vertex_attributes::position)] = {
-            .name = interner.get_or_add("in_Position"),
+            .name = interner.get_or_add("in_Position"_hsv),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::normal)] = {
-            .name = interner.get_or_add("in_Normal"),
+            .name = interner.get_or_add("in_Normal"_hsv),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::tangent)] = {
-            .name = interner.get_or_add("in_Tangent"),
+            .name = interner.get_or_add("in_Tangent"_hsv),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::bitangent)] = {
-            .name = interner.get_or_add("in_Bitangent"),
+            .name = interner.get_or_add("in_Bitangent"_hsv),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::uv0)] = {
-            .name = interner.get_or_add("in_UV0"),
+            .name = interner.get_or_add("in_UV0"_hsv),
             .elementSize = sizeof(f32) * 2,
         };
 
@@ -201,15 +202,15 @@ namespace oblo::vk
 
         const mesh_attribute_description meshData[] = {
             {
-                .name = interner.get_or_add("b_meshDrawRange"),
+                .name = interner.get_or_add("b_meshDrawRange"_hsv),
                 .elementSize = sizeof(mesh_draw_range),
             },
             {
-                .name = interner.get_or_add("b_MeshAABBs"),
+                .name = interner.get_or_add("b_MeshAABBs"_hsv),
                 .elementSize = sizeof(gpu_aabb),
             },
             {
-                .name = interner.get_or_add("b_FullIndexBuffer"),
+                .name = interner.get_or_add("b_FullIndexBuffer"_hsv),
                 .elementSize = sizeof(gpu_full_index_buffer),
             },
         };
@@ -753,8 +754,8 @@ namespace oblo::vk
         for (auto&& chunk : entityRange)
         {
             for (const auto&& [mesh, drawInstanceId, transform] : chunk.zip<const draw_mesh_component,
-                                                                  const draw_instance_id_component,
-                                                                  const global_transform_component>())
+                     const draw_instance_id_component,
+                     const global_transform_component>())
             {
                 auto* const blas = m_meshToBlas.try_find(mesh.mesh);
 
@@ -778,7 +779,7 @@ namespace oblo::vk
                     const mesh_handle meshHandle = std::bit_cast<mesh_handle>(mesh.mesh);
 
                     if (!m_meshes
-                             .fetch_buffers(meshHandle, positionAttribute, positionBuffer, nullptr, {}, {}, nullptr))
+                            .fetch_buffers(meshHandle, positionAttribute, positionBuffer, nullptr, {}, {}, nullptr))
                     {
                         continue;
                     }

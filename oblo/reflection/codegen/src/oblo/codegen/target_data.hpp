@@ -44,6 +44,7 @@ namespace oblo::gen
     struct record_type
     {
         string name;
+        string identifier;
         deque<field_type> fields;
 
         flags<record_flags> flags;

@@ -120,6 +120,17 @@ namespace oblo
         };
     };
 
+    // Implementation for void type
+    template <trivial_type E>
+    class [[nodiscard]] expected<void, E> : public expected<success_tag, E>
+    {
+    public:
+        using expected<success_tag, E>::expected;
+
+        using expected<success_tag, E>::operator bool;
+        using expected<success_tag, E>::error;
+    };
+
     // Implementation for non trivial types
     template <non_trivial_type T, trivial_type E>
     class [[nodiscard]] expected<T, E>
@@ -130,15 +141,13 @@ namespace oblo
         {
             m_hasValue = other.m_hasValue;
 
-            switch (other.m_hasValue)
+            if (other.m_hasValue)
             {
-            case false:
-                m_error = other.m_error;
-                break;
-
-            case true:
                 new (m_buffer) T{*other};
-                break;
+            }
+            else
+            {
+                m_error = other.m_error;
             }
         }
 

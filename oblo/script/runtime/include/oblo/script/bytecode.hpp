@@ -1,0 +1,44 @@
+#pragma once
+
+#include <oblo/script/operations.hpp>
+
+namespace oblo
+{
+    struct bytecode_payload
+    {
+        using data_type = u16;
+
+        static constexpr bytecode_payload pack_u16(u16 v)
+        {
+            return {.data = v};
+        }
+
+        static constexpr bytecode_payload pack_2xu8(u8 a, u8 b)
+        {
+            return {.data = u16((u16{a} << 8) | b)};
+        }
+
+        static constexpr void unpack_u16(const bytecode_payload& p, u16& v)
+        {
+            v = p.data;
+        }
+
+        static constexpr void unpack_2xu8(const bytecode_payload& p, u8& a, u8& b)
+        {
+            a = u8(p.data >> 8);
+            b = u8(p.data);
+        }
+
+        bool operator==(const bytecode_payload&) const noexcept = default;
+
+        data_type data;
+    };
+
+    struct bytecode_instruction
+    {
+        bool operator==(const bytecode_instruction&) const noexcept = default;
+
+        bytecode_op op;
+        bytecode_payload payload;
+    };
+}

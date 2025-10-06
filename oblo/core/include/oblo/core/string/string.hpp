@@ -7,6 +7,7 @@
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
@@ -105,6 +106,11 @@ namespace oblo
             return m_string.size() - 1;
         }
 
+        OBLO_FORCEINLINE u32 size32() const noexcept
+        {
+            return m_string.size32() - 1;
+        }
+
         OBLO_FORCEINLINE bool empty() const noexcept
         {
             OBLO_ASSERT(!m_string.empty());
@@ -173,9 +179,29 @@ namespace oblo
             return const_reverse_iterator{m_string.cbegin() + size()};
         }
 
+        bool operator==(const char* other) const noexcept
+        {
+            return as<string_view>() == string_view{other};
+        }
+
         bool operator==(const string& other) const noexcept
         {
             return as<string_view>() == other.as<string_view>();
+        }
+
+        bool operator==(const cstring_view& other) const noexcept
+        {
+            return as<string_view>() == other;
+        }
+
+        bool operator==(const string_view& other) const noexcept
+        {
+            return as<string_view>() == other;
+        }
+
+        bool operator==(const hashed_string_view& other) const noexcept
+        {
+            return as<string_view>() == other;
         }
 
         OBLO_FORCEINLINE const char& operator[](usize i) const

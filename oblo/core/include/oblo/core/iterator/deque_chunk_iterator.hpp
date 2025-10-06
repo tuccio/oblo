@@ -52,7 +52,7 @@ namespace oblo
 
         OBLO_FORCEINLINE friend bool operator<(const deque_chunk_iterator& lhs, const deque_chunk_iterator& rhs)
         {
-            return lhs.m_chunkIndex < rhs.m_chunkIndex;
+            return lhs.m_it.m_index < rhs.m_it.m_index;
         }
 
     private:

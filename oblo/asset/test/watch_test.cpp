@@ -45,7 +45,7 @@ namespace oblo
 
                     return filesystem::write_file(destination, as_bytes(std::span{*b}), {}).has_value();
                 },
-                .createImporter = []() -> unique_ptr<file_importer>
+                .createImporter = [](const any&) -> unique_ptr<file_importer>
                 { return allocate_unique<copy_importer>("3c06e01d-fb44-442d-8f62-3e6e4d14f74d"_uuid, "text"); },
             };
         }
@@ -307,7 +307,7 @@ namespace oblo
 
             registry.register_file_importer({
                 .type = get_type_id<mock_test_asset>(),
-                .create = []() -> unique_ptr<file_importer>
+                .create = [](const any&) -> unique_ptr<file_importer>
                 { return allocate_unique<copy_importer>("3c06e01d-fb44-442d-8f62-3e6e4d14f74d"_uuid, "text"); },
                 .extensions = extensions,
             });

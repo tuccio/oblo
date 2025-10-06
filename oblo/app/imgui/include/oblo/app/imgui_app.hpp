@@ -4,6 +4,8 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
 
+struct ImGuiContext;
+
 namespace oblo
 {
     class graphics_window;
@@ -16,6 +18,11 @@ namespace oblo
         bool useMultiViewport{true};
         bool useDocking{true};
         bool useKeyboardNavigation{true};
+    };
+
+    struct imgui_context
+    {
+        void* handle;
     };
 
     class imgui_app : graphics_app
@@ -45,6 +52,8 @@ namespace oblo
 
         using graphics_app::acquire_images;
         using graphics_app::present;
+
+        ImGuiContext* get_imgui_context() const;
 
     private:
         struct impl;

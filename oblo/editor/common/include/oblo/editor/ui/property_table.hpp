@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo
@@ -38,36 +38,38 @@ namespace oblo::editor::ui
         using id_t = i32;
 
         [[nodiscard]] bool begin();
+        [[nodiscard]] bool begin(const vec2& size, f32 rowHeight);
         void end();
 
-        void add_empty(cstring_view name);
+        void add_empty(string_view name);
 
-        bool add(id_t id, cstring_view name, bool& v);
-        bool add(id_t id, cstring_view name, u32& v);
-        bool add(id_t id, cstring_view name, f32& v);
+        bool add(id_t id, string_view name, bool& v);
+        bool add(id_t id, string_view name, i32& v);
+        bool add(id_t id, string_view name, u32& v);
+        bool add(id_t id, string_view name, f32& v);
 
-        bool add(id_t id, cstring_view name, vec2& v);
-        bool add(id_t id, cstring_view name, vec3& v);
-        bool add(id_t id, cstring_view name, vec4& v);
+        bool add(id_t id, string_view name, vec2& v);
+        bool add(id_t id, string_view name, vec3& v);
+        bool add(id_t id, string_view name, vec4& v);
 
-        bool add(id_t id, cstring_view name, mat4& v);
+        bool add(id_t id, string_view name, mat4& v);
 
-        bool add(id_t id, cstring_view name, quaternion& v);
+        bool add(id_t id, string_view name, quaternion& v);
 
-        bool add(id_t id, cstring_view name, degrees& v);
-        bool add(id_t id, cstring_view name, radians& v);
+        bool add(id_t id, string_view name, degrees& v);
+        bool add(id_t id, string_view name, radians& v);
 
-        bool add_color(id_t id, cstring_view name, vec3& v);
+        bool add_color(id_t id, string_view name, vec3& v);
 
-        bool add(id_t id, cstring_view name, uuid& anyUuid);
-        bool add(id_t id, cstring_view name, uuid& artifactId, artifact_picker& picker, const uuid& typeUuid);
+        bool add(id_t id, string_view name, uuid& anyUuid);
+        bool add(id_t id, string_view name, uuid& artifactId, artifact_picker& picker, const uuid& typeUuid);
 
         bool add_enum(id_t id,
-            cstring_view name,
+            string_view name,
             void* v,
             const type_id& typeId,
             const reflection::reflection_registry& reflection);
 
-        bool add_input_text(id_t id, cstring_view name, char* buffer, usize size);
+        bool add_input_text(id_t id, string_view name, char* buffer, usize size);
     };
 }

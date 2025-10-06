@@ -15,6 +15,7 @@ namespace oblo::gen
 #include <oblo/reflection/attributes/color.hpp>
 #include <oblo/reflection/attributes/range.hpp>
 #include <oblo/reflection/concepts/gpu_component.hpp>
+#include <oblo/reflection/concepts/pretty_name.hpp>
 #include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
 #include <oblo/reflection/tags/script_api.hpp>
@@ -154,27 +155,41 @@ namespace oblo::gen
         m_content.append("classBuilder.add_ranged_type_erasure();");
         new_line();
 
+        bool addPrettyName = false;
+
         if (r.flags.contains(record_flags::ecs_component))
         {
             m_content.append("classBuilder.add_tag<::oblo::ecs::component_type_tag>();");
             new_line();
+
+            addPrettyName = true;
         }
 
         if (r.flags.contains(record_flags::ecs_tag))
         {
             m_content.append("classBuilder.add_tag<::oblo::ecs::tag_type_tag>();");
             new_line();
+
+            addPrettyName = true;
         }
 
         if (r.flags.contains(record_flags::script_api))
         {
             m_content.append("classBuilder.add_tag<::oblo::reflection::script_api>();");
             new_line();
+
+            addPrettyName = true;
         }
 
         if (r.flags.contains(record_flags::transient))
         {
             m_content.append("classBuilder.add_tag<::oblo::reflection::transient_type_tag>();");
+            new_line();
+        }
+
+        if (addPrettyName)
+        {
+            m_content.format("classBuilder.add_concept<::oblo::reflection::pretty_name>({{ \"{}\" }});", r.identifier);
             new_line();
         }
 

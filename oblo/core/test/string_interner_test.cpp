@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_interner.hpp>
 
 #include <random>
@@ -12,13 +14,13 @@ namespace oblo
         string_interner interner;
         interner.init(32);
 
-        ASSERT_FALSE(interner.get("A"));
-        ASSERT_FALSE(interner.get("B"));
-        ASSERT_FALSE(interner.get("C"));
+        ASSERT_FALSE(interner.get("A"_hsv));
+        ASSERT_FALSE(interner.get("B"_hsv));
+        ASSERT_FALSE(interner.get("C"_hsv));
 
-        const auto a = interner.get_or_add("A");
-        const auto b = interner.get_or_add("B");
-        const auto c = interner.get_or_add("C");
+        const auto a = interner.get_or_add("A"_hsv);
+        const auto b = interner.get_or_add("B"_hsv);
+        const auto c = interner.get_or_add("C"_hsv);
 
         ASSERT_TRUE(a);
         ASSERT_TRUE(b);
@@ -28,9 +30,9 @@ namespace oblo
         ASSERT_NE(a, c);
         ASSERT_NE(b, c);
 
-        ASSERT_EQ(a, interner.get("A"));
-        ASSERT_EQ(b, interner.get("B"));
-        ASSERT_EQ(c, interner.get("C"));
+        ASSERT_EQ(a, interner.get("A"_hsv));
+        ASSERT_EQ(b, interner.get("B"_hsv));
+        ASSERT_EQ(c, interner.get("C"_hsv));
 
         ASSERT_EQ(interner.str(a), "A");
         ASSERT_EQ(interner.str(b), "B");
@@ -77,15 +79,15 @@ namespace oblo
             if (inserted)
             {
                 // Should be a new string
-                ASSERT_FALSE(interner.get(buf)) << " Index: " << i << " String: " << buf;
-                const auto handle = interner.get_or_add(buf);
+                ASSERT_FALSE(interner.get(hashed_string_view{buf})) << " Index: " << i << " String: " << buf;
+                const auto handle = interner.get_or_add(hashed_string_view{buf});
                 ASSERT_TRUE(handle);
                 it->second = handle;
             }
             else
             {
                 // The string should be already present
-                const auto handle = interner.get(buf);
+                const auto handle = interner.get(hashed_string_view{buf});
                 ASSERT_TRUE(handle);
                 ASSERT_EQ(it->second, handle);
             }

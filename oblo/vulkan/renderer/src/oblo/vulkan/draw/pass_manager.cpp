@@ -1697,7 +1697,7 @@ namespace oblo::vk
         }
 #endif
 
-        if (const auto device = m_impl->device)
+        if (m_impl->vkCtx)
         {
             for (const auto& renderPipeline : m_impl->renderPipelines.values())
             {

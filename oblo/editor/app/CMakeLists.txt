@@ -30,4 +30,4 @@ target_link_libraries(
 )
 
 file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data)
-oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources/oblo-assets" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data/oblo")
+oblo_create_symlink("${CMAKE_SOURCE_DIR}/data/editor" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data/oblo")

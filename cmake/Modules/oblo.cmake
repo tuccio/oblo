@@ -1,3 +1,14 @@
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/bin)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+include(conan_provider)
+
 include(build_configurations)
 include(module_loaders)
 
@@ -73,10 +84,11 @@ function(oblo_find_source_files)
     set(_oblo_public_includes ${_public_includes} PARENT_SCOPE)
     set(_oblo_test_src ${_test_src} PARENT_SCOPE)
     set(_oblo_reflection_includes ${_reflection_includes} PARENT_SCOPE)
+    set(_oblo_reflection_src PARENT_SCOPE)
 endfunction(oblo_find_source_files)
 
 function(oblo_add_source_files target)
-    target_sources(${target} PRIVATE ${_oblo_src} ${_oblo_private_includes} PUBLIC ${_oblo_public_includes})
+    target_sources(${target} PRIVATE ${_oblo_src} ${_oblo_private_includes} ${_oblo_reflection_includes} ${_oblo_reflection_src} PUBLIC ${_oblo_public_includes})
 endfunction(oblo_add_source_files)
 
 function(oblo_add_test_impl name)
@@ -102,10 +114,17 @@ function(oblo_add_test_impl name)
     set(_oblo_test_target ${_test_target} PARENT_SCOPE)
 endfunction(oblo_add_test_impl)
 
-function(oblo_setup_source_groups target)
-    source_group("Private\\Source" FILES ${_oblo_src})
-    source_group("Private\\Headers" FILES ${_oblo_private_includes})
-    source_group("Public\\Headers" FILES ${_oblo_public_includes})
+function(oblo_setup_source_groups)
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES
+        ${_oblo_src}
+        ${_oblo_private_includes}
+        ${_oblo_public_includes}
+    )
+
+    source_group("reflection" FILES
+        ${_oblo_reflection_includes}
+        ${_oblo_reflection_src}
+    )
 endfunction(oblo_setup_source_groups)
 
 function(oblo_setup_include_dirs target)
@@ -149,7 +168,7 @@ function(oblo_add_executable name)
     add_executable(${_target})
     oblo_add_source_files(${_target})
     oblo_setup_include_dirs(${_target})
-    oblo_setup_source_groups(${_target})
+    oblo_setup_source_groups()
     add_executable("oblo::${name}" ALIAS ${_target})
     target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
 
@@ -185,7 +204,7 @@ function(oblo_add_library name)
 
         set(_reflection_file ${CMAKE_CURRENT_BINARY_DIR}/${_target}.gen.cpp)
         file(TOUCH ${_reflection_file})
-        list(APPEND _oblo_src ${_reflection_file})
+        list(APPEND _oblo_reflection_src ${_reflection_file})
 
         set_property(GLOBAL APPEND PROPERTY oblo_reflection_targets ${_target})
 
@@ -214,7 +233,7 @@ function(oblo_add_library name)
 
     set(_vs_proj_target ${_target})
 
-    if(NOT DEFINED _oblo_src)
+    if(NOT DEFINED _oblo_src AND NOT DEFINED _oblo_reflection_src)
         # Header only library
         add_library(${_target} INTERFACE)
 
@@ -274,7 +293,7 @@ function(oblo_add_library name)
     endif()
 
     add_library("${_oblo_alias_prefix}::${name}" ALIAS ${_target})
-    oblo_setup_source_groups(${_target})
+    oblo_setup_source_groups()
 
     set_target_properties(
         ${_vs_proj_target} PROPERTIES

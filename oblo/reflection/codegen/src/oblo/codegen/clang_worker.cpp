@@ -330,12 +330,15 @@ namespace oblo::gen
                 if (annotation)
                 {
                     auto& recordType = targetReflection.recordTypes.emplace_back();
+                    parse_annotation(targetReflection, recordType, annotation.view());
 
                     string_builder fullyQualifiedName;
                     build_fully_qualified_name(fullyQualifiedName, cursor);
 
                     recordType.name = fullyQualifiedName;
-                    parse_annotation(targetReflection, recordType, annotation.view());
+
+                    const auto displayName = clang_getCursorDisplayName(cursor);
+                    recordType.identifier = clang_getCString(displayName);
 
                     add_field_ctx ctx{.target = &targetReflection, .record = &recordType};
 

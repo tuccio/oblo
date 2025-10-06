@@ -109,6 +109,10 @@ namespace oblo::reflection
 
         const u32 fieldIndex = u32(classData.fields.size());
 
+        OBLO_ASSERT(std::find_if(classData.fields.begin(),
+                        classData.fields.end(),
+                        [&name](const field_data& f) { return f.name == name; }) == classData.fields.end())
+
         classData.fields.emplace_back(field_data{
             .type = type,
             .name = name,

@@ -35,7 +35,6 @@ class ObloConanRecipe(ConanFile):
         self.requires("imgui/1.91.5-docking", override=True)
         self.requires("imguizmo/cci.20231114")
         self.requires("ktx/4.0.0")
-        self.requires("luau/0.667")
         self.requires("meshoptimizer/0.20")
         self.requires("rapidjson/cci.20230929")
         self.requires("vulkan-headers/1.3.296.0", override=True)

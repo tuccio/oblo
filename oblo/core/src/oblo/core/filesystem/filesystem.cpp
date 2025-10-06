@@ -181,11 +181,11 @@ namespace oblo::filesystem
         }
         else if (mode == write_mode::append)
         {
-            cMode = "w+";
+            cMode = "a";
         }
         else if (mode == (write_mode::binary | write_mode::append))
         {
-            cMode = "wb+";
+            cMode = "a+b";
         }
 
         OBLO_ASSERT(cMode);

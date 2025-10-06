@@ -16,7 +16,7 @@ namespace oblo::importers
         {
             return file_importer_descriptor{
                 .type = get_type_id<T>(),
-                .create = []() -> unique_ptr<file_importer> { return allocate_unique<T>(); },
+                .create = [](const any&) -> unique_ptr<file_importer> { return allocate_unique<T>(); },
                 .extensions = extensions,
             };
         }

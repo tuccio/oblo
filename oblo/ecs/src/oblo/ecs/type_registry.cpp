@@ -148,11 +148,11 @@ namespace oblo::ecs
 
     std::span<const component_type_desc> type_registry::get_component_types() const
     {
-        return std::span{m_components}.subspan(1);
+        return std::span{m_components}.subspan(m_components.empty() ? 0 : 1);
     }
 
     std::span<const tag_type_desc> type_registry::get_tag_types() const
     {
-        return std::span{m_tags}.subspan(1);
+        return std::span{m_tags}.subspan(m_tags.empty() ? 0 : 1);
     }
 }
