@@ -355,7 +355,7 @@ namespace oblo
     {
         const auto fnInfo = m_functions[f.value];
 
-        if (const auto e = begin_call(fnInfo.paramsSize, fnInfo.returnSize, m_nextInstruction))
+        if (const auto e = begin_call(fnInfo.paramsSize, fnInfo.returnSize, m_nextInstruction); !e)
         {
             return e.error();
         }
@@ -413,6 +413,19 @@ namespace oblo
             switch (bytecode.op)
             {
             case bytecode_op::ret:
+                if (!m_callFrame.empty())
+                {
+                    const auto returnSize = m_callFrame.back().returnSize;
+                    byte* const returnValue = m_stackTop - returnSize;
+
+                    if (const auto e = check_stack_addr(returnValue, m_stackMemory.get()); !e)
+                    {
+                        return e.error();
+                    }
+
+                    return set_function_return({returnValue, returnSize});
+                }
+
                 return no_error;
 
             case bytecode_op::push_32lo16: {

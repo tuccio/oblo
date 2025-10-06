@@ -43,6 +43,7 @@ namespace oblo
         const expected<f32, interpreter_error> r = rt.read_f32(0);
         ASSERT_TRUE(r);
 
+        ASSERT_EQ(rt.used_stack_size(), sizeof(f32));
         ASSERT_FLOAT_EQ(*r, 42.f);
     }
 }
