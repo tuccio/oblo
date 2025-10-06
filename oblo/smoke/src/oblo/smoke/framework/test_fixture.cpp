@@ -166,6 +166,7 @@ namespace oblo::smoke
 
                 runtime.shutdown();
                 runtimeRegistry.shutdown();
+                assetRegistry.shutdown();
             }
 
             bool run_frame()
