@@ -30,6 +30,7 @@
 #include <oblo/reflection/concepts/pretty_name.hpp>
 #include <oblo/reflection/reflection_module.hpp>
 #include <oblo/reflection/tags/ecs.hpp>
+#include <oblo/reflection/tags/script_api.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/script/assets/providers/script_api_provider.hpp>
 #include <oblo/script/assets/script_graph.hpp>
@@ -385,6 +386,11 @@ namespace oblo
 
                 for (const auto& componentType : componentTypes)
                 {
+                    if (!reflectionRegistry.has_tag<reflection::script_api>(componentType))
+                    {
+                        continue;
+                    }
+
                     const auto& typeData = reflectionRegistry.get_type_data(componentType);
 
                     auto* const propertyTree = propertyRegistry.try_get(typeData.type);
