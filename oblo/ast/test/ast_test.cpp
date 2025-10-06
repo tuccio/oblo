@@ -56,7 +56,7 @@ namespace oblo
         ast.add_node(root, ast_function_parameter{"x", "int"});
         ast.add_node(root, ast_function_parameter{"y", "float"});
 
-        dynamic_array<string_view> names;
+        dynamic_array<hashed_string_view> names;
 
         for (auto childId : ast.children(root))
         {

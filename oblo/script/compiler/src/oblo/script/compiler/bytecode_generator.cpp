@@ -148,7 +148,7 @@ namespace oblo
         string_interner readOnlyStringsInterner;
         readOnlyStringsInterner.init(256);
 
-        const auto pushReadOnlyString16 = [&m, &readOnlyStringsInterner](string_view str) -> expected<u16>
+        const auto pushReadOnlyString16 = [&m, &readOnlyStringsInterner](hashed_string_view str) -> expected<u16>
         {
             // We use the string interner to make strings unique
             // Id 0 is not used in that to avoid the null handle, so we translate the id
@@ -234,7 +234,7 @@ namespace oblo
                             return unspecified_error;
                         }
 
-                        m.text.push_back({.op = bytecode_op::push_read_only_string_view, .payload = *stringId});
+                        m.text.push_back({.op = bytecode_op::push_read_only_string_view, .payload = {*stringId}});
                         thisNodeInfo.expressionResultSize = script_string_ref_size();
                     }
                     break;
@@ -309,7 +309,7 @@ namespace oblo
                                 return unspecified_error;
                             }
 
-                            m.text.push_back({.op = bytecode_op::call_api_static, .payload = *stringId});
+                            m.text.push_back({.op = bytecode_op::call_api_static, .payload = {*stringId}});
                             thisNodeInfo.expressionResultSize = typeIt->second.size;
                         }
                     }
@@ -355,8 +355,8 @@ namespace oblo
                             thisNodeInfo.expressionResultSize = variableSize;
                             ++it;
 
-                            m.text.push_back({.op = bytecode_op::push_stack_top_ref, .payload = u16(variableSize)});
-                            m.text.push_back({.op = bytecode_op::tag_data_ref_static, .payload = *varName});
+                            m.text.push_back({.op = bytecode_op::push_stack_top_ref, .payload = {variableSize}});
+                            m.text.push_back({.op = bytecode_op::tag_data_ref_static, .payload = {*varName}});
 
                             // We expect a single child for the definition, i.e. the expression the variable is
                             // initialized with
@@ -376,7 +376,7 @@ namespace oblo
                             return unspecified_error;
                         }
 
-                        m.text.push_back({.op = bytecode_op::push_tagged_data_copy_static, .payload = *varName});
+                        m.text.push_back({.op = bytecode_op::push_tagged_data_copy_static, .payload = {*varName}});
                         thisNodeInfo.expressionResultSize = script_data_ref_size();
                     }
                     break;

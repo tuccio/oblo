@@ -114,8 +114,8 @@ namespace oblo
     {
         node_graph_registry registry;
 
-        registry.register_node(make_add_floats_node());
-        registry.register_node(make_float_constant_node());
+        ASSERT_TRUE(registry.register_node(make_add_floats_node()));
+        ASSERT_TRUE(registry.register_node(make_float_constant_node()));
 
         node_graph g;
         g.init(registry);

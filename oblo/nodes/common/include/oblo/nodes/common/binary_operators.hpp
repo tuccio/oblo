@@ -164,7 +164,7 @@ namespace oblo
                 m_lhs,
                 m_rhs,
                 m_out,
-                [this](const uuid& outType) -> expected<ast_binary_operator_kind>
+                [](const uuid& outType) -> expected<ast_binary_operator_kind>
                 {
                     if (outType == get_node_primitive_type_id<node_primitive_kind::f32>())
                     {
@@ -203,7 +203,7 @@ namespace oblo
                 m_lhs,
                 m_rhs,
                 m_out,
-                [this](const uuid& outType) -> expected<ast_binary_operator_kind>
+                [](const uuid& outType) -> expected<ast_binary_operator_kind>
                 {
                     if (outType == get_node_primitive_type_id<node_primitive_kind::f32>())
                     {
