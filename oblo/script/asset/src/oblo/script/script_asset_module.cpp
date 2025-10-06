@@ -341,27 +341,30 @@ namespace oblo
 
         bool finalize() override
         {
+            bool success = true;
+
             // Types
-            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>());
-            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::i32>());
-            m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>());
+            success =
+                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>()) &&
+                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::i32>()) &&
+                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>());
 
             // Nodes
-            m_scriptRegistry.register_node(make_node_descriptor<input_node>());
+            success = m_scriptRegistry.register_node(make_node_descriptor<input_node>()) && success;
 
-            m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>());
-            m_scriptRegistry.register_node(make_node_descriptor<i32_constant_node>());
-            m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>());
+            success = m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<i32_constant_node>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>()) && success;
 
-            m_scriptRegistry.register_node(make_node_descriptor<add_operator>());
-            m_scriptRegistry.register_node(make_node_descriptor<mul_operator>());
+            success = m_scriptRegistry.register_node(make_node_descriptor<add_operator>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<mul_operator>()) && success;
 
-            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::cosine_node>());
-            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::sine_node>());
-            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::tangent_node>());
-            m_scriptRegistry.register_node(make_node_descriptor<math_nodes::arctangent_node>());
+            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::cosine_node>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::sine_node>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::tangent_node>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::arctangent_node>()) && success;
 
-            m_scriptRegistry.register_node(make_node_descriptor<api_nodes::get_time_node>());
+            success = m_scriptRegistry.register_node(make_node_descriptor<api_nodes::get_time_node>()) && success;
 
             auto* const runtimeModule = module_manager::get().find<runtime_module>();
 
@@ -378,6 +381,7 @@ namespace oblo
 
                 string_builder nodeName;
                 string_builder propertyPath;
+                string_builder categoryBuilder;
 
                 for (const auto& componentType : componentTypes)
                 {
@@ -422,8 +426,6 @@ namespace oblo
                                 .propertyPath = propertyPath.as<string>(),
                             };
 
-                            typeData.type;
-
                             const std::optional prettyName =
                                 reflectionRegistry.find_concept<reflection::pretty_name>(componentType);
 
@@ -433,21 +435,34 @@ namespace oblo
 
                             nodeName.clear().append("Get ").append(componentName).append("::").append(propertyPath);
 
-                            m_scriptRegistry.register_node({
-                                .id = getPropertyIdGen.generate(propertyPath.view()),
-                                .name = nodeName.as<string>(),
-                                .instantiate = instantiateGetFn,
-                                .userdata = make_any<ecs_property_userdata>(userdata),
-                            });
+                            constexpr string_view category = "ECS Components";
+
+                            categoryBuilder.clear().append(category).append("/").append(componentName);
+
+                            const auto propertyHash = hash_all<hash>(componentName, propertyPath);
+
+                            const uuid getPropertyId = getPropertyIdGen.generate_from_hash(propertyHash);
+                            const uuid setPropertyId = setPropertyIdGen.generate_from_hash(propertyHash);
+
+                            success = m_scriptRegistry.register_node({
+                                          .id = getPropertyId,
+                                          .name = nodeName.as<string>(),
+                                          .category = categoryBuilder.as<string>(),
+                                          .instantiate = instantiateGetFn,
+                                          .userdata = make_any<ecs_property_userdata>(userdata),
+                                      }) &&
+                                success;
 
                             nodeName.clear().append("Set ").append(componentName).append("::").append(propertyPath);
 
-                            m_scriptRegistry.register_node({
-                                .id = setPropertyIdGen.generate(propertyPath.view()),
-                                .name = nodeName.as<string>(),
-                                .instantiate = instantiateSetFn,
-                                .userdata = make_any<ecs_property_userdata>(userdata),
-                            });
+                            success = m_scriptRegistry.register_node({
+                                          .id = setPropertyId,
+                                          .name = nodeName.as<string>(),
+                                          .category = categoryBuilder.as<string>(),
+                                          .instantiate = instantiateSetFn,
+                                          .userdata = make_any<ecs_property_userdata>(userdata),
+                                      }) &&
+                                success;
                         }
                     }
                 }
