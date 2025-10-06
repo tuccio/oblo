@@ -61,6 +61,11 @@ namespace oblo
             constexpr auto hasher = hash<string_view>{};
             const usize hash = hasher(data);
 
+            return generate_from_hash(hash);
+        }
+
+        uuid generate_from_hash(usize hash) const
+        {
             usize res[N];
 
             for (usize i = 0; i < N; ++i)

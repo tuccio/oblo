@@ -10,19 +10,27 @@ namespace oblo
 
     node_graph_registry::~node_graph_registry() = default;
 
-    bool node_graph_registry::register_node(node_descriptor desc)
+    expected<> node_graph_registry::register_node(node_descriptor desc)
     {
         const auto [it, inserted] = m_descriptors.emplace(desc.id, std::move(desc));
-        return inserted;
+
+        if (!inserted)
+        {
+            OBLO_ASSERT(false);
+            return unspecified_error;
+        }
+
+        return no_error;
     }
 
-    bool node_graph_registry::register_primitive_type(node_primitive_type desc)
+    expected<> node_graph_registry::register_primitive_type(node_primitive_type desc)
     {
         const u32 kindIdx = u32(desc.kind);
 
         if (!m_primitiveKindToTypeId[kindIdx].is_nil())
         {
-            return false;
+            OBLO_ASSERT(false);
+            return unspecified_error;
         }
 
         const auto [it, inserted] = m_primitiveTypes.emplace(desc.id, std::move(desc));
@@ -30,9 +38,11 @@ namespace oblo
         if (inserted)
         {
             m_primitiveKindToTypeId[kindIdx] = desc.id;
+            return no_error;
         }
 
-        return inserted;
+        OBLO_ASSERT(false);
+        return unspecified_error;
     }
 
     const node_descriptor* node_graph_registry::find_node(const uuid& id) const

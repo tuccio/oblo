@@ -3,6 +3,7 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
+#include <oblo/core/string/compare.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -18,7 +19,6 @@
 #include <oblo/nodes/node_property_descriptor.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
-
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -46,8 +46,18 @@ namespace oblo
 
         constexpr f32 g_NodeBackgroundAlpha{.9f};
         constexpr u32 g_EdgeColor{IM_COL32(255, 255, 255, 255)};
-        constexpr u32 g_TitleBackground{IM_COL32(80, 130, 200, 255)};
         constexpr u32 g_PinHoverColor{g_EdgeColor};
+
+        constexpr ImU32 g_CategoriesColorPalette[] = {
+            IM_COL32(230, 25, 75, 255),
+            IM_COL32(60, 180, 75, 255),
+            IM_COL32(255, 225, 25, 255),
+            IM_COL32(67, 99, 216, 255),
+            IM_COL32(245, 130, 49, 255),
+            IM_COL32(145, 30, 180, 255),
+            IM_COL32(100, 220, 170, 255),
+            IM_COL32(190, 140, 255, 255),
+        };
 
         constexpr u32 g_TypesColorPalette[] = {
             IM_COL32(230, 70, 70, 255),  // Soft Red
@@ -83,6 +93,8 @@ namespace oblo
         {
             u64 zOrder;
 
+            u32 categoryIdx{};
+
             ImVec2 screenPosition;
             ImVec2 screenSize;
             ImVec2 logicalSize;
@@ -92,6 +104,13 @@ namespace oblo
         {
             uuid id;
             string name;
+            u32 categoryIdx;
+        };
+
+        struct node_category_info
+        {
+            cstring_view fullName;
+            buffered_array<hashed_string_view, 4> directory;
         };
 
         f32 calculate_pin_y_offset(f32 y, f32 pinRowHeight, f32 zoom)
@@ -187,6 +206,14 @@ namespace oblo
         {
             const usize index = hash<uuid>{}(type) % array_size(g_TypesColorPalette);
             return g_TypesColorPalette[index];
+        }
+
+        u32 get_category_color(const node_category_info& category)
+        {
+            const usize hash = category.directory.empty() ? 0 : category.directory.front().hash();
+            const usize index = hash % array_size(g_CategoriesColorPalette);
+
+            return g_CategoriesColorPalette[index];
         }
     }
 
@@ -344,6 +371,14 @@ namespace oblo
                     inputPins.clear();
                     outputPins.clear();
 
+                    const uuid nodeType = graph->get_type(node);
+
+                    if (const auto typeIt = nodeTypeToDense.find(nodeType); typeIt != nodeTypeToDense.end())
+                    {
+                        const auto& nodeTypeInfo = nodeTypesInfo[typeIt->second];
+                        it->categoryIdx = nodeTypeInfo.categoryIdx;
+                    }
+
                     graph->fetch_in_pins(node, inputPins);
                     graph->fetch_out_pins(node, outputPins);
 
@@ -425,7 +460,7 @@ namespace oblo
                     // Draw title bar
                     drawList->AddRectFilled(nodeRectMin,
                         nodeScreenPos + ImVec2(nodeScreenSize.x, titleBarScreenHeight),
-                        g_TitleBackground,
+                        get_category_color(denseCategories[uiData.categoryIdx]),
                         rounding,
                         ImDrawFlags_RoundCornersTop);
 
@@ -447,6 +482,16 @@ namespace oblo
                     {
                         titleBarContent = "Unknown node";
                     }
+
+                    // ImGui does not have an outline feature, so we render a shadow to improve visibility
+                    constexpr ImVec2 textShadowOffset{1.5f, 1.5f};
+                    constexpr u32 shadowColor = IM_COL32(0, 0, 0, 255);
+
+                    drawList->AddText(font,
+                        fontSize,
+                        nodeScreenPos + (textShadowOffset + g_TitleTextMargin) * zoom,
+                        shadowColor,
+                        titleBarContent.c_str());
 
                     drawList->AddText(font,
                         fontSize,
@@ -901,6 +946,9 @@ namespace oblo
         ImGuiTextFilter addNodeFilter;
         ImVec2 addNodePosition;
 
+        std::unordered_map<uuid, u32, hash<uuid>> nodeTypeToDense;
+        std::unordered_map<string, u32, hash<string>> categoriesToDense;
+        dynamic_array<node_category_info> denseCategories;
         dynamic_array<node_type_info> nodeTypesInfo;
     };
 
@@ -952,6 +1000,8 @@ namespace oblo
 
         if (ImGui::BeginPopup(g_AddNodePopup))
         {
+            string_builder builder;
+
             const bool isAppearing = ImGui::IsWindowAppearing();
 
             if (isAppearing)
@@ -978,26 +1028,89 @@ namespace oblo
 
             ImGui::BeginChild("NodeListRegion", {}, true, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
+            // The first category is a dummy we use to simplify the code that follows
+            u32 lastCategoryIdx = 0;
+
+            dynamic_array<bool> isExpanded;
+            isExpanded.reserve(32);
+
             for (const auto& desc : nodeTypesInfo)
             {
-                if (!addNodeFilter.PassFilter(desc.name.c_str()))
+                const node_category_info& thisCategory = denseCategories[desc.categoryIdx];
+                const cstring_view thisCategoryStr = thisCategory.fullName;
+
+                if (!addNodeFilter.PassFilter(desc.name.c_str()) && !addNodeFilter.PassFilter(thisCategoryStr.c_str()))
                 {
                     continue;
                 }
 
-                if (ImGui::Selectable(desc.name.c_str()))
+                if (lastCategoryIdx != desc.categoryIdx)
                 {
-                    // Add node at mouse position
-                    const h32 newNode = graph->add_node(desc.id);
+                    const node_category_info& lastCategory = denseCategories[lastCategoryIdx];
 
-                    if (newNode)
+                    const usize maxCommonDepth = min(thisCategory.directory.size(), lastCategory.directory.size());
+
+                    usize commonDepth;
+
+                    for (commonDepth = 0; commonDepth < maxCommonDepth; ++commonDepth)
                     {
-                        const ImVec2 logicalPos = screen_to_logical(addNodePosition, origin);
-
-                        graph->set_ui_position(newNode, {logicalPos.x, logicalPos.y});
+                        if (lastCategory.directory[commonDepth] != thisCategory.directory[commonDepth])
+                        {
+                            break;
+                        }
                     }
 
-                    ImGui::CloseCurrentPopup();
+                    for (usize d = commonDepth; d < lastCategory.directory.size(); ++d)
+                    {
+                        if (isExpanded[d])
+                        {
+                            ImGui::TreePop();
+                        }
+                    }
+
+                    isExpanded.resize(commonDepth);
+                    isExpanded.resize(thisCategory.directory.size());
+
+                    for (usize d = commonDepth; d < thisCategory.directory.size(); ++d)
+                    {
+                        builder.clear().append(thisCategory.directory[d]);
+                        isExpanded[d] = ImGui::TreeNodeEx(builder.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+                    }
+                }
+
+                if (!isExpanded.empty() && isExpanded.back())
+                {
+                    if (ImGui::TreeNodeEx(desc.name.c_str(), ImGuiTreeNodeFlags_Leaf))
+                    {
+                        ImGui::TreePop();
+                    }
+
+                    if (ImGui::IsItemClicked())
+                    {
+                        // Add node at mouse position
+                        const h32 newNode = graph->add_node(desc.id);
+
+                        if (newNode)
+                        {
+                            const ImVec2 logicalPos = screen_to_logical(addNodePosition, origin);
+
+                            graph->set_ui_position(newNode, {logicalPos.x, logicalPos.y});
+                        }
+
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+
+                lastCategoryIdx = desc.categoryIdx;
+            }
+
+            // Finally pop all the nodes for the last category
+            const node_category_info& lastCategory = denseCategories[lastCategoryIdx];
+            for (usize d = 0; d < lastCategory.directory.size(); ++d)
+            {
+                if (isExpanded[d])
+                {
+                    ImGui::TreePop();
                 }
             }
 
@@ -1016,12 +1129,75 @@ namespace oblo
 
         nodeTypesInfo.reserve(nodeTypes.size());
 
+        // We keep one dummy empty category just to simplify the UI code
+        denseCategories.clear();
+        denseCategories.emplace_back();
+
         for (auto* const desc : nodeTypes)
         {
+            const auto [it, inserted] = categoriesToDense.emplace(desc->category, denseCategories.size32());
+
+            if (inserted)
+            {
+                // Our categories look something like this: path/to/category
+                // We want to split them into tokens to simplify the UI updates later
+                auto& newCategory = denseCategories.emplace_back();
+
+                usize start = 0;
+                const string_view category = desc->category;
+
+                while (true)
+                {
+                    const usize sep = category.find_first_of('/', start);
+
+                    if (sep > start)
+                    {
+                        const hashed_string_view subCategory{string_view{it->first}.substr(start, sep)};
+                        newCategory.fullName = desc->category;
+                        newCategory.directory.emplace_back(subCategory);
+                    }
+
+                    if (sep == string_view::npos)
+                    {
+                        break;
+                    }
+
+                    start = sep + 1;
+                }
+            }
+
             nodeTypesInfo.push_back({
                 .id = desc->id,
                 .name = desc->name,
+                .categoryIdx = it->second,
             });
+        }
+
+        std::sort(nodeTypesInfo.begin(),
+            nodeTypesInfo.end(),
+            [this](const node_type_info& lhs, const node_type_info& rhs)
+            {
+                const string_view lhsCategoryName = denseCategories[lhs.categoryIdx].fullName;
+                const string_view rhsCategoryName = denseCategories[rhs.categoryIdx].fullName;
+
+                const i32 categoryOrder = utf8_compare(lhsCategoryName, rhsCategoryName);
+
+                if (categoryOrder < 0)
+                {
+                    return true;
+                }
+                else if (categoryOrder > 0)
+                {
+                    return false;
+                }
+
+                return utf8_compare(lhs.name, rhs.name) < 0;
+            });
+
+        for (u32 i = 0; i < nodeTypesInfo.size32(); ++i)
+        {
+            [[maybe_unused]] const auto [_, typeInserted] = nodeTypeToDense.emplace(nodeTypesInfo[i].id, i);
+            OBLO_ASSERT(typeInserted);
         }
     }
 }

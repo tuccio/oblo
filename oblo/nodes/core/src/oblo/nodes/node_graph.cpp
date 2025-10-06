@@ -554,9 +554,16 @@ namespace oblo
             }
 
             const auto typeId = doc.read_uuid(nodeTypeIndex);
-            const h32 handle = add_node(*typeId);
 
             if (!typeId)
+            {
+                anyNodeFailed = true;
+                continue;
+            }
+
+            const h32 handle = add_node(*typeId);
+
+            if (!handle)
             {
                 anyNodeFailed = true;
                 continue;
