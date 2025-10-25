@@ -360,6 +360,7 @@ function(oblo_init)
         PROJECT_LABEL configure
     )
 
+    oblo_init_conan()
     oblo_init_reflection()
 endfunction(oblo_init)
 
@@ -368,3 +369,30 @@ function(oblo_set_target_folder target folder)
     set(_resolved ${OBLO_FOLDER_${_upper}})
     set_target_properties(${target} PROPERTIES FOLDER ${_resolved})
 endfunction(oblo_set_target_folder)
+
+function(oblo_init_conan)
+    # Run conan install only if conanfile.py changed
+    set(_conanfile "${CMAKE_SOURCE_DIR}/conanfile.py")
+    set(_last_hashfile "${CMAKE_BINARY_DIR}/conan/last_conan_install")
+
+    if(NOT EXISTS "${_conanfile}")
+        message(FATAL_ERROR "conanfile.py not found at ${_conanfile}")
+    endif()
+
+    file(SHA256 "${_conanfile}" _conanfile_hash)
+
+    if(EXISTS "${_last_hashfile}")
+        file(READ "${_last_hashfile}" _last_hash)
+        string(STRIP "${_last_hash}" _last_hash)
+    else()
+        set(_last_hash "")
+    endif()
+
+    if(NOT "${_conanfile_hash}" STREQUAL "${_last_hash}")
+        conan_install()
+        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
+    else()
+        message(STATUS "Conanfile unchanged: skipping conan install.")
+        set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
+    endif()
+endfunction()
