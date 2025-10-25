@@ -18,6 +18,7 @@ option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requirin
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
+option(OBLO_FORCE_CONAN_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 
@@ -371,6 +372,10 @@ function(oblo_set_target_folder target folder)
 endfunction(oblo_set_target_folder)
 
 function(oblo_init_conan)
+    if(OBLO_FORCE_CONAN_INSTALL)
+        return()
+    endif()
+
     # Run conan install only if conanfile.py changed
     set(_conanfile "${CMAKE_SOURCE_DIR}/conanfile.py")
     set(_last_hashfile "${CMAKE_BINARY_DIR}/conan/last_conan_install")
@@ -389,10 +394,9 @@ function(oblo_init_conan)
     endif()
 
     if(NOT "${_conanfile_hash}" STREQUAL "${_last_hash}")
-        conan_install()
         file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
     else()
-        message(STATUS "Conanfile unchanged: skipping conan install.")
+        message(STATUS "Conanfile unchanged: skipping conan install")
         set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
     endif()
 endfunction()
