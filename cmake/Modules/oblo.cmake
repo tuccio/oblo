@@ -18,8 +18,11 @@ option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requirin
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
+option(OBLO_FORCE_CONAN_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
+define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
+define_property(GLOBAL PROPERTY oblo_cxx_compile_definitions BRIEF_DOCS "C++ compile definitions for oblo targets")
 
 set(OBLO_FOLDER_BUILD "0 - Build")
 set(OBLO_FOLDER_APPLICATIONS "1 - Applications")
@@ -31,7 +34,7 @@ set(OBLO_FOLDER_INTERNAL "6 - Internal")
 
 set(OBLO_CODEGEN_CUSTOM_TARGET run-codegen)
 
-macro(oblo_remove_cxx_flag _option_regex)
+macro(_oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
 
     string(REGEX REPLACE "${_option_regex}" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -39,40 +42,9 @@ macro(oblo_remove_cxx_flag _option_regex)
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
     set(CMAKE_CXX_FLAGS_${_build_type} "${CMAKE_CXX_FLAGS_${_build_type}}" PARENT_SCOPE)
-endmacro(oblo_remove_cxx_flag)
+endmacro(_oblo_remove_cxx_flag)
 
-function(oblo_init_compiler_settings)
-    if(MSVC)
-        # Warning as errors
-        add_compile_options(
-            /W4 /WX
-            /wd4324 # Padding was added at the end of a structure because you specified an alignment specifier.
-            /wd4274 # An exported class was derived from a class that wasn't exported. Disabled because we don't really mix and match DLLs.
-            /wd4251 # An exported class was derived from a class that wasn't exported. Disabled because we don't really mix and match DLLs.
-        )
-
-        # Disable optimizations if specified
-        if(OBLO_DISABLE_COMPILER_OPTIMIZATIONS)
-            oblo_remove_cxx_flag("(\/O([a-z])?[0-9a-z])")
-            add_compile_options(/Od)
-        endif()
-
-        # Enable folders for the solution
-        set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-    else()
-        message(SEND_ERROR "Not supported yet")
-    endif()
-
-    if(OBLO_ENABLE_ASSERT)
-        add_definitions(-DOBLO_ENABLE_ASSERT)
-    endif()
-
-    if(OBLO_DEBUG)
-        add_definitions(-DOBLO_DEBUG)
-    endif()
-endfunction(oblo_init_compiler_settings)
-
-function(oblo_find_source_files)
+function(_oblo_find_source_files)
     file(GLOB_RECURSE _src src/*.cpp)
     file(GLOB_RECURSE _private_includes src/*.hpp)
     file(GLOB_RECURSE _public_includes include/*.hpp)
@@ -85,16 +57,17 @@ function(oblo_find_source_files)
     set(_oblo_test_src ${_test_src} PARENT_SCOPE)
     set(_oblo_reflection_includes ${_reflection_includes} PARENT_SCOPE)
     set(_oblo_reflection_src PARENT_SCOPE)
-endfunction(oblo_find_source_files)
+endfunction(_oblo_find_source_files)
 
-function(oblo_add_source_files target)
+function(_oblo_add_source_files target)
     target_sources(${target} PRIVATE ${_oblo_src} ${_oblo_private_includes} ${_oblo_reflection_includes} ${_oblo_reflection_src} PUBLIC ${_oblo_public_includes})
-endfunction(oblo_add_source_files)
+endfunction(_oblo_add_source_files)
 
-function(oblo_add_test_impl name)
+function(_oblo_add_test_impl name)
     set(_test_target "${_oblo_target_prefix}_test_${name}")
 
     add_executable(${_test_target} ${_oblo_test_src})
+    _oblo_configure_cxx_target(${_test_target})
     target_link_libraries(${_test_target} PRIVATE GTest::gtest)
 
     add_executable("${_oblo_alias_prefix}::test::${name}" ALIAS ${_test_target})
@@ -112,9 +85,9 @@ function(oblo_add_test_impl name)
     )
 
     set(_oblo_test_target ${_test_target} PARENT_SCOPE)
-endfunction(oblo_add_test_impl)
+endfunction(_oblo_add_test_impl)
 
-function(oblo_setup_source_groups)
+function(_oblo_setup_source_groups)
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES
         ${_oblo_src}
         ${_oblo_private_includes}
@@ -125,9 +98,9 @@ function(oblo_setup_source_groups)
         ${_oblo_reflection_includes}
         ${_oblo_reflection_src}
     )
-endfunction(oblo_setup_source_groups)
+endfunction(_oblo_setup_source_groups)
 
-function(oblo_setup_include_dirs target)
+function(_oblo_setup_include_dirs target)
     target_include_directories(
         ${target} INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -144,7 +117,7 @@ function(oblo_setup_include_dirs target)
         ${target} PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     )
-endfunction(oblo_setup_include_dirs)
+endfunction(_oblo_setup_include_dirs)
 
 macro(_oblo_setup_target_namespace namespace)
     if(NOT DEFINED namespace OR namespace STREQUAL "")
@@ -156,19 +129,40 @@ macro(_oblo_setup_target_namespace namespace)
     endif()
 endmacro(_oblo_setup_target_namespace)
 
-function(oblo_add_codegen_dependency target)
+function(_oblo_configure_cxx_target target)
+    get_property(_oblo_cxx_compile_options GLOBAL PROPERTY oblo_cxx_compile_options)
+    get_property(_oblo_cxx_compile_definitions GLOBAL PROPERTY oblo_cxx_compile_definitions)
+
+    cmake_parse_arguments(
+        ARG
+        "INTERFACE"
+        ""
+        ""
+        ${ARGN}
+    )
+
+    if(ARG_INTERFACE)
+        target_compile_definitions(${target} INTERFACE ${_oblo_cxx_compile_definitions})
+    else()
+        target_compile_definitions(${target} PUBLIC ${_oblo_cxx_compile_definitions})
+        target_compile_options(${target} PRIVATE ${_oblo_cxx_compile_options})
+    endif()
+endfunction()
+
+function(_oblo_add_codegen_dependency target)
     if(NOT OBLO_SKIP_CODEGEN)
         add_dependencies(${target} ${OBLO_CODEGEN_CUSTOM_TARGET})
     endif()
-endfunction(oblo_add_codegen_dependency)
+endfunction(_oblo_add_codegen_dependency)
 
 function(oblo_add_executable name)
     set(_target "${name}")
-    oblo_find_source_files()
+    _oblo_find_source_files()
     add_executable(${_target})
-    oblo_add_source_files(${_target})
-    oblo_setup_include_dirs(${_target})
-    oblo_setup_source_groups()
+    _oblo_add_source_files(${_target})
+    _oblo_setup_include_dirs(${_target})
+    _oblo_setup_source_groups()
+    _oblo_configure_cxx_target(${_target})
     add_executable("oblo::${name}" ALIAS ${_target})
     target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
 
@@ -191,7 +185,7 @@ function(oblo_add_library name)
     _oblo_setup_target_namespace("${OBLO_LIB_NAMESPACE}")
 
     set(_target "${_oblo_target_prefix}_${name}")
-    oblo_find_source_files()
+    _oblo_find_source_files()
 
     set(_withReflection FALSE)
 
@@ -236,6 +230,7 @@ function(oblo_add_library name)
     if(NOT DEFINED _oblo_src AND NOT DEFINED _oblo_reflection_src)
         # Header only library
         add_library(${_target} INTERFACE)
+        _oblo_configure_cxx_target(${_target} INTERFACE)
 
         target_include_directories(
             ${_target} INTERFACE
@@ -256,8 +251,9 @@ function(oblo_add_library name)
         endif()
 
         add_library(${_target} ${_kind})
-        oblo_add_source_files(${_target})
-        oblo_setup_include_dirs(${_target})
+        _oblo_add_source_files(${_target})
+        _oblo_setup_include_dirs(${_target})
+        _oblo_configure_cxx_target(${_target})
 
         string(TOUPPER ${name} _upper_name)
         set(_api_define "${_upper_name}_API")
@@ -277,14 +273,14 @@ function(oblo_add_library name)
 
         if(_withReflection)
             target_link_libraries(${_target} PUBLIC oblo::annotations)
-            oblo_add_codegen_dependency(${_target})
+            _oblo_add_codegen_dependency(${_target})
         endif()
 
         target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
     endif()
 
     if(DEFINED _oblo_test_src)
-        oblo_add_test_impl(${name})
+        _oblo_add_test_impl(${name})
         target_link_libraries(${_oblo_test_target} PRIVATE ${_target})
 
         if(NOT DEFINED OBLO_LIBRARY_TEST_MAIN)
@@ -293,7 +289,7 @@ function(oblo_add_library name)
     endif()
 
     add_library("${_oblo_alias_prefix}::${name}" ALIAS ${_target})
-    oblo_setup_source_groups()
+    _oblo_setup_source_groups()
 
     set_target_properties(
         ${_vs_proj_target} PROPERTIES
@@ -313,13 +309,13 @@ function(oblo_add_test name)
 
     _oblo_setup_target_namespace("${OBLO_TEST_NAMESPACE}")
 
-    oblo_find_source_files()
+    _oblo_find_source_files()
 
     if(NOT DEFINED _oblo_test_src)
         message(FATAL_ERROR "Attempting to add a test project '${name}', but no test source files were found")
     endif()
 
-    oblo_add_test_impl(${name})
+    _oblo_add_test_impl(${name})
 
     if(NOT DEFINED OBLO_TEST_MAIN)
         target_link_libraries(${_oblo_test_target} PRIVATE GTest::gtest_main)
@@ -348,9 +344,41 @@ function(oblo_init_reflection)
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
 
+function(oblo_init_conan)
+    if(OBLO_FORCE_CONAN_INSTALL)
+        message(STATUS "Conan install will not be skipped due to CMake configuration")
+        return()
+    endif()
+
+    # Run conan install only if conanfile.py changed
+    set(_conanfile "${CMAKE_SOURCE_DIR}/conanfile.py")
+    set(_last_hashfile "${CMAKE_BINARY_DIR}/conan/last_conan_install")
+
+    if(NOT EXISTS "${_conanfile}")
+        message(FATAL_ERROR "conanfile.py not found at ${_conanfile}")
+    endif()
+
+    file(SHA256 "${_conanfile}" _conanfile_hash)
+
+    if(EXISTS "${_last_hashfile}")
+        file(READ "${_last_hashfile}" _last_hash)
+        string(STRIP "${_last_hash}" _last_hash)
+    else()
+        set(_last_hash "")
+    endif()
+
+    if(NOT "${_conanfile_hash}" STREQUAL "${_last_hash}")
+        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
+        message(FAIL_REGULAR_EXPRESSION ${_last_hashfile})
+    else()
+        message(STATUS "Conan install skipped: no change detected")
+        set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
+    endif()
+endfunction()
+
 function(oblo_init)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
     set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${OBLO_FOLDER_CMAKE})
-    oblo_setup_build_configurations()
 
     add_custom_target(cmake_configure COMMAND ${CMAKE_COMMAND} ${CMAKE_BINARY_DIR})
 
@@ -360,7 +388,15 @@ function(oblo_init)
         PROJECT_LABEL configure
     )
 
+    oblo_init_build_configurations()
     oblo_init_reflection()
+    oblo_init_conan()
+
+    get_property(_is_multiconfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+
+    if(${_is_multiconfig})
+        set(CMAKE_CONFIGURATION_TYPES Debug;Release PARENT_SCOPE)
+    endif()
 endfunction(oblo_init)
 
 function(oblo_set_target_folder target folder)
