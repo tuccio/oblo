@@ -391,6 +391,12 @@ function(oblo_init)
     oblo_init_build_configurations()
     oblo_init_reflection()
     oblo_init_conan()
+
+    get_property(_is_multiconfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+
+    if(${_is_multiconfig})
+        set(CMAKE_CONFIGURATION_TYPES Debug;Release PARENT_SCOPE)
+    endif()
 endfunction(oblo_init)
 
 function(oblo_set_target_folder target folder)

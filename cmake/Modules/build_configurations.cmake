@@ -61,10 +61,6 @@ function(oblo_init_build_configurations)
         list(APPEND _oblo_cxx_compile_definitions "$<$<CONFIG:Debug>:OBLO_DEBUG>")
     endif()
 
-    if(${_is_multiconfig})
-        set(CMAKE_CONFIGURATION_TYPES Debug;Release PARENT_SCOPE)
-    endif()
-
     set_property(GLOBAL PROPERTY oblo_cxx_compile_options "${_oblo_cxx_compile_options}")
     set_property(GLOBAL PROPERTY oblo_cxx_compile_definitions "${_oblo_cxx_compile_definitions}")
 endfunction()
