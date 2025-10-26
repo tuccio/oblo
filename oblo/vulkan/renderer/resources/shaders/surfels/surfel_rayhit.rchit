@@ -20,7 +20,9 @@
 #include <renderer/meshes/mesh_table>
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
+#include <surfels/buffers/surfel_metrics_rw>
 #include <surfels/contribution>
+
 
 layout(binding = 0) uniform b_LightConfig
 {
@@ -123,6 +125,8 @@ void main()
             tMax,
             1 // payload location
         );
+
+        surfel_metrics_on_shadow_ray_cast(1);
 
         const float visibility = r_IsShadowed ? 0.f : 1.f;
         const vec3 lightContribution = visibility * contribution * brdf;

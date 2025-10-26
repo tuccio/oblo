@@ -10,6 +10,7 @@
 #include <surfels/buffers/surfel_grid_r>
 #include <surfels/buffers/surfel_lighting_data_in_r>
 #include <surfels/buffers/surfel_lighting_data_out_w>
+#include <surfels/buffers/surfel_metrics_rw>
 #include <surfels/surfel_data>
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
@@ -111,6 +112,8 @@ void main()
     {
         return;
     }
+
+    surfel_metrics_on_primary_ray_cast(numRays);
 
     vec3 irradianceSum = vec3(0);
 

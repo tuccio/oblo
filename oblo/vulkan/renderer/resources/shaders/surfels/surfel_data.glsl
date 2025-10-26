@@ -85,6 +85,15 @@ struct surfel_light_estimator_data
     float inconsistency;
 };
 
+struct surfel_metrics
+{
+    uint primaryRayCasts;
+    uint shadowRayCasts;
+    uint surfelsAlive;
+    uint surfelsSpawned;
+    uint surfelsKilled;
+};
+
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
 {
     return h.cellsCount;
