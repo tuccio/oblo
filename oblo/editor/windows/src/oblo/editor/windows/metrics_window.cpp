@@ -39,6 +39,7 @@ namespace oblo::editor
         async_metrics asyncMetrics;
         dynamic_array<displayed_metric> displayedMetrics;
         data_inspector inspector;
+        bool keepRecording{true};
 
         void draw()
         {
@@ -46,9 +47,7 @@ namespace oblo::editor
             {
                 if (ImGui::Button("Record Metrics"))
                 {
-                    pendingMetrics = frameGraph->request_metrics();
-                    state = metrics_state::pending;
-                    displayedMetrics.clear();
+                    request_metrics();
                 }
             }
             else
@@ -59,6 +58,9 @@ namespace oblo::editor
                     state = metrics_state::idle;
                 }
             }
+
+            ImGui::SameLine();
+            ImGui::Checkbox("Continuous recording", &keepRecording);
 
             ImGui::Separator();
 
@@ -114,7 +116,8 @@ namespace oblo::editor
                     {
                         const std::span entries = asyncMetrics.get_entries();
 
-                        displayedMetrics.reserve(displayedMetrics.size() + entries.size());
+                        displayedMetrics.clear();
+                        displayedMetrics.reserve(entries.size());
 
                         for (const auto& entry : entries)
                         {
@@ -133,9 +136,20 @@ namespace oblo::editor
 
                         asyncMetrics = {};
                         state = metrics_state::idle;
+
+                        if (keepRecording)
+                        {
+                            request_metrics();
+                        }
                     }
                 }
             }
+        }
+
+        void request_metrics()
+        {
+            state = metrics_state::pending;
+            pendingMetrics = frameGraph->request_metrics();
         }
     };
 
