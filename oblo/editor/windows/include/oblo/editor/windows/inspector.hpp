@@ -18,11 +18,6 @@ namespace oblo::editor
     class component_factory;
     class editor_world;
 
-    namespace ui
-    {
-        class artifact_picker;
-    }
-
     struct window_update_context;
 
     class inspector final
@@ -36,18 +31,17 @@ namespace oblo::editor
         inspector& operator=(const inspector&) = delete;
         inspector& operator=(inspector&&) noexcept = delete;
 
-        void init(const window_update_context&);
+        bool init(const window_update_context&);
         bool update(const window_update_context&);
 
     public:
-        struct string_buffer;
+        struct data_inspector_ctx;
 
     private:
         const property_registry* m_propertyRegistry{};
         const reflection::reflection_registry* m_reflection{};
         const editor_world* m_editorWorld{};
         const component_factory* m_factory{};
-        unique_ptr<ui::artifact_picker> m_artifactPicker;
-        deque<string_buffer> m_stringBuffers;
+        unique_ptr<data_inspector_ctx> m_ctx;
     };
 }
