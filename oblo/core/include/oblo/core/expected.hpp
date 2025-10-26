@@ -293,6 +293,79 @@ namespace oblo
         };
     };
 
+    // Specialization for reference types
+    template <typename T, trivial_type E>
+    class [[nodiscard]] expected<T&, E> : expected<T*, E>
+    {
+        using base = expected<T*, E>;
+
+    public:
+        using value_type = T&;
+        using error_type = E;
+
+        constexpr expected() noexcept = default;
+        constexpr expected(T& value) noexcept : base{&value} {}
+
+        constexpr expected(E error) noexcept : base{error} {}
+
+        constexpr expected(const expected&) noexcept = default;
+        constexpr expected(expected&&) noexcept = default;
+        constexpr expected& operator=(const expected&) noexcept = default;
+        constexpr expected& operator=(expected&&) noexcept = default;
+
+        using base::has_value;
+        using base::operator bool;
+
+        using base::error;
+
+        constexpr T& value() noexcept
+        {
+            OBLO_ASSERT(has_value());
+            return **this;
+        }
+
+        constexpr const T& value() const noexcept
+        {
+            OBLO_ASSERT(has_value());
+            return **this;
+        }
+
+        constexpr T& operator*() noexcept
+        {
+            OBLO_ASSERT(has_value())
+            return *base::operator*();
+        }
+
+        constexpr const T& operator*() const noexcept
+        {
+            OBLO_ASSERT(has_value())
+            return *base::operator*();
+        }
+
+        constexpr T* operator->() noexcept
+        {
+            OBLO_ASSERT(has_value())
+            return base::operator->();
+        }
+
+        constexpr const T* operator->() const noexcept
+        {
+            OBLO_ASSERT(has_value())
+            return base::operator->();
+        }
+
+        // Fallback helpers
+        constexpr T& value_or(T& fallback) noexcept
+        {
+            return has_value() ? **this : fallback;
+        }
+
+        constexpr const T& value_or(const T& fallback) const noexcept
+        {
+            return has_value() ? **this : fallback;
+        }
+    };
+
     constexpr unspecified_error_tag unspecified_error{};
     constexpr success_tag no_error{};
 }

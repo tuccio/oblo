@@ -25,7 +25,7 @@ namespace oblo
 
         auto result = f.try_get_result();
         ASSERT_TRUE(result.has_value());
-        ASSERT_EQ(*result.value(), 123);
+        ASSERT_EQ(result.value(), 123);
     }
 
     TEST(future_test, not_ready_before_set)
@@ -67,7 +67,7 @@ namespace oblo
 
         auto result = f2.try_get_result();
         ASSERT_TRUE(result.has_value());
-        ASSERT_EQ(*result.value(), "hello");
+        ASSERT_EQ(result.value(), "hello");
     }
 
     TEST(future_test, reset_clear_state)
@@ -80,7 +80,7 @@ namespace oblo
         p.set_value(99);
         const expected result1 = f.try_get_result();
         ASSERT_TRUE(result1.has_value());
-        ASSERT_EQ(*result1.value(), 99);
+        ASSERT_EQ(result1.value(), 99);
 
         f.reset();
         const expected result2 = f.try_get_result();
@@ -101,7 +101,7 @@ namespace oblo
 
         const expected result = f2.try_get_result();
         ASSERT_TRUE(result.has_value());
-        ASSERT_EQ(*result.value(), 42);
+        ASSERT_EQ(result.value(), 42);
     }
 
     TEST(future_test, non_trivial_type)
@@ -115,7 +115,7 @@ namespace oblo
         const expected result = f.try_get_result();
         ASSERT_TRUE(result.has_value());
 
-        auto&& [i, s] = *result.value();
+        auto&& [i, s] = result.value();
         ASSERT_EQ(i, 10);
         ASSERT_EQ(s, "data");
     }

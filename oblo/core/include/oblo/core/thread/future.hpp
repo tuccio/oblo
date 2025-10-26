@@ -81,7 +81,7 @@ namespace oblo
 
         ~future();
 
-        expected<T*, error> try_get_result() const;
+        expected<T&, error> try_get_result() const;
 
         void reset();
 
@@ -207,7 +207,7 @@ namespace oblo
     }
 
     template <typename T>
-    expected<T*, future_error> future<T>::try_get_result() const
+    expected<T&, future_error> future<T>::try_get_result() const
     {
         if (!m_block)
         {
@@ -225,7 +225,7 @@ namespace oblo
             return error::broken_promise;
 
         case promise_state::has_value:
-            return reinterpret_cast<T*>(m_block->resultBuffer);
+            return *reinterpret_cast<T*>(m_block->resultBuffer);
 
         default:
             unreachable();
