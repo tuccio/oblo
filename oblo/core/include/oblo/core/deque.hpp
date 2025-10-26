@@ -991,14 +991,14 @@ namespace oblo
         }
         else
         {
-            const usize firstDestroyedElement = m_start + newSize + 1;
+            const usize firstDestroyedElement = m_start + newSize;
             const usize firstChunk = firstDestroyedElement / m_elementsPerChunk;
 
             // Deal with the first chunk, where we might need to apply an offset
             {
                 T* const chunk = m_chunks[firstChunk];
 
-                const usize offsetFirstChunk = m_start % m_elementsPerChunk;
+                const usize offsetFirstChunk = firstDestroyedElement % m_elementsPerChunk;
                 const auto elements = min(m_size - newSize, m_elementsPerChunk - offsetFirstChunk);
 
                 T* const begin = chunk + offsetFirstChunk;

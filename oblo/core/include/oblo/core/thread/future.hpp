@@ -101,9 +101,13 @@ namespace oblo
     template <typename T>
     promise<T>& promise<T>::operator=(promise<T>&& other) noexcept
     {
-        reset();
-        m_block = other.m_block;
-        other.m_block = nullptr;
+        if (this != &other)
+        {
+            reset();
+            m_block = other.m_block;
+            other.m_block = nullptr;
+        }
+
         return *this;
     }
 
@@ -202,14 +206,18 @@ namespace oblo
     template <typename T>
     future<T>& future<T>::operator=(future<T>&& other) noexcept
     {
-        reset();
-        m_block = other.m_block;
-        other.m_block = nullptr;
+        if (this != &other)
+        {
+            reset();
+            m_block = other.m_block;
+            other.m_block = nullptr;
+        }
+
         return *this;
     }
 
     template <typename T>
-    future<T>::~future<T>()
+    future<T>::~future()
     {
         reset();
     }

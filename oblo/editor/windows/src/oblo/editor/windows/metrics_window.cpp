@@ -43,16 +43,30 @@ namespace oblo::editor
 
         void draw()
         {
+            constexpr const char* labelStart = "Record Metrics";
+            constexpr const char* labelCancel = "Cancel";
+
+            const ImVec2 labelSizes[] = {
+                ImGui::CalcTextSize(labelStart),
+                ImGui::CalcTextSize(labelCancel),
+            };
+
+            auto& style = ImGui::GetStyle();
+
+            ImVec2 buttonSize;
+            buttonSize.x = max(labelSizes[0].x, labelSizes[1].x) + style.FramePadding.x * 2;
+            buttonSize.y = max(labelSizes[0].y, labelSizes[1].y) + style.FramePadding.y * 2;
+
             if (state == metrics_state::idle)
             {
-                if (ImGui::Button("Record Metrics"))
+                if (ImGui::Button(labelStart, buttonSize))
                 {
                     request_metrics();
                 }
             }
             else
             {
-                if (ImGui::Button("Cancel"))
+                if (ImGui::Button(labelCancel, buttonSize))
                 {
                     pendingMetrics.reset();
                     state = metrics_state::idle;

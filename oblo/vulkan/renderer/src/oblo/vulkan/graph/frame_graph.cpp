@@ -1443,11 +1443,12 @@ namespace oblo::vk
 
         downloadStaging.notify_finished_frames(lastFinishedFrame);
 
+        u32 numCompletedDownloads = 0;
         bool isFirstDownload = true;
 
-        for (auto it = pendingDownloads.begin(); it != pendingDownloads.end();)
+        for (auto& pendingDownload : pendingDownloads)
         {
-            if (lastFinishedFrame < it->submitIndex)
+            if (lastFinishedFrame < pendingDownload.submitIndex)
             {
                 break;
             }
@@ -1458,16 +1459,21 @@ namespace oblo::vk
                 isFirstDownload = false;
             }
 
-            const auto totalSize = (it->stagedSpan.segments[0].end - it->stagedSpan.segments[0].begin) +
-                (it->stagedSpan.segments[1].end - it->stagedSpan.segments[1].begin);
+            const auto totalSize =
+                (pendingDownload.stagedSpan.segments[0].end - pendingDownload.stagedSpan.segments[0].begin) +
+                (pendingDownload.stagedSpan.segments[1].end - pendingDownload.stagedSpan.segments[1].begin);
 
             dynamic_array<byte> destination;
             destination.resize_default(totalSize);
-            downloadStaging.copy_from(destination, it->stagedSpan, 0);
+            downloadStaging.copy_from(destination, pendingDownload.stagedSpan, 0);
 
-            it->promise.set_value(std::move(destination));
+            pendingDownload.promise.set_value(std::move(destination));
+            ++numCompletedDownloads;
+        }
 
-            it = pendingDownloads.erase(it);
+        if (numCompletedDownloads > 0)
+        {
+            pendingDownloads.erase(pendingDownloads.begin(), pendingDownloads.begin() + numCompletedDownloads);
         }
     }
 
