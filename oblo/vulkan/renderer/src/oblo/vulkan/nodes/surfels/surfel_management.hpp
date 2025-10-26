@@ -30,6 +30,8 @@ namespace oblo::vk
         resource<buffer> outLastFrameSurfelsLightingData;
         resource<buffer> outSurfelsLightingData;
 
+        resource<buffer> outSurfelsMetrics;
+
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
@@ -119,6 +121,8 @@ namespace oblo::vk
     /// @brief Fills the grid from the currently alive surfels, updates surfels that moved, and frees unused one.
     struct surfel_update
     {
+        resource<buffer> inSurfelsMetrics;
+
         resource<buffer> inOutSurfelsSpawnData;
         resource<buffer> inOutSurfelsStack;
         resource<buffer> inOutSurfelsGrid;
@@ -189,6 +193,8 @@ namespace oblo::vk
         data<u32> inMaxRayPaths;
         data<u32> inMaxSurfels;
         data<f32> inGIMultiplier;
+
+        resource<buffer> inSurfelsMetrics;
 
         resource<buffer> inOutSurfelsGrid;
         resource<buffer> inOutSurfelsData;

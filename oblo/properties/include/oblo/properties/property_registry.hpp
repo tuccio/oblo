@@ -38,6 +38,7 @@ namespace oblo
         property_kind find_property_kind(const type_id& type) const;
 
         const property_tree* build_from_reflection(const type_id& type);
+        bool try_build_from_reflection(property_tree& tree, const type_id& type) const;
 
         const property_tree* try_get(const type_id& type) const;
 

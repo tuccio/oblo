@@ -762,6 +762,7 @@ namespace oblo::vk::surfels_gi
         graph.make_input(update, &surfel_update::inMeshDatabase, InMeshDatabase);
         graph.make_input(update, &surfel_update::inEntitySetBuffer, InEcsEntitySetBuffer);
 
+        graph.connect(initializer, &surfel_initializer::outSurfelsMetrics, update, &surfel_update::inSurfelsMetrics);
         graph.connect(initializer, &surfel_initializer::inMaxSurfels, update, &surfel_update::inMaxSurfels);
         graph.connect(initializer, &surfel_initializer::outCellsCount, update, &surfel_update::inCellsCount);
         graph.connect(initializer, &surfel_initializer::inGridBounds, update, &surfel_update::inGridBounds);
@@ -796,6 +797,11 @@ namespace oblo::vk::surfels_gi
             &surfel_accumulate_raycount::inMaxSurfels);
 
         // Ray-Tracing setup
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsMetrics,
+            rayTracing,
+            &surfel_raytracing::inSurfelsMetrics);
+
         graph.make_input(rayTracing, &surfel_raytracing::inMaxRayPaths, InMaxRayPaths);
         graph.make_input(rayTracing, &surfel_raytracing::inGIMultiplier, InGIMultiplier);
         graph.make_input(rayTracing, &surfel_raytracing::inLightBuffer, InLightBuffer);

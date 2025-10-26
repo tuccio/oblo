@@ -1,7 +1,7 @@
 #pragma once
 
-#include <oblo/core/thread/async_download.hpp>
 #include <oblo/math/vec2u.hpp>
+#include <oblo/vulkan/data/async_download.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>

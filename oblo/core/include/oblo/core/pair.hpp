@@ -12,7 +12,7 @@ namespace oblo
         T first;
         U second;
 
-        constexpr auto operator<=>(const pair&) const = default;
+        auto operator<=>(const pair&) const = default;
     };
 
     template <typename T, typename U>

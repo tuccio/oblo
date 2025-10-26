@@ -18,6 +18,7 @@
 #include <renderer/transform>
 #include <surfels/buffers/surfel_data_rw>
 #include <surfels/buffers/surfel_grid_rw>
+#include <surfels/buffers/surfel_metrics_rw>
 #include <surfels/buffers/surfel_spawn_data_rw>
 #include <surfels/buffers/surfel_stack_rw>
 #include <surfels/grid_utils>
@@ -55,6 +56,8 @@ void surfel_kill(in uint surfelId)
         g_Constants.currentTimestamp,
         g_SurfelLastUsage[surfelId]);
 #endif
+
+    surfel_metrics_on_kill(1);
 
     g_SurfelData[surfelId] = surfel_data_invalid();
     g_SurfelSpawnData[surfelId] = surfel_spawn_data_invalid();
@@ -173,6 +176,11 @@ void main()
     if (framesAlive < warmupFrames)
     {
         numRequestedRays = maxRays;
+
+        if (framesAlive == 0)
+        {
+            surfel_metrics_on_spawn(1);
+        }
     }
     else
     {
@@ -204,4 +212,5 @@ void main()
     g_SurfelData[surfelId] = updatedData;
 
     surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
+    surfel_metrics_on_alive(1);
 }

@@ -17,7 +17,6 @@
 
 namespace oblo
 {
-    class async_download;
     class frame_allocator;
     class random_generator;
     class texture;
@@ -159,10 +158,20 @@ namespace oblo::vk
 
         const gpu_info& get_gpu_info() const;
 
+        bool is_recording_metrics() const;
+
+        template <typename T>
+        void register_metrics_buffer(resource<buffer> b) const
+        {
+            register_metrics_buffer(get_type_id<T>(), b);
+        }
+
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
         bool has_event_impl(const type_id& type) const;
+
+        void register_metrics_buffer(const type_id& type, resource<buffer> b) const;
 
     private:
         frame_graph_impl& m_frameGraph;
@@ -264,6 +273,8 @@ namespace oblo::vk
         void blit_color(resource<texture> srcTexture, resource<texture> dstTexture) const;
 
         vec2u get_resolution(resource<texture> h) const;
+
+        bool is_recording_metrics() const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;

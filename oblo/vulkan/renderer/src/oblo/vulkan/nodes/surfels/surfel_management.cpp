@@ -8,6 +8,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
+#include <oblo/vulkan/data/metrics.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/compute_pass_initializer.hpp>
 #include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
@@ -195,7 +196,7 @@ namespace oblo::vk
             },
             buffer_usage::storage_write);
 
-        // The greed has to be stable because it goes out as last frame output from here
+        // The grid has to be stable because it goes out as last frame output from here
         ctx.create(outSurfelsGrid,
             buffer_resource_initializer{
                 .size = surfelsGridSize,
@@ -221,6 +222,20 @@ namespace oblo::vk
 
         ctx.reroute(lightingDataBuffers[inputSelector], outLastFrameSurfelsLightingData);
         ctx.reroute(lightingDataBuffers[outputSelector], outSurfelsLightingData);
+
+        if (ctx.is_recording_metrics())
+        {
+            const surfel_metrics initMetrics{};
+
+            ctx.create(outSurfelsMetrics,
+                buffer_resource_initializer{
+                    .size = sizeof(surfel_metrics),
+                    .data = as_bytes(std::span{&initMetrics, 1}),
+                },
+                buffer_usage::storage_write);
+
+            ctx.register_metrics_buffer<surfel_metrics>(outSurfelsMetrics);
+        }
     }
 
     void surfel_initializer::execute(const frame_graph_execute_context& ctx)
@@ -340,18 +355,18 @@ namespace oblo::vk
             const u32 tilesY = round_up_div(resolution.y, g_tileSize);
 
             bindingTable.bind_buffers({
-                {"b_InstanceTables", inInstanceTables},
-                {"b_MeshTables", inMeshDatabase},
-                {"b_CameraBuffer", inCameraBuffer},
-                {"b_SurfelsGrid", inSurfelsGrid},
-                {"b_SurfelsGridData", inSurfelsGridData},
-                {"b_SurfelsData", inSurfelsData},
-                {"b_InSurfelsLighting", inLastFrameSurfelsLightingData},
-                {"b_OutTileCoverage", outFullTileCoverage},
+                {"b_InstanceTables"_hsv, inInstanceTables},
+                {"b_MeshTables"_hsv, inMeshDatabase},
+                {"b_CameraBuffer"_hsv, inCameraBuffer},
+                {"b_SurfelsGrid"_hsv, inSurfelsGrid},
+                {"b_SurfelsGridData"_hsv, inSurfelsGridData},
+                {"b_SurfelsData"_hsv, inSurfelsData},
+                {"b_InSurfelsLighting"_hsv, inLastFrameSurfelsLightingData},
+                {"b_OutTileCoverage"_hsv, outFullTileCoverage},
             });
 
             bindingTable.bind_textures({
-                {"t_InVisibilityBuffer", inVisibilityBuffer},
+                {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
             });
 
             ctx.bind_descriptor_sets(bindingTable);
@@ -419,11 +434,11 @@ namespace oblo::vk
         binding_table perDispatchBindingTable;
 
         bindingTable.bind_buffers({
-            {"b_SurfelsSpawnData", inOutSurfelsSpawnData},
-            {"b_SurfelsData", inOutSurfelsData},
-            {"b_SurfelsStack", inOutSurfelsStack},
-            {"b_SurfelsLastUsage", inOutSurfelsLastUsage},
-            {"b_InSurfelsLighting", inOutLastFrameSurfelsLightingData},
+            {"b_SurfelsSpawnData"_hsv, inOutSurfelsSpawnData},
+            {"b_SurfelsData"_hsv, inOutSurfelsData},
+            {"b_SurfelsStack"_hsv, inOutSurfelsStack},
+            {"b_SurfelsLastUsage"_hsv, inOutSurfelsLastUsage},
+            {"b_InSurfelsLighting"_hsv, inOutLastFrameSurfelsLightingData},
         });
 
         for (const auto& tileCoverage : tileCoverageSpan)
@@ -431,7 +446,7 @@ namespace oblo::vk
             perDispatchBindingTable.clear();
 
             perDispatchBindingTable.bind_buffers({
-                {"b_TileCoverage", tileCoverage.buffer},
+                {"b_TileCoverage"_hsv, tileCoverage.buffer},
             });
 
             const binding_table* bindingTables[] = {
@@ -527,7 +542,19 @@ namespace oblo::vk
         }
 
         {
-            updateFgPass = ctx.compute_pass(updatePass, {});
+            buffered_array<hashed_string_view, 1> defines;
+
+            const bool withMetrics = ctx.is_recording_metrics();
+
+            if (withMetrics)
+            {
+                defines.emplace_back("SURFEL_METRICS_ENABLED"_hsv);
+            }
+
+            updateFgPass = ctx.compute_pass(updatePass,
+                {
+                    .defines = defines,
+                });
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
@@ -540,6 +567,11 @@ namespace oblo::vk
 
             ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
             acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+            if (withMetrics)
+            {
+                ctx.acquire(inSurfelsMetrics, buffer_usage::storage_write);
+            }
         }
 
         {
@@ -582,6 +614,11 @@ namespace oblo::vk
             {"b_MeshTables"_hsv, inMeshDatabase},
             {"b_EcsEntitySet"_hsv, inEntitySetBuffer},
         });
+
+        if (ctx.is_recording_metrics())
+        {
+            bindingTable.bind("b_SurfelsMetrics"_hsv, inSurfelsMetrics);
+        }
 
         const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
@@ -700,7 +737,6 @@ namespace oblo::vk
 
     void surfel_accumulate_raycount::build(const frame_graph_build_context& ctx)
     {
-
         const u32 maxSurfels = ctx.access(inMaxSurfels);
 
         const u32 reductionPassesCount = max(1u,
@@ -841,7 +877,19 @@ namespace oblo::vk
 
     void surfel_raytracing::build(const frame_graph_build_context& ctx)
     {
-        rtPassInstance = ctx.raytracing_pass(rtPass, {});
+        buffered_array<hashed_string_view, 1> defines;
+
+        const bool withMetrics = ctx.is_recording_metrics();
+
+        if (withMetrics)
+        {
+            defines.emplace_back("SURFEL_METRICS_ENABLED"_hsv);
+        }
+
+        rtPassInstance = ctx.raytracing_pass(rtPass,
+            {
+                .defines = defines,
+            });
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
         ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
@@ -866,6 +914,11 @@ namespace oblo::vk
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
         randomSeed = ctx.get_random_generator().generate();
+
+        if (withMetrics)
+        {
+            ctx.acquire(inSurfelsMetrics, buffer_usage::storage_write);
+        }
     }
 
     void surfel_raytracing::execute(const frame_graph_execute_context& ctx)
@@ -891,6 +944,11 @@ namespace oblo::vk
             });
 
             bindingTable.bind("u_SceneTLAS"_hsv, ctx.get_global_tlas());
+
+            if (ctx.is_recording_metrics())
+            {
+                bindingTable.bind("b_SurfelsMetrics", inSurfelsMetrics);
+            }
 
             const auto maxSurfels = ctx.access(inMaxSurfels);
 

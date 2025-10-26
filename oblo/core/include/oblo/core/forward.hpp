@@ -18,4 +18,10 @@ namespace oblo
 
     template <typename>
     class function_ref;
+
+    template <typename>
+    class future;
+
+    template <typename>
+    class promise;
 }

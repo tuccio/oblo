@@ -108,6 +108,17 @@ namespace oblo
                 return &tree;
             }
 
+            if (!build_from_reflection(tree, type))
+            {
+                propertyTrees.erase(it);
+                return nullptr;
+            }
+
+            return &tree;
+        }
+
+        bool build_from_reflection(property_tree& tree, const type_id& type)
+        {
             tree.nodes.push_back({
                 .type = type,
             });
@@ -117,8 +128,7 @@ namespace oblo
             if (!typeHandle)
             {
                 // TODO: log?
-                propertyTrees.erase(it);
-                return nullptr;
+                return false;
             }
 
             build_recursive(tree, 0, typeHandle);
@@ -159,7 +169,7 @@ namespace oblo
                 }
             }
 
-            return &tree;
+            return true;
         }
 
         void build_recursive(property_tree& tree, u32 currentNodeIndex, reflection::type_handle type)
@@ -303,6 +313,11 @@ namespace oblo
     const property_tree* property_registry::build_from_reflection(const type_id& type)
     {
         return m_impl->build_from_reflection(type);
+    }
+
+    bool property_registry::try_build_from_reflection(property_tree& tree, const type_id& type) const
+    {
+        return m_impl->build_from_reflection(tree, type);
     }
 
     const property_tree* property_registry::try_get(const type_id& type) const
