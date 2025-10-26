@@ -1390,16 +1390,14 @@ namespace oblo::vk
                 isFirstDownload = false;
             }
 
-            it->promise.populate_data(
-                [this, stagedSpan = it->stagedSpan](allocator* allocator)
-                {
-                    const auto totalSize = (stagedSpan.segments[0].end - stagedSpan.segments[0].begin) +
-                        (stagedSpan.segments[1].end - stagedSpan.segments[1].begin);
+            const auto totalSize = (it->stagedSpan.segments[0].end - it->stagedSpan.segments[0].begin) +
+                (it->stagedSpan.segments[1].end - it->stagedSpan.segments[1].begin);
 
-                    const auto destination = allocate_n_span<byte>(*allocator, totalSize);
-                    downloadStaging.copy_from(destination, stagedSpan, 0);
-                    return destination;
-                });
+            dynamic_array<byte> destination;
+            destination.resize_default(totalSize);
+            downloadStaging.copy_from(destination, it->stagedSpan, 0);
+
+            it->promise.set_value(std::move(destination));
 
             it = pendingDownloads.erase(it);
         }

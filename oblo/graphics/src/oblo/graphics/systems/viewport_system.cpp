@@ -5,7 +5,6 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
-#include <oblo/core/thread/async_download.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
@@ -17,6 +16,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/vulkan/data/async_download.hpp>
 #include <oblo/vulkan/data/camera_buffer.hpp>
 #include <oblo/vulkan/data/picking_configuration.hpp>
 #include <oblo/vulkan/data/time_buffer.hpp>
@@ -182,7 +182,7 @@ namespace oblo
 
                     case picking_request::state::awaiting: {
                         const expected asyncDownload =
-                            frameGraph.get_output<async_download>(viewport.graph, main_view::OutPicking);
+                            frameGraph.get_output<vk::async_download>(viewport.graph, main_view::OutPicking);
 
                         if (!asyncDownload)
                         {

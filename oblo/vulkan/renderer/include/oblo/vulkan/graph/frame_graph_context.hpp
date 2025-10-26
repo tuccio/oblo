@@ -17,7 +17,6 @@
 
 namespace oblo
 {
-    class async_download;
     class frame_allocator;
     class random_generator;
     class texture;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/forward.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo::vk
@@ -54,4 +55,7 @@ namespace oblo::vk
     enum class pass_kind : u8;
     enum class shader_stage : u8;
     enum class texture_usage : u8;
+
+    using async_download = future<dynamic_array<byte>>;
+    using async_download_promise = promise<dynamic_array<byte>>;
 }

@@ -7,8 +7,8 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
-#include <oblo/core/thread/async_download.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/data/async_download.hpp>
 #include <oblo/vulkan/draw/pass_manager.hpp>
 #include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>

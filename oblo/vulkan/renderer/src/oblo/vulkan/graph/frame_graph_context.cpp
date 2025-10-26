@@ -3,11 +3,11 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/flags_range.hpp>
-#include <oblo/core/thread/async_download.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/buffer.hpp>
+#include <oblo/vulkan/data/async_download.hpp>
 #include <oblo/vulkan/draw/bindable_object.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/descriptor_set_pool.hpp>
