@@ -11,6 +11,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/metrics/async_metrics.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/graph/frame_graph_context.hpp>
@@ -534,8 +535,10 @@ namespace oblo::vk
         m_impl->mark_active_nodes();
         m_impl->rebuild_runtime(renderer);
 
+        const u32 extraHiddenNodes = u32{m_impl->is_recording_metrics()};
+
         m_impl->passesPerNode.clear();
-        m_impl->sortedNodes.reserve(m_impl->sortedNodes.size());
+        m_impl->passesPerNode.reserve(m_impl->sortedNodes.size() + extraHiddenNodes);
 
         // We use pass with index 0 as invalid
         m_impl->passes.assign_default(1);
@@ -587,6 +590,25 @@ namespace oblo::vk
         }
 
         m_impl->currentNode = {};
+
+        if (m_impl->is_recording_metrics() && !m_impl->pendingMetrics.empty())
+        {
+            OBLO_PROFILE_SCOPE("Build Metrics Recorder");
+
+            m_impl->passesPerNode.push_back({
+                .passesBegin = u32(m_impl->passes.size()),
+                .passesEnd = u32(m_impl->passes.size()),
+            });
+
+            m_impl->pendingMetricsTransfer = buildCtx.transfer_pass();
+
+            for (const auto& pending : m_impl->pendingMetrics)
+            {
+                buildCtx.acquire(pending.buffer, buffer_usage::download);
+            }
+
+            m_impl->end_pass_build(buildState);
+        }
 
         m_impl->resourcePool.end_build(renderer.get_vulkan_context());
 
@@ -704,7 +726,11 @@ namespace oblo::vk
 
         m_impl->barriers = &barriers;
 
-        for (const auto& [nodeToExecute, passesPerNode] : zip_range(m_impl->sortedNodes, m_impl->passesPerNode))
+        // We may have some extra hidden nodes (e.g. metrics download) that do not belong to the sorted nodes list, they
+        // don't need to be executed, but they may still have passes that get executed after the main execution
+        const std::span regularNodePasses = std::span{m_impl->passesPerNode}.subspan(0, m_impl->sortedNodes.size());
+
+        for (const auto& [nodeToExecute, passesPerNode] : zip_range(m_impl->sortedNodes, regularNodePasses))
         {
             const auto nodeHandle = m_impl->graph.get(nodeToExecute.handle).node;
             auto* const node = m_impl->nodes.try_find(nodeHandle);
@@ -731,6 +757,31 @@ namespace oblo::vk
             // Here we check that we got to the last pass
             OBLO_ASSERT(passesPerNode.passesBegin == passesPerNode.passesEnd ||
                 executionState.currentPass.value == passesPerNode.passesEnd - 1)
+        }
+
+        if (m_impl->is_recording_metrics())
+        {
+            OBLO_PROFILE_SCOPE("Execute Metrics Recorder");
+
+            async_metrics metrics;
+
+            if (m_impl->pendingMetricsTransfer && executeCtx.begin_pass(m_impl->pendingMetricsTransfer))
+            {
+                dynamic_array<async_metrics_entry> entries;
+                entries.reserve(m_impl->pendingMetrics.size());
+
+                for (const auto& pending : m_impl->pendingMetrics)
+                {
+                    entries.emplace_back(pending.type, executeCtx.download(pending.buffer));
+                }
+
+                metrics.init(std::move(entries));
+            }
+
+            m_impl->nextFrameMetrics.set_value(std::move(metrics));
+            m_impl->nextFrameMetrics.reset();
+            m_impl->pendingMetricsTransfer = {};
+            m_impl->pendingMetrics.clear();
         }
 
         m_impl->barriers = {};
@@ -844,6 +895,16 @@ namespace oblo::vk
         }
 
         state.currentPass = passId;
+    }
+
+    void frame_graph_impl::add_metrics_download(const type_id& typeId, resource<buffer> b)
+    {
+        pendingMetrics.emplace_back(typeId, b);
+    }
+
+    bool frame_graph_impl::is_recording_metrics() const
+    {
+        return nextFrameMetrics.is_initialized();
     }
 
     void frame_graph::write_dot(std::ostream& os) const
@@ -975,6 +1036,11 @@ namespace oblo::vk
 
             outSubgraphOutputs.emplace_back(name, storage.typeDesc.typeId);
         }
+    }
+
+    future<async_metrics> frame_graph::request_metrics()
+    {
+        return m_impl->request_metrics();
     }
 
     void frame_graph::push_empty_event_impl(const type_id& type)
@@ -1134,7 +1200,9 @@ namespace oblo::vk
                     auto* node = nodes.try_find(vertex.node);
                     OBLO_ASSERT(node);
 
-                    sortedNodes.push_back({v});
+                    sortedNodes.push_back({
+                        .handle = v,
+                    });
 
                     // If the node needs to be initialized, this is a good time
                     if (node->init && !node->initialized)
@@ -1429,6 +1497,16 @@ namespace oblo::vk
         ++frameCounter;
 
         globalTLAS = {};
+    }
+
+    future<async_metrics> frame_graph_impl::request_metrics()
+    {
+        if (!nextFrameMetrics.is_initialized())
+        {
+            nextFrameMetrics.init();
+        }
+
+        return future{nextFrameMetrics};
     }
 
     void frame_graph_impl::free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated)

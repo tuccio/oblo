@@ -318,49 +318,25 @@ namespace oblo
 
         using base::error;
 
-        constexpr T& value() noexcept
+        constexpr T& value() const noexcept
         {
             OBLO_ASSERT(has_value());
             return **this;
         }
 
-        constexpr const T& value() const noexcept
-        {
-            OBLO_ASSERT(has_value());
-            return **this;
-        }
-
-        constexpr T& operator*() noexcept
+        constexpr T& operator*() const noexcept
         {
             OBLO_ASSERT(has_value())
             return *base::operator*();
         }
 
-        constexpr const T& operator*() const noexcept
-        {
-            OBLO_ASSERT(has_value())
-            return *base::operator*();
-        }
-
-        constexpr T* operator->() noexcept
+        constexpr T* operator->() const noexcept
         {
             OBLO_ASSERT(has_value())
             return base::operator->();
         }
 
-        constexpr const T* operator->() const noexcept
-        {
-            OBLO_ASSERT(has_value())
-            return base::operator->();
-        }
-
-        // Fallback helpers
-        constexpr T& value_or(T& fallback) noexcept
-        {
-            return has_value() ? **this : fallback;
-        }
-
-        constexpr const T& value_or(const T& fallback) const noexcept
+        constexpr T& value_or(T& fallback) const noexcept
         {
             return has_value() ? **this : fallback;
         }

@@ -44,6 +44,8 @@ namespace oblo
         template <typename... Args>
         void set_value(Args&&... args);
 
+        bool is_initialized() const;
+
         void reset();
 
     private:
@@ -140,6 +142,12 @@ namespace oblo
             new (m_block->resultBuffer) T(std::forward<Args>(args)...);
             m_block->state.store(promise_state::has_value, std::memory_order_release);
         }
+    }
+
+    template <typename T>
+    bool promise<T>::is_initialized() const
+    {
+        return m_block != nullptr;
     }
 
     template <typename T>

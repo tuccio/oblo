@@ -699,6 +699,11 @@ namespace oblo::vk
         return m_frameGraph.gpuInfo;
     }
 
+    bool frame_graph_build_context::is_recording_metrics() const
+    {
+        return m_frameGraph.is_recording_metrics();
+    }
+
     void* frame_graph_build_context::access_storage(h32<frame_graph_pin_storage> handle) const
     {
         return m_frameGraph.access_storage(handle);
@@ -707,6 +712,11 @@ namespace oblo::vk
     bool frame_graph_build_context::has_event_impl(const type_id& type) const
     {
         return m_frameGraph.emptyEvents.contains(type);
+    }
+
+    void frame_graph_build_context::register_metrics_buffer(const type_id& type, resource<buffer> b) const
+    {
+        m_frameGraph.add_metrics_download(type, b);
     }
 
     frame_graph_execute_context::frame_graph_execute_context(const frame_graph_impl& frameGraph,
@@ -1212,6 +1222,11 @@ namespace oblo::vk
     {
         const auto extent = access(h).initializer.extent;
         return {extent.width, extent.height};
+    }
+
+    bool frame_graph_execute_context::is_recording_metrics() const
+    {
+        return m_frameGraph.is_recording_metrics();
     }
 
     void* frame_graph_execute_context::access_storage(h32<frame_graph_pin_storage> handle) const

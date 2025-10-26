@@ -26,6 +26,11 @@
 
 #include <vulkan/vulkan_core.h>
 
+namespace oblo
+{
+    class async_metrics;
+}
+
 namespace oblo::vk
 {
     struct frame_graph_subgraph;
@@ -227,6 +232,12 @@ namespace oblo::vk
         frame_graph_pin_storage value;
     };
 
+    struct frame_graph_metrics
+    {
+        type_id type;
+        resource<buffer> buffer;
+    };
+
     struct frame_graph_impl
     {
     public: // Topology
@@ -268,6 +279,10 @@ namespace oblo::vk
 
         deque<frame_graph_pin_reroute> rerouteStash;
 
+        promise<async_metrics> nextFrameMetrics;
+        deque<frame_graph_metrics> pendingMetrics;
+        h32<transfer_pass_instance> pendingMetricsTransfer{};
+
         resource_pool resourcePool;
 
         frame_graph_barriers* barriers{};
@@ -289,6 +304,8 @@ namespace oblo::vk
         void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
         void flush_downloads(vulkan_context& vkCtx);
         void finish_frame();
+
+        future<async_metrics> request_metrics();
 
     public: // API for contexts
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
@@ -321,6 +338,9 @@ namespace oblo::vk
         void end_pass_build(frame_graph_build_state& state);
 
         void begin_pass_execution(h32<frame_graph_pass> pass, frame_graph_execution_state& state) const;
+
+        void add_metrics_download(const type_id& typeId, resource<buffer> b);
+        bool is_recording_metrics() const;
 
     public: // Utility
         void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
@@ -12,8 +13,7 @@
 
 namespace oblo
 {
-    template <typename>
-    class deque;
+    class async_metrics;
 }
 
 namespace oblo::vk
@@ -69,6 +69,8 @@ namespace oblo::vk
 
         void fetch_subgraphs(deque<h32<frame_graph_subgraph>>& outSubgraphs);
         void fetch_outputs(h32<frame_graph_subgraph> subgraph, deque<frame_graph_output_desc>& outSubgraphOutputs);
+
+        future<async_metrics> request_metrics();
 
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId);
