@@ -66,7 +66,7 @@ namespace oblo
             i.register_api(
                 script_api::ecs::get_property_f32,
                 [this](interpreter& interp) { return ecs_get_property_impl<f32>(interp); },
-                script_string_ref_size() * 2 + sizeof(f32),
+                script_string_ref_size() * 2,
                 sizeof(f32));
         }
 
