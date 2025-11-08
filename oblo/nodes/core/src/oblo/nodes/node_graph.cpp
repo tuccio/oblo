@@ -835,7 +835,7 @@ namespace oblo
                     return unspecified_error;
                 }
 
-                if (node.outputPins.size() != node.outputPins.size())
+                if (node.outputPins.size() != outputs.size())
                 {
                     return unspecified_error;
                 }

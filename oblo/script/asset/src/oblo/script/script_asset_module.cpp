@@ -348,7 +348,8 @@ namespace oblo
             success =
                 m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>()) &&
                 m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::i32>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>());
+                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>()) &&
+                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::vec3>());
 
             // Nodes
             success = m_scriptRegistry.register_node(make_node_descriptor<input_node>()) && success;
@@ -356,6 +357,7 @@ namespace oblo
             success = m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>()) && success;
             success = m_scriptRegistry.register_node(make_node_descriptor<i32_constant_node>()) && success;
             success = m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<vec3_constant_node>()) && success;
 
             success = m_scriptRegistry.register_node(make_node_descriptor<add_operator>()) && success;
             success = m_scriptRegistry.register_node(make_node_descriptor<mul_operator>()) && success;
