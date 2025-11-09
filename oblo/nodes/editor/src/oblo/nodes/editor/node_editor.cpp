@@ -1107,13 +1107,9 @@ namespace oblo
                         }
                     }
 
-                    bool currentlyExpanded = true;
-
                     for (usize d = commonDepth; d < lastCategory.directory.size(); ++d)
                     {
-                        currentlyExpanded = isExpanded[d];
-
-                        if (!currentlyExpanded)
+                        if (!isExpanded[d])
                         {
                             break;
                         }
@@ -1122,6 +1118,10 @@ namespace oblo
                     }
 
                     isExpanded.resize(commonDepth);
+
+                    bool currentlyExpanded =
+                        std::all_of(isExpanded.begin(), isExpanded.end(), [](bool v) { return v; });
+
                     isExpanded.resize(thisCategory.directory.size());
 
                     for (usize d = commonDepth; d < thisCategory.directory.size(); ++d)
@@ -1140,13 +1140,6 @@ namespace oblo
 
                 if (!isExpanded.empty() && isExpanded.back())
                 {
-                    if (string_view{desc.name}.ends_with("far"))
-                    {
-                        while (0)
-                        {
-                        };
-                    }
-
                     if (ImGui::TreeNodeEx(desc.name.c_str(), ImGuiTreeNodeFlags_Leaf))
                     {
                         ImGui::TreePop();

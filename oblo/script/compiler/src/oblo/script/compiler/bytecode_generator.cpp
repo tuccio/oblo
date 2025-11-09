@@ -217,6 +217,34 @@ namespace oblo
 
                     switch (n.kind)
                     {
+                    case ast_node_kind::i32_constant:
+                        [[fallthrough]];
+                    case ast_node_kind::u32_constant: {
+                        u32 val;
+
+                        switch (n.kind)
+                        {
+                        case ast_node_kind::i32_constant:
+                            val = std::bit_cast<u32>(n.node.i32.value);
+                            break;
+                        case ast_node_kind::u32_constant:
+                            val = std::bit_cast<u32>(n.node.u32.value);
+                            break;
+                        default:
+                            unreachable();
+                        }
+
+                        m.text.push_back({.op = bytecode_op::push_32lo16, .payload = lo16(val)});
+
+                        if (const auto hi = hi16(val); hi.data != 0)
+                        {
+                            m.text.push_back({.op = bytecode_op::or_32hi16, .payload = hi16(val)});
+                        }
+
+                        thisNodeInfo.expressionResultSize = sizeof(u32);
+                    }
+                    break;
+
                     case ast_node_kind::f32_constant: {
                         const u32 val = std::bit_cast<u32>(n.node.f32.value);
 
