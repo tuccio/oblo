@@ -234,6 +234,7 @@ namespace oblo
 
         void reparent(h32<ast_node> node, h32<ast_node> newParent);
         void reparent_first(h32<ast_node> node, h32<ast_node> newParent);
+        void swap_subtrees(h32<ast_node> lhs, h32<ast_node> rhs);
 
         /// @brief Removes the links of the node from its parent, without destroying the node or the subtree, but
         /// effectively excluding it from visits.

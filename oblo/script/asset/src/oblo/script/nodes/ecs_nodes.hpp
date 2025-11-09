@@ -268,9 +268,23 @@ namespace oblo::ecs_nodes
                         .name = "mask"_hsv,
                     });
 
+                u32 mask = 0;
+
+                if (inputs[0])
+                {
+                    mask = 0b111;
+                }
+                else
+                {
+                    for (u32 i = 1; i < inputs.size(); ++i)
+                    {
+                        mask |= u32{bool{inputs[i]}} << (i - 1);
+                    }
+                }
+
                 ast.add_node(maskParameter,
                     ast_u32_constant{
-                        .value = 0b111,
+                        .value = mask,
                     });
             }
 
@@ -297,7 +311,48 @@ namespace oblo::ecs_nodes
                 }
                 else
                 {
-                    ast_utils::make_default_value_child(ast, valueParameter, node_primitive_kind::vec3);
+                    valueExpression =
+                        ast_utils::make_default_value_child(ast, valueParameter, node_primitive_kind::vec3);
+                }
+
+                if (!valueExpression)
+                {
+                    return false;
+                }
+
+                const auto& vec3Node = ast.get(valueExpression);
+
+                if (vec3Node.kind != ast_node_kind::compound)
+                {
+                    return false;
+                }
+
+                buffered_array<h32<ast_node>, 3> componentsExpr;
+
+                for (const h32 c : ast.children(valueExpression))
+                {
+                    componentsExpr.emplace_back(c);
+                }
+
+                if (componentsExpr.size() != 3)
+                {
+                    return false;
+                }
+
+                for (u32 i = 0; i < 3; ++i)
+                {
+                    const h32 componentIn = inputs[i + 1];
+                    const h32 componentExpr = componentsExpr[i];
+
+                    if (!componentExpr)
+                    {
+                        return false;
+                    }
+
+                    if (componentIn)
+                    {
+                        ast.swap_subtrees(componentIn, componentExpr);
+                    }
                 }
             }
 
