@@ -90,15 +90,15 @@ namespace oblo
         sub_i64,
         sub_u64,
 
-        mul_f32,
+        mul_vec_f32,
 
         div_f32,
 
         // Trascendental functions
-        sin_f32,
-        cos_f32,
-        tan_f32,
-        atan_f32,
+        sin_vec_f32,
+        cos_vec_f32,
+        tan_vec_f32,
+        atan_vec_f32,
 
         /// @brief Calls a native API function, looking it up by name using a string in the data segment identified by
         /// the u16 id in the payload.

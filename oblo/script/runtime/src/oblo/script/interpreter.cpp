@@ -123,6 +123,36 @@ namespace oblo
         }
 
         template <typename T>
+        [[nodiscard]] OBLO_FORCEINLINE expected<byte*, interpreter_error> binary_vec_mul(
+            byte* stackTop, byte* stackMemory, u32 count)
+        {
+            const u32 vecByteSize = u32(sizeof(T) * count);
+
+            // Consume 2 args but keep space for the result
+            auto* const resPtr = stackTop - 2 * vecByteSize;
+
+            for (u32 i = 0; i < count; ++i)
+            {
+                const u32 currentOffset = u32(i * sizeof(T));
+
+                const expected lhs = read_stack<T>(stackTop, currentOffset, stackMemory);
+                const expected rhs = read_stack<T>(stackTop, currentOffset + vecByteSize, stackMemory);
+
+                if (!lhs || !rhs) [[unlikely]]
+                {
+                    return !lhs ? lhs.error() : rhs.error();
+                }
+
+                const T r = *lhs * *rhs;
+
+                std::memcpy(resPtr + currentOffset, &r, sizeof(T));
+            }
+
+            // Return new stack top
+            return resPtr + sizeof(T) * count;
+        }
+
+        template <typename T>
         [[nodiscard]] OBLO_FORCEINLINE expected<byte*, interpreter_error> binary_div(byte* stackTop, byte* stackMemory)
         {
             const expected lhs = read_stack<T>(stackTop, 0, stackMemory);
@@ -614,8 +644,8 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-                // Binary mul
-            case bytecode_op::mul_f32: {
+                // Binary div
+            case bytecode_op::div_f32: {
                 const expected v = binary_mul<f32>(m_stackTop, m_stackMemory.get());
                 OBLO_INTERPRETER_ABORT_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
@@ -623,9 +653,12 @@ namespace oblo
                 ++m_nextInstruction;
                 break;
 
-                // Binary div
-            case bytecode_op::div_f32: {
-                const expected v = binary_mul<f32>(m_stackTop, m_stackMemory.get());
+                // Binary vec mul
+            case bytecode_op::mul_vec_f32: {
+                u16 components;
+                bytecode_payload::unpack_u16(bytecode.payload, components);
+
+                const expected v = binary_vec_mul<f32>(m_stackTop, m_stackMemory.get(), components);
                 OBLO_INTERPRETER_ABORT_ON_ERROR(v);
                 deallocate_stack_unsafe(m_stackTop, *v);
             }
@@ -870,51 +903,68 @@ namespace oblo
 
             break;
 
-            case bytecode_op::cos_f32:
+            case bytecode_op::cos_vec_f32:
                 [[fallthrough]];
 
-            case bytecode_op::sin_f32:
+            case bytecode_op::sin_vec_f32:
                 [[fallthrough]];
 
-            case bytecode_op::tan_f32:
+            case bytecode_op::tan_vec_f32:
                 [[fallthrough]];
 
-            case bytecode_op::atan_f32: {
-                const expected arg = read_stack<f32>(m_stackTop, 0, m_stackMemory.get());
+            case bytecode_op::atan_vec_f32: {
+                using op_t = float (*)(float);
 
-                if (!arg) [[unlikely]]
-                {
-                    return arg.error();
-                }
-
-                const f32 a = *arg;
-                f32 r;
+                op_t op{};
 
                 switch (bytecode.op)
                 {
-                case bytecode_op::cos_f32:
-                    r = std::cos(a);
+                case bytecode_op::cos_vec_f32:
+                    op = op_t{&std::cos};
                     break;
 
-                case bytecode_op::sin_f32:
-                    r = std::sin(a);
+                case bytecode_op::sin_vec_f32:
+                    op = op_t{&std::sin};
                     break;
 
-                case bytecode_op::tan_f32:
-                    r = std::tan(a);
+                case bytecode_op::tan_vec_f32:
+                    op = op_t{&std::tan};
                     break;
 
-                case bytecode_op::atan_f32:
-                    r = std::atan(a);
+                case bytecode_op::atan_vec_f32:
+                    op = op_t{&std::atan};
                     break;
 
                 default:
                     unreachable();
                 }
 
+                u16 count;
+                bytecode_payload::unpack_u16(bytecode.payload, count);
+
+                const u32 vecByteSize = u32(sizeof(f32) * count);
+
+                // Consume 2 args but keep space for the result
+                auto* const resPtr = m_stackTop - vecByteSize;
+
+                for (u32 i = 0; i < count; ++i)
+                {
+                    const u32 currentOffset = u32(i * sizeof(f32));
+
+                    const expected arg = read_stack<f32>(m_stackTop, currentOffset, m_stackMemory.get());
+
+                    if (!arg) [[unlikely]]
+                    {
+                        return arg.error();
+                    }
+
+                    const f32 r = op(*arg);
+
+                    std::memcpy(resPtr + currentOffset, &r, sizeof(f32));
+                }
+
                 // Consume the arg
-                auto* const resPtr = m_stackTop - sizeof(f32);
-                std::memcpy(resPtr, &r, sizeof(f32));
+                OBLO_ASSERT(m_stackTop == resPtr + vecByteSize);
             }
 
                 ++m_nextInstruction;

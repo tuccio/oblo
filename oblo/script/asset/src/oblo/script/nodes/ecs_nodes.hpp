@@ -315,45 +315,45 @@ namespace oblo::ecs_nodes
                         ast_utils::make_default_value_child(ast, valueParameter, node_primitive_kind::vec3);
                 }
 
-                if (!valueExpression)
-                {
-                    return false;
-                }
+                //if (!valueExpression)
+                //{
+                //    return false;
+                //}
 
-                const auto& vec3Node = ast.get(valueExpression);
+                //const auto& vec3Node = ast.get(valueExpression);
 
-                if (vec3Node.kind != ast_node_kind::compound)
-                {
-                    return false;
-                }
+                //if (vec3Node.kind != ast_node_kind::compound)
+                //{
+                //    return false;
+                //}
 
-                buffered_array<h32<ast_node>, 3> componentsExpr;
+                //buffered_array<h32<ast_node>, 3> componentsExpr;
 
-                for (const h32 c : ast.children(valueExpression))
-                {
-                    componentsExpr.emplace_back(c);
-                }
+                //for (const h32 c : ast.children(valueExpression))
+                //{
+                //    componentsExpr.emplace_back(c);
+                //}
 
-                if (componentsExpr.size() != 3)
-                {
-                    return false;
-                }
+                //if (componentsExpr.size() != 3)
+                //{
+                //    return false;
+                //}
 
-                for (u32 i = 0; i < 3; ++i)
-                {
-                    const h32 componentIn = inputs[i + 1];
-                    const h32 componentExpr = componentsExpr[i];
+                //for (u32 i = 0; i < 3; ++i)
+                //{
+                //    const h32 componentIn = inputs[i + 1];
+                //    const h32 componentExpr = componentsExpr[i];
 
-                    if (!componentExpr)
-                    {
-                        return false;
-                    }
+                //    if (!componentExpr)
+                //    {
+                //        return false;
+                //    }
 
-                    if (componentIn)
-                    {
-                        ast.swap_subtrees(componentIn, componentExpr);
-                    }
-                }
+                //    if (componentIn)
+                //    {
+                //        ast.swap_subtrees(componentIn, componentExpr);
+                //    }
+                //}
             }
 
             return true;

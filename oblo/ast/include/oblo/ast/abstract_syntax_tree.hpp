@@ -44,6 +44,10 @@ namespace oblo
         div_f32,
         mul_f32,
         sub_f32,
+        add_vec3,
+        div_vec3,
+        mul_vec3,
+        sub_vec3,
     };
 
     struct ast_root
