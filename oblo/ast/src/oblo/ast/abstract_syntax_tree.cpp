@@ -40,6 +40,46 @@ namespace oblo
         link_parent_first(newParent, node);
     }
 
+    void abstract_syntax_tree::swap_subtrees(h32<ast_node> lhs, h32<ast_node> rhs)
+    {
+        auto& lhsNode = get(lhs);
+        auto& rhsNode = get(rhs);
+
+        std::swap(lhsNode.parent, rhsNode.parent);
+        std::swap(lhsNode.prevSibling, rhsNode.prevSibling);
+        std::swap(lhsNode.nextSibling, rhsNode.nextSibling);
+
+        if (lhsNode.parent)
+        {
+            auto& parentNode = get(lhsNode.parent);
+
+            if (parentNode.firstChild == rhs)
+            {
+                parentNode.firstChild = lhs;
+            }
+
+            if (parentNode.lastChild == rhs)
+            {
+                parentNode.lastChild = lhs;
+            }
+        }
+
+        if (rhsNode.parent)
+        {
+            auto& parentNode = get(rhsNode.parent);
+
+            if (parentNode.firstChild == lhs)
+            {
+                parentNode.firstChild = rhs;
+            }
+
+            if (parentNode.lastChild == lhs)
+            {
+                parentNode.lastChild = rhs;
+            }
+        }
+    }
+
     void abstract_syntax_tree::unlink_subtree(h32<ast_node> root)
     {
         unlink_parent(root);
@@ -166,5 +206,10 @@ namespace oblo
     ast_node& abstract_syntax_tree::get(h32<ast_node> node)
     {
         return m_nodes[node.value];
+    }
+
+    u32 oblo::abstract_syntax_tree::get_nodes_count() const
+    {
+        return m_nodes.size32();
     }
 }

@@ -8,6 +8,9 @@ namespace oblo::script_api
     {
         constexpr hashed_string_view get_property_f32 = "__ecs_get_property_f32"_hsv;
         constexpr hashed_string_view set_property_f32 = "__ecs_set_property_f32"_hsv;
+
+        constexpr hashed_string_view get_property_vec3 = "__ecs_get_property_vec3"_hsv;
+        constexpr hashed_string_view set_property_vec3 = "__ecs_set_property_vec3"_hsv;
     }
 
     constexpr hashed_string_view get_time = "__get_time"_hsv;
@@ -15,4 +18,5 @@ namespace oblo::script_api
     constexpr hashed_string_view void_t = "void";
     constexpr hashed_string_view f32_t = "f32";
     constexpr hashed_string_view i32_t = "i32";
+    constexpr hashed_string_view vec3_t = "vec3";
 }

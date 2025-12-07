@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/type_id.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
@@ -135,5 +136,114 @@ namespace oblo
             outputs.emplace_back(out);
             return true;
         }
+    };
+
+    class vec3_constant_node final : public node_interface
+    {
+    public:
+        static constexpr uuid id = "a41d6255-b421-4301-b11d-57424bb5186f"_uuid;
+        static constexpr cstring_view name = "Vec3 Constant";
+        static constexpr cstring_view category = "Constants";
+
+        void on_create(const node_graph_context& g) override
+        {
+            const h32 xyz = g.add_out_pin({
+                .id = "3168ae07-af54-4a01-a861-7c56d7d90418"_uuid,
+                .name = "xyz",
+            });
+
+            const h32 x = g.add_out_pin({
+                .id = "f4df18de-a26d-4609-bc26-067637f81cea"_uuid,
+                .name = "x",
+            });
+
+            const h32 y = g.add_out_pin({
+                .id = "466a1a53-f330-41db-9498-6bef6a9878d3"_uuid,
+                .name = "y",
+            });
+
+            const h32 z = g.add_out_pin({
+                .id = "1c50285d-147d-4362-a9dd-54e63dfbcebd"_uuid,
+                .name = "z",
+            });
+
+            g.set_deduced_type(xyz, get_node_primitive_type_id<node_primitive_kind::vec3>());
+            g.set_deduced_type(x, get_node_primitive_type_id<node_primitive_kind::f32>());
+            g.set_deduced_type(y, get_node_primitive_type_id<node_primitive_kind::f32>());
+            g.set_deduced_type(z, get_node_primitive_type_id<node_primitive_kind::f32>());
+        }
+
+        void on_input_change(const node_graph_context&) override
+        {
+            OBLO_ASSERT(false, "This should not happen, we have no inputs");
+        }
+
+        void fetch_properties_descriptors(dynamic_array<node_property_descriptor>& outDescriptors) const override
+        {
+            // Only the vec3 is a real property, even though we have some derivative outputs
+            outDescriptors.push_back({
+                .name = "xyz",
+                .typeId = get_node_primitive_type_id<node_primitive_kind::vec3>(),
+            });
+        }
+
+        void store(data_document& doc, u32 nodeIndex) const override
+        {
+            const u32 xyz = doc.child_array(nodeIndex, "xyz"_hsv, 3);
+
+            const auto range = doc.children(xyz);
+
+            auto it = range.begin();
+
+            for (u32 i = 0; i < 3 && it != range.end(); ++i, ++it)
+            {
+                doc.make_value(*it, property_value_wrapper{m_value[i]});
+            }
+        }
+
+        void load(const data_document& doc, u32 nodeIndex) override
+        {
+            const auto xyz = doc.find_child(nodeIndex, "xyz"_hsv);
+
+            if (doc.is_array(xyz) && doc.children_count(xyz) == 3)
+            {
+                const auto range = doc.children(xyz);
+
+                auto it = range.begin();
+
+                for (u32 i = 0; i < 3 && it != range.end(); ++i, ++it)
+                {
+                    m_value[i] = doc.read_f32(*it).value_or(0.f);
+                }
+            }
+        }
+
+        bool generate(const node_graph_context&,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>>,
+            dynamic_array<h32<ast_node>>& outputs) const override
+        {
+            const h32 xyz = ast.add_node(parent, ast_compound{});
+
+            ast.add_node(xyz, ast_f32_constant{.value = m_value.x});
+            ast.add_node(xyz, ast_f32_constant{.value = m_value.y});
+            ast.add_node(xyz, ast_f32_constant{.value = m_value.z});
+
+            outputs.emplace_back(xyz);
+
+            const h32 x = ast.add_node(parent, ast_f32_constant{.value = m_value.x});
+            const h32 y = ast.add_node(parent, ast_f32_constant{.value = m_value.y});
+            const h32 z = ast.add_node(parent, ast_f32_constant{.value = m_value.z});
+
+            outputs.emplace_back(x);
+            outputs.emplace_back(y);
+            outputs.emplace_back(z);
+
+            return true;
+        }
+
+    private:
+        vec3 m_value{};
     };
 }

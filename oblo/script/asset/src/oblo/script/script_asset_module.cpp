@@ -21,6 +21,7 @@
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/common/input_node.hpp>
 #include <oblo/nodes/common/math_nodes.hpp>
+#include <oblo/nodes/common/vec_nodes.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
 #include <oblo/properties/property_registry.hpp>
@@ -268,6 +269,12 @@ namespace oblo
                     });
 
                 tree.add_node(root,
+                    ast_type_declaration{
+                        .name = script_api::vec3_t,
+                        .size = sizeof(f32) * 3,
+                    });
+
+                tree.add_node(root,
                     ast_function_declaration{
                         .name = script_api::get_time,
                         .returnType = script_api::f32_t,
@@ -283,6 +290,18 @@ namespace oblo
                     ast_function_declaration{
                         .name = script_api::ecs::get_property_f32,
                         .returnType = script_api::f32_t,
+                    });
+
+                tree.add_node(root,
+                    ast_function_declaration{
+                        .name = script_api::ecs::get_property_vec3,
+                        .returnType = script_api::vec3_t,
+                    });
+
+                tree.add_node(root,
+                    ast_function_declaration{
+                        .name = script_api::ecs::set_property_vec3,
+                        .returnType = script_api::void_t,
                     });
 
                 return true;
@@ -348,7 +367,8 @@ namespace oblo
             success =
                 m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>()) &&
                 m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::i32>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>());
+                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>()) &&
+                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::vec3>());
 
             // Nodes
             success = m_scriptRegistry.register_node(make_node_descriptor<input_node>()) && success;
@@ -356,6 +376,9 @@ namespace oblo
             success = m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>()) && success;
             success = m_scriptRegistry.register_node(make_node_descriptor<i32_constant_node>()) && success;
             success = m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>()) && success;
+            success = m_scriptRegistry.register_node(make_node_descriptor<vec3_constant_node>()) && success;
+
+            success = m_scriptRegistry.register_node(make_node_descriptor<vec_nodes::make_vec3_node>()) && success;
 
             success = m_scriptRegistry.register_node(make_node_descriptor<add_operator>()) && success;
             success = m_scriptRegistry.register_node(make_node_descriptor<mul_operator>()) && success;
@@ -402,14 +425,31 @@ namespace oblo
                             instantiate_node_fn instantiateGetFn{};
                             instantiate_node_fn instantiateSetFn{};
 
+                            bool useParentNodeAsProperty = false;
+
                             switch (property.kind)
                             {
                             case property_kind::boolean:
                                 break;
 
                             case property_kind::f32:
-                                instantiateGetFn = instantiate_get_property_node<node_primitive_kind::f32>;
-                                instantiateSetFn = instantiate_set_property_node<node_primitive_kind::f32>;
+                                if (propertyTree->nodes[property.parent].type == get_type_id<vec3>())
+                                {
+                                    if (property.name != "x")
+                                    {
+                                        break;
+                                    }
+
+                                    instantiateGetFn = instantiate_get_property_node<node_primitive_kind::vec3>;
+                                    instantiateSetFn = instantiate_set_property_node<node_primitive_kind::vec3>;
+                                    useParentNodeAsProperty = true;
+                                }
+                                else
+                                {
+                                    instantiateGetFn = instantiate_get_property_node<node_primitive_kind::f32>;
+                                    instantiateSetFn = instantiate_set_property_node<node_primitive_kind::f32>;
+                                }
+
                                 break;
 
                             case property_kind::i32:
@@ -425,7 +465,15 @@ namespace oblo
                             }
 
                             propertyPath.clear();
-                            create_property_path(propertyPath, *propertyTree, property);
+
+                            if (useParentNodeAsProperty)
+                            {
+                                create_property_path(propertyPath, *propertyTree, propertyTree->nodes[property.parent]);
+                            }
+                            else
+                            {
+                                create_property_path(propertyPath, *propertyTree, property);
+                            }
 
                             const ecs_property_userdata userdata{
                                 .componentType = typeData.type,

@@ -24,8 +24,8 @@ namespace oblo
             const uuid lhsInType = g.get_incoming_type(lhs);
             const uuid rhsInType = g.get_incoming_type(rhs);
 
-            const uuid outType = g.find_promotion_rule(lhsInType.is_nil() ? defaultIfMissing : defaultIfMissing,
-                rhsInType.is_nil() ? defaultIfMissing : defaultIfMissing);
+            const uuid outType = g.find_promotion_rule(lhsInType.is_nil() ? defaultIfMissing : lhsInType,
+                rhsInType.is_nil() ? defaultIfMissing : rhsInType);
 
             g.set_deduced_type(lhs, outType);
             g.set_deduced_type(rhs, outType);
@@ -208,6 +208,11 @@ namespace oblo
                     if (outType == get_node_primitive_type_id<node_primitive_kind::f32>())
                     {
                         return ast_binary_operator_kind::mul_f32;
+                    }
+
+                    if (outType == get_node_primitive_type_id<node_primitive_kind::vec3>())
+                    {
+                        return ast_binary_operator_kind::mul_vec3;
                     }
 
                     return unspecified_error;

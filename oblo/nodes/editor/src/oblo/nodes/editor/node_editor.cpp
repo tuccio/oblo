@@ -11,6 +11,7 @@
 #include <oblo/editor/ui/property_table.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2i.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/nodes/editor/node_editor.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph.hpp>
@@ -140,10 +141,8 @@ namespace oblo
         }
 
         template <typename T>
-        bool handle_property(oblo::data_document& propertiesDoc,
-            const oblo::u32 propertyChild,
-            oblo::hashed_string_view propertyName,
-            T& value)
+        bool handle_property(
+            oblo::data_document& propertiesDoc, const u32 propertyChild, hashed_string_view propertyName, T& value)
         {
             const bool modified =
                 editor::ui::property_table::add(ImGui::GetID(propertyName.begin(), propertyName.end()),
@@ -161,6 +160,37 @@ namespace oblo
                 else
                 {
                     propertiesDoc.make_value(propertyChild, w);
+                }
+            }
+
+            return modified;
+        }
+
+        template <>
+        bool handle_property<vec3>(
+            oblo::data_document& propertiesDoc, const u32 propertyChild, hashed_string_view propertyName, vec3& value)
+        {
+            const bool modified =
+                editor::ui::property_table::add(ImGui::GetID(propertyName.begin(), propertyName.end()),
+                    propertyName,
+                    value);
+
+            if (modified)
+            {
+                if (propertyChild == data_node::Invalid)
+                {
+                    propertiesDoc.child_array(propertiesDoc.get_root(), propertyName);
+                }
+                else
+                {
+                    propertiesDoc.make_array(propertyChild);
+                }
+
+                for (u32 i = 0; i < 3; ++i)
+                {
+                    const u32 v = propertiesDoc.array_push_back(propertyChild);
+                    const property_value_wrapper w{value[i]};
+                    propertiesDoc.make_value(v, w);
                 }
             }
 
@@ -191,6 +221,23 @@ namespace oblo
 
             case node_primitive_kind::boolean: {
                 bool value = propertiesDoc.read_bool(propertyChild).value_or(false);
+                modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
+            }
+            break;
+
+            case node_primitive_kind::vec3: {
+                vec3 value{};
+
+                if (propertiesDoc.is_array(propertyChild) && propertiesDoc.children_count(propertyChild) == 3)
+                {
+                    u32 i = 0;
+
+                    for (const auto e : propertiesDoc.children(propertyChild))
+                    {
+                        value[i++] = propertiesDoc.read_f32(e).value_or(0.f);
+                    }
+                }
+
                 modified |= handle_property(propertiesDoc, propertyChild, propertyName, value);
             }
             break;
@@ -1060,13 +1107,9 @@ namespace oblo
                         }
                     }
 
-                    bool currentlyExpanded = true;
-
                     for (usize d = commonDepth; d < lastCategory.directory.size(); ++d)
                     {
-                        currentlyExpanded = isExpanded[d];
-
-                        if (!currentlyExpanded)
+                        if (!isExpanded[d])
                         {
                             break;
                         }
@@ -1075,6 +1118,10 @@ namespace oblo
                     }
 
                     isExpanded.resize(commonDepth);
+
+                    bool currentlyExpanded =
+                        std::all_of(isExpanded.begin(), isExpanded.end(), [](bool v) { return v; });
+
                     isExpanded.resize(thisCategory.directory.size());
 
                     for (usize d = commonDepth; d < thisCategory.directory.size(); ++d)
@@ -1093,13 +1140,6 @@ namespace oblo
 
                 if (!isExpanded.empty() && isExpanded.back())
                 {
-                    if (string_view{desc.name}.ends_with("far"))
-                    {
-                        while (0)
-                        {
-                        };
-                    }
-
                     if (ImGui::TreeNodeEx(desc.name.c_str(), ImGuiTreeNodeFlags_Leaf))
                     {
                         ImGui::TreePop();

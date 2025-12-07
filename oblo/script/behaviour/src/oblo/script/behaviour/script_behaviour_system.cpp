@@ -9,6 +9,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
@@ -66,8 +67,14 @@ namespace oblo
             i.register_api(
                 script_api::ecs::get_property_f32,
                 [this](interpreter& interp) { return ecs_get_property_impl<f32>(interp); },
-                script_string_ref_size() * 2 + sizeof(f32),
+                script_string_ref_size() * 2,
                 sizeof(f32));
+
+            i.register_api(
+                script_api::ecs::set_property_vec3,
+                [this](interpreter& interp) { return ecs_set_property_vec3(interp); },
+                script_string_ref_size() * 2 + sizeof(u32) + 3 * sizeof(f32),
+                0);
         }
 
         script_api_context& global_context()
@@ -129,6 +136,69 @@ namespace oblo
             return no_error;
         }
 
+        expected<void, interpreter_error> ecs_set_property_vec3(interpreter& interp)
+        {
+            const expected componentType = interp.get_string_view(0);
+            const expected property = interp.get_string_view(script_string_ref_size());
+            const expected mask = interp.read_u32(2 * script_string_ref_size());
+
+            if (!componentType || !property)
+            {
+                return interpreter_error::invalid_arguments;
+            }
+
+            const u32 valueOffset = u32(2 * script_string_ref_size() + sizeof(u32));
+
+            const expected<f32, interpreter_error> inData[3] = {
+                interp.read_f32(valueOffset),
+                interp.read_f32(valueOffset + sizeof(f32)),
+                interp.read_f32(valueOffset + sizeof(f32) * 2),
+            };
+
+            for (u32 i = 0; i < 3; ++i)
+            {
+                if (!inData[i])
+                {
+                    return inData[i].error();
+                }
+            }
+
+            const property_node* propertyData{};
+            const expected propertyPtr = fetch_component_property_node_ptr(*componentType, *property, &propertyData);
+
+            if (!propertyPtr)
+            {
+                return propertyPtr.error();
+            }
+
+            if (propertyData->type != get_type_id<vec3>())
+            {
+                return interpreter_error::invalid_arguments;
+            }
+
+            const u32 valuesMask = *mask;
+
+            if (valuesMask != 0)
+            {
+                for (u32 i = 0, iMask = 1; i < 3; ++i, iMask <<= 1)
+                {
+                    if ((iMask & valuesMask) == 0)
+                    {
+                        continue;
+                    }
+
+                    byte* const dst = *propertyPtr + i * sizeof(f32);
+                    const f32* const src = &*inData[i];
+
+                    std::memcpy(dst, src, sizeof(f32));
+                }
+
+                m_entities->notify(m_ctx.entityId);
+            }
+
+            return no_error;
+        }
+
         template <typename T>
         expected<void, interpreter_error> ecs_get_property_impl(interpreter& interp)
         {
@@ -153,16 +223,19 @@ namespace oblo
         OBLO_FORCEINLINE expected<byte*, interpreter_error> fetch_component_property_ptr(
             string_view componentType, string_view property, const oblo::property** outProperty = nullptr)
         {
-            const auto entry =
-                get_or_add_to_cache(hashed_string_view{componentType}, property, m_entities->get_type_registry());
+            const auto entry = get_or_add_to_cache(hashed_string_view{componentType},
+                property,
+                m_entities->get_type_registry(),
+                property_entry_kind::property);
 
-            if (!entry.tree || entry.propertyIdx >= entry.tree->properties.size()) [[unlikely]]
+            if (!entry.tree || entry.kind != property_entry_kind::property ||
+                entry.index >= entry.tree->properties.size()) [[unlikely]]
             {
                 log::error("Failed to locate property {}::{}", componentType, property);
                 return interpreter_error::invalid_arguments;
             }
 
-            const auto& propertyData = entry.tree->properties[entry.propertyIdx];
+            const auto& propertyData = entry.tree->properties[entry.index];
 
             if (propertyData.kind == property_kind::string)
             {
@@ -188,19 +261,65 @@ namespace oblo
             return componentPtr[0] + propertyData.offset;
         }
 
+        OBLO_FORCEINLINE expected<byte*, interpreter_error> fetch_component_property_node_ptr(
+            string_view componentType, string_view property, const property_node** outPropertyNode = nullptr)
+        {
+            const auto entry = get_or_add_to_cache(hashed_string_view{componentType},
+                property,
+                m_entities->get_type_registry(),
+                property_entry_kind::property_node);
+
+            if (!entry.tree || entry.kind != property_entry_kind::property_node ||
+                entry.index >= entry.tree->nodes.size()) [[unlikely]]
+            {
+                log::error("Failed to locate property {}::{}", componentType, property);
+                return interpreter_error::invalid_arguments;
+            }
+
+            const auto& propertyData = entry.tree->nodes[entry.index];
+
+            byte* componentPtr[1];
+            const ecs::component_type types[1] = {entry.componentId};
+            m_entities->get(m_ctx.entityId, types, componentPtr);
+
+            if (!componentPtr[0])
+            {
+                log::debug("Entity {} has no component {}", m_ctx.entityId.value, componentType);
+                return interpreter_error::invalid_arguments;
+            }
+
+            if (outPropertyNode)
+            {
+                *outPropertyNode = &propertyData;
+            }
+
+            return componentPtr[0] + propertyData.offset;
+        }
+
     private:
         using property_hash = usize;
+
+        enum class property_entry_kind : u8
+        {
+            none,
+            property,
+            property_node,
+            enum_max,
+        };
 
         struct property_entry
         {
             const property_tree* tree;
             ecs::component_type componentId;
-            u32 propertyIdx;
+            u32 index;
+            property_entry_kind kind;
         };
 
     private:
-        property_entry get_or_add_to_cache(
-            hashed_string_view typeName, string_view property, const ecs::type_registry& types)
+        property_entry get_or_add_to_cache(hashed_string_view typeName,
+            string_view property,
+            const ecs::type_registry& types,
+            flags<property_entry_kind> searchFlags)
         {
             const property_hash propertyHash = hash_all<hash>(typeName, property);
 
@@ -224,26 +343,56 @@ namespace oblo
 
                 string_builder builder;
 
-                for (u32 propertyIdx = 0; propertyIdx < tree->properties.size32(); ++propertyIdx)
+                if (searchFlags.contains(property_entry_kind::property))
                 {
-                    builder.clear();
-                    create_property_path(builder, *tree, tree->properties[propertyIdx]);
-
-                    const property_hash newPropertyHash = hash_all<hash>(typeId, builder);
-
-                    auto& newProperty = m_componentProperties[newPropertyHash];
-
-                    if (newProperty.tree) [[unlikely]]
+                    for (u32 propertyIdx = 0; propertyIdx < tree->properties.size32(); ++propertyIdx)
                     {
-                        log::error("A hash conflict between properties was detected");
-                        continue;
-                    }
+                        builder.clear();
+                        create_property_path(builder, *tree, tree->properties[propertyIdx]);
 
-                    newProperty = property_entry{
-                        .tree = tree,
-                        .componentId = componentId,
-                        .propertyIdx = propertyIdx,
-                    };
+                        const property_hash newPropertyHash = hash_all<hash>(typeId, builder);
+
+                        auto& newProperty = m_componentProperties[newPropertyHash];
+
+                        if (newProperty.tree) [[unlikely]]
+                        {
+                            log::error("A hash conflict between properties was detected");
+                            continue;
+                        }
+
+                        newProperty = property_entry{
+                            .tree = tree,
+                            .componentId = componentId,
+                            .index = propertyIdx,
+                            .kind = property_entry_kind::property,
+                        };
+                    }
+                }
+
+                if (searchFlags.contains(property_entry_kind::property_node))
+                {
+                    for (u32 propertyNodeIdx = 0; propertyNodeIdx < tree->nodes.size32(); ++propertyNodeIdx)
+                    {
+                        builder.clear();
+                        create_property_path(builder, *tree, tree->nodes[propertyNodeIdx]);
+
+                        const property_hash newPropertyHash = hash_all<hash>(typeId, builder);
+
+                        auto& newProperty = m_componentProperties[newPropertyHash];
+
+                        if (newProperty.tree) [[unlikely]]
+                        {
+                            log::error("A hash conflict between properties was detected");
+                            continue;
+                        }
+
+                        newProperty = property_entry{
+                            .tree = tree,
+                            .componentId = componentId,
+                            .index = propertyNodeIdx,
+                            .kind = property_entry_kind::property_node,
+                        };
+                    }
                 }
             }
 

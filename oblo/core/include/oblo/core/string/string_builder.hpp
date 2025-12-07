@@ -76,6 +76,7 @@ namespace oblo
         string_builder& trim_end();
 
         string_builder& clear();
+        string_builder& pop_back();
 
         const char* c_str() const;
         const char* data() const;
@@ -220,6 +221,13 @@ namespace oblo
     OBLO_FORCEINLINE string_builder& string_builder::clear()
     {
         m_buffer.assign(1u, '\0');
+        return *this;
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::pop_back()
+    {
+        m_buffer.pop_back();
+        m_buffer.back() = '\0';
         return *this;
     }
 

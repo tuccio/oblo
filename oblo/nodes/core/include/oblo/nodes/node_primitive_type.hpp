@@ -10,6 +10,7 @@ namespace oblo
         boolean,
         i32,
         f32,
+        vec3,
         enum_max,
     };
 

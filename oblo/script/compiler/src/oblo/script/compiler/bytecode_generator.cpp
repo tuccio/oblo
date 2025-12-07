@@ -24,24 +24,44 @@ namespace oblo
 
         expected<u8> handle_intrinsic_function(bytecode_module& m, hashed_string_view name)
         {
-            if (name == "__intrin_sin"_hsv)
+            if (name == "__intrin_sin_f32"_hsv)
             {
-                m.text.push_back({.op = bytecode_op::sin_f32});
+                m.text.push_back({.op = bytecode_op::sin_vec_f32, .payload = lo16(1u)});
                 return sizeof(f32);
             }
-            else if (name == "__intrin_cos"_hsv)
+            else if (name == "__intrin_cos_f32"_hsv)
             {
-                m.text.push_back({.op = bytecode_op::cos_f32});
+                m.text.push_back({.op = bytecode_op::cos_vec_f32, .payload = lo16(1u)});
                 return sizeof(f32);
             }
-            else if (name == "__intrin_tan"_hsv)
+            else if (name == "__intrin_tan_f32"_hsv)
             {
-                m.text.push_back({.op = bytecode_op::tan_f32});
+                m.text.push_back({.op = bytecode_op::tan_vec_f32, .payload = lo16(1u)});
                 return sizeof(f32);
             }
-            else if (name == "__intrin_atan"_hsv)
+            else if (name == "__intrin_atan_f32"_hsv)
             {
-                m.text.push_back({.op = bytecode_op::atan_f32});
+                m.text.push_back({.op = bytecode_op::atan_vec_f32, .payload = lo16(1u)});
+                return sizeof(f32);
+            }
+            else if (name == "__intrin_sin_vec3"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::sin_vec_f32, .payload = lo16(3u)});
+                return sizeof(f32);
+            }
+            else if (name == "__intrin_cos_vec3"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::cos_vec_f32, .payload = lo16(3u)});
+                return sizeof(f32);
+            }
+            else if (name == "__intrin_tan_vec3"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::tan_vec_f32, .payload = lo16(3u)});
+                return sizeof(f32);
+            }
+            else if (name == "__intrin_atan_vec3"_hsv)
+            {
+                m.text.push_back({.op = bytecode_op::atan_vec_f32, .payload = lo16(3u)});
                 return sizeof(f32);
             }
             else
@@ -217,6 +237,34 @@ namespace oblo
 
                     switch (n.kind)
                     {
+                    case ast_node_kind::i32_constant:
+                        [[fallthrough]];
+                    case ast_node_kind::u32_constant: {
+                        u32 val;
+
+                        switch (n.kind)
+                        {
+                        case ast_node_kind::i32_constant:
+                            val = std::bit_cast<u32>(n.node.i32.value);
+                            break;
+                        case ast_node_kind::u32_constant:
+                            val = std::bit_cast<u32>(n.node.u32.value);
+                            break;
+                        default:
+                            unreachable();
+                        }
+
+                        m.text.push_back({.op = bytecode_op::push_32lo16, .payload = lo16(val)});
+
+                        if (const auto hi = hi16(val); hi.data != 0)
+                        {
+                            m.text.push_back({.op = bytecode_op::or_32hi16, .payload = hi16(val)});
+                        }
+
+                        thisNodeInfo.expressionResultSize = sizeof(u32);
+                    }
+                    break;
+
                     case ast_node_kind::f32_constant: {
                         const u32 val = std::bit_cast<u32>(n.node.f32.value);
 
@@ -253,13 +301,18 @@ namespace oblo
                             break;
 
                         case ast_binary_operator_kind::mul_f32:
-                            m.text.push_back({.op = bytecode_op::mul_f32});
+                            m.text.push_back({.op = bytecode_op::mul_vec_f32, .payload = lo16(1u)});
                             thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
                         case ast_binary_operator_kind::div_f32:
                             m.text.push_back({.op = bytecode_op::div_f32});
                             thisNodeInfo.expressionResultSize = sizeof(f32);
+                            break;
+
+                        case ast_binary_operator_kind::mul_vec3:
+                            m.text.push_back({.op = bytecode_op::mul_vec_f32, .payload = lo16(3u)});
+                            thisNodeInfo.expressionResultSize = 3 * sizeof(f32);
                             break;
 
                         default:

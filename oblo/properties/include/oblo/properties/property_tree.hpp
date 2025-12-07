@@ -65,4 +65,5 @@ namespace oblo
     class string_builder;
 
     void create_property_path(string_builder& builder, const property_tree& tree, const property& property);
+    void create_property_path(string_builder& builder, const property_tree& tree, const property_node& property);
 }

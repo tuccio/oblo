@@ -25,6 +25,12 @@ namespace oblo
         return "a2a92ae2-84e2-42f3-9887-c8c48b4798b6"_uuid;
     }
 
+    template <>
+    constexpr uuid get_node_primitive_type_id<node_primitive_kind::vec3>()
+    {
+        return "1cb27563-aeb8-42ee-8337-19fc7cfb20f1"_uuid;
+    }
+
     template <node_primitive_kind Kind>
     constexpr cstring_view get_node_primitive_type_name();
 
@@ -44,6 +50,12 @@ namespace oblo
     inline constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::f32>()
     {
         return "f32";
+    }
+
+    template <>
+    inline constexpr cstring_view get_node_primitive_type_name<node_primitive_kind::vec3>()
+    {
+        return "vec3";
     }
 
     template <node_primitive_kind Kind>

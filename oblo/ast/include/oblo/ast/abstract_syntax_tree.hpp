@@ -44,6 +44,10 @@ namespace oblo
         div_f32,
         mul_f32,
         sub_f32,
+        add_vec3,
+        div_vec3,
+        mul_vec3,
+        sub_vec3,
     };
 
     struct ast_root
@@ -234,6 +238,7 @@ namespace oblo
 
         void reparent(h32<ast_node> node, h32<ast_node> newParent);
         void reparent_first(h32<ast_node> node, h32<ast_node> newParent);
+        void swap_subtrees(h32<ast_node> lhs, h32<ast_node> rhs);
 
         /// @brief Removes the links of the node from its parent, without destroying the node or the subtree, but
         /// effectively excluding it from visits.
@@ -246,6 +251,8 @@ namespace oblo
 
         const ast_node& get(h32<ast_node> node) const;
         ast_node& get(h32<ast_node> node);
+
+        u32 get_nodes_count() const;
 
     private:
         void link_parent(h32<ast_node> parent, h32<ast_node> child);

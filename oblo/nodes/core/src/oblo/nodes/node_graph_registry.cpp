@@ -100,6 +100,9 @@ namespace oblo
 
                 rule[u32(node_primitive_kind::i32)][u32(node_primitive_kind::f32)] = node_primitive_kind::f32;
                 rule[u32(node_primitive_kind::f32)][u32(node_primitive_kind::i32)] = node_primitive_kind::f32;
+
+                rule[u32(node_primitive_kind::f32)][u32(node_primitive_kind::vec3)] = node_primitive_kind::vec3;
+                rule[u32(node_primitive_kind::vec3)][u32(node_primitive_kind::f32)] = node_primitive_kind::vec3;
             }
 
             constexpr node_primitive_kind at(node_primitive_kind a, node_primitive_kind b) const

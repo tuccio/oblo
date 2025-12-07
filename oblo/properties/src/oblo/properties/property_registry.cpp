@@ -354,4 +354,14 @@ namespace oblo
         post_visit_append(builder, tree, property.parent);
         builder.append(property.name);
     }
+
+    void create_property_path(string_builder& builder, const property_tree& tree, const property_node& node)
+    {
+        post_visit_append(builder, tree, narrow_cast<u32>(&node - tree.nodes.data()));
+
+        if (builder.view().ends_with("."))
+        {
+            builder.pop_back();
+        }
+    }
 }
