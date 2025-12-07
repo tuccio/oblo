@@ -233,6 +233,68 @@ namespace oblo::ecs_nodes
             const std::span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>&) const override
         {
+            if (inputs[0])
+            {
+                const h32 callNode = generate_call_with_no_value(ast, parent, 0b111);
+
+                {
+                    const h32 valueParameter = ast.add_node(callNode,
+                        ast_function_argument{
+                            .name = "value"_hsv,
+                        });
+
+                    // Initialize the value on the stack
+                    h32 valueExpression = inputs[0];
+
+                    if (valueExpression)
+                    {
+                        const auto inType = g.get_incoming_type(m_input);
+
+                        if (inType != get_type_uuid())
+                        {
+                            valueExpression =
+                                ast_utils::make_type_conversion(ast, valueExpression, inType, get_type_uuid());
+                        }
+                    }
+                    else
+                    {
+                        valueExpression =
+                            ast_utils::make_default_value_child(ast, valueParameter, node_primitive_kind::vec3);
+                    }
+
+                    ast.reparent(valueExpression, valueParameter);
+                }
+            }
+
+            for (u32 i = 0; i < 3; ++i)
+            {
+                const h32 componentIn = inputs[i + 1];
+
+                if (componentIn)
+                {
+                    // The easiest way to implement it, far from the best: we splat the value and call the intrinsic
+                    const h32 setComponentNode = generate_call_with_no_value(ast, parent, 1u << i);
+
+                    const h32 valueParameter = ast.add_node(setComponentNode,
+                        ast_function_argument{
+                            .name = "value"_hsv,
+                        });
+
+                    const auto inType = g.get_incoming_type(m_components[i]);
+
+                    const h32 splatComponentNode =
+                        ast_utils::make_type_conversion(ast, componentIn, inType, get_type_uuid());
+
+                    ast.reparent(splatComponentNode, valueParameter);
+                }
+            }
+
+            return true;
+        }
+
+    private:
+        h32<ast_node> generate_call_with_no_value(abstract_syntax_tree& ast, h32<ast_node> parent, u32 mask) const
+        {
             const h32 callNode = ast.add_node(parent,
                 ast_function_call{
                     .name = script_api::ecs::set_property_vec3,
@@ -268,95 +330,13 @@ namespace oblo::ecs_nodes
                         .name = "mask"_hsv,
                     });
 
-                u32 mask = 0;
-
-                if (inputs[0])
-                {
-                    mask = 0b111;
-                }
-                else
-                {
-                    for (u32 i = 1; i < inputs.size(); ++i)
-                    {
-                        mask |= u32{bool{inputs[i]}} << (i - 1);
-                    }
-                }
-
                 ast.add_node(maskParameter,
                     ast_u32_constant{
                         .value = mask,
                     });
             }
 
-            {
-                const h32 valueParameter = ast.add_node(callNode,
-                    ast_function_argument{
-                        .name = "value"_hsv,
-                    });
-
-                // Initialize the value on the stack
-                h32 valueExpression = inputs[0];
-
-                if (valueExpression)
-                {
-                    const auto inType = g.get_incoming_type(m_input);
-
-                    if (inType != get_type_uuid())
-                    {
-                        valueExpression =
-                            ast_utils::make_type_conversion(ast, valueExpression, inType, get_type_uuid());
-                    }
-
-                    ast.reparent(valueExpression, valueParameter);
-                }
-                else
-                {
-                    valueExpression =
-                        ast_utils::make_default_value_child(ast, valueParameter, node_primitive_kind::vec3);
-                }
-
-                //if (!valueExpression)
-                //{
-                //    return false;
-                //}
-
-                //const auto& vec3Node = ast.get(valueExpression);
-
-                //if (vec3Node.kind != ast_node_kind::compound)
-                //{
-                //    return false;
-                //}
-
-                //buffered_array<h32<ast_node>, 3> componentsExpr;
-
-                //for (const h32 c : ast.children(valueExpression))
-                //{
-                //    componentsExpr.emplace_back(c);
-                //}
-
-                //if (componentsExpr.size() != 3)
-                //{
-                //    return false;
-                //}
-
-                //for (u32 i = 0; i < 3; ++i)
-                //{
-                //    const h32 componentIn = inputs[i + 1];
-                //    const h32 componentExpr = componentsExpr[i];
-
-                //    if (!componentExpr)
-                //    {
-                //        return false;
-                //    }
-
-                //    if (componentIn)
-                //    {
-                //        ast.swap_subtrees(componentIn, componentExpr);
-                //    }
-                //}
-            }
-
-            return true;
+            return callNode;
         }
 
     private:

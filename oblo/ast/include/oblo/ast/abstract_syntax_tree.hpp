@@ -252,6 +252,8 @@ namespace oblo
         const ast_node& get(h32<ast_node> node) const;
         ast_node& get(h32<ast_node> node);
 
+        u32 get_nodes_count() const;
+
     private:
         void link_parent(h32<ast_node> parent, h32<ast_node> child);
         void link_parent_first(h32<ast_node> parent, h32<ast_node> child);

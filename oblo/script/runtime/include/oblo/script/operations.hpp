@@ -94,7 +94,7 @@ namespace oblo
 
         div_f32,
 
-        // Trascendental functions
+        // Transcendental functions
         sin_vec_f32,
         cos_vec_f32,
         tan_vec_f32,

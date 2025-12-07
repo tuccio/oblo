@@ -23,9 +23,11 @@ namespace oblo::ast_utils
         {
             if (type == f32Type)
             {
+                const u32 uniqueId = ast.get_nodes_count();
+
                 // Splats the expression to the 3 components
                 string_builder builder;
-                builder.format("__vec3_to_f32_{}", expression.value);
+                builder.format("__vec3_to_f32_{}", uniqueId);
 
                 const auto varName = builder.as<hashed_string_view>();
 

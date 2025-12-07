@@ -187,7 +187,10 @@ namespace oblo
                         continue;
                     }
 
-                    std::memcpy(*propertyPtr + i * sizeof(f32), &*inData[i], sizeof(f32));
+                    byte* const dst = *propertyPtr + i * sizeof(f32);
+                    const f32* const src = &*inData[i];
+
+                    std::memcpy(dst, src, sizeof(f32));
                 }
 
                 m_entities->notify(m_ctx.entityId);

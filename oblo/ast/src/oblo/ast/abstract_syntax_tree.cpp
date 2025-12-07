@@ -207,4 +207,9 @@ namespace oblo
     {
         return m_nodes[node.value];
     }
+
+    u32 oblo::abstract_syntax_tree::get_nodes_count() const
+    {
+        return m_nodes.size32();
+    }
 }
