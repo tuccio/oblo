@@ -1,5 +1,6 @@
 from conan import ConanFile
 from conan.api.conan_api import ConanAPI
+from conan.api.model.list import ListPattern
 from conan.cli.cli import Cli
 from conan.tools.files import copy, mkdir
 from itertools import chain
@@ -120,15 +121,15 @@ class ObloConanRecipe(ConanFile):
 
         vulkanSdkVersion = "1.3.296.0"
 
-        if not conan_api.search.recipes(f"spirv-tools/{vulkanSdkVersion}"):
+        if not self._find_recipe(conan_api, f"spirv-tools/{vulkanSdkVersion}"):
             conan_cli.run(
                 ["export", f"{self.recipe_folder}/conan/recipes/spirv-tools", "--version", vulkanSdkVersion])
 
-        if not conan_api.search.recipes(f"glslang/{vulkanSdkVersion}"):
+        if not self._find_recipe(conan_api, f"glslang/{vulkanSdkVersion}"):
             conan_cli.run(
                 ["export", f"{self.recipe_folder}/conan/recipes/glslang", "--version", vulkanSdkVersion])
 
-        if not conan_api.search.recipes(f"dotnet-sdk/9.0.203"):
+        if not self._find_recipe(conan_api, f"dotnet-sdk/9.0.203"):
             conan_cli.run(
                 ["export", f"{self.recipe_folder}/conan/recipes/dotnet-sdk", "--version", "9.0.203"])
 
@@ -141,3 +142,10 @@ class ObloConanRecipe(ConanFile):
 
         copy(self, "*", _dotnet.cpp_info.components["hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
         copy(self, "*", _dotnet.cpp_info.components["runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
+
+    def _find_recipe(self, conan_api: ConanAPI, package_ref: str) -> bool:
+        try:
+            r = conan_api.list.select(ListPattern(package_ref))
+            return r != None
+        except:
+            return False
