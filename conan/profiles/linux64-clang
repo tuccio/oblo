@@ -6,3 +6,4 @@ compiler.version=19
 os=Linux
 [conf]
 tools.cmake.cmaketoolchain:extra_variables={"CMAKE_POLICY_VERSION_MINIMUM": "3.5"}
+tools.cmake.cmakedeps:new=will_break_next
