@@ -369,7 +369,6 @@ function(oblo_init_conan)
 
     if(NOT "${_conanfile_hash}" STREQUAL "${_last_hash}")
         file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
-        message(FAIL_REGULAR_EXPRESSION ${_last_hashfile})
     else()
         message(STATUS "Conan install skipped: no change detected")
         set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
