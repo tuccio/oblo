@@ -3,7 +3,7 @@ oblo_add_library(importers MODULE)
 find_package(assimp REQUIRED)
 find_package(meshoptimizer REQUIRED)
 find_package(stb REQUIRED)
-find_package(tinygltf REQUIRED)
+find_package(TinyGLTF REQUIRED)
 
 target_link_libraries(
     oblo_importers

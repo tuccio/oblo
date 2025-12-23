@@ -1,6 +1,6 @@
 oblo_add_library(vk_engine)
 
-find_package(Vulkan REQUIRED)
+find_package(VulkanHeaders REQUIRED)
 
 target_link_libraries(
     oblo_vk_engine
@@ -13,5 +13,5 @@ target_link_libraries(
     oblo::log
     oblo::vk
     oblo::vk_renderer
-    Vulkan::Vulkan
+    Vulkan::Headers
 )

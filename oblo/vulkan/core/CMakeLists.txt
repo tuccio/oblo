@@ -1,7 +1,7 @@
 oblo_add_library(vk)
 
-find_package(Vulkan REQUIRED)
-find_package(vulkan-memory-allocator REQUIRED)
+find_package(VulkanLoader REQUIRED)
+find_package(VulkanMemoryAllocator REQUIRED)
 
 target_link_libraries(
     oblo_vk
@@ -11,6 +11,6 @@ target_link_libraries(
     Vulkan::Headers
     PRIVATE
     oblo::log
-    Vulkan::Vulkan
-    vulkan-memory-allocator::vulkan-memory-allocator
+    Vulkan::Loader
+    GPUOpen::VulkanMemoryAllocator
 )
