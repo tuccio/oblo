@@ -5,6 +5,7 @@
 #include <oblo/core/platform/compiler.hpp>
 
 #include <type_traits>
+#include <utility>
 
 namespace oblo
 {

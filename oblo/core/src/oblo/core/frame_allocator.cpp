@@ -192,4 +192,40 @@ namespace oblo
     }
 }
 
+#elif defined(__linux__)
+
+    #include <cassert>
+    #include <sys/mman.h>
+    #include <unistd.h>
+
+namespace oblo
+{
+    namespace
+    {
+        void* virtual_memory_allocate(usize size)
+        {
+            void* const ptr = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            return ptr == MAP_FAILED ? nullptr : ptr;
+        }
+
+        void virtual_memory_free(void* ptr)
+        {
+            const int success = munmap(ptr, 0);
+            OBLO_ASSERT(success == 0);
+        }
+
+        bool virtual_memory_commit(void* ptr, usize size)
+        {
+            const int success = mprotect(ptr, size, PROT_READ | PROT_WRITE);
+            return success == 0;
+        }
+
+        bool virtual_memory_decommit(void* ptr, usize size)
+        {
+            const int success = mprotect(ptr, size, PROT_NONE);
+            return success == 0;
+        }
+    }
+}
+
 #endif
