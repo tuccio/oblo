@@ -17,40 +17,6 @@ namespace oblo::filesystem
 {
     namespace
     {
-        using posix_stat = struct ::stat;
-
-        expected<posix_stat> file_stat(const cstring_view& p)
-        {
-            posix_stat st{};
-
-            if (::stat(p.c_str(), &st) != 0)
-            {
-                return unspecified_error;
-            }
-
-            return st;
-        }
-
-        struct modification_tracker
-        {
-            decltype(posix_stat::st_mtime) modificationTime{};
-            decltype(posix_stat::st_size) size{};
-            u64 nameHash{};
-
-            bool operator==(const modification_tracker&) const = default;
-
-            static modification_tracker make(const cstring_view& p)
-            {
-                const auto st = file_stat(p).value_or(posix_stat{});
-
-                return modification_tracker{
-                    .modificationTime = st.st_mtime,
-                    .size = st.st_size,
-                    .nameHash = hash_xxh64(p.c_str(), p.size()),
-                };
-            }
-        };
-
         struct pending_rename_event
         {
             string_builder oldName;
@@ -134,8 +100,6 @@ namespace oblo::filesystem
             return unspecified_error;
         }
 
-        modification_tracker lastModification{};
-
         const ssize_t bytesRead = read(m_impl->inotifyFd, m_impl->buffer, sizeof(m_impl->buffer));
 
         if (bytesRead <= 0)
@@ -213,18 +177,6 @@ namespace oblo::filesystem
 
                 switch (kind)
                 {
-                case directory_watcher_event_kind::modified: {
-                    const auto newModification = modification_tracker::make(fullPath.c_str());
-                    sendEvent = newModification != lastModification;
-
-                    if (sendEvent)
-                    {
-                        lastModification = newModification;
-                    }
-
-                    break;
-                }
-
                 case directory_watcher_event_kind::renamed: {
                     e.previousName = pendingRename.mapped().oldName;
                     break;
