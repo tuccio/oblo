@@ -43,6 +43,8 @@ namespace oblo::platform
     private:
 #if WIN32
         void* m_hProcess{};
+#elif __linux__
+        int m_pid{-1};
 #endif
     };
 }

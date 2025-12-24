@@ -31,6 +31,8 @@ namespace oblo::filesystem
 
     expected<std::span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path);
 
+    expected<std::span<char>> load_text_file_into_memory(dynamic_array<char>& out, cstring_view path);
+
     expected<std::span<char>> load_text_file_into_memory(string_builder& out, cstring_view path);
 
     FILE* open_file(cstring_view path, const char* mode);

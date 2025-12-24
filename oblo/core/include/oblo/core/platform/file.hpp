@@ -16,6 +16,12 @@ namespace oblo::platform
             unspecified
         };
 
+#if WIN32
+        using native_handle = void*;
+#else
+        using native_handle = int;
+#endif
+
     public:
         file() noexcept;
         file(const file&) = delete;
@@ -35,11 +41,9 @@ namespace oblo::platform
 
         explicit operator bool() const noexcept;
 
-        void* get_native_handle() const noexcept;
+        native_handle get_native_handle() const noexcept;
 
     private:
-#if WIN32
-        void* m_handle{};
-#endif
+        native_handle m_handle{};
     };
 }

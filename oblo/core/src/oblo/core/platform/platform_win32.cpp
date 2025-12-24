@@ -330,7 +330,7 @@ namespace oblo::platform
         return m_handle != nullptr;
     }
 
-    void* file::get_native_handle() const noexcept
+    file::native_handle file::get_native_handle() const noexcept
     {
         return m_handle;
     }
