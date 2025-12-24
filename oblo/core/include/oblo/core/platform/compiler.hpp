@@ -26,6 +26,6 @@
 
     // Clang doesn't have MSVC's `intrinsic`, so we just leave it empty or define something custom
     #define OBLO_INTRINSIC
-    #define OBLO_FORCEINLINE_LAMBDA inline __attribute__((always_inline))
+    #define OBLO_FORCEINLINE_LAMBDA __attribute__((always_inline))
 
 #endif
