@@ -20,4 +20,13 @@ namespace oblo::platform
         return false;
 #endif
     }
+
+    consteval bool is_linux() noexcept
+    {
+#ifdef __linux__
+        return true;
+#else
+        return false;
+#endif
+    }
 }
