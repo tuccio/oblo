@@ -53,7 +53,7 @@ namespace oblo
 
     TEST(directory_watcher, watch_directory)
     {
-        for (bool isRecursive : {false})
+        for (bool isRecursive : {false, true})
         {
             EXPECT_TRUE(make_clear_directory("./directory_watcher_test/"));
 
@@ -77,7 +77,7 @@ namespace oblo
                     [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
                     {
                         ++eventsCount;
-                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::added};
                         modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
 
                         buffer.clear();
@@ -102,7 +102,7 @@ namespace oblo
                     [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
                     {
                         ++eventsCount;
-                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::added};
                         modifiedEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::modified};
 
                         buffer.clear();
@@ -126,7 +126,7 @@ namespace oblo
                     [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
                     {
                         ++eventsCount;
-                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+                        createdEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::added};
 
                         EXPECT_TRUE(filesystem::is_directory(evt.path));
                         EXPECT_EQ(filesystem::filename(evt.path), "bar");
@@ -146,7 +146,7 @@ namespace oblo
                     [&](const filesystem::directory_watcher_event& evt) OBLO_NOINLINE
                     {
                         ++eventsCount;
-                        createEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::created};
+                        createEvents += u32{evt.eventKind == filesystem::directory_watcher_event_kind::added};
                     }));
 
                 if (!isRecursive)
@@ -157,7 +157,8 @@ namespace oblo
                 }
                 else
                 {
-                    ASSERT_EQ(eventsCount, 3);
+                    constexpr u32 expectedEvents = platform::is_windows() ? 3 : 2;
+                    ASSERT_EQ(eventsCount, expectedEvents);
                     ASSERT_EQ(createEvents, 1);
                 }
             }

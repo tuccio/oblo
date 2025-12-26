@@ -21,20 +21,82 @@ namespace oblo::filesystem
         {
             string_builder oldName;
         };
+
     }
 
     struct directory_watcher::impl
     {
         int inotifyFd{-1};
-        int watchFd{-1};
         bool isRecursive{};
 
         string_builder path;
 
-        // Maps the cookie for a MOVE_FROM event, to keep track of the previous name
-        std::unordered_map<u32, pending_rename_event> pendingRenameEvents;
+        std::unordered_map<int, string_builder> watches;
 
         alignas(void*) u8 buffer[4096];
+
+        expected<> build_full_path(string_builder& out, int wd, cstring_view path)
+        {
+            const auto it = watches.find(wd);
+
+            if (it == watches.end())
+            {
+                return unspecified_error;
+            }
+
+            out = it->second;
+            out.append_path(path);
+            return no_error;
+        }
+
+        expected<> add_watch(cstring_view directoryPath)
+        {
+            static constexpr uint32_t mask =
+                IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO | IN_IGNORED;
+
+            {
+                const int fd = inotify_add_watch(inotifyFd, directoryPath.c_str(), mask);
+
+                if (fd < 0)
+                {
+                    return unspecified_error;
+                }
+
+                watches[fd] = directoryPath;
+            }
+
+            if (isRecursive)
+            {
+                string_builder buf;
+
+                const auto r = filesystem::walk(directoryPath,
+                    [this, &buf](const filesystem::walk_entry& e)
+                    {
+                        if (e.is_directory())
+                        {
+                            e.append_full_path(buf.clear());
+
+                            const int fd = inotify_add_watch(inotifyFd, buf.c_str(), mask);
+
+                            if (fd >= 0)
+                            {
+                                watches[fd] = buf.c_str();
+                            }
+                        }
+
+                        return walk_result::walk;
+                    });
+
+                return r;
+            }
+
+            return no_error;
+        }
+
+        void on_ignored_event(int wd)
+        {
+            watches.erase(wd);
+        }
     };
 
     directory_watcher::directory_watcher() = default;
@@ -59,36 +121,36 @@ namespace oblo::filesystem
         m_impl->path = builder.c_str();
 
         m_impl->inotifyFd = inotify_init1(IN_NONBLOCK);
+
         if (m_impl->inotifyFd < 0)
         {
             return unspecified_error;
         }
 
-        constexpr uint32_t mask = IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO;
+        const auto r = m_impl->add_watch(m_impl->path.c_str());
 
-        m_impl->watchFd = inotify_add_watch(m_impl->inotifyFd, m_impl->path.c_str(), mask);
-
-        if (m_impl->watchFd < 0)
+        if (!r)
         {
             shutdown();
-            return unspecified_error;
         }
 
-        return no_error;
+        return r;
     }
 
     void directory_watcher::shutdown()
     {
         if (m_impl)
         {
-            if (m_impl->watchFd >= 0)
+            for (const auto& [fd, path] : m_impl->watches)
             {
-                inotify_rm_watch(m_impl->inotifyFd, m_impl->watchFd);
+                inotify_rm_watch(m_impl->inotifyFd, fd);
             }
+
             if (m_impl->inotifyFd >= 0)
             {
                 close(m_impl->inotifyFd);
             }
+
             m_impl.reset();
         }
     }
@@ -113,18 +175,43 @@ namespace oblo::filesystem
 
         string_builder fullPath;
 
-        decltype(m_impl->pendingRenameEvents)::node_type pendingRename;
+        // Maps the cookie for a MOVE_FROM event, to keep track of the previous name
+        string_builder pendingRenameOldName;
+        int pendingRenameCookie{};
+
+        const auto try_flush_pending_moved_from = [&pendingRenameOldName, &pendingRenameCookie, &callback]
+        {
+            if (pendingRenameCookie == 0)
+            {
+                return;
+            }
+
+            const directory_watcher_event e{
+                .path = pendingRenameOldName,
+                .eventKind = directory_watcher_event_kind::removed,
+            };
+
+            callback(e);
+        };
 
         for (ssize_t offset = 0; offset < bytesRead;)
         {
-            const auto* const evt = reinterpret_cast<const inotify_event*>(m_impl->buffer + offset);
+            auto* const evt = reinterpret_cast<const inotify_event*>(m_impl->buffer + offset);
 
             directory_watcher_event_kind kind{};
             bool sendEvent{true};
 
             if (evt->mask & IN_CREATE)
             {
-                kind = directory_watcher_event_kind::created;
+                kind = directory_watcher_event_kind::added;
+
+                if (m_impl->isRecursive && evt->mask & IN_ISDIR)
+                {
+                    if (m_impl->build_full_path(fullPath, evt->wd, evt->name))
+                    {
+                        m_impl->add_watch(fullPath.as<cstring_view>()).assert_value();
+                    }
+                }
             }
             else if (evt->mask & IN_DELETE)
             {
@@ -138,27 +225,37 @@ namespace oblo::filesystem
             {
                 OBLO_ASSERT(evt->cookie != 0);
 
-                if (evt->cookie > 0 && evt->len > 0) [[likely]]
+                if (evt->cookie != 0 && evt->len > 0) [[likely]]
                 {
-                    auto& renameEvt = m_impl->pendingRenameEvents[evt->cookie];
-                    renameEvt.oldName.append(evt->name);
+                    try_flush_pending_moved_from();
+
+                    pendingRenameCookie = evt->cookie;
+                    pendingRenameOldName = evt->name;
                 }
 
                 sendEvent = false;
             }
             else if (evt->mask & IN_MOVED_TO)
             {
-                const auto it = m_impl->pendingRenameEvents.find(evt->cookie);
-
-                if (it != m_impl->pendingRenameEvents.end())
+                if (pendingRenameCookie == evt->cookie)
                 {
                     kind = directory_watcher_event_kind::renamed;
-                    pendingRename = m_impl->pendingRenameEvents.extract(it);
                 }
                 else
                 {
-                    sendEvent = false;
+                    kind = directory_watcher_event_kind::added;
                 }
+
+                if (m_impl->isRecursive && evt->mask & IN_ISDIR)
+                {
+                    // TODO: If a directory was moved from another directory into a watch dir, add it
+                    // TODO: If a directory was moved from a watch dir outside of the watch, remove it
+                }
+            }
+            else if (evt->mask & IN_IGNORED)
+            {
+                m_impl->on_ignored_event(evt->wd);
+                sendEvent = false;
             }
             else
             {
@@ -178,7 +275,7 @@ namespace oblo::filesystem
                 switch (kind)
                 {
                 case directory_watcher_event_kind::renamed: {
-                    e.previousName = pendingRename.mapped().oldName;
+                    e.previousName = pendingRenameOldName;
                     break;
                 }
 
@@ -195,6 +292,8 @@ namespace oblo::filesystem
             offset += sizeof(inotify_event) + evt->len;
         }
 
+        try_flush_pending_moved_from();
+
         return no_error;
     }
 
@@ -204,6 +303,7 @@ namespace oblo::filesystem
         {
             return {};
         }
+
         return m_impl->path;
     }
 }

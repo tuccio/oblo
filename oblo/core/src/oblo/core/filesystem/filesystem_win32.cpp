@@ -63,7 +63,7 @@ namespace oblo::filesystem
         return no_error;
     }
 
-    void walk_entry::filename(string_builder& out) const
+    void walk_entry::append_filename(string_builder& out) const
     {
         out.append(m_impl->ffd.cFileName);
     }

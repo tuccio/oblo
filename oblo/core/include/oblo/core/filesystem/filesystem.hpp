@@ -71,7 +71,8 @@ namespace oblo::filesystem
         walk_entry& operator=(const walk_entry&) = delete;
         walk_entry& operator=(walk_entry&&) noexcept = delete;
 
-        void filename(string_builder& out) const;
+        void append_filename(string_builder& out) const;
+        void append_full_path(string_builder& out) const;
 
         bool is_regular_file() const;
         bool is_directory() const;
