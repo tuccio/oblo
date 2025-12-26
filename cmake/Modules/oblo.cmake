@@ -147,6 +147,10 @@ function(_oblo_configure_cxx_target target)
         target_compile_definitions(${target} PUBLIC ${_oblo_cxx_compile_definitions})
         target_compile_options(${target} PRIVATE ${_oblo_cxx_compile_options})
     endif()
+
+    set_target_properties(${target} PROPERTIES
+        POSITION_INDEPENDENT_CODE TRUE
+    )
 endfunction()
 
 function(_oblo_add_codegen_dependency target)
