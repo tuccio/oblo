@@ -125,11 +125,21 @@ namespace oblo::platform
         return false;
     }
 
-    void* find_symbol(const char* name)
+    bool read_environment_variable(string_builder& out, cstring_view key)
     {
-        // TODO
-        OBLO_ASSERT(false, "Not implemented yet");
-        return nullptr;
+        const char* const result = getenv(key.c_str());
+
+        if (result)
+        {
+            out.append(result);
+        }
+
+        return result != nullptr;
+    }
+
+    bool read_environment_variable(cstring_view key, cstring_view value)
+    {
+        return setenv(key.c_str(), value.c_str(), 1) == 0;
     }
 
     process::process() = default;

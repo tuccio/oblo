@@ -116,11 +116,6 @@ namespace oblo::platform
         return false;
     }
 
-    void* find_symbol(const char* name)
-    {
-        return reinterpret_cast<void*>(GetProcAddress(g_moduleHandle, name));
-    }
-
     process::process() = default;
 
     process::process(process&& other) noexcept

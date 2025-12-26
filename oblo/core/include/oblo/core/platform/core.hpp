@@ -1,5 +1,11 @@
 #pragma once
 
+namespace oblo
+{
+    class cstring_view;
+    class string_builder;
+}
+
 namespace oblo::platform
 {
     bool init();
@@ -10,7 +16,8 @@ namespace oblo::platform
 
     void wait_for_attached_debugger();
 
-    void* find_symbol(const char* name);
+    [[nodiscard]] bool read_environment_variable(string_builder& out, cstring_view key);
+    [[nodiscard]] bool write_environment_variable(cstring_view key, cstring_view value);
 
     consteval bool is_windows() noexcept
     {
