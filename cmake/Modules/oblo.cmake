@@ -57,6 +57,18 @@ function(_oblo_find_source_files)
     set(_oblo_test_src ${_test_src} PARENT_SCOPE)
     set(_oblo_reflection_includes ${_reflection_includes} PARENT_SCOPE)
     set(_oblo_reflection_src PARENT_SCOPE)
+
+    if(WIN32)
+        set(_exclusionRegex "_(linux|posix)\\.cpp$")
+    elseif(LINUX)
+        set(_exclusionRegex "_win32\\.cpp$")
+    endif()
+
+    foreach(_var IN ITEMS _src _test_src)
+        set(_excluded "${${_var}}")
+        list(FILTER _copy INCLUDE REGEX "${_exclusionRegex}")
+        set_source_files_properties(${_excluded} PROPERTIES HEADER_FILE_ONLY TRUE)
+    endforeach()
 endfunction(_oblo_find_source_files)
 
 function(_oblo_add_source_files target)
