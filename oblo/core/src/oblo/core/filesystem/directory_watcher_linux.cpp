@@ -121,8 +121,8 @@ namespace oblo::filesystem
     private:
         bool add_watch_impl(const cstring_view& directoryPath)
         {
-            static constexpr uint32_t mask =
-                IN_CREATE | IN_DELETE | IN_CLOSE_WRITE | IN_MODIFY | IN_MOVED_FROM | IN_MOVED_TO | IN_IGNORED;
+            static constexpr uint32_t mask = IN_CREATE | IN_DELETE | IN_CLOSE_WRITE | IN_MODIFY | IN_MOVE_SELF |
+                IN_MOVED_FROM | IN_MOVED_TO | IN_IGNORED;
 
             const int wd = inotify_add_watch(inotifyFd, directoryPath.c_str(), mask);
 
@@ -274,10 +274,25 @@ namespace oblo::filesystem
             else if (evt->mask & IN_DELETE)
             {
                 kind = directory_watcher_event_kind::removed;
+
+                if (m_impl->build_full_path(fullPath, evt->wd, evt->name))
+                {
+                    m_impl->remove_watch_from_wd(evt->wd);
+                }
             }
             else if (evt->mask & (IN_MODIFY | IN_CLOSE_WRITE))
             {
                 kind = directory_watcher_event_kind::modified;
+            }
+            else if (evt->mask & IN_MOVE_SELF)
+            {
+                if (m_impl->isRecursive && evt->mask & IN_ISDIR)
+                {
+                    if (m_impl->build_full_path(fullPath, evt->wd, ""))
+                    {
+                        m_impl->remove_watch_from_wd(evt->wd);
+                    }
+                }
             }
             else if (evt->mask & IN_MOVED_FROM)
             {
@@ -301,11 +316,6 @@ namespace oblo::filesystem
                 if (pendingRename.cookie == evt->cookie)
                 {
                     kind = directory_watcher_event_kind::renamed;
-
-                    if (isWatchSubdir)
-                    {
-                        // TODO: Adjust the paths of the whole subtree if necessary
-                    }
                 }
                 else
                 {
