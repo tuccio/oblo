@@ -66,8 +66,11 @@ function(_oblo_find_source_files)
 
     foreach(_var IN ITEMS _src _test_src)
         set(_excluded "${${_var}}")
-        list(FILTER _copy INCLUDE REGEX "${_exclusionRegex}")
-        set_source_files_properties(${_excluded} PROPERTIES HEADER_FILE_ONLY TRUE)
+        list(FILTER _excluded INCLUDE REGEX "${_exclusionRegex}")
+
+        if(_excluded)
+            set_source_files_properties("${_excluded}" PROPERTIES HEADER_FILE_ONLY TRUE)
+        endif()
     endforeach()
 endfunction(_oblo_find_source_files)
 
