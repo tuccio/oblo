@@ -216,6 +216,27 @@ namespace oblo
                     .size = node.node.typeDecl.size,
                 };
 
+                switch (node.node.typeDecl.name.hash())
+                {
+                case "f32"_hsv.hash():
+                    g.append("using f32 = float;");
+                    g.new_line();
+                    break;
+
+                case "i32"_hsv.hash():
+                    g.append("using i32 =  int;");
+                    g.new_line();
+                    break;
+
+                case "u32"_hsv.hash():
+                    g.append("using u32 = unsigned int;");
+                    g.new_line();
+                    break;
+
+                default:
+                    break;
+                }
+
                 break;
 
             case ast_node_kind::function_declaration: {
@@ -278,6 +299,7 @@ namespace oblo
                 return unspecified_error;
             }
 
+            g.append("extern \"C\" ");
             g.append(fDecl.node.functionDecl.returnType);
             g.append(' ');
             g.append(fDecl.node.functionDecl.name);
@@ -364,9 +386,9 @@ namespace oblo
                                 return false;
                             }
 
-                            append_var_name(stmt, operands[1]);
-                            stmt.append(op);
                             append_var_name(stmt, operands[0]);
+                            stmt.append(op);
+                            append_var_name(stmt, operands[1]);
 
                             stmt.set_expression_type(type);
 

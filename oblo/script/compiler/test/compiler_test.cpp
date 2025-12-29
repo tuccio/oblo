@@ -1,5 +1,10 @@
 #include <oblo/ast/abstract_syntax_tree.hpp>
+#include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/platform/process.hpp>
+#include <oblo/core/platform/shared_library.hpp>
 #include <oblo/script/compiler/bytecode_generator.hpp>
+#include <oblo/script/compiler/cpp_compiler.hpp>
 #include <oblo/script/compiler/cpp_generator.hpp>
 #include <oblo/script/interpreter.hpp>
 
@@ -9,7 +14,7 @@ namespace oblo
 {
     namespace
     {
-        abstract_syntax_tree make_add_sub_f32_constants()
+        abstract_syntax_tree make_add_sub_f32_constants_ast()
         {
             abstract_syntax_tree ast;
             ast.init();
@@ -34,7 +39,7 @@ namespace oblo
 
     TEST(bytecode_generator, add_sub_f32_constants)
     {
-        const abstract_syntax_tree ast = make_add_sub_f32_constants();
+        const abstract_syntax_tree ast = make_add_sub_f32_constants_ast();
 
         bytecode_generator gen;
         const auto m = gen.generate_module(ast);
@@ -57,14 +62,68 @@ namespace oblo
         ASSERT_FLOAT_EQ(*r, 42.f);
     }
 
+    namespace
+    {
+        void compile_script(string_view code, cstring_view name, platform::shared_library& lib)
+        {
+            const auto compiler = cpp_compiler::find();
+            ASSERT_TRUE(compiler);
+
+            string_builder src;
+            src.format("{}.cpp", name);
+
+            ASSERT_TRUE(filesystem::write_file(src, as_bytes(std::span{code.data(), code.size()}), {}));
+
+            string_builder dst;
+            filesystem::current_path(dst);
+            dst.append_path_separator();
+            dst.format("{}.sharedlib", name);
+
+            dynamic_array<string> compilerArgs;
+
+            ASSERT_TRUE(compiler->make_shared_library_command_arguments(compilerArgs,
+                src.view(),
+                dst.view(),
+                {
+                    .optimizations = cpp_compiler::options::optimization_level::none,
+                }));
+
+            platform::process compile;
+
+            dynamic_array<cstring_view> argsArray;
+            argsArray.reserve(compilerArgs.size());
+
+            for (const auto& s : compilerArgs)
+            {
+                argsArray.emplace_back(s);
+            }
+
+            ASSERT_TRUE(compile.start({
+                .path = compiler->get_path(),
+                .arguments = argsArray,
+            }));
+
+            ASSERT_TRUE(compile.wait());
+
+            ASSERT_TRUE(lib.open(dst));
+        }
+    }
+
     TEST(cpp_generator, add_sub_f32_constants)
     {
-        const abstract_syntax_tree ast = make_add_sub_f32_constants();
+        const abstract_syntax_tree ast = make_add_sub_f32_constants_ast();
 
         cpp_generator gen;
         const auto code = gen.generate_code(ast);
         ASSERT_TRUE(code);
 
-        std::puts(code->c_str());
+        platform::shared_library lib;
+        compile_script(code->view(), "add_sub_f32_constants", lib);
+
+        const auto addFn = reinterpret_cast<f32 (*)()>(lib.symbol("add_sub"));
+        ASSERT_TRUE(addFn);
+
+        const f32 r = addFn();
+        ASSERT_EQ(r, 42.f);
     }
 }

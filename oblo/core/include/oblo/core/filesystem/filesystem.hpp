@@ -1,17 +1,12 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/forward.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
-namespace oblo
-{
-    class string_builder;
-
-    template <typename>
-    class function_ref;
-}
+#include <span>
 
 namespace oblo::filesystem
 {
@@ -48,6 +43,9 @@ namespace oblo::filesystem
     string_view filename(string_view path);
 
     void current_path(string_builder& out);
+
+    [[nodiscard]] bool search_file_in_paths(
+        string_builder& out, string_view fileName, std::span<const string_view> extraPaths);
 
     enum class walk_result : u8
     {
