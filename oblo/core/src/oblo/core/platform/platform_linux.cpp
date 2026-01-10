@@ -137,7 +137,7 @@ namespace oblo::platform
         return result != nullptr;
     }
 
-    bool read_environment_variable(cstring_view key, cstring_view value)
+    bool write_environment_variable(cstring_view key, cstring_view value)
     {
         return setenv(key.c_str(), value.c_str(), 1) == 0;
     }

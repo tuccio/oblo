@@ -7,6 +7,7 @@
     #include <oblo/core/platform/platform_win32.hpp>
     #include <oblo/core/platform/process.hpp>
     #include <oblo/core/platform/shell.hpp>
+    #include <oblo/core/string/utf.hpp>
     #include <oblo/core/uuid_generator.hpp>
 
     #include <utf8cpp/utf8.h>
@@ -114,6 +115,48 @@ namespace oblo::platform
         }
 
         return false;
+    }
+
+    bool read_environment_variable(string_builder& out, cstring_view key)
+    {
+        buffered_array<wchar_t, 64> wKeyBuffer;
+        buffered_array<wchar_t, 1024> wValueBuffer;
+
+        // Convert to wide chars and add null-terminator
+        utf8_to_wide(key, wKeyBuffer);
+        wKeyBuffer.emplace_back();
+
+        const DWORD len = GetEnvironmentVariableW(wKeyBuffer.data(), nullptr, 0);
+
+        if (len == 0)
+        {
+            return false;
+        }
+
+        wValueBuffer.resize(len);
+
+        if (GetEnvironmentVariableW(wKeyBuffer.data(), wValueBuffer.data(), wValueBuffer.size32()) == 0)
+        {
+            return false;
+        }
+
+        out.assign(wValueBuffer.data(), wValueBuffer.data() + wValueBuffer.size());
+        return true;
+    }
+
+    bool write_environment_variable(cstring_view key, cstring_view value)
+    {
+        buffered_array<wchar_t, 64> wKeyBuffer;
+        buffered_array<wchar_t, 1024> wValueBuffer;
+
+        // Convert to wide chars and add null-terminator
+        utf8_to_wide(key, wKeyBuffer);
+        wKeyBuffer.emplace_back();
+
+        utf8_to_wide(value, wValueBuffer);
+        wValueBuffer.emplace_back();
+
+        return SetEnvironmentVariableW(wKeyBuffer.data(), wValueBuffer.data()) == TRUE;
     }
 
     process::process() = default;
