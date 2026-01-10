@@ -13,8 +13,10 @@ namespace oblo
         return (x != 0) && ((x & (x - 1)) == 0);
     }
 
+#if _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4146)
+#endif
 
     template <std::unsigned_integral T>
     constexpr T align_power_of_two(T unaligned, T alignment)
@@ -23,7 +25,9 @@ namespace oblo
         return unaligned + (-unaligned & mask);
     }
 
+#if _MSC_VER
 #pragma warning(pop)
+#endif
 
     template <std::unsigned_integral T>
     constexpr T log2_round_down_power_of_two(T x)

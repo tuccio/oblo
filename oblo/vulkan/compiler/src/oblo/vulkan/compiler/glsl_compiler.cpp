@@ -307,8 +307,8 @@ namespace oblo::vk
 
                 glslang::SpvOptions spvOptions{};
                 spvOptions.generateDebugInfo = options.generateDebugInfo;
-                //spvOptions.emitNonSemanticShaderDebugInfo = options.generateDebugInfo;
-                //spvOptions.emitNonSemanticShaderDebugSource = options.generateDebugInfo;
+                // spvOptions.emitNonSemanticShaderDebugInfo = options.generateDebugInfo;
+                // spvOptions.emitNonSemanticShaderDebugSource = options.generateDebugInfo;
                 spvOptions.disableOptimizer = !options.codeOptimization;
 
                 constexpr bool forceDisableDebugInfo = false;
@@ -556,25 +556,16 @@ namespace oblo::vk
 
     bool glslc_compiler::find_glslc()
     {
-        buffered_array<char, 256> buf;
-        usize requiredSize{};
-
-        if (getenv_s(&requiredSize, nullptr, requiredSize, "VULKAN_SDK") == 0)
+        if (platform::read_environment_variable(m_glslcPath, "VULKAN_SDK"))
         {
-            buf.resize_default(requiredSize);
+            m_glslcPath.append_path("Bin").append_path("glslc");
 
-            if (getenv_s(&requiredSize, buf.data(), requiredSize, "VULKAN_SDK") == 0)
+            if constexpr (platform::is_windows())
             {
-                m_glslcPath.append(buf.begin(), buf.end());
-                m_glslcPath.append_path("Bin").append_path("glslc");
-
-                if constexpr (platform::is_windows())
-                {
-                    m_glslcPath.append(".exe");
-                }
-
-                return filesystem::exists(m_glslcPath).value_or(false);
+                m_glslcPath.append(".exe");
             }
+
+            return filesystem::exists(m_glslcPath).value_or(false);
         }
 
         return false;

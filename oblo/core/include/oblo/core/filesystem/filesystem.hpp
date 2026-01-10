@@ -31,7 +31,7 @@ namespace oblo::filesystem
 
     expected<bool> is_directory(cstring_view path);
 
-    expected<> absolute(cstring_view path, string_builder& out);
+    expected<> absolute(string_view path, string_builder& out);
 
     bool is_relative(string_view path);
 
@@ -71,7 +71,8 @@ namespace oblo::filesystem
         walk_entry& operator=(const walk_entry&) = delete;
         walk_entry& operator=(walk_entry&&) noexcept = delete;
 
-        void filename(string_builder& out) const;
+        void append_filename(string_builder& out) const;
+        void append_full_path(string_builder& out) const;
 
         bool is_regular_file() const;
         bool is_directory() const;

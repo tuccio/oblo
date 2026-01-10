@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <bit>
 
 #include <oblo/core/concepts/contiguous_container.hpp>

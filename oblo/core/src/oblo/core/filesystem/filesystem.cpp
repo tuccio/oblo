@@ -14,6 +14,12 @@ namespace oblo::filesystem
 {
     namespace
     {
+        void* allocate_impl(dynamic_array<char>& allocator, usize size, usize)
+        {
+            allocator.assign(size, char{});
+            return allocator.data();
+        }
+
         void* allocate_impl(dynamic_array<byte>& allocator, usize size, usize)
         {
             allocator.assign(size, byte{});
@@ -129,6 +135,11 @@ namespace oblo::filesystem
         }
 
         return res;
+    }
+
+    expected<std::span<char>> load_text_file_into_memory(dynamic_array<char>& out, cstring_view path)
+    {
+        return load_impl(out, path, "r", 1);
     }
 
     expected<std::span<char>> load_text_file_into_memory(string_builder& out, cstring_view path)
@@ -324,7 +335,7 @@ namespace oblo::filesystem
         return r;
     }
 
-    expected<> absolute(cstring_view path, string_builder& out)
+    expected<> absolute(string_view path, string_builder& out)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
         std::error_code ec;

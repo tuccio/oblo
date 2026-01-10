@@ -42,6 +42,12 @@ namespace oblo
             debug_assert_report(filename, lineNumber, message);
         }
     };
+
+#ifdef OBLO_ENABLE_ASSERT
+    constexpr bool assert_enabled = true;
+#else
+    constexpr bool assert_enabled = false;
+#endif
 }
 
 #if defined(_MSC_VER)

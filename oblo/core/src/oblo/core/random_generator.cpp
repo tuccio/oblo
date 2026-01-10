@@ -10,9 +10,14 @@
 
 namespace oblo
 {
-    struct random_generator::impl : std::mt19937
+    using underlying_random_generator = std::mt19937;
+
+    struct random_generator::impl : underlying_random_generator
     {
     };
+
+    static_assert(random_generator::min() == underlying_random_generator::min());
+    static_assert(random_generator::max() == underlying_random_generator::max());
 
     random_generator::random_generator() = default;
 
@@ -49,16 +54,6 @@ namespace oblo
     u32 random_generator::operator()()
     {
         return m_impl->operator()();
-    }
-
-    u32 random_generator::min()
-    {
-        return impl::min();
-    }
-
-    u32 random_generator::max()
-    {
-        return impl::max();
     }
 
     template <typename T>

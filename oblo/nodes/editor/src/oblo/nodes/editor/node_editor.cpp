@@ -3,8 +3,8 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
-#include <oblo/core/string/compare.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/utf.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>

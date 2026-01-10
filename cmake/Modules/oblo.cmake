@@ -57,6 +57,21 @@ function(_oblo_find_source_files)
     set(_oblo_test_src ${_test_src} PARENT_SCOPE)
     set(_oblo_reflection_includes ${_reflection_includes} PARENT_SCOPE)
     set(_oblo_reflection_src PARENT_SCOPE)
+
+    if(WIN32)
+        set(_exclusionRegex "_(linux|posix)\\.cpp$")
+    elseif(LINUX)
+        set(_exclusionRegex "_win32\\.cpp$")
+    endif()
+
+    foreach(_var IN ITEMS _src _test_src)
+        set(_excluded "${${_var}}")
+        list(FILTER _excluded INCLUDE REGEX "${_exclusionRegex}")
+
+        if(_excluded)
+            set_source_files_properties("${_excluded}" PROPERTIES HEADER_FILE_ONLY TRUE)
+        endif()
+    endforeach()
 endfunction(_oblo_find_source_files)
 
 function(_oblo_add_source_files target)
@@ -147,6 +162,10 @@ function(_oblo_configure_cxx_target target)
         target_compile_definitions(${target} PUBLIC ${_oblo_cxx_compile_definitions})
         target_compile_options(${target} PRIVATE ${_oblo_cxx_compile_options})
     endif()
+
+    set_target_properties(${target} PROPERTIES
+        POSITION_INDEPENDENT_CODE TRUE
+    )
 endfunction()
 
 function(_oblo_add_codegen_dependency target)
@@ -344,6 +363,10 @@ function(oblo_init_reflection)
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
 
+macro(_oblo_conan_get_last_install_hash_path varName)
+    set(${varName} "${CMAKE_BINARY_DIR}/conan/last_conan_install")
+endmacro()
+
 function(oblo_init_conan)
     if(OBLO_FORCE_CONAN_INSTALL)
         message(STATUS "Conan install will not be skipped due to CMake configuration")
@@ -352,7 +375,7 @@ function(oblo_init_conan)
 
     # Run conan install only if conanfile.py changed
     set(_conanfile "${CMAKE_SOURCE_DIR}/conanfile.py")
-    set(_last_hashfile "${CMAKE_BINARY_DIR}/conan/last_conan_install")
+    _oblo_conan_get_last_install_hash_path(_last_hashfile)
 
     if(NOT EXISTS "${_conanfile}")
         message(FATAL_ERROR "conanfile.py not found at ${_conanfile}")
@@ -367,12 +390,11 @@ function(oblo_init_conan)
         set(_last_hash "")
     endif()
 
-    if(NOT "${_conanfile_hash}" STREQUAL "${_last_hash}")
-        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
-        message(FAIL_REGULAR_EXPRESSION ${_last_hashfile})
-    else()
+    if("${_conanfile_hash}" STREQUAL "${_last_hash}")
         message(STATUS "Conan install skipped: no change detected")
         set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
+    else()
+        set_property(GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH "${_conanfile_hash}")
     endif()
 endfunction()
 
@@ -398,6 +420,20 @@ function(oblo_init)
         set(CMAKE_CONFIGURATION_TYPES Debug;Release PARENT_SCOPE)
     endif()
 endfunction(oblo_init)
+
+function(oblo_shutdown_conan)
+    get_property(_success GLOBAL PROPERTY CONAN_INSTALL_SUCCESS)
+
+    if(${_success})
+        get_property(_conanfile_hash GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH)
+        _oblo_conan_get_last_install_hash_path(_last_hashfile)
+        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
+    endif()
+endfunction()
+
+function(oblo_shutdown)
+    oblo_shutdown_conan()
+endfunction()
 
 function(oblo_set_target_folder target folder)
     string(TOUPPER ${folder} _upper)

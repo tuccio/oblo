@@ -17,9 +17,11 @@ find_package(GTest REQUIRED)
 # Setup 3rd parties built from source
 add_subdirectory(3rdparty)
 
-add_library(imgui::backend_win32 ALIAS imgui_backend_win32)
+add_library(imgui::backend ALIAS imgui_backend)
 
 # Finally setup our projects
 add_subdirectory(oblo)
 add_subdirectory(plugins)
 add_subdirectory(testing)
+
+oblo_shutdown()

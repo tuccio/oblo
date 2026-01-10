@@ -14,8 +14,42 @@
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
                 "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/oblo.cmake",
-                "CONAN_INSTALL_ARGS": "--build=missing;-o;oblo/*:is_multiconfig=$env{OBLO_CONAN_MULTICONFIG};-o;oblo/*:with_tracy=True;-o;oblo/*:with_dotnet=$env{OBLO_WITH_DOTNET}",
-                "OBLO_WITH_DOTNET": true
+                "CONAN_INSTALL_ARGS": "--build=missing;-o;oblo/*:is_multiconfig=$env{OBLO_CONAN_MULTICONFIG};-o;oblo/*:with_tracy=True;-o;oblo/*:with_dotnet=$env{OBLO_WITH_DOTNET}"
+            }
+        },
+        {
+            "name": "conf-linux-common",
+            "description": "General Linux settings",
+            "hidden": true,
+            "inherits": "conf-common",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "cacheVariables": {
+                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/linux-x64-clang",
+                "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/linux-x64-clang",
+                "OBLO_WITH_DOTNET": false
+            },
+            "environment": {
+                "OBLO_WITH_DOTNET": "False"
+            }
+        },
+        {
+            "name": "conf-windows-common",
+            "description": "General Windows settings",
+            "hidden": true,
+            "inherits": "conf-common",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "cacheVariables": {
+                "OBLO_WITH_DOTNET": true,
+                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/win-x64-msvc",
+                "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/win-x64-msvc"
             },
             "environment": {
                 "OBLO_WITH_DOTNET": "True"
@@ -25,12 +59,7 @@
             "name": "windows-vs2022",
             "description": "Settings for Visual Studio configurations",
             "generator": "Visual Studio 17 2022",
-            "inherits": "conf-common",
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            },
+            "inherits": "conf-windows-common",
             "environment": {
                 "OBLO_CONAN_MULTICONFIG": "True"
             },
@@ -41,36 +70,24 @@
         {
             "name": "conf-ninja",
             "description": "Settings for Ninja configurations",
-            "inherits": "conf-common",
             "hidden": true,
-            "generator": "Ninja",
+            "generator": "Ninja Multi-Config",
             "environment": {
-                "OBLO_CONAN_MULTICONFIG": "False"
+                "OBLO_CONAN_MULTICONFIG": "True"
             }
         },
         {
             "name": "conf-windows-ninja",
             "description": "Windows settings for MSBuild toolchain that apply to msvc and clang",
             "hidden": true,
-            "inherits": "conf-ninja",
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            },
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
-            },
-            "toolset": {
-                "value": "host=x64",
-                "strategy": "external"
-            }
+            "inherits": [
+                "conf-windows-common",
+                "conf-ninja"
+            ]
         },
         {
-            "name": "conf-windows-clang-cl",
+            "name": "windows-clang-cl",
             "description": "Windows settings for clang-cl",
-            "hidden": true,
             "inherits": "conf-windows-ninja",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "clang-cl",
@@ -78,53 +95,18 @@
             }
         },
         {
-            "name": "windows-clang-cl-debug",
-            "displayName": "Windows clang-cl Debug",
-            "description": "Windows clang-cl Debug",
-            "inherits": "conf-windows-clang-cl",
+            "name": "linux-clang",
+            "displayName": "Linux settings for clang",
+            "inherits": [ "conf-linux-common", "conf-ninja" ],
+            "generator": "Ninja Multi-Config",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/win64-msvc-Debug",
-                "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": true,
-                "OBLO_ENABLE_ASSERT": true,
-                "OBLO_DEBUG": true
-            }
-        },
-        {
-            "name": "windows-clang-cl-unoptimized",
-            "displayName": "Windows clang-cl Unoptimized",
-            "description": "Windows clang-cl Unoptimized",
-            "inherits": "conf-windows-clang-cl",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/win64-msvc-RelWithDebInfo",
-                "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": true,
-                "OBLO_ENABLE_ASSERT": true,
-                "OBLO_DEBUG": true
-            }
-        },
-        {
-            "name": "windows-clang-cl-optimized",
-            "displayName": "Windows clang-cl Optimized",
-            "description": "Windows clang-cl Optimized",
-            "inherits": "conf-windows-clang-cl",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/win64-msvc-Release",
-                "OBLO_ENABLE_ASSERT": false,
-                "OBLO_DEBUG": false
-            }
-        },
-        {
-            "name": "windows-clang-cl-optimized-debug-info",
-            "displayName": "Windows clang-cl Optimized with Debug Info",
-            "description": "Windows clang-cl Optimized with Debug Info",
-            "inherits": "conf-windows-clang-cl",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "OBLO_DISABLE_COMPILER_OPTIMIZATIONS": false,
-                "OBLO_ENABLE_ASSERT": false,
-                "OBLO_DEBUG": false
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
             }
         }
     ]

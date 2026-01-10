@@ -7,6 +7,7 @@
     #include <oblo/core/platform/platform_win32.hpp>
     #include <oblo/core/platform/process.hpp>
     #include <oblo/core/platform/shell.hpp>
+    #include <oblo/core/string/utf.hpp>
     #include <oblo/core/uuid_generator.hpp>
 
     #include <utf8cpp/utf8.h>
@@ -116,9 +117,46 @@ namespace oblo::platform
         return false;
     }
 
-    void* find_symbol(const char* name)
+    bool read_environment_variable(string_builder& out, cstring_view key)
     {
-        return reinterpret_cast<void*>(GetProcAddress(g_moduleHandle, name));
+        buffered_array<wchar_t, 64> wKeyBuffer;
+        buffered_array<wchar_t, 1024> wValueBuffer;
+
+        // Convert to wide chars and add null-terminator
+        utf8_to_wide(key, wKeyBuffer);
+        wKeyBuffer.emplace_back();
+
+        const DWORD len = GetEnvironmentVariableW(wKeyBuffer.data(), nullptr, 0);
+
+        if (len == 0)
+        {
+            return false;
+        }
+
+        wValueBuffer.resize(len);
+
+        if (GetEnvironmentVariableW(wKeyBuffer.data(), wValueBuffer.data(), wValueBuffer.size32()) == 0)
+        {
+            return false;
+        }
+
+        out.assign(wValueBuffer.data(), wValueBuffer.data() + wValueBuffer.size());
+        return true;
+    }
+
+    bool write_environment_variable(cstring_view key, cstring_view value)
+    {
+        buffered_array<wchar_t, 64> wKeyBuffer;
+        buffered_array<wchar_t, 1024> wValueBuffer;
+
+        // Convert to wide chars and add null-terminator
+        utf8_to_wide(key, wKeyBuffer);
+        wKeyBuffer.emplace_back();
+
+        utf8_to_wide(value, wValueBuffer);
+        wValueBuffer.emplace_back();
+
+        return SetEnvironmentVariableW(wKeyBuffer.data(), wValueBuffer.data()) == TRUE;
     }
 
     process::process() = default;
@@ -330,7 +368,7 @@ namespace oblo::platform
         return m_handle != nullptr;
     }
 
-    void* file::get_native_handle() const noexcept
+    file::native_handle file::get_native_handle() const noexcept
     {
         return m_handle;
     }

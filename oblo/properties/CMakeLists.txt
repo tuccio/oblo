@@ -1,6 +1,6 @@
 oblo_add_library(properties)
 
-find_package(rapidjson REQUIRED)
+find_package(RapidJSON REQUIRED)
 
 target_link_libraries(
     oblo_properties

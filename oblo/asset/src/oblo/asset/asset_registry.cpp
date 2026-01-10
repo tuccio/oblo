@@ -1467,7 +1467,7 @@ namespace oblo
                     {
                         switch (e.eventKind)
                         {
-                        case filesystem::directory_watcher_event_kind::created:
+                        case filesystem::directory_watcher_event_kind::added:
                             // We should check if the asset is in our map, and add it in case it is not
                             if (e.path.ends_with(AssetMetaExtension) && load_asset_meta(meta, e.path))
                             {

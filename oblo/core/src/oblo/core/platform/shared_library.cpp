@@ -5,6 +5,8 @@
     #include <Windows.h>
 
     #include <oblo/core/platform/platform_win32.hpp>
+#elif defined(__linux__)
+    #include <dlfcn.h>
 #endif
 
 namespace oblo::platform
@@ -41,10 +43,10 @@ namespace oblo::platform
         win32::convert_path(path, buf);
 
         m_handle = LoadLibraryW(buf);
-        return m_handle != nullptr;
 #else
-    #error "Not implemented"
+        m_handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif
+        return m_handle != nullptr;
     }
 
     void shared_library::close()
@@ -54,7 +56,7 @@ namespace oblo::platform
 #ifdef _WIN32
             FreeLibrary(HMODULE(m_handle));
 #else
-    #error "Not implemented"
+            dlclose(m_handle);
 #endif
             m_handle = nullptr;
         }
@@ -80,7 +82,7 @@ namespace oblo::platform
 #ifdef _WIN32
         return reinterpret_cast<void*>(GetProcAddress(HMODULE(m_handle), name));
 #else
-    #error "Not implemented"
+        return dlsym(m_handle, name);
 #endif
     }
 }

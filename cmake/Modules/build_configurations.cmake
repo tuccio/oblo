@@ -5,16 +5,18 @@ function(oblo_init_build_configurations)
     set(_oblo_cxx_compile_definitions)
 
     set(_is_msvc FALSE)
+    set(_is_clang FALSE)
     set(_is_clangcl FALSE)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(_is_msvc TRUE)
-    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
         set(_is_clangcl TRUE)
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(_is_clang TRUE)
     endif()
 
     if(_is_msvc OR _is_clangcl)
-        # Warning as errors
         set(_oblo_cxx_compile_options
             /W4
             /WX
@@ -30,23 +32,30 @@ function(oblo_init_build_configurations)
         endif()
 
         if(_is_msvc)
-            # Flags that are note supported or needed by clang-cl
+            # Flags that are not supported or needed by clang-cl
             list(APPEND _oblo_cxx_compile_options
                 /MP
                 /Zc:preprocessor
             )
-        else()
-            list(APPEND _oblo_cxx_compile_options
-
-                # Disable -Wlogical-op-parentheses which warns if you don't add parentheses to A || B && C
-                -Wno-logical-op-parentheses
-
-                # Disable -Wmissing-field-initializers, which warns if initializers are missing fields, because unfortunately it triggers with designated initializers too
-                -Wno-missing-field-initializers
-            )
         endif()
+    elseif(_is_clang)
+        set(_oblo_cxx_compile_options
+            -Werror
+            -Wall
+        )
     else()
-        message(SEND_ERROR "Not supported yet")
+        message(FATAL_ERROR "Not supported yet")
+    endif()
+
+    if(_is_clang OR _is_clangcl)
+        list(APPEND _oblo_cxx_compile_options
+
+            # Disable -Wlogical-op-parentheses which warns if you don't add parentheses to A || B && C
+            -Wno-logical-op-parentheses
+
+            # Disable -Wmissing-field-initializers, which warns if initializers are missing fields, because unfortunately it triggers with designated initializers too
+            -Wno-missing-field-initializers
+        )
     endif()
 
     if(OBLO_ENABLE_ASSERT)

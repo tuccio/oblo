@@ -28,7 +28,7 @@ jobs:
       run: |
         call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
         powershell
-        cmake -B ${{github.workspace}}/build --preset windows-clang-cl-debug
+        cmake -B ${{github.workspace}}/build --preset windows-clang-cl
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}

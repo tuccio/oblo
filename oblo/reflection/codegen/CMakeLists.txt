@@ -1,7 +1,7 @@
 oblo_add_executable(ocodegen)
 
 find_package(LibClang REQUIRED)
-find_package(rapidjson REQUIRED)
+find_package(RapidJSON REQUIRED)
 
 target_link_libraries(
     ocodegen

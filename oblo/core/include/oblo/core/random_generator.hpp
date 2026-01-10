@@ -28,8 +28,8 @@ namespace oblo
 
         u32 operator()();
 
-        static u32 min();
-        static u32 max();
+        static constexpr u32 min();
+        static constexpr u32 max();
 
     private:
         struct impl;
@@ -49,4 +49,14 @@ namespace oblo
             return generate(gen);
         }
     };
+
+    constexpr u32 random_generator::min()
+    {
+        return 0u;
+    }
+
+    constexpr u32 random_generator::max()
+    {
+        return ~0u;
+    }
 }

@@ -40,7 +40,7 @@ namespace oblo
         string(const string&) = default;
         string(string&&) noexcept = default;
 
-        OBLO_FORCEINLINE string(const char* str) : string{str, std::strlen(str)} {}
+        OBLO_FORCEINLINE string(const char* str) : string{string_view{str}} {}
 
         OBLO_FORCEINLINE string(const char8_t* str) : string{reinterpret_cast<const char*>(str)} {}
 

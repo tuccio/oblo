@@ -11,7 +11,7 @@ target_link_libraries(
     oblo::vk_engine
     oblo::vk_renderer
     imgui::imgui
-    imgui::backend_win32
+    imgui::backend
 )
 
 oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/imgui")

@@ -14,7 +14,7 @@ namespace oblo::filesystem
 
     enum class directory_watcher_event_kind : u8
     {
-        created,
+        added,
         modified,
         removed,
         renamed,

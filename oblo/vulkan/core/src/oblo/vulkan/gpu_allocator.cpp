@@ -3,8 +3,10 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/log/log.hpp>
 
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4100 4127 4189 4324 4505)
+#endif
 
 #if 0 // Can change this to enable logging from VMA, it's a little verbose though
     #define VMA_DEBUG_LOG(...)                                                                                         \
@@ -23,7 +25,9 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 
 namespace oblo::vk
 {

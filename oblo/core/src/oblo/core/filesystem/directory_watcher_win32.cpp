@@ -230,7 +230,7 @@ namespace oblo::filesystem
                         switch (fi->Action)
                         {
                         case FILE_ACTION_ADDED:
-                            eventKind = directory_watcher_event_kind::created;
+                            eventKind = directory_watcher_event_kind::added;
                             break;
 
                         case FILE_ACTION_REMOVED:

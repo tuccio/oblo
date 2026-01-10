@@ -1,6 +1,6 @@
 oblo_add_library(core)
 
-find_package(utf8cpp  REQUIRED)
+find_package(utf8cpp REQUIRED)
 find_package(xxHash REQUIRED)
 
 target_link_libraries(
@@ -11,6 +11,17 @@ target_link_libraries(
     utf8cpp
     xxHash::xxhash
 )
+
+if(LINUX)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(uuid IMPORTED_TARGET REQUIRED uuid)
+
+    target_link_libraries(
+        oblo_core
+        PRIVATE
+        PkgConfig::uuid
+    )
+endif()
 
 find_package(Tracy)
 

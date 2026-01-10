@@ -1,6 +1,8 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
+#include <algorithm>
+
 namespace oblo::vk::detail
 {
     bool create_impl(const vulkan_context& ctx,

@@ -1,16 +1,20 @@
-# Win32 backend
-
 find_package(ImGui REQUIRED)
 
-add_library(imgui_backend_win32 win32/src/imgui_impl_win32.cpp)
-target_include_directories(imgui_backend_win32 PUBLIC win32/include)
+if(WIN32)
+    set(imguiBackendName win32)
+else()
+    set(imguiBackendName sdl2)
+endif()
+
+add_library(imgui_backend ${imguiBackendName}/src/imgui_impl_${imguiBackendName}.cpp)
+target_include_directories(imgui_backend PUBLIC ${imguiBackendName}/include)
 
 target_link_libraries(
-    imgui_backend_win32
+    imgui_backend
     imgui::imgui
 )
 
-set_target_properties(imgui_backend_win32 PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})
+set_target_properties(imgui_backend PROPERTIES FOLDER ${OBLO_FOLDER_THIRDPARTY})
 
-target_compile_definitions(imgui_backend_win32 INTERFACE "IMGUI_IMPL_API=")
-target_compile_definitions(imgui_backend_win32 PRIVATE "IMGUI_IMPL_API=")
+target_compile_definitions(imgui_backend INTERFACE "IMGUI_IMPL_API=")
+target_compile_definitions(imgui_backend PRIVATE "IMGUI_IMPL_API=")
