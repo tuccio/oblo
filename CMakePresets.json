@@ -28,8 +28,8 @@
                 "rhs": "Linux"
             },
             "cacheVariables": {
-                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/linux64-clang",
-                "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/linux64-clang",
+                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/linux-x64-clang",
+                "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/linux-x64-clang",
                 "OBLO_WITH_DOTNET": false
             },
             "environment": {
@@ -47,7 +47,9 @@
                 "rhs": "Windows"
             },
             "cacheVariables": {
-                "OBLO_WITH_DOTNET": true
+                "OBLO_WITH_DOTNET": true,
+                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/win-x64-msvc",
+                "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/win-x64-msvc"
             },
             "environment": {
                 "OBLO_WITH_DOTNET": "True"
@@ -86,7 +88,6 @@
         {
             "name": "windows-clang-cl",
             "description": "Windows settings for clang-cl",
-            "hidden": true,
             "inherits": "conf-windows-ninja",
             "cacheVariables": {
                 "CMAKE_C_COMPILER": "clang-cl",

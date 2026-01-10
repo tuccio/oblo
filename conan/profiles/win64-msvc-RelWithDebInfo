@@ -1,4 +1,0 @@
-include(win64-msvc)
-
-[settings]
-build_type=RelWithDebInfo

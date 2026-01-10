@@ -363,6 +363,10 @@ function(oblo_init_reflection)
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
 
+macro(_oblo_conan_get_last_install_hash_path varName)
+    set(${varName} "${CMAKE_BINARY_DIR}/conan/last_conan_install")
+endmacro()
+
 function(oblo_init_conan)
     if(OBLO_FORCE_CONAN_INSTALL)
         message(STATUS "Conan install will not be skipped due to CMake configuration")
@@ -371,7 +375,7 @@ function(oblo_init_conan)
 
     # Run conan install only if conanfile.py changed
     set(_conanfile "${CMAKE_SOURCE_DIR}/conanfile.py")
-    set(_last_hashfile "${CMAKE_BINARY_DIR}/conan/last_conan_install")
+    _oblo_conan_get_last_install_hash_path(_last_hashfile)
 
     if(NOT EXISTS "${_conanfile}")
         message(FATAL_ERROR "conanfile.py not found at ${_conanfile}")
@@ -386,11 +390,11 @@ function(oblo_init_conan)
         set(_last_hash "")
     endif()
 
-    if(NOT "${_conanfile_hash}" STREQUAL "${_last_hash}")
-        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
-    else()
+    if("${_conanfile_hash}" STREQUAL "${_last_hash}")
         message(STATUS "Conan install skipped: no change detected")
         set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
+    else()
+        set_property(GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH "${_conanfile_hash}")
     endif()
 endfunction()
 
@@ -416,6 +420,20 @@ function(oblo_init)
         set(CMAKE_CONFIGURATION_TYPES Debug;Release PARENT_SCOPE)
     endif()
 endfunction(oblo_init)
+
+function(oblo_shutdown_conan)
+    get_property(_success GLOBAL PROPERTY CONAN_INSTALL_SUCCESS)
+
+    if(${_success})
+        get_property(_conanfile_hash GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH)
+        _oblo_conan_get_last_install_hash_path(_last_hashfile)
+        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
+    endif()
+endfunction()
+
+function(oblo_shutdown)
+    oblo_shutdown_conan()
+endfunction()
 
 function(oblo_set_target_folder target folder)
     string(TOUPPER ${folder} _upper)

@@ -23,3 +23,5 @@ add_library(imgui::backend ALIAS imgui_backend)
 add_subdirectory(oblo)
 add_subdirectory(plugins)
 add_subdirectory(testing)
+
+oblo_shutdown()
