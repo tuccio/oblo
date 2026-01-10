@@ -1,5 +1,7 @@
 #include <utf8cpp/utf8/unchecked.h>
 
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/string_view.hpp>
 
 namespace oblo
@@ -41,6 +43,25 @@ namespace oblo
         else
         {
             return 1;
+        }
+    }
+
+    void utf8_to_utf16(string_view src, dynamic_array<char16_t>& dst)
+    {
+        utf8::unchecked::utf8to16(src.begin(), src.end(), std::back_inserter(dst));
+    }
+
+    void utf8_to_wide(string_view src, dynamic_array<wchar_t>& dst)
+    {
+        if constexpr (platform::is_windows())
+        {
+            static_assert(!platform::is_windows() || sizeof(wchar_t) == 2);
+            utf8::unchecked::utf8to16(src.begin(), src.end(), std::back_inserter(dst));
+        }
+        else if constexpr (platform::is_linux())
+        {
+            static_assert(!platform::is_linux() || sizeof(wchar_t) == 4);
+            utf8::unchecked::utf8to32(src.begin(), src.end(), std::back_inserter(dst));
         }
     }
 }

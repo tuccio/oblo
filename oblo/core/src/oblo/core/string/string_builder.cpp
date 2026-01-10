@@ -1,7 +1,9 @@
 #include <oblo/core/string/string_builder.hpp>
 
+#include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/unreachable.hpp>
 
 #include <utf8cpp/utf8/unchecked.h>
 
@@ -9,20 +11,23 @@
 
 namespace oblo
 {
-    template <typename T>
-    T* find_end(T* b, T* e)
+    namespace
     {
-        if (e != nullptr)
+        template <typename T>
+        T* find_end(T* b, T* e)
         {
-            return e;
-        }
+            if (e != nullptr)
+            {
+                return e;
+            }
 
-        while (*b != '\0')
-        {
-            ++b;
-        }
+            while (*b != '\0')
+            {
+                ++b;
+            }
 
-        return b;
+            return b;
+        }
     }
 
     string_builder& string_builder::append(const string& str)
@@ -41,7 +46,22 @@ namespace oblo
         end = find_end(str, end);
 
         m_buffer.pop_back();
-        utf8::unchecked::utf16to8(str, end, std::back_inserter(m_buffer));
+
+        if constexpr (platform::is_windows())
+        {
+            static_assert(!platform::is_windows() || sizeof(wchar_t) == 2);
+            utf8::unchecked::utf16to8(str, end, std::back_inserter(m_buffer));
+        }
+        else if constexpr (platform::is_linux())
+        {
+            static_assert(!platform::is_linux() || sizeof(wchar_t) == 4);
+            utf8::unchecked::utf32to8(str, end, std::back_inserter(m_buffer));
+        }
+        else
+        {
+            unreachable();
+        }
+
         ensure_null_termination();
 
         return *this;
@@ -62,6 +82,35 @@ namespace oblo
         ensure_null_termination();
 
         return *this;
+    }
+
+    string_builder& string_builder::assign(const string& str)
+    {
+        return assign(str.data(), str.data() + str.size());
+    }
+
+    string_builder& string_builder::assign(const char* str, const char* end)
+    {
+        end = find_end(str, end);
+        return assign(string_view(str, end));
+    }
+
+    string_builder& string_builder::assign(const wchar_t* str, const wchar_t* end)
+    {
+        clear();
+        return append(str, end);
+    }
+
+    string_builder& string_builder::assign(const char8_t* str, const char8_t* end)
+    {
+        clear();
+        return append(str, end);
+    }
+
+    string_builder& string_builder::assign(const char16_t* str, const char16_t* end)
+    {
+        clear();
+        return append(str, end);
     }
 
     namespace

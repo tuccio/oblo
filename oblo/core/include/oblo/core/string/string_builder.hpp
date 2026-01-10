@@ -54,6 +54,16 @@ namespace oblo
         string_builder& append(const char8_t* str, const char8_t* end = nullptr);
         string_builder& append(const char16_t* str, const char16_t* end = nullptr);
 
+        string_builder& assign(char c);
+        string_builder& assign(const string& str);
+        string_builder& assign(cstring_view str);
+        string_builder& assign(string_view str);
+
+        string_builder& assign(const char* str, const char* end = nullptr);
+        string_builder& assign(const wchar_t* str, const wchar_t* end = nullptr);
+        string_builder& assign(const char8_t* str, const char8_t* end = nullptr);
+        string_builder& assign(const char16_t* str, const char16_t* end = nullptr);
+
         string_builder& append_path_separator(char separator);
         string_builder& append_path_separator();
         string_builder& append_path(string_view str, char separator);
@@ -176,7 +186,26 @@ namespace oblo
     OBLO_FORCEINLINE string_builder& string_builder::append(string_view str)
     {
         m_buffer.pop_back();
-        m_buffer.insert(m_buffer.end(), str.begin(), str.end());
+        m_buffer.append(str.begin(), str.end());
+        ensure_null_termination();
+        return *this;
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::assign(char c)
+    {
+        m_buffer.assign(1u, c);
+        ensure_null_termination();
+        return *this;
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::assign(cstring_view str)
+    {
+        return assign(string_view{str});
+    }
+
+    OBLO_FORCEINLINE string_builder& string_builder::assign(string_view str)
+    {
+        m_buffer.assign(str.begin(), str.end());
         ensure_null_termination();
         return *this;
     }
