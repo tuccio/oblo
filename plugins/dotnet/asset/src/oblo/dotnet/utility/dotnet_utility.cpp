@@ -47,7 +47,7 @@ namespace oblo::dotnet_utility
             {
                 if (e.is_regular_file())
                 {
-                    e.filename(pathBuilder.clear());
+                    e.append_filename(pathBuilder.clear());
 
                     if (pathBuilder.view().ends_with(".cs"))
                     {
