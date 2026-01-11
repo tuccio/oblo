@@ -94,6 +94,12 @@ namespace oblo
             args.emplace_back("-o");
             args.emplace_back(dst);
 
+            if constexpr (platform::is_windows())
+            {
+                args.emplace_back("-Xlinker");
+                args.emplace_back("/NODEFAULTLIB");
+            }
+
             break;
 
         case kind::msvc:
@@ -117,6 +123,9 @@ namespace oblo
                 args.emplace_back("/O2");
                 break;
             }
+
+            args.emplace_back("/NODEFAULTLIB");
+
             break;
         }
 

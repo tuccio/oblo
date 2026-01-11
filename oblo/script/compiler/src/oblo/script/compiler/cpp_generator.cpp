@@ -189,6 +189,13 @@ namespace oblo
     #define OBLO_SHARED_LIBRARY_EXPORT __attribute__((visibility("default")))
     #define OBLO_SHARED_LIBRARY_IMPORT
 #endif
+
+#ifdef _WIN32
+    // This is required to use floats on Windows.
+    extern "C" int _fltused = 0;
+
+    extern "C" OBLO_SHARED_LIBRARY_EXPORT int _DllMainCRTStartup(void*, unsigned, void*) { return 1; }
+#endif
 )"};
 
         g.append(preamble);
