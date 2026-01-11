@@ -105,8 +105,8 @@ namespace oblo
 
     TEST(zip_range, span_by_value)
     {
-        std::vector a = {1, 2, 3};
-        std::vector b = {'a', 'b', 'c'};
+        std::array a = {1, 2, 3};
+        std::array b = {'a', 'b', 'c'};
 
         int n = 0;
 
@@ -256,55 +256,55 @@ namespace oblo
     TEST(token_range, basic_split)
     {
         token_range r{"a--b--c", "--"};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{"a", "b", "c"}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "b", "c"}}));
     }
 
     TEST(token_range, trailing_delimiter)
     {
         token_range r{"a--b--", "--"};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{"a", "b", ""}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "b", ""}}));
     }
 
     TEST(token_range, leading_delimiter)
     {
         token_range r{"--a--b", "--"};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{"", "a", "b"}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"", "a", "b"}}));
     }
 
     TEST(token_range, consecutive_delimiter)
     {
         token_range r{"a----b", "--"};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{"a", "", "b"}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "", "b"}}));
     }
 
     TEST(token_range, no_delimiter)
     {
         token_range r{"abc", "--"};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{"abc"}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"abc"}}));
     }
 
     TEST(token_range, only_delimiter)
     {
         token_range r{"--", "--"};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{"", ""}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"", ""}}));
     }
 
     TEST(token_range, empty_string)
     {
         token_range r{"", "--"};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{""}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {""}}));
     }
 
     TEST(token_range, single_char_delimiter)
     {
         token_range r{"a,b,,c,", ","};
-        EXPECT_EQ(collect(r), (std::vector<std::string_view>{"a", "b", "", "c", ""}));
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "b", "", "c", ""}}));
     }
 
     TEST(token_range, embedded_null_character)
     {
         const char data[] = {'a', '\0', 'b', '-', '-', 'c'};
-        std::string_view s{data, sizeof(data)};
+        string_view s{data, sizeof(data)};
 
         token_range r{s, "--"};
         auto v = collect(r);
