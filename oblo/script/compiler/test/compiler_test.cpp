@@ -1,6 +1,7 @@
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/platform/file.hpp>
 #include <oblo/core/platform/process.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/script/compiler/bytecode_generator.hpp>
@@ -64,6 +65,26 @@ namespace oblo
 
     namespace
     {
+        void dump_to_stdout(const platform::file& rPipe)
+        {
+            if (rPipe.is_open())
+            {
+                char buf[1024];
+
+                while (true)
+                {
+                    const usize readBytes = rPipe.read(buf, sizeof(buf)).value_or(0);
+
+                    std::fwrite(buf, 1, readBytes, stdout);
+
+                    if (readBytes != sizeof(buf))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
         void compile_script(string_view code, cstring_view name, platform::shared_library& lib)
         {
             const auto compiler = cpp_compiler::find();
@@ -98,12 +119,27 @@ namespace oblo
                 argsArray.emplace_back(s);
             }
 
+            platform::file rPipe, wPipe;
+
+            ASSERT_TRUE(platform::file::create_pipe(rPipe, wPipe, 32 << 10u));
+
             ASSERT_TRUE(compile.start({
                 .path = compiler->get_path(),
                 .arguments = argsArray,
+                .outputStream = &wPipe,
+                .errorStream = &wPipe,
             }));
 
             ASSERT_TRUE(compile.wait());
+
+            const i64 exitCode = compile.get_exit_code().value_or(-1);
+
+            if (exitCode != 0)
+            {
+                dump_to_stdout(rPipe);
+            }
+
+            ASSERT_EQ(exitCode, 0);
 
             ASSERT_TRUE(lib.open(dst));
         }

@@ -180,6 +180,19 @@ namespace oblo
         string_builder code;
         codegen_helper g{code};
 
+        const string_view preamble{
+            R"(
+#ifdef _MSC_VER
+    #define OBLO_SHARED_LIBRARY_EXPORT __declspec(dllexport)
+    #define OBLO_SHARED_LIBRARY_IMPORT __declspec(dllimport)
+#elif defined(__clang__) or defined(__GNUC__)
+    #define OBLO_SHARED_LIBRARY_EXPORT __attribute__((visibility("default")))
+    #define OBLO_SHARED_LIBRARY_IMPORT
+#endif
+)"};
+
+        g.append(preamble);
+
         struct ast_function_ref
         {
             h32<ast_node> declaration;
@@ -299,7 +312,7 @@ namespace oblo
                 return unspecified_error;
             }
 
-            g.append("extern \"C\" ");
+            g.append("extern \"C\" OBLO_SHARED_LIBRARY_EXPORT ");
             g.append(fDecl.node.functionDecl.returnType);
             g.append(' ');
             g.append(fDecl.node.functionDecl.name);

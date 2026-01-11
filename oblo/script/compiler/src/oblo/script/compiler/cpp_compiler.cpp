@@ -12,13 +12,13 @@ namespace oblo
         dynamic_array<string_view> searchPaths;
         searchPaths.reserve(128);
 
+        [[maybe_unused]] string_builder winPaths;
+
         if constexpr (platform::is_windows() || platform::is_unix_like())
         {
-            string_builder paths;
-
-            if (platform::read_environment_variable(paths, "PATH"))
+            if (platform::read_environment_variable(winPaths, "PATH"))
             {
-                platform::split_paths_environment_variable(searchPaths, paths.view());
+                platform::split_paths_environment_variable(searchPaths, winPaths.view());
             }
         }
 
@@ -64,7 +64,11 @@ namespace oblo
         case kind::gcc:
 
             args.emplace_back("-shared");
-            args.emplace_back("-fPIC");
+
+            if constexpr (platform::is_unix_like())
+            {
+                args.emplace_back("-fPIC");
+            }
 
             switch (opts.optimizations)
             {
