@@ -7,7 +7,18 @@ target_link_libraries(
     oblo::script::runtime
 )
 
-add_library(oblo::script::compiler ALIAS oblo_script_compiler)
+set(outDir "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(generatedHeader "${outDir}/cppgenlib.gen.hpp")
+set(sourceFile "${CMAKE_CURRENT_SOURCE_DIR}/resources/cppgenlib.in.hpp")
 
-# We have includes for our native library implementation in the resources   
-target_include_directories(oblo_test_script_compiler PRIVATE resources/cppgenlib)
+add_custom_command(
+    OUTPUT ${generatedHeader}
+    SOURCES ${sourceFile}
+    COMMAND ${CMAKE_COMMAND} -DNAME=cppgenlib -DINPUT_FILE=${sourceFile} -DOUTPUT_FILE=${generatedHeader} -P "${CMAKE_SOURCE_DIR}/cmake/Scripts/embed.cmake"
+    COMMENT "Embedding ${sourceFile}"
+)
+
+target_include_directories(oblo_script_compiler PRIVATE ${outDir})
+target_sources(oblo_script_compiler PRIVATE ${generatedHeader})
+
+add_library(oblo::script::compiler ALIAS oblo_script_compiler)

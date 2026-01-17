@@ -4,6 +4,7 @@
 #include <oblo/core/platform/file.hpp>
 #include <oblo/core/platform/process.hpp>
 #include <oblo/core/platform/shared_library.hpp>
+#include <oblo/math/constants.hpp>
 #include <oblo/script/compiler/bytecode_generator.hpp>
 #include <oblo/script/compiler/cpp_compiler.hpp>
 #include <oblo/script/compiler/cpp_generator.hpp>
@@ -161,5 +162,63 @@ namespace oblo
 
         const f32 r = addFn();
         ASSERT_EQ(r, 42.f);
+    }
+
+    namespace
+    {
+        abstract_syntax_tree make_call_sin_function_ast()
+        {
+            abstract_syntax_tree ast;
+            ast.init();
+
+            const auto root = ast.get_root();
+
+            ast.add_node(root, ast_type_declaration{.name = "f32", .size = sizeof(f32)});
+            const auto hSinFunc = ast.add_node(root, ast_function_declaration{.name = "sin", .returnType = "f32"});
+
+            const auto hCallSinFunc =
+                ast.add_node(root, ast_function_declaration{.name = "call_sin", .returnType = "f32"});
+
+            const auto hBody = ast.add_node(hCallSinFunc, ast_function_body{});
+            const auto hReturn = ast.add_node(hBody, ast_return_statement{});
+
+            const auto hDoCallSin = ast.add_node(hCallSinFunc, ast_function_call{.name = "sin"});
+            const auto hArg = ast.add_node(hDoCallSin, ast_function_argument{});
+            ast.add_node(hArg, ast_f32_constant{pi / 4.f});
+
+            return ast;
+        }
+    }
+
+    TEST(cpp_generator, call_sin_function)
+    {
+        const abstract_syntax_tree ast = make_add_sub_f32_constants_ast();
+
+        cpp_generator gen;
+        const auto code = gen.generate_code(ast);
+        ASSERT_TRUE(code);
+
+        platform::shared_library lib;
+        compile_script(code->view(), "add_sub_f32_constants", lib);
+
+        using loader_fn = void* (*) (const char*);
+        const auto loadSymbols = reinterpret_cast<i32 (*)(loader_fn)>(lib.symbol("oblo_load_symbols"));
+        constexpr auto loader = [](const char* name) -> void*
+        {
+            if (name == string_view{"sin"})
+            {
+                return +[](f32 v) -> f32 { return std::sin(v); };
+            }
+
+            return nullptr;
+        };
+
+        ASSERT_TRUE(loadSymbols);
+        ASSERT_TRUE(loadSymbols(loader));
+
+        const auto callSin = reinterpret_cast<f32 (*)(f32)>(lib.symbol("call_sin"));
+
+        const f32 r = callSin(pi / 4);
+        ASSERT_NEAR(r, std::sin(pi / 4), 1e-6);
     }
 }

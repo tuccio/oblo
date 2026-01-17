@@ -8,6 +8,9 @@
 #include <oblo/core/unreachable.hpp>
 
 #include <unordered_map>
+#include <unordered_set>
+
+#include <cppgenlib.gen.hpp>
 
 namespace oblo
 {
@@ -180,25 +183,8 @@ namespace oblo
         string_builder code;
         codegen_helper g{code};
 
-        const string_view preamble{
-            R"(
-#ifdef _MSC_VER
-    #define OBLO_SHARED_LIBRARY_EXPORT __declspec(dllexport)
-    #define OBLO_SHARED_LIBRARY_IMPORT __declspec(dllimport)
-#elif defined(__clang__) or defined(__GNUC__)
-    #define OBLO_SHARED_LIBRARY_EXPORT __attribute__((visibility("default")))
-    #define OBLO_SHARED_LIBRARY_IMPORT
-#endif
-
-#ifdef _WIN32
-    // This is required to use floats on Windows.
-    extern "C" int _fltused = 0;
-
-    extern "C" OBLO_SHARED_LIBRARY_EXPORT int _DllMainCRTStartup(void*, unsigned, void*) { return 1; }
-#endif
-)"};
-
-        g.append(preamble);
+        // Our preamble is parsed from a header we embed using CMake
+        g.append(gen::cppgenlib);
 
         struct ast_function_ref
         {
@@ -309,6 +295,8 @@ namespace oblo
 
         deque<visit_info> visitStack;
         deque<node_info> nodeInfo;
+
+        std::unordered_set<hashed_string_view, hash<hashed_string_view>> requiredFunctions;
 
         for (const ast_function_ref& f : functions)
         {
@@ -477,44 +465,31 @@ namespace oblo
                         break;
 
                     case ast_node_kind::function_call: {
-                        //     if (n.node.functionCall.name.starts_with("__intrin_"))
-                        //     {
-                        //         const expected exprResultSize = handle_intrinsic_function(m,
-                        //         n.node.functionCall.name);
+                        const auto fnIt = functionDeclarations.find(n.node.functionCall.name);
 
-                        //         if (!exprResultSize)
-                        //         {
-                        //             return unspecified_error;
-                        //         }
+                        if (fnIt == functionDeclarations.end())
+                        {
+                            return unspecified_error;
+                        }
 
-                        //         thisNodeInfo.expressionResultSize = *exprResultSize;
-                        //     }
-                        //     else
-                        //     {
-                        //         const auto fnIt = functionDeclarations.find(n.node.functionCall.name);
+                        requiredFunctions.emplace(n.node.functionCall.name);
 
-                        //         if (fnIt == functionDeclarations.end())
-                        //         {
-                        //             return unspecified_error;
-                        //         }
+                        stmt.append(n.node.functionCall.name);
+                        stmt.append('(');
 
-                        //         const auto typeIt = types.find(fnIt->second.returnType);
+                        for (const h32 child : ast.children(node))
+                        {
+                            if (ast.get(child).kind != ast_node_kind::function_argument)
+                            {
+                                continue;
+                            }
 
-                        //         if (typeIt == types.end())
-                        //         {
-                        //             return unspecified_error;
-                        //         }
+                            append_var_name(stmt, child);
+                        }
 
-                        //         const expected<u16> stringId = pushReadOnlyString16(n.node.functionCall.name);
+                        stmt.append(')');
 
-                        //         if (!stringId)
-                        //         {
-                        //             return unspecified_error;
-                        //         }
-
-                        //         m.text.push_back({.op = bytecode_op::call_api_static, .payload = {*stringId}});
-                        //         thisNodeInfo.expressionResultSize = typeIt->second.size;
-                        //     }
+                        stmt.set_expression_type(fnIt->second.returnType);
                     }
                     break;
 

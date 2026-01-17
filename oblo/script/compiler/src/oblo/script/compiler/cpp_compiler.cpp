@@ -5,6 +5,8 @@
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/string_builder.hpp>
 
+#include <cppgenlib.gen.hpp>
+
 namespace oblo
 {
     expected<cpp_compiler> cpp_compiler::find(cpp_compiler::kind_flags which)
