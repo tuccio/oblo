@@ -8,3 +8,6 @@ target_link_libraries(
 )
 
 add_library(oblo::script::compiler ALIAS oblo_script_compiler)
+
+# We have includes for our native library implementation in the resources   
+target_include_directories(oblo_test_script_compiler PRIVATE resources/cppgenlib)
