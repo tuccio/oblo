@@ -33,6 +33,24 @@ namespace oblo
                     .load = [](void* r, cstring_view source, const any&)
                     { return load(*static_cast<compiled_script*>(r), source); },
                 });
+
+                outResourceTypes.push_back({
+                    .typeId = get_type_id<compiled_bytecode_module>(),
+                    .typeUuid = resource_type<compiled_bytecode_module>,
+                    .create = []() -> void* { return new compiled_bytecode_module{}; },
+                    .destroy = [](void* ptr) { delete static_cast<compiled_bytecode_module*>(ptr); },
+                    .load = [](void* r, cstring_view source, const any&)
+                    { return load(*static_cast<compiled_bytecode_module*>(r), source); },
+                });
+
+                outResourceTypes.push_back({
+                    .typeId = get_type_id<compiled_native_module>(),
+                    .typeUuid = resource_type<compiled_native_module>,
+                    .create = []() -> void* { return new compiled_native_module{}; },
+                    .destroy = [](void* ptr) { delete static_cast<compiled_native_module*>(ptr); },
+                    .load = [](void* r, cstring_view source, const any&)
+                    { return load(*static_cast<compiled_native_module*>(r), source); },
+                });
             }
         };
     }
