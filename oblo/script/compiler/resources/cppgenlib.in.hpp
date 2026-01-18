@@ -23,6 +23,8 @@ using i64 = long long;
 using u32 = unsigned;
 using u64 = unsigned long long;
 
+using cstring = const char*;
+
 static_assert(sizeof(f32) == 4u);
 static_assert(sizeof(f64) == 8u);
 static_assert(sizeof(i32) == 4u);

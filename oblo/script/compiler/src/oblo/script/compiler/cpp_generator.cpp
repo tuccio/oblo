@@ -180,6 +180,7 @@ namespace oblo
                     return false;
                 }
 
+
                 out[i] = *it;
                 ++it;
             }
@@ -193,7 +194,9 @@ namespace oblo
 
             for (const h32 child : ast.children(node))
             {
-                if (ast.get(child).kind != ast_node_kind::function_argument)
+                auto& childNode = ast.get(child);
+
+                if (childNode.kind != ast_node_kind::function_argument)
                 {
                     continue;
                 }
@@ -320,6 +323,8 @@ namespace oblo
 
                 g.format("using {}_fn_t = {}(*)(", node.node.functionDecl.name, node.node.functionDecl.returnType);
 
+                bool isFirst = true;
+
                 for (const h32 child : ast.children(functionDeclaration))
                 {
                     const auto& childNode = ast.get(child);
@@ -328,6 +333,13 @@ namespace oblo
                     {
                         continue;
                     }
+
+                    if (!isFirst)
+                    {
+                        g.append(", ");
+                    }
+
+                    isFirst = false;
 
                     g.append(childNode.node.functionParameter.type);
                     g.append(' ');

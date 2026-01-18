@@ -24,4 +24,5 @@ namespace oblo::script_api
     constexpr hashed_string_view f32_t = "f32";
     constexpr hashed_string_view i32_t = "i32";
     constexpr hashed_string_view vec3_t = "vec3";
+    constexpr hashed_string_view string_t = "cstring";
 }

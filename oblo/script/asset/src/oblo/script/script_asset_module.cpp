@@ -81,9 +81,9 @@ namespace oblo
                     {
                         break;
                     }
-
-                    log::error("{}", message.view());
                 }
+
+                log::error("{}", message.view());
             }
         }
 
@@ -460,6 +460,8 @@ namespace oblo
             {
                 const h32 root = tree.get_root();
 
+                // Add type
+
                 tree.add_node(root,
                     ast_type_declaration{
                         .name = script_api::void_t,
@@ -484,90 +486,99 @@ namespace oblo
                         .size = sizeof(f32) * 3,
                     });
 
+                // Add functions
+
+                const auto addSetProperty =
+                    [&tree, root](hashed_string_view name, hashed_string_view type, bool withMask)
                 {
                     const h32 h = tree.add_node(root,
                         ast_function_declaration{
-                            .name = script_api::cosine_f32,
-                            .returnType = script_api::f32_t,
+                            .name = name,
+                            .returnType = script_api::void_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "componentType",
+                            .type = script_api::string_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "property",
+                            .type = script_api::string_t,
+                        });
+
+                    if (withMask)
+                    {
+                        tree.add_node(h,
+                            ast_function_parameter{
+                                .name = "mask",
+                                .type = script_api::i32_t,
+                            });
+                    }
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "value",
+                            .type = type,
+                        });
+                };
+
+                const auto addGetProperty = [&tree, root](hashed_string_view name, hashed_string_view type)
+                {
+                    const h32 h =
+
+                        tree.add_node(root,
+                            ast_function_declaration{
+                                .name = name,
+                                .returnType = type,
+                            });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "componentType",
+                            .type = script_api::string_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "property",
+                            .type = script_api::string_t,
+                        });
+                };
+
+                const auto addSurjectiveFunction = [&tree, root](hashed_string_view name, hashed_string_view type)
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = name,
+                            .returnType = type,
                         });
 
                     tree.add_node(h,
                         ast_function_parameter{
                             .name = "x",
-                            .type = script_api::f32_t,
+                            .type = type,
                         });
-                }
+                };
 
-                {
-                    const h32 h = tree.add_node(root,
-                        ast_function_declaration{
-                            .name = script_api::cosine_vec3,
-                            .returnType = script_api::vec3_t,
-                        });
+                addSurjectiveFunction(script_api::cosine_f32, script_api::f32_t);
+                addSurjectiveFunction(script_api::cosine_vec3, script_api::vec3_t);
 
-                    tree.add_node(h,
-                        ast_function_parameter{
-                            .name = "v",
-                            .type = script_api::vec3_t,
-                        });
-                }
+                addSurjectiveFunction(script_api::sine_f32, script_api::f32_t);
+                addSurjectiveFunction(script_api::sine_vec3, script_api::vec3_t);
 
-                {
-                    const h32 h = tree.add_node(root,
-                        ast_function_declaration{
-                            .name = script_api::sine_f32,
-                            .returnType = script_api::f32_t,
-                        });
+                addGetProperty(script_api::ecs::get_property_f32, script_api::f32_t);
+                addSetProperty(script_api::ecs::set_property_f32, script_api::f32_t, false);
 
-                    tree.add_node(h,
-                        ast_function_parameter{
-                            .name = "x",
-                            .type = script_api::f32_t,
-                        });
-                }
-
-                {
-                    const h32 h = tree.add_node(root,
-                        ast_function_declaration{
-                            .name = script_api::sine_vec3,
-                            .returnType = script_api::vec3_t,
-                        });
-
-                    tree.add_node(h,
-                        ast_function_parameter{
-                            .name = "v",
-                            .type = script_api::vec3_t,
-                        });
-                }
+                addGetProperty(script_api::ecs::get_property_vec3, script_api::vec3_t);
+                addSetProperty(script_api::ecs::set_property_vec3, script_api::vec3_t, true);
 
                 tree.add_node(root,
                     ast_function_declaration{
                         .name = script_api::get_time,
                         .returnType = script_api::f32_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::set_property_f32,
-                        .returnType = script_api::void_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::get_property_f32,
-                        .returnType = script_api::f32_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::get_property_vec3,
-                        .returnType = script_api::vec3_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::set_property_vec3,
-                        .returnType = script_api::void_t,
                     });
 
                 return true;
