@@ -186,39 +186,6 @@ namespace oblo
 
             return true;
         }
-
-        void generate_intrinsics(codegen_helper& g, auto& functionDeclarations)
-        {
-            struct intrinsic_declaration
-            {
-                hashed_string_view name;
-                hashed_string_view returnType;
-                string_view argsList;
-            };
-
-            constexpr intrinsic_declaration intrinsics[] = {
-                {"__intrin_cos"_hsv, "f32"_hsv, "f32"},
-                {"__intrin_sin"_hsv, "f32"_hsv, "f32"},
-            };
-
-            g.append("namespace");
-            g.new_line();
-
-            const auto anonNamespace = g.begin_scope_raii();
-
-            for (const auto& intrinsic : intrinsics)
-            {
-                g.format("using {}_t = {}(*)({});", intrinsic.name, intrinsic.returnType, intrinsic.argsList);
-                g.new_line();
-
-                g.format("[[maybe_unused]] {0}_t {0} = nullptr;", intrinsic.name);
-                g.new_line();
-
-                functionDeclarations[intrinsic.name] = {
-                    .returnType = intrinsic.returnType,
-                };
-            }
-        }
     }
 
     expected<string_builder> cpp_generator::generate_code(const abstract_syntax_tree& ast)
@@ -251,7 +218,8 @@ namespace oblo
         std::unordered_map<hashed_string_view, ast_function_decl_ref, transparent_string_hash> functionDeclarations;
         std::unordered_map<hashed_string_view, ast_type_ref, transparent_string_hash> types;
 
-        generate_intrinsics(g, functionDeclarations);
+        dynamic_array<h32<ast_node>> forwardDeclaredFunctions;
+        forwardDeclaredFunctions.reserve(64);
 
         for (const h32 childHandle : ast.children(ast.get_root()))
         {
@@ -284,6 +252,10 @@ namespace oblo
                         body = functionChildHandle;
                         break;
 
+                    case ast_node_kind::function_parameter:
+                        // Nothing to do here
+                        break;
+
                     default:
                         OBLO_ASSERT(false);
                         return unspecified_error;
@@ -297,6 +269,10 @@ namespace oblo
                         .body = body,
                     });
                 }
+                else
+                {
+                    forwardDeclaredFunctions.emplace_back(childHandle);
+                }
 
                 functionDeclarations[node.node.functionDecl.name] = {
                     .returnType = node.node.functionDecl.returnType,
@@ -304,6 +280,49 @@ namespace oblo
             }
 
             break;
+            }
+        }
+
+        {
+
+            // Generate forward declarations as dynamically loaded function pointers
+            // The oblo_load_symbols function generated at the end will import all (and only) the referenced functions.
+            g.append("namespace");
+            g.new_line();
+
+            const auto anonNamespace = g.begin_scope_raii();
+
+            for (const h32 functionDeclaration : forwardDeclaredFunctions)
+            {
+                const auto& node = ast.get(functionDeclaration);
+                OBLO_ASSERT(node.kind == ast_node_kind::function_declaration);
+
+                g.format("using {}_fn_t = {}(*)(", node.node.functionDecl.name, node.node.functionDecl.returnType);
+
+                for (const h32 child : ast.children(functionDeclaration))
+                {
+                    const auto& childNode = ast.get(child);
+
+                    if (childNode.kind != ast_node_kind::function_parameter)
+                    {
+                        continue;
+                    }
+
+                    g.append(childNode.node.functionParameter.type);
+                    g.append(' ');
+                    g.append(childNode.node.functionParameter.name);
+                }
+
+                g.append(");");
+
+                g.new_line();
+
+                g.format("{0}_fn_t {0} [[maybe_unused]] = nullptr;", node.node.functionDecl.name);
+                g.new_line();
+
+                functionDeclarations[node.node.functionDecl.name] = {
+                    .returnType = node.node.functionDecl.returnType,
+                };
             }
         }
 

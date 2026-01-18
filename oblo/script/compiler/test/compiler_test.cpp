@@ -175,6 +175,7 @@ namespace oblo
 
             ast.add_node(root, ast_type_declaration{.name = "f32", .size = sizeof(f32)});
             const auto hSinFunc = ast.add_node(root, ast_function_declaration{.name = "sin", .returnType = "f32"});
+            ast.add_node(hSinFunc, ast_function_parameter{.name = "x", .type = "f32"});
 
             const auto hCallSinFunc =
                 ast.add_node(root, ast_function_declaration{.name = "call_sin", .returnType = "f32"});
@@ -182,7 +183,7 @@ namespace oblo
             const auto hBody = ast.add_node(hCallSinFunc, ast_function_body{});
             const auto hReturn = ast.add_node(hBody, ast_return_statement{});
 
-            const auto hDoCallSin = ast.add_node(hReturn, ast_function_call{.name = "__intrin_sin"});
+            const auto hDoCallSin = ast.add_node(hReturn, ast_function_call{.name = "sin"});
             const auto hArg = ast.add_node(hDoCallSin, ast_function_argument{});
             ast.add_node(hArg, ast_f32_constant{pi / 4.f});
 
@@ -205,7 +206,7 @@ namespace oblo
         const auto loadSymbols = reinterpret_cast<i32 (*)(loader_fn)>(lib.symbol("oblo_load_symbols"));
         constexpr auto loader = [](const char* name) -> void*
         {
-            if (name == string_view{"__intrin_sin"})
+            if (name == string_view{"sin"})
             {
                 return +[](f32 v) -> f32 { return std::sin(v); };
             }
