@@ -44,6 +44,10 @@ namespace oblo::editor
                 builder.format(" [compound]");
                 break;
 
+            case ast_node_kind::construct_type:
+                builder.format(" [construct: {}]", nodeData.node.constructType.type);
+                break;
+
             case ast_node_kind::function_declaration:
                 builder.format(" [f_decl: {}]", nodeData.node.functionDecl.name);
                 break;

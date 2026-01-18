@@ -31,12 +31,14 @@ namespace oblo::ast_utils
 
                 const auto varName = builder.as<hashed_string_view>();
 
-                const h32 vec3Node = ast.add_node({}, ast_compound{});
+                const h32 vec3Node = ast.add_node({}, ast_construct_type{.type = "vec3"_hsv});
 
                 // Add y and z after by referencing the variable
-                ast.add_node(vec3Node, ast_variable_reference{.name = varName});
-                ast.add_node(vec3Node, ast_variable_reference{.name = varName});
-                ast.add_node(vec3Node, ast_variable_reference{.name = varName});
+                for (u32 i = 0; i < 3; ++i)
+                {
+                    const auto arg = ast.add_node(vec3Node, ast_function_argument{});
+                    ast.add_node(arg, ast_variable_reference{.name = varName});
+                }
 
                 // Make a variable with the expression, push it after the references because order is reverse
                 const h32 decl = ast.add_node(vec3Node, ast_variable_declaration{.name = varName});
@@ -67,10 +69,13 @@ namespace oblo::ast_utils
             return ast.add_node(parent, ast_f32_constant{.value = 0.f});
 
         case node_primitive_kind::vec3: {
-            const h32 n = ast.add_node(parent, ast_compound{});
-            ast.add_node(n, ast_f32_constant{.value = 0.f});
-            ast.add_node(n, ast_f32_constant{.value = 0.f});
-            ast.add_node(n, ast_f32_constant{.value = 0.f});
+            const h32 n = ast.add_node(parent, ast_construct_type{.type = "vec3"_hsv});
+
+            for (u32 i = 0; i < 3; ++i)
+            {
+                const auto arg = ast.add_node(n, ast_function_argument{});
+                ast.add_node(arg, ast_f32_constant{.value = 0.f});
+            }
             return n;
         }
         default:

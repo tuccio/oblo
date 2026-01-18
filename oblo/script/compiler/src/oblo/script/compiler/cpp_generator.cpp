@@ -186,6 +186,27 @@ namespace oblo
 
             return true;
         }
+
+        void append_all_arguments(const abstract_syntax_tree& ast, h32<ast_node> node, statement_helper& stmt)
+        {
+            bool isFirst = true;
+
+            for (const h32 child : ast.children(node))
+            {
+                if (ast.get(child).kind != ast_node_kind::function_argument)
+                {
+                    continue;
+                }
+
+                if (!isFirst)
+                {
+                    stmt.append(", ");
+                }
+
+                isFirst = false;
+                append_var_name(stmt, child);
+            }
+        }
     }
 
     expected<string_builder> cpp_generator::generate_code(const abstract_syntax_tree& ast)
@@ -518,19 +539,25 @@ namespace oblo
                         stmt.append(n.node.functionCall.name);
                         stmt.append('(');
 
-                        for (const h32 child : ast.children(node))
-                        {
-                            if (ast.get(child).kind != ast_node_kind::function_argument)
-                            {
-                                continue;
-                            }
-
-                            append_var_name(stmt, child);
-                        }
+                        append_all_arguments(ast, node, stmt);
 
                         stmt.append(')');
 
-                        stmt.set_expression_type(fnIt->second.returnType);
+                        const auto returnTypeIt = types.find(fnIt->second.returnType);
+
+                        if (returnTypeIt == types.end())
+                        {
+                            return unspecified_error;
+                        }
+
+                        if (returnTypeIt->second.size == 0)
+                        {
+                            stmt.set_is_expression(false);
+                        }
+                        else
+                        {
+                            stmt.set_expression_type(fnIt->second.returnType);
+                        }
                     }
                     break;
 
@@ -550,6 +577,7 @@ namespace oblo
                     break;
 
                     case ast_node_kind::variable_declaration:
+                        stmt.set_is_expression(false);
                         break;
 
                     case ast_node_kind::variable_definition: {
@@ -586,7 +614,16 @@ namespace oblo
                     break;
 
                     case ast_node_kind::compound:
+                        stmt.set_is_expression(false);
                         break;
+
+                    case ast_node_kind::construct_type: {
+                        stmt.format("{} {{", n.node.constructType.type);
+                        append_all_arguments(ast, node, stmt);
+                        stmt.append('}');
+                    }
+
+                    break;
 
                     default:
                         return unspecified_error;

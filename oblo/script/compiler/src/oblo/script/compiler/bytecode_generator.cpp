@@ -440,6 +440,9 @@ namespace oblo
                     case ast_node_kind::compound:
                         break;
 
+                    case ast_node_kind::construct_type:
+                        break;
+
                     default:
                         return unspecified_error;
                     }
