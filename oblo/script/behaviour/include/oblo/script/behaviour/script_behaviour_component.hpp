@@ -10,6 +10,7 @@
 namespace oblo
 {
     struct compiled_script;
+    struct compiled_bytecode_module;
 
     struct script_behaviour_component
     {
@@ -19,6 +20,7 @@ namespace oblo
     struct script_behaviour_state_component
     {
         resource_ptr<compiled_script> script{};
+        resource_ptr<compiled_bytecode_module> bytecode{};
         unique_ptr<interpreter> runtime;
     } OBLO_COMPONENT(Transient);
 

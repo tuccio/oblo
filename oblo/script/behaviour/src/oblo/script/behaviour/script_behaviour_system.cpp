@@ -462,7 +462,8 @@ namespace oblo
             for (auto&& [e, b, state] :
                 chunk.zip<ecs::entity, script_behaviour_component, script_behaviour_state_component>())
             {
-                if (state.script.is_invalidated() || state.script.as_ref() != b.script)
+                if (state.script.is_invalidated() || state.bytecode.is_invalidated() ||
+                    state.script.as_ref() != b.script)
                 {
                     deferred.remove<script_behaviour_state_component, script_behaviour_update_tag>(e);
                     continue;
@@ -470,10 +471,25 @@ namespace oblo
 
                 if (!state.runtime && state.script.is_loaded())
                 {
+                    if (!state.bytecode)
+                    {
+                        state.bytecode = m_resourceRegistry->get_resource(state.script->bytecode);
+
+                        if (!state.bytecode.is_loaded())
+                        {
+                            state.bytecode.load_start_async();
+                            continue;
+                        }
+                    }
+                    else if (!state.bytecode.is_loaded())
+                    {
+                        continue;
+                    }
+
                     // TOOD: Every script owns the stack here, we would like to share memory instead
                     state.runtime = allocate_unique<interpreter>();
                     state.runtime->init(g_StackSize);
-                    state.runtime->load_module(state.script->module);
+                    state.runtime->load_module(state.bytecode->module);
 
                     m_scriptApi->register_api_functions(*state.runtime);
 

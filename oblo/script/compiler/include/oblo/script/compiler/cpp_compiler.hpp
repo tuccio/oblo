@@ -29,9 +29,6 @@ namespace oblo
             enum class target_arch : u8
             {
                 x86_64_sse2,
-                x86_64_avx2,
-                armv8,
-                armv8_1a,
             };
 
             enum class optimization_level : u8
