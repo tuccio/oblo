@@ -32,9 +32,71 @@ static_assert(sizeof(i64) == 8u);
 static_assert(sizeof(u32) == 4u);
 static_assert(sizeof(u64) == 8u);
 
+using symbol_loader_fn = void* (*) (const char*);
+
+// vec3
+
 struct vec3
 {
     float x, y, z;
 };
 
-using symbol_loader_fn = void* (*) (const char*);
+constexpr vec3 operator-(const vec3& lhs, const vec3& rhs) noexcept
+{
+    return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
+}
+
+constexpr vec3 operator-(f32 lhs, const vec3& rhs) noexcept
+{
+    return {lhs - rhs.x, lhs - rhs.y, lhs - rhs.z};
+}
+
+constexpr vec3 operator-(const vec3& lhs, f32 rhs) noexcept
+{
+    return {lhs.x - rhs, lhs.y - rhs, lhs.z - rhs};
+}
+
+constexpr vec3 operator+(const vec3& lhs, const vec3& rhs) noexcept
+{
+    return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
+}
+
+constexpr vec3 operator+(f32 lhs, const vec3& rhs) noexcept
+{
+    return {lhs + rhs.x, lhs + rhs.y, lhs + rhs.z};
+}
+
+constexpr vec3 operator+(const vec3& lhs, f32 rhs) noexcept
+{
+    return {lhs.x + rhs, lhs.y + rhs, lhs.z + rhs};
+}
+
+constexpr vec3 operator*(const vec3& lhs, const vec3& rhs) noexcept
+{
+    return {lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z};
+}
+
+constexpr vec3 operator*(const vec3& lhs, f32 rhs) noexcept
+{
+    return lhs * vec3{rhs, rhs, rhs};
+}
+
+constexpr vec3 operator*(f32 lhs, const vec3& rhs) noexcept
+{
+    return rhs * lhs;
+}
+
+constexpr vec3 operator/(const vec3& lhs, const vec3& rhs) noexcept
+{
+    return {lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z};
+}
+
+constexpr vec3 operator/(f32 lhs, const vec3& rhs) noexcept
+{
+    return vec3{lhs, lhs, lhs} / rhs;
+}
+
+constexpr vec3 operator/(const vec3& lhs, f32 rhs) noexcept
+{
+    return lhs / vec3{rhs, rhs, rhs};
+}

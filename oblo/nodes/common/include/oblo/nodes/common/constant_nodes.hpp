@@ -224,11 +224,11 @@ namespace oblo
             const std::span<const h32<ast_node>>,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
-            const h32 xyz = ast.add_node(parent, ast_compound{});
+            const h32 xyz = ast.add_node(parent, ast_construct_type{.type = "vec3"_hsv});
 
-            ast.add_node(xyz, ast_f32_constant{.value = m_value.x});
-            ast.add_node(xyz, ast_f32_constant{.value = m_value.y});
-            ast.add_node(xyz, ast_f32_constant{.value = m_value.z});
+            ast.add_node(ast.add_node(xyz, ast_function_argument{}), ast_f32_constant{.value = m_value.x});
+            ast.add_node(ast.add_node(xyz, ast_function_argument{}), ast_f32_constant{.value = m_value.y});
+            ast.add_node(ast.add_node(xyz, ast_function_argument{}), ast_f32_constant{.value = m_value.z});
 
             outputs.emplace_back(xyz);
 

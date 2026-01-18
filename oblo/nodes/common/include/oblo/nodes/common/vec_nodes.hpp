@@ -58,11 +58,13 @@ namespace oblo::vec_nodes
             const std::span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
-            const h32 out = ast.add_node(parent, ast_compound{});
+            const h32 out = ast.add_node(parent, ast_construct_type{.type = "vec3"_hsv});
 
             for (u32 i = 0; i < 3; ++i)
             {
                 h32 valueExpression = inputs[i];
+
+                const h32 arg = ast.add_node(out, ast_function_argument{});
 
                 if (valueExpression)
                 {
@@ -75,11 +77,11 @@ namespace oblo::vec_nodes
                         valueExpression = ast_utils::make_type_conversion(ast, valueExpression, inType, f32Type);
                     }
 
-                    ast.reparent(valueExpression, out);
+                    ast.reparent(valueExpression, arg);
                 }
                 else
                 {
-                    ast_utils::make_default_value_child(ast, out, node_primitive_kind::f32);
+                    ast_utils::make_default_value_child(ast, arg, node_primitive_kind::f32);
                 }
             }
 
