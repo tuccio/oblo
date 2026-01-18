@@ -65,6 +65,16 @@ namespace oblo
             [[fallthrough]];
         case kind::gcc:
 
+            switch (opts.target)
+            {
+            case options::target_arch::x86_64_sse2:
+                args.emplace_back("-march=x86-64");
+                break;
+
+            default:
+                return unspecified_error;
+            }
+
             args.emplace_back("-std=c++20");
             args.emplace_back("-shared");
 
@@ -106,6 +116,16 @@ namespace oblo
             break;
 
         case kind::msvc:
+            switch (opts.target)
+            {
+            case options::target_arch::x86_64_sse2:
+                args.emplace_back("/arch:SSE2");
+                break;
+
+            default:
+                return unspecified_error;
+            }
+
             args.emplace_back("/std:c++20");
             args.emplace_back("/LD");
             args.emplace_back(src);
