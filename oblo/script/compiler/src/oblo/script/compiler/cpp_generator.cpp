@@ -497,12 +497,11 @@ namespace oblo
                         stmt.append("return ");
 
                         h32<ast_node> res[1];
-                        if (!get_children(ast, node, res))
+                        if (get_children(ast, node, res))
                         {
-                            return unspecified_error;
+                            append_var_name(stmt, res[0]);
                         }
 
-                        append_var_name(stmt, res[0]);
                         stmt.set_is_expression(false);
                         break;
 
@@ -554,59 +553,35 @@ namespace oblo
                         break;
 
                     case ast_node_kind::variable_definition: {
-                        //     if (!n.parent)
-                        //     {
-                        //         return unspecified_error;
-                        //     }
+                        if (!n.parent)
+                        {
+                            return unspecified_error;
+                        }
 
-                        //     auto& decl = ast.get(n.parent);
+                        auto& decl = ast.get(n.parent);
 
-                        //     if (decl.kind != ast_node_kind::variable_declaration)
-                        //     {
-                        //         return unspecified_error;
-                        //     }
+                        if (decl.kind != ast_node_kind::variable_declaration)
+                        {
+                            return unspecified_error;
+                        }
 
-                        //     const expected varName = pushReadOnlyString16(decl.node.varDecl.name);
+                        stmt.set_is_expression(false);
 
-                        //     if (!varName)
-                        //     {
-                        //         return unspecified_error;
-                        //     }
+                        stmt.format("auto&& {} = ", decl.node.varDecl.name);
 
-                        //     const auto children = ast.children(node);
+                        h32<ast_node> argExpr[1];
 
-                        //     if (auto it = children.begin(); it != children.end())
-                        //     {
-                        //         // We can get the expression result type/size from the child
-                        //         const h32<ast_node> childNode = *it;
+                        if (!get_children(ast, node, argExpr))
+                        {
+                            return unspecified_error;
+                        }
 
-                        //         const auto variableSize = nodeInfo[childNode.value].expressionResultSize;
-                        //         thisNodeInfo.expressionResultSize = variableSize;
-                        //         ++it;
-
-                        //         m.text.push_back({.op = bytecode_op::push_stack_top_ref, .payload = {variableSize}});
-                        //         m.text.push_back({.op = bytecode_op::tag_data_ref_static, .payload = {*varName}});
-
-                        //         // We expect a single child for the definition, i.e. the expression the variable is
-                        //         // initialized with
-                        //         if (it != children.end())
-                        //         {
-                        //             return unspecified_error;
-                        //         }
-                        //     }
+                        append_var_name(stmt, argExpr[0]);
                     }
                     break;
 
                     case ast_node_kind::variable_reference: {
-                        //     const expected varName = pushReadOnlyString16(n.node.varRef.name);
-
-                        //     if (!varName)
-                        //     {
-                        //         return unspecified_error;
-                        //     }
-
-                        //     m.text.push_back({.op = bytecode_op::push_tagged_data_copy_static, .payload =
-                        //     {*varName}}); thisNodeInfo.expressionResultSize = script_data_ref_size();
+                        stmt.append(n.node.varRef.name);
                     }
                     break;
 

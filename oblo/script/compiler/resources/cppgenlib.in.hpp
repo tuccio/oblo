@@ -1,5 +1,3 @@
-#pragma once
-
 #ifdef _MSC_VER
     #define OBLO_SHARED_LIBRARY_EXPORT __declspec(dllexport)
     #define OBLO_SHARED_LIBRARY_IMPORT __declspec(dllimport)
@@ -31,5 +29,10 @@ static_assert(sizeof(i32) == 4u);
 static_assert(sizeof(i64) == 8u);
 static_assert(sizeof(u32) == 4u);
 static_assert(sizeof(u64) == 8u);
+
+struct vec3
+{
+    float x, y, z;
+};
 
 using symbol_loader_fn = void* (*) (const char*);

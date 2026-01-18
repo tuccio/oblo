@@ -484,6 +484,62 @@ namespace oblo
                         .size = sizeof(f32) * 3,
                     });
 
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = script_api::cosine_f32,
+                            .returnType = script_api::f32_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "x",
+                            .type = script_api::f32_t,
+                        });
+                }
+
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = script_api::cosine_vec3,
+                            .returnType = script_api::vec3_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "v",
+                            .type = script_api::vec3_t,
+                        });
+                }
+
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = script_api::sine_f32,
+                            .returnType = script_api::f32_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "x",
+                            .type = script_api::f32_t,
+                        });
+                }
+
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = script_api::sine_vec3,
+                            .returnType = script_api::vec3_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "v",
+                            .type = script_api::vec3_t,
+                        });
+                }
+
                 tree.add_node(root,
                     ast_function_declaration{
                         .name = script_api::get_time,
