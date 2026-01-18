@@ -65,6 +65,7 @@ namespace oblo
             [[fallthrough]];
         case kind::gcc:
 
+            args.emplace_back("-std=c++20");
             args.emplace_back("-shared");
 
             if constexpr (platform::is_unix_like())
@@ -105,6 +106,7 @@ namespace oblo
             break;
 
         case kind::msvc:
+            args.emplace_back("/std:c++20");
             args.emplace_back("/LD");
             args.emplace_back(src);
             args.emplace_back(buf.clear().format("/Fe:{}", dst).view());

@@ -77,6 +77,16 @@ namespace oblo
                 m_builder.format(fmt, std::forward<T>(args)...);
             }
 
+            template <typename Iterator>
+            void join(Iterator&& begin,
+                Iterator&& end,
+                string_view separator,
+                std::format_string<decltype(*std::declval<Iterator>())> fmt)
+            {
+                apply_indentation();
+                m_builder.join(std::forward<Iterator>(begin), std::forward<Iterator>(end), separator, fmt);
+            }
+
         private:
             void apply_indentation()
             {
@@ -176,6 +186,39 @@ namespace oblo
 
             return true;
         }
+
+        void generate_intrinsics(codegen_helper& g, auto& functionDeclarations)
+        {
+            struct intrinsic_declaration
+            {
+                hashed_string_view name;
+                hashed_string_view returnType;
+                string_view argsList;
+            };
+
+            constexpr intrinsic_declaration intrinsics[] = {
+                {"__intrin_cos"_hsv, "f32"_hsv, "f32"},
+                {"__intrin_sin"_hsv, "f32"_hsv, "f32"},
+            };
+
+            g.append("namespace");
+            g.new_line();
+
+            const auto anonNamespace = g.begin_scope_raii();
+
+            for (const auto& intrinsic : intrinsics)
+            {
+                g.format("using {}_t = {}(*)({});", intrinsic.name, intrinsic.returnType, intrinsic.argsList);
+                g.new_line();
+
+                g.format("[[maybe_unused]] {0}_t {0} = nullptr;", intrinsic.name);
+                g.new_line();
+
+                functionDeclarations[intrinsic.name] = {
+                    .returnType = intrinsic.returnType,
+                };
+            }
+        }
     }
 
     expected<string_builder> cpp_generator::generate_code(const abstract_syntax_tree& ast)
@@ -204,8 +247,11 @@ namespace oblo
 
         deque<ast_function_ref> functions;
 
+        std::unordered_set<hashed_string_view, hash<hashed_string_view>> referencedFunctions;
         std::unordered_map<hashed_string_view, ast_function_decl_ref, transparent_string_hash> functionDeclarations;
         std::unordered_map<hashed_string_view, ast_type_ref, transparent_string_hash> types;
+
+        generate_intrinsics(g, functionDeclarations);
 
         for (const h32 childHandle : ast.children(ast.get_root()))
         {
@@ -221,27 +267,6 @@ namespace oblo
                 types[node.node.typeDecl.name] = {
                     .size = node.node.typeDecl.size,
                 };
-
-                switch (node.node.typeDecl.name.hash())
-                {
-                case "f32"_hsv.hash():
-                    g.append("using f32 = float;");
-                    g.new_line();
-                    break;
-
-                case "i32"_hsv.hash():
-                    g.append("using i32 =  int;");
-                    g.new_line();
-                    break;
-
-                case "u32"_hsv.hash():
-                    g.append("using u32 = unsigned int;");
-                    g.new_line();
-                    break;
-
-                default:
-                    break;
-                }
 
                 break;
 
@@ -295,8 +320,6 @@ namespace oblo
 
         deque<visit_info> visitStack;
         deque<node_info> nodeInfo;
-
-        std::unordered_set<hashed_string_view, hash<hashed_string_view>> requiredFunctions;
 
         for (const ast_function_ref& f : functions)
         {
@@ -472,7 +495,7 @@ namespace oblo
                             return unspecified_error;
                         }
 
-                        requiredFunctions.emplace(n.node.functionCall.name);
+                        referencedFunctions.emplace(n.node.functionCall.name);
 
                         stmt.append(n.node.functionCall.name);
                         stmt.append('(');
@@ -493,10 +516,20 @@ namespace oblo
                     }
                     break;
 
-                    case ast_node_kind::function_argument:
-                        // TODO: How to deal with function argument? Since we are visiting bottom up we get the argument
-                        // before the function call On the stack we should have the argument right now
-                        break;
+                    case ast_node_kind::function_argument: {
+                        // For arguments we just create a variable with a reference, so that the function call can
+                        // reference the node result, which is effectively forwarded.
+                        h32<ast_node> argExpr[1];
+
+                        if (!get_children(ast, node, argExpr))
+                        {
+                            return unspecified_error;
+                        }
+
+                        append_var_name(stmt, argExpr[0]);
+                        stmt.set_expression_type("auto&");
+                    }
+                    break;
 
                     case ast_node_kind::variable_declaration:
                         break;
@@ -580,6 +613,34 @@ namespace oblo
                     }
                 }
             }
+        }
+
+        {
+            g.new_line();
+            g.append("#define OBLO_LOAD_FUNCTION(Loader, Function) (Function = "
+                     "reinterpret_cast<decltype(Function)>(Loader(#Function)))");
+
+            g.new_line();
+            g.new_line();
+            g.append("extern \"C\" OBLO_SHARED_LIBRARY_EXPORT i32 "
+                     "oblo_load_symbols(symbol_loader_fn loader)");
+
+            const auto scope = g.begin_scope_raii();
+
+            g.append("if (!loader) return 0;");
+            g.new_line();
+
+            g.append("bool success = true;");
+            g.new_line();
+
+            for (const auto& function : referencedFunctions)
+            {
+                g.format("OBLO_LOAD_FUNCTION(loader, {});", function);
+                g.new_line();
+            }
+
+            g.append("return i32{success};");
+            g.new_line();
         }
 
         return std::move(code);

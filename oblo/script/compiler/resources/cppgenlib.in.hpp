@@ -32,25 +32,4 @@ static_assert(sizeof(i64) == 8u);
 static_assert(sizeof(u32) == 4u);
 static_assert(sizeof(u64) == 8u);
 
-using function_loader_fn = void* (*) (const char*);
-
-//     namespace
-//     {
-//         f32 (*__intrin_cos)(f32 x);
-//         f32 (*__intrin_sin)(f32 x);
-//     }
-
-// #define OBLO_LOAD_FUNCTION(Loader, Function) (Function = reinterpret_cast<decltype(Function)>(Loader(#Function)))
-
-// extern "C" OBLO_SHARED_LIBRARY_EXPORT oblo::cppgenlib::i32 oblo_load_functions(
-//     oblo::cppgenlib::function_loader_fn loader)
-// {
-//     if (!loader)
-//     {
-//         return 0;
-//     }
-
-//     const bool success = OBLO_LOAD_FUNCTION(__intrin_cos) != nullptr && OBLO_LOAD_FUNCTION(__intrin_sin) != nullptr;
-
-//     return oblo::cppgenlib::i32{success};
-// }
+using symbol_loader_fn = void* (*) (const char*);

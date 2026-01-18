@@ -182,7 +182,7 @@ namespace oblo
             const auto hBody = ast.add_node(hCallSinFunc, ast_function_body{});
             const auto hReturn = ast.add_node(hBody, ast_return_statement{});
 
-            const auto hDoCallSin = ast.add_node(hCallSinFunc, ast_function_call{.name = "sin"});
+            const auto hDoCallSin = ast.add_node(hReturn, ast_function_call{.name = "__intrin_sin"});
             const auto hArg = ast.add_node(hDoCallSin, ast_function_argument{});
             ast.add_node(hArg, ast_f32_constant{pi / 4.f});
 
@@ -192,20 +192,20 @@ namespace oblo
 
     TEST(cpp_generator, call_sin_function)
     {
-        const abstract_syntax_tree ast = make_add_sub_f32_constants_ast();
+        const abstract_syntax_tree ast = make_call_sin_function_ast();
 
         cpp_generator gen;
         const auto code = gen.generate_code(ast);
         ASSERT_TRUE(code);
 
         platform::shared_library lib;
-        compile_script(code->view(), "add_sub_f32_constants", lib);
+        compile_script(code->view(), "call_sin_function", lib);
 
         using loader_fn = void* (*) (const char*);
         const auto loadSymbols = reinterpret_cast<i32 (*)(loader_fn)>(lib.symbol("oblo_load_symbols"));
         constexpr auto loader = [](const char* name) -> void*
         {
-            if (name == string_view{"sin"})
+            if (name == string_view{"__intrin_sin"})
             {
                 return +[](f32 v) -> f32 { return std::sin(v); };
             }
