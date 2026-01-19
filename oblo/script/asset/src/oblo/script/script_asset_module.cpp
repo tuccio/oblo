@@ -310,6 +310,7 @@ namespace oblo
                         {
                             .target = target,
                             .optimizations = cpp_compiler::options::optimization_level::none,
+                            .debugInfo = true, // TODO: This needs to be configurable
                         }))
                 {
                     return false;

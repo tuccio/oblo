@@ -16,9 +16,9 @@ namespace oblo::platform
         other.m_handle = nullptr;
     }
 
-    shared_library::shared_library(cstring_view path)
+    shared_library::shared_library(cstring_view path, flags<open_flags> flags)
     {
-        open(path);
+        open(path, flags);
     }
 
     shared_library& shared_library::operator=(shared_library&& other) noexcept
@@ -34,15 +34,27 @@ namespace oblo::platform
         close();
     }
 
-    bool shared_library::open(cstring_view path)
+    bool shared_library::open(cstring_view path, flags<open_flags> flags)
     {
         close();
 
 #ifdef _WIN32
         wchar_t buf[win32::MaxPath];
-        win32::convert_path(path, buf);
+        wchar_t* const end = win32::convert_path(path, buf);
+
+        if (flags.contains(open_flags::exact_name))
+        {
+            // LoadLibrary will append .dll to filenames without extension
+            // In order to avoid that, we need to add a trailing '.' to the path
+            if (end < buf + (win32::MaxPath - 1))
+            {
+                *end = '.';
+                *(end + 1) = '\0';
+            }
+        }
 
         m_handle = LoadLibraryW(buf);
+
 #else
         m_handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif

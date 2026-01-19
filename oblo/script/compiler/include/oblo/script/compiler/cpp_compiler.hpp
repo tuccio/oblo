@@ -41,6 +41,7 @@ namespace oblo
 
             target_arch target{};
             optimization_level optimizations{};
+            bool debugInfo{};
         };
 
     public:

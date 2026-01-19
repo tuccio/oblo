@@ -11,6 +11,7 @@ namespace oblo
 {
     struct compiled_script;
     struct compiled_bytecode_module;
+    struct compiled_native_module;
 
     struct script_behaviour_component
     {
@@ -21,7 +22,9 @@ namespace oblo
     {
         resource_ptr<compiled_script> script{};
         resource_ptr<compiled_bytecode_module> bytecode{};
+        resource_ptr<compiled_native_module> native{};
         unique_ptr<interpreter> runtime;
+        bool readyToRun{};
     } OBLO_COMPONENT(Transient);
 
     struct script_behaviour_update_tag

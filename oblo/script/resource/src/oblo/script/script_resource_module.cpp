@@ -392,7 +392,7 @@ namespace oblo
 
     bool load(compiled_native_module& script, cstring_view source)
     {
-        return script.module.open(source);
+        return script.module.open(source, platform::shared_library::open_flags::exact_name);
     }
 }
 

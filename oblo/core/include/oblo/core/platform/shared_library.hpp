@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 
 namespace oblo::platform
@@ -12,6 +13,14 @@ namespace oblo::platform
     class shared_library
     {
     public:
+        enum class open_flags : u8
+        {
+            // Prevents from adding prefixes or extension to the filename when looking for the library.
+            exact_name,
+            enum_max,
+        };
+
+    public:
         /// @brief Default constructor. Creates an empty (i.e. not open) shared library object.
         shared_library() = default;
 
@@ -21,7 +30,7 @@ namespace oblo::platform
 
         /// @brief Constructs and opens a shared library from the specified path.
         /// @param path Path to the shared library file.
-        explicit shared_library(cstring_view path);
+        explicit shared_library(cstring_view path, flags<open_flags> flags = {});
 
         shared_library& operator=(const shared_library&) = delete;
 
@@ -32,7 +41,7 @@ namespace oblo::platform
         /// @brief Opens a shared library from the given path.
         /// @param path Path to the shared library file.
         /// @return True if the library was successfully opened, false otherwise.
-        bool open(cstring_view path);
+        bool open(cstring_view path, flags<open_flags> flags = {});
 
         /// @brief Closes the shared library if it is currently open.
         void close();

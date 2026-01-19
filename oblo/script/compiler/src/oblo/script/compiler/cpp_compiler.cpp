@@ -102,6 +102,11 @@ namespace oblo
                 break;
             }
 
+            if (opts.debugInfo)
+            {
+                args.emplace_back("-g");
+            }
+
             args.emplace_back(src);
 
             args.emplace_back("-o");
@@ -146,6 +151,11 @@ namespace oblo
             case options::optimization_level::highest:
                 args.emplace_back("/O2");
                 break;
+            }
+
+            if (opts.debugInfo)
+            {
+                args.emplace_back("/Zi");
             }
 
             args.emplace_back("/NODEFAULTLIB");
