@@ -34,6 +34,13 @@ static_assert(sizeof(u64) == 8u);
 
 using symbol_loader_fn = void* (*) (const char*);
 
+static void* oblo_global_context{};
+
+extern "C" OBLO_SHARED_LIBRARY_EXPORT void oblo_set_global_context(void* ctx)
+{
+    oblo_global_context = ctx;
+}
+
 // vec3
 
 struct vec3

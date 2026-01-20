@@ -180,7 +180,6 @@ namespace oblo
                     return false;
                 }
 
-
                 out[i] = *it;
                 ++it;
             }
@@ -188,10 +187,9 @@ namespace oblo
             return true;
         }
 
-        void append_all_arguments(const abstract_syntax_tree& ast, h32<ast_node> node, statement_helper& stmt)
+        void append_all_arguments(
+            const abstract_syntax_tree& ast, h32<ast_node> node, statement_helper& stmt, bool isFirstArgument)
         {
-            bool isFirst = true;
-
             for (const h32 child : ast.children(node))
             {
                 auto& childNode = ast.get(child);
@@ -201,12 +199,12 @@ namespace oblo
                     continue;
                 }
 
-                if (!isFirst)
+                if (!isFirstArgument)
                 {
                     stmt.append(", ");
                 }
 
-                isFirst = false;
+                isFirstArgument = false;
                 append_var_name(stmt, child);
             }
         }
@@ -321,9 +319,8 @@ namespace oblo
                 const auto& node = ast.get(functionDeclaration);
                 OBLO_ASSERT(node.kind == ast_node_kind::function_declaration);
 
-                g.format("using {}_fn_t = {}(*)(", node.node.functionDecl.name, node.node.functionDecl.returnType);
-
-                bool isFirst = true;
+                // All function pointers have a void* as first argument, which is the context
+                g.format("using {}_fn_t = {}(*)(void*", node.node.functionDecl.name, node.node.functionDecl.returnType);
 
                 for (const h32 child : ast.children(functionDeclaration))
                 {
@@ -334,13 +331,7 @@ namespace oblo
                         continue;
                     }
 
-                    if (!isFirst)
-                    {
-                        g.append(", ");
-                    }
-
-                    isFirst = false;
-
+                    g.append(", ");
                     g.append(childNode.node.functionParameter.type);
                     g.append(' ');
                     g.append(childNode.node.functionParameter.name);
@@ -551,7 +542,11 @@ namespace oblo
                         stmt.append(n.node.functionCall.name);
                         stmt.append('(');
 
-                        append_all_arguments(ast, node, stmt);
+                        // All function calls get the update context passed in currently, since we assume they are
+                        // imported If we need to support other function calls, then this needs to be conditional
+                        stmt.append("oblo_global_context");
+
+                        append_all_arguments(ast, node, stmt, false);
 
                         stmt.append(')');
 
@@ -631,7 +626,7 @@ namespace oblo
 
                     case ast_node_kind::construct_type: {
                         stmt.format("{} {{", n.node.constructType.type);
-                        append_all_arguments(ast, node, stmt);
+                        append_all_arguments(ast, node, stmt, true);
                         stmt.append('}');
                     }
 

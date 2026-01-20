@@ -82,6 +82,87 @@ namespace oblo
             return m_ctx;
         }
 
+        f32 get_property_f32(string_view componentType, string_view propertyName)
+        {
+            const oblo::property* propertyData{};
+
+            const auto p = fetch_component_property_ptr(componentType, propertyName, &propertyData);
+            OBLO_ASSERT(p);
+
+            OBLO_ASSERT(propertyData->kind == property_kind::f32);
+
+            if (!p || propertyData->kind != property_kind::f32) [[unlikely]]
+            {
+                return 0.f;
+            }
+
+            return *reinterpret_cast<const f32*>(*p);
+        }
+
+        void set_property_f32(string_view componentType, string_view propertyName, f32 value)
+        {
+            const oblo::property* propertyData{};
+
+            const auto p = fetch_component_property_ptr(componentType, propertyName, &propertyData);
+            OBLO_ASSERT(p);
+
+            OBLO_ASSERT(propertyData->kind == property_kind::f32);
+
+            if (!p || propertyData->kind != property_kind::f32) [[unlikely]]
+            {
+                return;
+            }
+
+            std::memcpy(*p, &value, sizeof(f32));
+            m_entities->notify(m_ctx.entityId);
+        }
+
+        vec3 get_property_vec3(string_view componentType, string_view propertyName)
+        {
+            const oblo::property_node* propertyData{};
+
+            const expected propertyPtr = fetch_component_property_node_ptr(componentType, propertyName, &propertyData);
+
+            if (!propertyPtr || propertyData->type != get_type_id<vec3>()) [[unlikely]]
+            {
+                return vec3{};
+            }
+
+            return *reinterpret_cast<const vec3*>(*propertyPtr);
+        }
+
+        void set_property_vec3(string_view componentType, string_view propertyName, u32 valuesMask, vec3 inData)
+        {
+            const oblo::property_node* propertyData{};
+
+            const expected propertyPtr = fetch_component_property_node_ptr(componentType, propertyName, &propertyData);
+
+            if (!propertyPtr || propertyData->type != get_type_id<vec3>()) [[unlikely]]
+            {
+                return;
+            }
+
+            if (valuesMask != 0)
+            {
+                for (u32 i = 0, iMask = 1; i < 3; ++i, iMask <<= 1)
+                {
+                    if ((iMask & valuesMask) == 0)
+                    {
+                        continue;
+                    }
+
+                    byte* const dst = *propertyPtr + i * sizeof(f32);
+                    const f32* const src = &inData[i];
+
+                    std::memcpy(dst, src, sizeof(f32));
+                }
+
+                m_entities->notify(m_ctx.entityId);
+            }
+
+            return;
+        }
+
     private:
         expected<void, interpreter_error> get_time_impl(interpreter& interp)
         {
@@ -506,6 +587,13 @@ namespace oblo
                 }
                 else
                 {
+                    // TODO: Check if scripts are invalidated, if so reload.
+
+                    if (ctx.entities->has<script_behaviour_update_tag>(e))
+                    {
+                        continue;
+                    }
+
                     if (!state.native)
                     {
                         if (!state.script.is_loaded())
@@ -524,120 +612,103 @@ namespace oblo
                     }
                     else if (state.native->module.is_open())
                     {
-                        if (!state.readyToRun)
+                        using loader_fn = void* (*) (const char*);
+
+                        constexpr loader_fn loader = [](const char* name) -> void*
                         {
-                            using loader_fn = void* (*) (const char*);
+                            const hashed_string_view hName{name};
 
-                            constexpr loader_fn loader = [](const char* name) -> void*
+                            if (hName == script_api::cosine_f32)
                             {
-                                const hashed_string_view hName{name};
-
-                                if (hName == script_api::cosine_f32)
-                                {
-                                    return +[](f32 v) { return std::cos(v); };
-                                }
-
-                                if (hName == script_api::sine_vec3)
-                                {
-                                    return +[](vec3 v)
-                                    {
-                                        return vec3{
-                                            std::cos(v.x),
-                                            std::cos(v.y),
-                                            std::cos(v.z),
-                                        };
-                                    };
-                                }
-
-                                if (hName == script_api::sine_f32)
-                                {
-                                    return +[](f32 v) { return std::cos(v); };
-                                }
-
-                                if (hName == script_api::sine_vec3)
-                                {
-                                    return +[](vec3 v)
-                                    {
-                                        return vec3{
-                                            std::sin(v.x),
-                                            std::sin(v.y),
-                                            std::sin(v.z),
-                                        };
-                                    };
-                                }
-
-                                if (hName == script_api::get_time)
-                                {
-                                    return +[]() -> f32 { return 0.f; };
-                                }
-
-                                if (hName == script_api::ecs::get_property_f32)
-                                {
-                                    return +[](const char* componentType, const char* propertyName) -> f32
-                                    {
-                                        (void) componentType;
-                                        (void) propertyName;
-                                        return 0.f;
-                                    };
-                                }
-
-                                if (hName == script_api::ecs::get_property_vec3)
-                                {
-                                    return +[](const char* componentType, const char* propertyName) -> vec3
-                                    {
-                                        (void) componentType;
-                                        (void) propertyName;
-                                        return vec3{};
-                                    };
-                                }
-
-                                if (hName == script_api::ecs::set_property_f32)
-                                {
-                                    return +[](const char* componentType, const char* propertyName, f32 value) -> void
-                                    {
-                                        (void) componentType;
-                                        (void) propertyName;
-                                        (void) value;
-                                    };
-                                }
-
-                                if (hName == script_api::ecs::set_property_vec3)
-                                {
-                                    return +[](const char* componentType,
-                                                const char* propertyName,
-                                                u32 mask,
-                                                vec3 value) -> void
-                                    {
-                                        (void) componentType;
-                                        (void) propertyName;
-                                        (void) mask;
-                                        (void) value;
-                                    };
-                                }
-
-                                return nullptr;
-                            };
-
-                            const auto loadSymbols =
-                                reinterpret_cast<i32 (*)(loader_fn)>(state.native->module.symbol("oblo_load_symbols"));
-
-                            if (loadSymbols && loadSymbols(loader))
-                            {
-                                state.readyToRun = true;
+                                return +[](script_api_context*, f32 v) { return std::cos(v); };
                             }
 
-                            continue;
-                        }
-
-                        if (state.readyToRun)
-                        {
-                            const auto execute =
-                                reinterpret_cast<void (*)()>(state.native->module.symbol("node_graph_execute"));
-
-                            if (execute)
+                            if (hName == script_api::sine_vec3)
                             {
-                                execute();
+                                return +[](script_api_context*, vec3 v)
+                                {
+                                    return vec3{
+                                        std::cos(v.x),
+                                        std::cos(v.y),
+                                        std::cos(v.z),
+                                    };
+                                };
                             }
+
+                            if (hName == script_api::sine_f32)
+                            {
+                                return +[](script_api_context*, f32 v) { return std::cos(v); };
+                            }
+
+                            if (hName == script_api::sine_vec3)
+                            {
+                                return +[](script_api_context*, vec3 v)
+                                {
+                                    return vec3{
+                                        std::sin(v.x),
+                                        std::sin(v.y),
+                                        std::sin(v.z),
+                                    };
+                                };
+                            }
+
+                            if (hName == script_api::get_time)
+                            {
+                                return +[](script_api_context* ctx) -> f32 { return to_f32_seconds(ctx->currentTime); };
+                            }
+
+                            if (hName == script_api::ecs::get_property_f32)
+                            {
+                                return +[](script_api_impl* api,
+                                            const char* componentType,
+                                            const char* propertyName) -> f32
+                                { return api->get_property_f32(componentType, propertyName); };
+                            }
+
+                            if (hName == script_api::ecs::get_property_vec3)
+                            {
+                                return +[](script_api_impl* api,
+                                            const char* componentType,
+                                            const char* propertyName) -> vec3
+                                { return api->get_property_vec3(componentType, propertyName); };
+                            }
+
+                            if (hName == script_api::ecs::set_property_f32)
+                            {
+                                return +[](script_api_impl* api,
+                                            const char* componentType,
+                                            const char* propertyName,
+                                            f32 value) -> void
+                                { api->set_property_f32(componentType, propertyName, value); };
+                            }
+
+                            if (hName == script_api::ecs::set_property_vec3)
+                            {
+                                return +[](script_api_impl* api,
+                                            const char* componentType,
+                                            const char* propertyName,
+                                            u32 mask,
+                                            vec3 value) -> void
+                                { api->set_property_vec3(componentType, propertyName, mask, value); };
+                            }
+
+                            return nullptr;
+                        };
+
+                        const auto loadSymbols =
+                            reinterpret_cast<i32 (*)(loader_fn)>(state.native->module.symbol("oblo_load_symbols"));
+
+                        const auto setContext =
+                            reinterpret_cast<void (*)(void*)>(state.native->module.symbol("oblo_set_global_context"));
+
+                        const auto execute =
+                            reinterpret_cast<void (*)()>(state.native->module.symbol("node_graph_execute"));
+
+                        if (loadSymbols && setContext && execute && loadSymbols(loader))
+                        {
+                            state.setGlobalContext = setContext;
+                            state.execute = execute;
+                            deferred.add<script_behaviour_update_tag>(e);
                         }
                     }
                 }
@@ -662,6 +733,11 @@ namespace oblo
                     }
 
                     state.runtime->reset_execution();
+                }
+                else
+                {
+                    state.setGlobalContext(&apiCtx);
+                    state.execute();
                 }
             }
         }

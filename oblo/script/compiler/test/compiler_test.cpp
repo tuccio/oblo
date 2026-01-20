@@ -12,6 +12,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 namespace oblo
 {
     namespace
@@ -203,12 +205,29 @@ namespace oblo
         compile_script(code->view(), "call_sin_function", lib);
 
         using loader_fn = void* (*) (const char*);
+
+        static constexpr intptr context_value = 42;
+
+        const auto setContext = reinterpret_cast<void (*)(intptr)>(lib.symbol("oblo_set_global_context"));
+        ASSERT_TRUE(setContext);
+
+        setContext(context_value);
+
         const auto loadSymbols = reinterpret_cast<i32 (*)(loader_fn)>(lib.symbol("oblo_load_symbols"));
         constexpr auto loader = [](const char* name) -> void*
+
         {
             if (name == string_view{"sin"})
             {
-                return +[](f32 v) -> f32 { return std::sin(v); };
+                return +[](const intptr context, f32 v) -> f32
+                {
+                    if (context != context_value)
+                    {
+                        return std::numeric_limits<f32>::quiet_NaN();
+                    }
+
+                    return std::sin(v);
+                };
             }
 
             return nullptr;
