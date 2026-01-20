@@ -620,12 +620,12 @@ namespace oblo
 
                             if (hName == script_api::cosine_f32)
                             {
-                                return +[](script_api_context*, f32 v) { return std::cos(v); };
+                                return +[](script_api_impl*, f32 v) { return std::cos(v); };
                             }
 
                             if (hName == script_api::sine_vec3)
                             {
-                                return +[](script_api_context*, vec3 v)
+                                return +[](script_api_impl*, vec3 v)
                                 {
                                     return vec3{
                                         std::cos(v.x),
@@ -637,12 +637,12 @@ namespace oblo
 
                             if (hName == script_api::sine_f32)
                             {
-                                return +[](script_api_context*, f32 v) { return std::cos(v); };
+                                return +[](script_api_impl*, f32 v) { return std::cos(v); };
                             }
 
                             if (hName == script_api::sine_vec3)
                             {
-                                return +[](script_api_context*, vec3 v)
+                                return +[](script_api_impl*, vec3 v)
                                 {
                                     return vec3{
                                         std::sin(v.x),
@@ -654,7 +654,8 @@ namespace oblo
 
                             if (hName == script_api::get_time)
                             {
-                                return +[](script_api_context* ctx) -> f32 { return to_f32_seconds(ctx->currentTime); };
+                                return +[](script_api_impl* ctx) -> f32
+                                { return to_f32_seconds(ctx->global_context().currentTime); };
                             }
 
                             if (hName == script_api::ecs::get_property_f32)
