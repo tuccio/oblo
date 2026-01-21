@@ -12,8 +12,8 @@ set(generatedHeader "${outDir}/cppgenlib.gen.hpp")
 set(sourceFile "${CMAKE_CURRENT_SOURCE_DIR}/resources/cppgenlib.in.hpp")
 
 add_custom_command(
-    OUTPUT ${generatedHeader}
-    SOURCES ${sourceFile}
+    OUTPUT "${generatedHeader}"
+    DEPENDS "${sourceFile}"
     COMMAND ${CMAKE_COMMAND} -DNAME=cppgenlib -DINPUT_FILE=${sourceFile} -DOUTPUT_FILE=${generatedHeader} -P "${CMAKE_SOURCE_DIR}/cmake/Scripts/embed.cmake"
     COMMENT "Embedding ${sourceFile}"
 )
