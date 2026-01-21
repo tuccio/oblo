@@ -16,7 +16,7 @@ namespace oblo::platform
         other.m_handle = nullptr;
     }
 
-    shared_library::shared_library(cstring_view path, flags<open_flags> flags)
+    shared_library::shared_library(cstring_view path, flags<open_flags> flags) noexcept
     {
         open(path, flags);
     }

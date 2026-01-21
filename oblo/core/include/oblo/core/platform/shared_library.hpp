@@ -15,7 +15,7 @@ namespace oblo::platform
     public:
         enum class open_flags : u8
         {
-            // Prevents from adding prefixes or extension to the filename when looking for the library.
+            /// Prevents from adding prefixes or extension to the filename when looking for the library.
             exact_name,
             enum_max,
         };
@@ -30,7 +30,8 @@ namespace oblo::platform
 
         /// @brief Constructs and opens a shared library from the specified path.
         /// @param path Path to the shared library file.
-        explicit shared_library(cstring_view path, flags<open_flags> flags = {});
+        /// @param flags Optional flags to control the open.
+        explicit shared_library(cstring_view path, flags<open_flags> flags = {}) noexcept;
 
         shared_library& operator=(const shared_library&) = delete;
 
@@ -40,6 +41,7 @@ namespace oblo::platform
 
         /// @brief Opens a shared library from the given path.
         /// @param path Path to the shared library file.
+        /// @param flags Optional flags to control the open.
         /// @return True if the library was successfully opened, false otherwise.
         bool open(cstring_view path, flags<open_flags> flags = {});
 
