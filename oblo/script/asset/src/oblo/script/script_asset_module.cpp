@@ -24,6 +24,9 @@
 #include <oblo/nodes/common/vec_nodes.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
+#include <oblo/options/option_proxy.hpp>
+#include <oblo/options/option_traits.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -46,8 +49,53 @@
 
 namespace oblo
 {
+    namespace compiler_option_names
+    {
+        constexpr fixed_string optimizations = "g.script.compiler.optimize";
+        constexpr fixed_string debug_info = "g.script.compiler.debugInfo";
+    }
+
+    template <>
+    struct option_traits<compiler_option_names::optimizations>
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "4f73af03-87c4-41b4-a2a7-1bafee3e2458"_uuid,
+            .name = "Optimize native code",
+            .category = "Script/Compiler",
+            .defaultValue = property_value_wrapper{true},
+        };
+    };
+
+    template <>
+    struct option_traits<compiler_option_names::debug_info>
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "cedd2929-cf5f-453a-85fc-5732b284d07b"_uuid,
+            .name = "Output debug info",
+            .category = "Script/Compiler",
+            .defaultValue = property_value_wrapper{false},
+        };
+    };
     namespace
     {
+        struct compiler_options_proxy
+        {
+            option_proxy<compiler_option_names::optimizations> optimizations;
+            option_proxy<compiler_option_names::debug_info> debugInfo;
+        };
+
+        struct compiler_options
+        {
+            bool optimizations;
+            bool debugInfo;
+        };
+
         bool load_graph(script_graph& g, const node_graph_registry& reg, cstring_view source)
         {
             g.init(reg);
@@ -126,6 +174,15 @@ namespace oblo
                     auto& n = preview.nodes[u32(importer_artifact::x86_64_avx2)];
                     n.artifactType = resource_type<compiled_native_module>;
                     n.name = artifact_x86_64_avx2;
+                }
+
+                if (auto* const optsModule = module_manager::get().find<options_module>())
+                {
+                    auto& optsManager = optsModule->manager();
+
+                    option_proxy_struct<compiler_options_proxy> compilerOpts;
+                    compilerOpts.init(optsManager);
+                    compilerOpts.read(optsManager, m_compilerOptions);
                 }
 
                 return true;
@@ -309,8 +366,10 @@ namespace oblo
                         destination,
                         {
                             .target = target,
-                            .optimizations = cpp_compiler::options::optimization_level::none,
-                            .debugInfo = true, // TODO: This needs to be configurable
+                            .optimizations = m_compilerOptions.optimizations
+                                ? cpp_compiler::options::optimization_level::highest
+                                : cpp_compiler::options::optimization_level::none,
+                            .debugInfo = m_compilerOptions.debugInfo,
                         }))
                 {
                     return false;
@@ -373,6 +432,7 @@ namespace oblo
             string m_source;
             dynamic_array<string> m_sourceFiles;
             uuid m_mainArtifactHint{};
+            compiler_options m_compilerOptions{};
         };
 
         class script_graph_provider final : public native_asset_provider
@@ -629,6 +689,8 @@ namespace oblo
         {
             initializer.services->add<script_graph_provider>().as<native_asset_provider>().unique(m_scriptRegistry);
             initializer.services->add<behaviour_api_provider>().as<script_api_provider>().unique();
+
+            option_proxy_struct<compiler_options_proxy>::register_options(*initializer.services);
 
             // Load the runtime module to make sure it gets finalized before us, since we want to register the
             // components properties from its property registry
