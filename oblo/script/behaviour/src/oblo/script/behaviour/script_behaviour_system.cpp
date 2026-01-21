@@ -11,11 +11,13 @@
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/script/behaviour/options.hpp>
 #include <oblo/script/behaviour/script_behaviour_component.hpp>
 #include <oblo/script/interpreter.hpp>
 #include <oblo/script/resources/builtin_api.hpp>
@@ -492,6 +494,22 @@ namespace oblo
 
     void script_behaviour_system::first_update(const ecs::system_update_context& ctx)
     {
+        option_proxy<script_options::use_native_runtime> useNativeRuntimeProxy;
+
+        if (auto* optsModule = module_manager::get().find<options_module>(); optsModule)
+        {
+            auto& optsManager = optsModule->manager();
+            useNativeRuntimeProxy.init(optsManager);
+            useNativeRuntime = useNativeRuntimeProxy.read(optsManager);
+        }
+        else
+        {
+            log::debug("Failed to retrieve options manager, " OBLO_STRINGIZE(
+                script_behaviour_system) " might be misconfigured");
+
+            useNativeRuntime = useNativeRuntimeProxy.descriptor().defaultValue.get_bool();
+        }
+
         m_scriptApi = allocate_unique<script_api_impl>();
 
         auto* const propertyRegistry = ctx.services->find<const property_registry>();
@@ -538,9 +556,6 @@ namespace oblo
 
         deferred.apply(*ctx.entities);
 
-        // #error "We can now try to load the native dll"
-        constexpr bool useNative = true;
-
         for (auto&& chunk : ctx.entities->range<script_behaviour_component, script_behaviour_state_component>())
         {
             for (auto&& [e, b, state] :
@@ -553,7 +568,7 @@ namespace oblo
                     continue;
                 }
 
-                if constexpr (!useNative)
+                if (!useNativeRuntime)
                 {
                     if (!state.runtime && state.script.is_loaded())
                     {
@@ -726,7 +741,7 @@ namespace oblo
             {
                 apiCtx.entityId = e;
 
-                if constexpr (!useNative)
+                if (!useNativeRuntime)
                 {
                     if (!state.runtime->run())
                     {
