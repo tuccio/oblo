@@ -1,6 +1,7 @@
 #include <oblo/script/behaviour/script_behaviour_system.hpp>
 
 #include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
@@ -84,6 +85,107 @@ namespace oblo
             return m_ctx;
         }
 
+        bool load_native_module(script_behaviour_state_component& state)
+        {
+            using loader_fn = void* (*) (const char*);
+
+            constexpr loader_fn loader = [](const char* name) -> void*
+            {
+                const hashed_string_view hName{name};
+
+                if (hName == script_api::cosine_f32)
+                {
+                    return +[](script_api_impl*, f32 v) { return std::cos(v); };
+                }
+
+                if (hName == script_api::sine_vec3)
+                {
+                    return +[](script_api_impl*, vec3 v)
+                    {
+                        return vec3{
+                            std::cos(v.x),
+                            std::cos(v.y),
+                            std::cos(v.z),
+                        };
+                    };
+                }
+
+                if (hName == script_api::sine_f32)
+                {
+                    return +[](script_api_impl*, f32 v) { return std::cos(v); };
+                }
+
+                if (hName == script_api::sine_vec3)
+                {
+                    return +[](script_api_impl*, vec3 v)
+                    {
+                        return vec3{
+                            std::sin(v.x),
+                            std::sin(v.y),
+                            std::sin(v.z),
+                        };
+                    };
+                }
+
+                if (hName == script_api::get_time)
+                {
+                    return +[](script_api_impl* ctx) -> f32
+                    { return to_f32_seconds(ctx->global_context().currentTime); };
+                }
+
+                if (hName == script_api::ecs::get_property_f32)
+                {
+                    return +[](script_api_impl* api, const char* componentType, const char* propertyName) -> f32
+                    { return api->get_property_f32(componentType, propertyName); };
+                }
+
+                if (hName == script_api::ecs::get_property_vec3)
+                {
+                    return +[](script_api_impl* api, const char* componentType, const char* propertyName) -> vec3
+                    { return api->get_property_vec3(componentType, propertyName); };
+                }
+
+                if (hName == script_api::ecs::set_property_f32)
+                {
+                    return +[](script_api_impl* api,
+                                const char* componentType,
+                                const char* propertyName,
+                                f32 value) -> void { api->set_property_f32(componentType, propertyName, value); };
+                }
+
+                if (hName == script_api::ecs::set_property_vec3)
+                {
+                    return +[](script_api_impl* api,
+                                const char* componentType,
+                                const char* propertyName,
+                                u32 mask,
+                                vec3 value) -> void
+                    { api->set_property_vec3(componentType, propertyName, mask, value); };
+                }
+
+                return nullptr;
+            };
+
+            const auto loadSymbols =
+                reinterpret_cast<i32 (*)(loader_fn)>(state.native->module.symbol("oblo_load_symbols"));
+
+            const auto setContext =
+                reinterpret_cast<void (*)(void*)>(state.native->module.symbol("oblo_set_global_context"));
+
+            const auto execute = reinterpret_cast<void (*)()>(state.native->module.symbol("node_graph_execute"));
+
+            const bool wasInitialized = loadSymbols && setContext && execute && loadSymbols(loader);
+
+            if (wasInitialized)
+            {
+                state.setGlobalContext = setContext;
+                state.execute = execute;
+            }
+
+            return wasInitialized;
+        }
+
+    private:
         f32 get_property_f32(string_view componentType, string_view propertyName)
         {
             const oblo::property* propertyData{};
@@ -165,7 +267,6 @@ namespace oblo
             return;
         }
 
-    private:
         expected<void, interpreter_error> get_time_impl(interpreter& interp)
         {
             const f32 t = to_f32_seconds(m_ctx.currentTime);
@@ -500,14 +601,14 @@ namespace oblo
         {
             auto& optsManager = optsModule->manager();
             useNativeRuntimeProxy.init(optsManager);
-            useNativeRuntime = useNativeRuntimeProxy.read(optsManager);
+            preferNativeRuntime = useNativeRuntimeProxy.read(optsManager);
         }
         else
         {
             log::debug("Failed to retrieve options manager, " OBLO_STRINGIZE(
                 script_behaviour_system) " might be misconfigured");
 
-            useNativeRuntime = useNativeRuntimeProxy.descriptor().defaultValue.get_bool();
+            preferNativeRuntime = useNativeRuntimeProxy.descriptor().defaultValue.get_bool();
         }
 
         m_scriptApi = allocate_unique<script_api_impl>();
@@ -561,16 +662,80 @@ namespace oblo
             for (auto&& [e, b, state] :
                 chunk.zip<ecs::entity, script_behaviour_component, script_behaviour_state_component>())
             {
-                if (state.script.is_invalidated() || state.bytecode.is_invalidated() ||
+                if (state.script.is_invalidated() || state.bytecode.is_invalidated() || state.native.is_invalidated() ||
                     state.script.as_ref() != b.script)
                 {
                     deferred.remove<script_behaviour_state_component, script_behaviour_update_tag>(e);
                     continue;
                 }
 
-                if (!useNativeRuntime)
+                const bool useNative = preferNativeRuntime && !state.fallbackToInterpreted;
+
+                // Try to load the native library if available
+                if (useNative)
                 {
-                    if (!state.runtime && state.script.is_loaded())
+                    if (ctx.entities->has<script_behaviour_update_tag>(e))
+                    {
+                        continue;
+                    }
+
+                    if (!state.native)
+                    {
+                        if (!state.script.is_loaded())
+                        {
+                            state.script.load_start_async();
+                            continue;
+                        }
+
+                        if constexpr (platform::is_x86_64() && platform::is_avx2())
+                        {
+                            state.native = m_resourceRegistry->get_resource(state.script->x86_64_avx2);
+                        }
+
+                        if (state.native && !state.native.is_loaded())
+                        {
+                            state.native.load_start_async();
+                            continue;
+                        }
+
+                        if (!state.native)
+                        {
+                            // No native module for the platform, use the interpreted version
+                            state.fallbackToInterpreted = true;
+                        }
+                    }
+                    else if (!state.native.is_loaded())
+                    {
+                        // Still loading, keep waiting
+                        continue;
+                    }
+                    else if (state.native->module.is_open())
+                    {
+                        // Loaded, we can set up the state
+                        if (m_scriptApi->load_native_module(state))
+                        {
+                            deferred.add<script_behaviour_update_tag>(e);
+                            continue;
+                        }
+                        else
+                        {
+                            state.fallbackToInterpreted = true;
+                        }
+                    }
+                    else
+                    {
+                        // We failed to load the binary, let's try the bytecode
+                        state.fallbackToInterpreted = true;
+                    }
+                }
+                else
+                {
+                    if (ctx.entities->has<script_behaviour_update_tag>(e))
+                    {
+                        continue;
+                    }
+
+                    if (state.script.is_loaded())
                     {
                         if (!state.bytecode)
                         {
@@ -600,134 +765,6 @@ namespace oblo
                         deferred.add<script_behaviour_update_tag>(e);
                     }
                 }
-                else
-                {
-                    // TODO: Check if scripts are invalidated, if so reload.
-
-                    if (ctx.entities->has<script_behaviour_update_tag>(e))
-                    {
-                        continue;
-                    }
-
-                    if (!state.native)
-                    {
-                        if (!state.script.is_loaded())
-                        {
-                            state.script.load_start_async();
-                            continue;
-                        }
-
-                        state.native = m_resourceRegistry->get_resource(state.script->x86_64_sse2);
-
-                        if (state.native && !state.native.is_loaded())
-                        {
-                            state.native.load_start_async();
-                            continue;
-                        }
-                    }
-                    else if (state.native->module.is_open())
-                    {
-                        using loader_fn = void* (*) (const char*);
-
-                        constexpr loader_fn loader = [](const char* name) -> void*
-                        {
-                            const hashed_string_view hName{name};
-
-                            if (hName == script_api::cosine_f32)
-                            {
-                                return +[](script_api_impl*, f32 v) { return std::cos(v); };
-                            }
-
-                            if (hName == script_api::sine_vec3)
-                            {
-                                return +[](script_api_impl*, vec3 v)
-                                {
-                                    return vec3{
-                                        std::cos(v.x),
-                                        std::cos(v.y),
-                                        std::cos(v.z),
-                                    };
-                                };
-                            }
-
-                            if (hName == script_api::sine_f32)
-                            {
-                                return +[](script_api_impl*, f32 v) { return std::cos(v); };
-                            }
-
-                            if (hName == script_api::sine_vec3)
-                            {
-                                return +[](script_api_impl*, vec3 v)
-                                {
-                                    return vec3{
-                                        std::sin(v.x),
-                                        std::sin(v.y),
-                                        std::sin(v.z),
-                                    };
-                                };
-                            }
-
-                            if (hName == script_api::get_time)
-                            {
-                                return +[](script_api_impl* ctx) -> f32
-                                { return to_f32_seconds(ctx->global_context().currentTime); };
-                            }
-
-                            if (hName == script_api::ecs::get_property_f32)
-                            {
-                                return +[](script_api_impl* api,
-                                            const char* componentType,
-                                            const char* propertyName) -> f32
-                                { return api->get_property_f32(componentType, propertyName); };
-                            }
-
-                            if (hName == script_api::ecs::get_property_vec3)
-                            {
-                                return +[](script_api_impl* api,
-                                            const char* componentType,
-                                            const char* propertyName) -> vec3
-                                { return api->get_property_vec3(componentType, propertyName); };
-                            }
-
-                            if (hName == script_api::ecs::set_property_f32)
-                            {
-                                return +[](script_api_impl* api,
-                                            const char* componentType,
-                                            const char* propertyName,
-                                            f32 value) -> void
-                                { api->set_property_f32(componentType, propertyName, value); };
-                            }
-
-                            if (hName == script_api::ecs::set_property_vec3)
-                            {
-                                return +[](script_api_impl* api,
-                                            const char* componentType,
-                                            const char* propertyName,
-                                            u32 mask,
-                                            vec3 value) -> void
-                                { api->set_property_vec3(componentType, propertyName, mask, value); };
-                            }
-
-                            return nullptr;
-                        };
-
-                        const auto loadSymbols =
-                            reinterpret_cast<i32 (*)(loader_fn)>(state.native->module.symbol("oblo_load_symbols"));
-
-                        const auto setContext =
-                            reinterpret_cast<void (*)(void*)>(state.native->module.symbol("oblo_set_global_context"));
-
-                        const auto execute =
-                            reinterpret_cast<void (*)()>(state.native->module.symbol("node_graph_execute"));
-
-                        if (loadSymbols && setContext && execute && loadSymbols(loader))
-                        {
-                            state.setGlobalContext = setContext;
-                            state.execute = execute;
-                            deferred.add<script_behaviour_update_tag>(e);
-                        }
-                    }
-                }
             }
         }
 
@@ -741,7 +778,7 @@ namespace oblo
             {
                 apiCtx.entityId = e;
 
-                if (!useNativeRuntime)
+                if (!preferNativeRuntime || state.fallbackToInterpreted)
                 {
                     if (!state.runtime->run())
                     {

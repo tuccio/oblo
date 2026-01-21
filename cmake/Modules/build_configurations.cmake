@@ -8,6 +8,14 @@ function(oblo_init_build_configurations)
     set(_is_clang FALSE)
     set(_is_clangcl FALSE)
 
+    set(_is_x64 FALSE)
+
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "([xX]86_64)|(amd64)|(AMD64)")
+        set(_is_x64 TRUE)
+    else()
+        message(WARNING "Unrecognized target CPU")
+    endif()
+
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(_is_msvc TRUE)
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
@@ -24,6 +32,12 @@ function(oblo_init_build_configurations)
             /wd4275 # Ignore warning C4275: i.e. dll exported class inheriting from a non-exported one
             /permissive-
         )
+
+        if(_is_x64)
+            list(APPEND _oblo_cxx_compile_options
+                /arch:AVX2
+            )
+        endif()
 
         # Disable optimizations if specified
         if(OBLO_DISABLE_COMPILER_OPTIMIZATIONS)
@@ -43,6 +57,12 @@ function(oblo_init_build_configurations)
             -Werror
             -Wall
         )
+
+        if(_is_x64)
+            list(APPEND _oblo_cxx_compile_options
+                -march=core-avx2
+            )
+        endif()
     else()
         message(FATAL_ERROR "Not supported yet")
     endif()

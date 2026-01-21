@@ -25,6 +25,6 @@ namespace oblo
     private:
         const resource_registry* m_resourceRegistry{};
         unique_ptr<script_api_impl> m_scriptApi;
-        bool useNativeRuntime{};
+        bool preferNativeRuntime{};
     };
 }

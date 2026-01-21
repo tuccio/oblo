@@ -24,7 +24,7 @@ namespace oblo
     struct compiled_script
     {
         resource_ref<compiled_bytecode_module> bytecode;
-        resource_ref<compiled_native_module> x86_64_sse2;
+        resource_ref<compiled_native_module> x86_64_avx2;
     } OBLO_RESOURCE();
 
     SCRIPT_RESOURCE_API bool save(const compiled_script& script, cstring_view destination);

@@ -39,4 +39,22 @@ namespace oblo::platform
     {
         return is_linux();
     }
+
+    constexpr bool is_x86_64() noexcept
+    {
+#if defined(__x86_64__) || defined(_M_X64)
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    constexpr bool is_avx2() noexcept
+    {
+#if defined(__AVX2__)
+        return true;
+#else
+        return false;
+#endif
+    }
 }

@@ -155,7 +155,7 @@ namespace oblo
         doc.init();
 
         doc.child_value(doc.get_root(), "bytecode"_hsv, property_value_wrapper{script.bytecode.id});
-        doc.child_value(doc.get_root(), "x86_64_sse2"_hsv, property_value_wrapper{script.x86_64_sse2.id});
+        doc.child_value(doc.get_root(), "x86_64_avx2"_hsv, property_value_wrapper{script.x86_64_avx2.id});
 
         return json::write(doc, destination).has_value();
     }
@@ -171,14 +171,14 @@ namespace oblo
         }
 
         const u32 bytecode = doc.find_child(doc.get_root(), "bytecode"_hsv);
-        const u32 x86_64_sse2 = doc.find_child(doc.get_root(), "x86_64_sse2"_hsv);
+        const u32 x86_64_avx2 = doc.find_child(doc.get_root(), "x86_64_avx2"_hsv);
 
         doc.child_value(doc.get_root(), "bytecode"_hsv, property_value_wrapper{script.bytecode.id});
-        doc.child_value(doc.get_root(), "x86_64_sse2"_hsv, property_value_wrapper{script.x86_64_sse2.id});
+        doc.child_value(doc.get_root(), "x86_64_avx2"_hsv, property_value_wrapper{script.x86_64_avx2.id});
 
         script = {
             .bytecode = doc.read_uuid(bytecode).value_or(uuid{}),
-            .x86_64_sse2 = doc.read_uuid(x86_64_sse2).value_or(uuid{}),
+            .x86_64_avx2 = doc.read_uuid(x86_64_avx2).value_or(uuid{}),
         };
 
         return true;

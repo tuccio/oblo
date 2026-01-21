@@ -91,13 +91,13 @@ namespace oblo
         {
             static constexpr cstring_view artifact_script_paths = "script_paths.json";
             static constexpr cstring_view artifact_bytecode = "script.obytecode";
-            static constexpr cstring_view artifact_x86_64_sse2 = "x86_64_sse2.odynamiclib";
+            static constexpr cstring_view artifact_x86_64_avx2 = "x86_64_avx2.odynamiclib";
 
             enum class importer_artifact
             {
                 script_paths,
                 bytecode,
-                x86_64_sse2,
+                x86_64_avx2,
                 enum_max,
             };
 
@@ -123,9 +123,9 @@ namespace oblo
                 }
 
                 {
-                    auto& n = preview.nodes[u32(importer_artifact::x86_64_sse2)];
+                    auto& n = preview.nodes[u32(importer_artifact::x86_64_avx2)];
                     n.artifactType = resource_type<compiled_native_module>;
-                    n.name = artifact_x86_64_sse2;
+                    n.name = artifact_x86_64_avx2;
                 }
 
                 return true;
@@ -179,19 +179,19 @@ namespace oblo
                 }
 
                 {
-                    const auto& sse2Node = configs[u32(importer_artifact::x86_64_sse2)];
+                    const auto& avx2Node = configs[u32(importer_artifact::x86_64_avx2)];
 
-                    if (sse2Node.enabled &&
-                        (!prepare_path(destination, ctx, sse2Node.id, artifact_x86_64_sse2) ||
-                            !compile_native(sse2Node,
+                    if (avx2Node.enabled &&
+                        (!prepare_path(destination, ctx, avx2Node.id, artifact_x86_64_avx2) ||
+                            !compile_native(avx2Node,
                                 destination,
                                 ast,
-                                cpp_compiler::options::target_arch::x86_64_sse2)))
+                                cpp_compiler::options::target_arch::x86_64_avx2)))
                     {
                         return false;
                     }
 
-                    script.x86_64_sse2 = resource_ref<compiled_native_module>{sse2Node.id};
+                    script.x86_64_avx2 = resource_ref<compiled_native_module>{avx2Node.id};
                 }
 
                 {
@@ -359,7 +359,7 @@ namespace oblo
                     auto& artifact = m_artifacts.emplace_back();
 
                     artifact.id = nodeConfig.id;
-                    artifact.name = artifact_x86_64_sse2;
+                    artifact.name = artifact_x86_64_avx2;
                     artifact.path = destination.as<string>();
                     artifact.type = resource_type<compiled_native_module>;
                 }

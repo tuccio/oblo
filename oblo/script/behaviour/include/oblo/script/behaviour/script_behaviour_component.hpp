@@ -29,6 +29,7 @@ namespace oblo
         unique_ptr<interpreter> runtime;
         set_global_context_fn setGlobalContext{};
         execute_fn execute{};
+        bool fallbackToInterpreted{};
     } OBLO_COMPONENT(Transient);
 
     struct script_behaviour_update_tag

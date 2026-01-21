@@ -67,8 +67,8 @@ namespace oblo
 
             switch (opts.target)
             {
-            case options::target_arch::x86_64_sse2:
-                args.emplace_back("-march=x86-64");
+            case options::target_arch::x86_64_avx2:
+                args.emplace_back("-march=core-avx2");
                 break;
 
             default:
@@ -123,8 +123,8 @@ namespace oblo
         case kind::msvc:
             switch (opts.target)
             {
-            case options::target_arch::x86_64_sse2:
-                args.emplace_back("/arch:SSE2");
+            case options::target_arch::x86_64_avx2:
+                args.emplace_back("/arch:AVX2");
                 break;
 
             default:
