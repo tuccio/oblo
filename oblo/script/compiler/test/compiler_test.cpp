@@ -219,7 +219,7 @@ namespace oblo
         {
             if (name == string_view{"sin"})
             {
-                return +[](const intptr context, f32 v) -> f32
+                constexpr auto sin = [](const intptr context, f32 v) -> f32
                 {
                     if (context != context_value)
                     {
@@ -228,6 +228,8 @@ namespace oblo
 
                     return std::sin(v);
                 };
+
+                return reinterpret_cast<void*>(+sin);
             }
 
             return nullptr;

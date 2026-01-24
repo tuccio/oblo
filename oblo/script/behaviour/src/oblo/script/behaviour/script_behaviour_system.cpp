@@ -95,12 +95,13 @@ namespace oblo
 
                 if (hName == script_api::cosine_f32)
                 {
-                    return +[](script_api_impl*, f32 v) { return std::cos(v); };
+                    constexpr auto cosine_f32 = [](script_api_impl*, f32 v) { return std::cos(v); };
+                    return reinterpret_cast<void*>(+cosine_f32);
                 }
 
-                if (hName == script_api::sine_vec3)
+                if (hName == script_api::cosine_vec3)
                 {
-                    return +[](script_api_impl*, vec3 v)
+                    constexpr auto cosine_vec3 = [](script_api_impl*, vec3 v)
                     {
                         return vec3{
                             std::cos(v.x),
@@ -108,16 +109,20 @@ namespace oblo
                             std::cos(v.z),
                         };
                     };
+
+                    return reinterpret_cast<void*>(+cosine_vec3);
                 }
 
                 if (hName == script_api::sine_f32)
                 {
-                    return +[](script_api_impl*, f32 v) { return std::cos(v); };
+                    constexpr auto sine_f32 = [](script_api_impl*, f32 v) { return std::sin(v); };
+                    return reinterpret_cast<void*>(+sine_f32);
+                    ;
                 }
 
                 if (hName == script_api::sine_vec3)
                 {
-                    return +[](script_api_impl*, vec3 v)
+                    constexpr auto sine_vec3 = [](script_api_impl*, vec3 v)
                     {
                         return vec3{
                             std::sin(v.x),
@@ -125,42 +130,55 @@ namespace oblo
                             std::sin(v.z),
                         };
                     };
+
+                    return reinterpret_cast<void*>(+sine_vec3);
                 }
 
                 if (hName == script_api::get_time)
                 {
-                    return +[](script_api_impl* ctx) -> f32
+                    constexpr auto get_time = [](script_api_impl* ctx) -> f32
                     { return to_f32_seconds(ctx->global_context().currentTime); };
+
+                    return reinterpret_cast<void*>(+get_time);
                 }
 
                 if (hName == script_api::ecs::get_property_f32)
                 {
-                    return +[](script_api_impl* api, const char* componentType, const char* propertyName) -> f32
+                    constexpr auto get_property_f32 =
+                        [](script_api_impl* api, const char* componentType, const char* propertyName) -> f32
                     { return api->get_property_f32(componentType, propertyName); };
+
+                    return reinterpret_cast<void*>(+get_property_f32);
                 }
 
                 if (hName == script_api::ecs::get_property_vec3)
                 {
-                    return +[](script_api_impl* api, const char* componentType, const char* propertyName) -> vec3
+                    constexpr auto get_property_vec3 =
+                        +[](script_api_impl* api, const char* componentType, const char* propertyName) -> vec3
                     { return api->get_property_vec3(componentType, propertyName); };
+
+                    return reinterpret_cast<void*>(+get_property_vec3);
                 }
 
                 if (hName == script_api::ecs::set_property_f32)
                 {
-                    return +[](script_api_impl* api,
-                                const char* componentType,
-                                const char* propertyName,
-                                f32 value) -> void { api->set_property_f32(componentType, propertyName, value); };
+                    constexpr auto set_property_f32 =
+                        [](script_api_impl* api, const char* componentType, const char* propertyName, f32 value) -> void
+                    { api->set_property_f32(componentType, propertyName, value); };
+
+                    return reinterpret_cast<void*>(+set_property_f32);
                 }
 
                 if (hName == script_api::ecs::set_property_vec3)
                 {
-                    return +[](script_api_impl* api,
-                                const char* componentType,
-                                const char* propertyName,
-                                u32 mask,
-                                vec3 value) -> void
+                    constexpr auto set_property_vec3 = [](script_api_impl* api,
+                                                           const char* componentType,
+                                                           const char* propertyName,
+                                                           u32 mask,
+                                                           vec3 value) -> void
                     { api->set_property_vec3(componentType, propertyName, mask, value); };
+
+                    return reinterpret_cast<void*>(+set_property_vec3);
                 }
 
                 return nullptr;

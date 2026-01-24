@@ -8,7 +8,7 @@ namespace oblo
 {
     TEST(compiled_script, serialization)
     {
-        compiled_script src;
+        compiled_bytecode_module src;
 
         src.module.functions = {
             exported_function{
@@ -28,7 +28,7 @@ namespace oblo
 
         ASSERT_TRUE(save(src, "serialization.bytecode"));
 
-        compiled_script dst;
+        compiled_bytecode_module dst;
         ASSERT_TRUE(load(dst, "serialization.bytecode"));
 
         ASSERT_EQ(src.module.functions.size(), dst.module.functions.size());

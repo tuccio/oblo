@@ -177,8 +177,8 @@ namespace oblo
         doc.child_value(doc.get_root(), "x86_64_avx2"_hsv, property_value_wrapper{script.x86_64_avx2.id});
 
         script = {
-            .bytecode = doc.read_uuid(bytecode).value_or(uuid{}),
-            .x86_64_avx2 = doc.read_uuid(x86_64_avx2).value_or(uuid{}),
+            .bytecode = {doc.read_uuid(bytecode).value_or(uuid{})},
+            .x86_64_avx2 = {doc.read_uuid(x86_64_avx2).value_or(uuid{})},
         };
 
         return true;
