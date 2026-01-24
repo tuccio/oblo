@@ -150,7 +150,7 @@ namespace oblo
 
                 const std::span textureData = t.get_data();
 
-                if (tex.GetSizeInBytes() == textureData.size_bytes())
+                if (usize(tex.GetSizeInBytes()) == textureData.size_bytes())
                 {
                     std::memcpy(textureData.data(), tex.Pixels, textureData.size_bytes());
                 }
@@ -179,7 +179,7 @@ namespace oblo
                 {
                     const std::span dstData = dst.get_data();
 
-                    if (tex.GetSizeInBytes() == dstData.size_bytes())
+                    if (usize(tex.GetSizeInBytes()) == dstData.size_bytes())
                     {
                         std::memcpy(dstData.data(), tex.Pixels, dstData.size_bytes());
                     }
