@@ -272,8 +272,6 @@ namespace oblo
                         artifact.type = resource_type<compiled_script>;
 
                         m_mainArtifactHint = scriptPathsNode.id;
-
-                        return true;
                     }
                 }
 
