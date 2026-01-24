@@ -1,4 +1,4 @@
-#include <oblo/editor/services/asset_editor_manager.hpp>
+﻿#include <oblo/editor/services/asset_editor_manager.hpp>
 
 #include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -252,7 +252,7 @@ namespace oblo::editor
 
         if (it == m_editors.end())
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         return it->second->save(wm, m_assetRegistry);

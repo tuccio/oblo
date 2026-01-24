@@ -1,4 +1,4 @@
-#include <oblo/runtime/runtime.hpp>
+﻿#include <oblo/runtime/runtime.hpp>
 
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -43,7 +43,7 @@ namespace oblo
 
             if (!g)
             {
-                return unspecified_error;
+                return "Runtime operation failed"_err;
             }
 
             return g->instantiate();

@@ -24,7 +24,7 @@ namespace oblo::filesystem
 
             if (res != 0)
             {
-                return unspecified_error;
+                return "Failed to query file statistics"_err;
             }
 
             return st;
@@ -136,7 +136,7 @@ namespace oblo::filesystem
 
         if (pathLen < 0)
         {
-            return unspecified_error;
+            return "Failed to convert directory path from UTF-8 to wide character"_err;
         }
 
         path[pathLen] = wchar_t{};
@@ -146,7 +146,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "Failed to resolve absolute path"_err;
         }
 
         m_impl->path.append(m_impl->nativePath.c_str());
@@ -161,14 +161,14 @@ namespace oblo::filesystem
 
         if (m_impl->hDirectory == INVALID_HANDLE_VALUE)
         {
-            return unspecified_error;
+            return "Failed to open directory for monitoring"_err;
         }
 
         m_impl->hEvent = CreateEvent(nullptr, FALSE, FALSE, NULL);
 
         if (m_impl->hEvent == INVALID_HANDLE_VALUE)
         {
-            return unspecified_error;
+            return "Failed to create event for directory monitoring"_err;
         }
 
         m_impl->overlapped = {
@@ -177,7 +177,7 @@ namespace oblo::filesystem
 
         if (!m_impl->read_changes())
         {
-            return unspecified_error;
+            return "Failed to start monitoring directory for changes"_err;
         }
 
         return no_error;
@@ -192,7 +192,7 @@ namespace oblo::filesystem
     {
         if (!m_impl)
         {
-            return unspecified_error;
+            return "Directory watcher not initialized"_err;
         }
 
         modification_tracker lastModification{};
@@ -214,7 +214,7 @@ namespace oblo::filesystem
 
                 if (ovelappedResult == 0)
                 {
-                    return unspecified_error;
+                    return "Failed to retrieve directory change notifications"_err;
                 }
                 else
                 {
@@ -321,7 +321,7 @@ namespace oblo::filesystem
 
                 if (!m_impl->read_changes())
                 {
-                    return unspecified_error;
+                    return "Failed to continue monitoring directory for changes"_err;
                 }
             }
             else if (waitResult == WAIT_TIMEOUT)
@@ -330,7 +330,7 @@ namespace oblo::filesystem
             }
             else
             {
-                return unspecified_error;
+                return "Error while waiting for directory change events"_err;
             }
         }
 

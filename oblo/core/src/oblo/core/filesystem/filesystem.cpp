@@ -60,21 +60,21 @@ namespace oblo::filesystem
 
             if (!f)
             {
-                return unspecified_error;
+                return "Failed to open file"_err;
             }
 
             FILE* const file = f.get();
 
             if (fseek(file, 0, SEEK_END) != 0)
             {
-                return unspecified_error;
+                return "Failed to seek on file"_err;
             }
 
             const auto fileSize = std::size_t(ftell(file));
 
             if (fseek(file, 0, SEEK_SET) != 0)
             {
-                return unspecified_error;
+                return "Failed to seek on file"_err;
             }
 
             auto* const buffer = fileSize == 0 ? nullptr : allocate_impl(allocator, fileSize, alignment);
@@ -82,7 +82,7 @@ namespace oblo::filesystem
 
             if (readBytes < 0)
             {
-                return unspecified_error;
+                return "Failed to read file"_err;
             }
 
             finalize_impl(allocator, readBytes);
@@ -94,29 +94,27 @@ namespace oblo::filesystem
     expected<unique_ptr<byte[]>> load_binary_file_into_memory(allocator* allocator, cstring_view path, usize alignment)
     {
         const auto e = load_impl(allocator, path, "rb", alignment);
-        expected<unique_ptr<byte[]>> res{unspecified_error};
 
-        if (e)
+        if (!e)
         {
-            const auto span = std::as_writable_bytes(*e);
-            res = unique_ptr<byte[]>(span.data(), span.size(), allocator);
+            return e.error();
         }
 
-        return res;
+        const auto span = std::as_writable_bytes(*e);
+        return unique_ptr<byte[]>(span.data(), span.size(), allocator);
     }
 
     expected<std::span<byte>> load_binary_file_into_memory(
         frame_allocator& allocator, cstring_view path, usize alignment)
     {
         const auto e = load_impl(allocator, path, "rb", alignment);
-        expected<std::span<byte>> res{unspecified_error};
 
-        if (e)
+        if (!e)
         {
-            res = std::as_writable_bytes(*e);
+            return e.error();
         }
 
-        return res;
+        return std::as_writable_bytes(*e);
     }
 
     expected<std::span<char>> load_text_file_into_memory(frame_allocator& allocator, cstring_view path, usize alignment)
@@ -127,14 +125,13 @@ namespace oblo::filesystem
     expected<std::span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path)
     {
         const auto e = load_impl(out, path, "rb", 1);
-        expected<std::span<byte>> res{unspecified_error};
 
-        if (e)
+        if (!e)
         {
-            res = std::as_writable_bytes(*e);
+            return e.error();
         }
 
-        return res;
+        return std::as_writable_bytes(*e);
     }
 
     expected<std::span<char>> load_text_file_into_memory(dynamic_array<char>& out, cstring_view path)
@@ -206,7 +203,7 @@ namespace oblo::filesystem
         if (!f || fwrite(bytes.data(), sizeof(bytes[0]), bytes.size(), f.get()) != bytes.size())
         {
             f.reset();
-            return unspecified_error;
+            return "Failed to write on file"_err;
         }
 
         return no_error;
@@ -220,7 +217,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return exists;
@@ -235,7 +232,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return r;
@@ -250,7 +247,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return r;
@@ -266,7 +263,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return true;
@@ -283,7 +280,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return r;
@@ -298,7 +295,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return r;
@@ -314,7 +311,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return no_error;
@@ -329,7 +326,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         return r;
@@ -344,7 +341,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         out.append(p.c_str());
@@ -367,7 +364,7 @@ namespace oblo::filesystem
 
         if (ec)
         {
-            return unspecified_error;
+            return "A filesystem error occurred"_err;
         }
 
         const auto r = std::filesystem::relative(p, b, ec);

@@ -1,4 +1,4 @@
-#include <oblo/project/project.hpp>
+﻿#include <oblo/project/project.hpp>
 
 #include <oblo/properties/serialization/common.hpp>
 
@@ -23,7 +23,7 @@ namespace oblo
 
         if (!json::read(doc, path))
         {
-            return unspecified_error;
+            return "Project operation failed"_err;
         }
 
         read_string(doc, doc.find_child(doc.get_root(), "name"_hsv), p.name);
@@ -52,3 +52,4 @@ namespace oblo
         return p;
     }
 }
+

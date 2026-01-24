@@ -1,4 +1,4 @@
-#include "app.hpp"
+﻿#include "app.hpp"
 
 #include <oblo/app/imgui_app.hpp>
 #include <oblo/asset/asset_registry.hpp>
@@ -689,7 +689,7 @@ namespace oblo::editor
 
                 if (!p)
                 {
-                    return unspecified_error;
+                    return "Failed to create editor directory"_err;
                 }
 
                 m_project = *std::move(p);
@@ -708,7 +708,7 @@ namespace oblo::editor
         }
         catch (...)
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
     }
 }

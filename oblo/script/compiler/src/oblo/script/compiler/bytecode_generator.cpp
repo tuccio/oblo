@@ -1,4 +1,4 @@
-#include <oblo/script/compiler/bytecode_generator.hpp>
+﻿#include <oblo/script/compiler/bytecode_generator.hpp>
 
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/deque.hpp>
@@ -66,7 +66,7 @@ namespace oblo
             }
             else
             {
-                return unspecified_error;
+                return "Operation failed"_err;
             }
         }
     }
@@ -132,7 +132,7 @@ namespace oblo
 
                     default:
                         OBLO_ASSERT(false);
-                        return unspecified_error;
+                        return "Operation failed"_err;
                     }
                 }
 
@@ -179,7 +179,7 @@ namespace oblo
 
             if (!id)
             {
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             const u32 translatedId = id.value - 1;
@@ -191,7 +191,7 @@ namespace oblo
 
             if (translatedId > std::numeric_limits<u16>::max())
             {
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             return u16(translatedId);
@@ -209,7 +209,7 @@ namespace oblo
             }
             else
             {
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             const u32 textOffset = m.text.size32();
@@ -282,7 +282,7 @@ namespace oblo
 
                         if (!stringId)
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         m.text.push_back({.op = bytecode_op::push_read_only_string_view, .payload = {*stringId}});
@@ -319,7 +319,7 @@ namespace oblo
                             break;
 
                         default:
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
                     }
                     break;
@@ -337,7 +337,7 @@ namespace oblo
 
                             if (!exprResultSize)
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
 
                             thisNodeInfo.expressionResultSize = *exprResultSize;
@@ -348,21 +348,21 @@ namespace oblo
 
                             if (fnIt == functionDeclarations.end())
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
 
                             const auto typeIt = types.find(fnIt->second.returnType);
 
                             if (typeIt == types.end())
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
 
                             const expected<u16> stringId = pushReadOnlyString16(n.node.functionCall.name);
 
                             if (!stringId)
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
 
                             m.text.push_back({.op = bytecode_op::call_api_static, .payload = {*stringId}});
@@ -383,21 +383,21 @@ namespace oblo
                     case ast_node_kind::variable_definition: {
                         if (!n.parent)
                         {
-                            return unspecified_error;
+                            return "Variable definition without parent node"_err;
                         }
 
                         auto& decl = ast.get(n.parent);
 
                         if (decl.kind != ast_node_kind::variable_declaration)
                         {
-                            return unspecified_error;
+                            return "Parent is not a variable declaration"_err;
                         }
 
                         const expected varName = pushReadOnlyString16(decl.node.varDecl.name);
 
                         if (!varName)
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         const auto children = ast.children(node);
@@ -418,7 +418,7 @@ namespace oblo
                             // initialized with
                             if (it != children.end())
                             {
-                                return unspecified_error;
+                                return "Variable definition has multiple child expressions"_err;
                             }
                         }
                     }
@@ -429,7 +429,7 @@ namespace oblo
 
                         if (!varName)
                         {
-                            return unspecified_error;
+                            return "Failed to add variable name to readonly strings"_err;
                         }
 
                         m.text.push_back({.op = bytecode_op::push_tagged_data_copy_static, .payload = {*varName}});
@@ -444,7 +444,7 @@ namespace oblo
                         break;
 
                     default:
-                        return unspecified_error;
+                        return "Unknown AST node kind"_err;
                     }
 
                     thisNodeInfo.processed = true;

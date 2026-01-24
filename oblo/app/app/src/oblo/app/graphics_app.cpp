@@ -1,4 +1,4 @@
-#include <oblo/app/graphics_app.hpp>
+﻿#include <oblo/app/graphics_app.hpp>
 
 #include <oblo/app/graphics_engine.hpp>
 #include <oblo/app/graphics_window_context.hpp>
@@ -19,12 +19,12 @@ namespace oblo
 
         if (!m_graphicsEngine)
         {
-            return unspecified_error;
+            return "Failed to initialize graphics"_err;
         }
 
         if (!m_mainWindow.create(initializer) || !m_mainWindow.initialize_graphics())
         {
-            return unspecified_error;
+            return "Failed to initialize graphics"_err;
         }
 
         return no_error;

@@ -1,4 +1,4 @@
-#include <oblo/editor/services/editor_directories.hpp>
+﻿#include <oblo/editor/services/editor_directories.hpp>
 
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/formatters/uuid_formatter.hpp>
@@ -14,7 +14,7 @@ namespace oblo::editor
 
         if (!filesystem::create_directories(temporaryDirectory))
         {
-            return unspecified_error;
+            return "Failed to create editor directory"_err;
         }
 
         return no_error;
@@ -30,7 +30,7 @@ namespace oblo::editor
 
         if (!filesystem::create_directories(outDir))
         {
-            return unspecified_error;
+            return "Failed to create editor directory"_err;
         }
 
         return no_error;

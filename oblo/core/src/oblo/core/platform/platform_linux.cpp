@@ -1,4 +1,4 @@
-#ifdef __linux__
+﻿#ifdef __linux__
 
     #include <oblo/core/buffered_array.hpp>
     #include <oblo/core/debug.hpp>
@@ -172,7 +172,7 @@ namespace oblo::platform
         const pid_t pid = fork();
         if (pid < 0)
         {
-            return unspecified_error;
+            return "Failed to spawn process"_err;
         }
 
         if (pid == 0)
@@ -246,7 +246,7 @@ namespace oblo::platform
         int status = 0;
         if (waitpid(m_pid, &status, 0) < 0)
         {
-            return unspecified_error;
+            return "Failed to check process status"_err;
         }
 
         return no_error;
@@ -256,7 +256,7 @@ namespace oblo::platform
     {
         if (m_pid < 0)
         {
-            return unspecified_error;
+            return "Failed to check process status"_err;
         }
 
         int status = 0;
@@ -264,12 +264,12 @@ namespace oblo::platform
 
         if (result == 0)
         {
-            return unspecified_error; // still running
+            return "Failed to check process status"_err; // still running
         }
 
         if (result < 0)
         {
-            return unspecified_error;
+            return "Operation failed"_err;
         }
 
         if (WIFEXITED(status))
@@ -282,7 +282,7 @@ namespace oblo::platform
             return i64{128 + WTERMSIG(status)};
         }
 
-        return unspecified_error;
+        return "Operation failed"_err;
     }
 
     void process::detach()
@@ -318,7 +318,7 @@ namespace oblo::platform
 
         if (pipe2(fds, O_CLOEXEC) != 0)
         {
-            return unspecified_error;
+            return "Operation failed"_err;
         }
 
         readPipe.m_handle = fds[0];

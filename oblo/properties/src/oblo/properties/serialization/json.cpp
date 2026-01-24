@@ -1,4 +1,4 @@
-#include <oblo/properties/serialization/json.hpp>
+﻿#include <oblo/properties/serialization/json.hpp>
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
@@ -358,7 +358,7 @@ namespace oblo::json
 
         if (!file)
         {
-            return unspecified_error;
+            return "Serialization failed"_err;
         }
 
         constexpr auto bufferSize{1024};
@@ -386,13 +386,13 @@ namespace oblo::json
                         reader.GetErrorOffset());
                 }
 
-                return unspecified_error_tag{};
+                return "JSON parse error"_err;
             }
         }
 
         if (reader.HasParseError())
         {
-            return unspecified_error_tag{};
+            return "Failed to parse JSON document"_err;
         }
 
         return success_tag{};
@@ -404,14 +404,14 @@ namespace oblo::json
 
         if (root == data_node::Invalid)
         {
-            return unspecified_error_tag{};
+            return "JSON document has no valid root node"_err;
         }
 
         const auto file = filesystem::file_ptr{filesystem::open_file(destination, "w")};
 
         if (!file)
         {
-            return unspecified_error_tag{};
+            return "Failed to open file for writing"_err;
         }
 
         constexpr auto bufferSize{1024};

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/types.hpp>
@@ -167,7 +167,7 @@ namespace oblo
 
         if (det <= epsilon && det >= -epsilon)
         {
-            return unspecified_error;
+            return "Math operation failed"_err;
         }
 
         const f32 invDet = 1.f / det;

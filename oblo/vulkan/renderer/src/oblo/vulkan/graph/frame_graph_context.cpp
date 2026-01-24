@@ -614,7 +614,7 @@ namespace oblo::vk
 
         if (!h)
         {
-            return unspecified_error;
+            return "Texture resource not found in frame graph pool"_err;
         }
 
         const auto& init = m_frameGraph.resourcePool.get_initializer(h);
@@ -747,7 +747,7 @@ namespace oblo::vk
         {
             // Do we need to do anything?
             m_state.passKind = pass_kind::none;
-            return unspecified_error;
+            return "Compute pipeline context not found"_err;
         }
 
         m_state.passKind = pass_kind::compute;
@@ -839,7 +839,7 @@ namespace oblo::vk
         {
             // Do we need to do anything?
             m_state.passKind = pass_kind::none;
-            return unspecified_error;
+            return "Graphics pipeline context not found"_err;
         }
 
         m_state.passKind = pass_kind::graphics;
@@ -866,7 +866,7 @@ namespace oblo::vk
         {
             // Do we need to do anything?
             m_state.passKind = pass_kind::none;
-            return unspecified_error;
+            return "Raytracing pipeline context not found"_err;
         }
 
         m_state.passKind = pass_kind::raytracing;

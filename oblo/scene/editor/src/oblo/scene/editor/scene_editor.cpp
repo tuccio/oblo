@@ -1,4 +1,4 @@
-#include <oblo/scene/editor/scene_editor.hpp>
+﻿#include <oblo/scene/editor/scene_editor.hpp>
 
 #include <oblo/editor/window_manager.hpp>
 #include <oblo/scene/editor/scene_editing_window.hpp>
@@ -11,7 +11,7 @@ namespace oblo::editor
 
         if (!h)
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         auto* const sceneEditor = wm.try_access<scene_editing_window>(h);
@@ -19,7 +19,7 @@ namespace oblo::editor
         if (!sceneEditor || !sceneEditor->load_scene(assetRegistry, assetId))
         {
             wm.destroy_window(h);
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         m_editor = h;
@@ -40,7 +40,7 @@ namespace oblo::editor
 
         if (!sceneEditor)
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         return sceneEditor->save_scene(assetRegistry);

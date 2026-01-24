@@ -312,7 +312,7 @@ namespace oblo::gen::dotnet
 
         if (!managed)
         {
-            return unspecified_error;
+            return "Failed to write managed C# bindings file"_err;
         }
 
         return no_error;

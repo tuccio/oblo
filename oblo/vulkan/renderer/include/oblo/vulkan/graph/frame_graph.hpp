@@ -96,7 +96,7 @@ namespace oblo::vk
             return no_error;
         }
 
-        return unspecified_error;
+        return "Output type mismatch: requested type does not match frame graph output"_err;
     }
 
     template <typename T>
@@ -111,7 +111,7 @@ namespace oblo::vk
             return concrete;
         }
 
-        return unspecified_error;
+        return "Output type mismatch: requested type does not match frame graph output"_err;
     }
 
     template <typename T>

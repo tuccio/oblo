@@ -1,4 +1,4 @@
-#ifdef _WIN32
+﻿#ifdef _WIN32
 
     #include <oblo/core/debug.hpp>
     #include <oblo/core/filesystem/filesystem.hpp>
@@ -217,7 +217,7 @@ namespace oblo::platform
 
         if (!success)
         {
-            return unspecified_error;
+            return "Operation failed"_err;
         }
 
         m_hProcess = processInfo.hProcess;
@@ -237,7 +237,7 @@ namespace oblo::platform
     {
         if (WaitForSingleObject(m_hProcess, INFINITE) != WAIT_OBJECT_0)
         {
-            return unspecified_error;
+            return "Failed to check process status"_err;
         }
 
         return no_error;
@@ -249,7 +249,7 @@ namespace oblo::platform
 
         if (!GetExitCodeProcess(m_hProcess, &exitCode))
         {
-            return unspecified_error;
+            return "Operation failed"_err;
         }
 
         return i64{exitCode};
@@ -295,7 +295,7 @@ namespace oblo::platform
 
         if (!CreatePipe(&readPipe.m_handle, &writePipe.m_handle, &securityAttributes, bufferSizeHint))
         {
-            return unspecified_error;
+            return "Failed to spawn process"_err;
         }
 
         return no_error;

@@ -1,4 +1,4 @@
-#include <oblo/script/compiler/cpp_compiler.hpp>
+﻿#include <oblo/script/compiler/cpp_compiler.hpp>
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
@@ -41,7 +41,7 @@ namespace oblo
             }
         }
 
-        return unspecified_error;
+        return "Operation failed"_err;
     }
 
     cpp_compiler::kind cpp_compiler::get_kind() const
@@ -72,7 +72,7 @@ namespace oblo
                 break;
 
             default:
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             args.emplace_back("-std=c++20");
@@ -128,7 +128,7 @@ namespace oblo
                 break;
 
             default:
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             args.emplace_back("/std:c++20");

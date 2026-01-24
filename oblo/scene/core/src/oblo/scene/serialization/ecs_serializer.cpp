@@ -242,14 +242,14 @@ namespace oblo::ecs_serializer
     {
         if (!doc.is_object(docRoot))
         {
-            return unspecified_error_tag{};
+            return "Invalid JSON structure: document root must be an object"_err;
         }
 
         const auto entities = doc.find_child(docRoot, json_strings::entitiesArray);
 
         if (!doc.is_array(entities))
         {
-            return unspecified_error_tag{};
+            return "Invalid JSON structure: entities must be an array"_err;
         }
 
         const auto& typeRegistry = reg.get_type_registry();

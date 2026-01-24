@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/uuid.hpp>
@@ -171,7 +171,7 @@ namespace oblo
                         return ast_binary_operator_kind::add_f32;
                     }
 
-                    return unspecified_error;
+                    return "Failed to create node"_err;
                 });
         }
     };
@@ -215,7 +215,7 @@ namespace oblo
                         return ast_binary_operator_kind::mul_vec3;
                     }
 
-                    return unspecified_error;
+                    return "Node not found"_err;
                 });
         }
     };
