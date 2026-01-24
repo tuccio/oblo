@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
             continue;
         }
 
-        oblo::print_line("Parsing {}", nameIt->name.GetString());
+        oblo::print_line("Parsing {}", nameIt->value.GetString());
 
         ctx.clangArguments.clear();
 

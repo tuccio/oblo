@@ -9,6 +9,20 @@ namespace oblo::gen
     {
         reset();
 
+        // First check if we already have a file, we will check if the hash of it matches to decide whether or not to
+        // write to it, since any update might cause a rebuild
+        bool hasOldContentHash{};
+        hash_type oldContentHash{};
+
+        if (const auto e = filesystem::load_text_file_into_memory(m_content, outputFile))
+        {
+            hasOldContentHash = true;
+            oldContentHash = hashed_string_view{e->data(), e->size()}.hash();
+        }
+
+        // Reset again after reading the old file, we are going to write the new content now
+        reset();
+
         m_content.append(R"(
 #include <oblo/reflection/registration/registrant.hpp>
 
@@ -67,6 +81,17 @@ namespace oblo::gen
         new_line();
         m_content.append("}");
         new_line();
+
+        if (hasOldContentHash)
+        {
+            const auto newContentHash = m_content.as<hashed_string_view>().hash();
+
+            if (newContentHash == oldContentHash)
+            {
+                // Nothing to do, the output matches. This way we avoid rebuilding reflection files to often.
+                return no_error;
+            }
+        }
 
         return filesystem::write_file(outputFile, as_bytes(std::span{m_content}), {});
     }
