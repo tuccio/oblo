@@ -79,13 +79,16 @@ namespace oblo::smoke
 
             for (u32 i = 0; i < 120;)
             {
-                if (duckBehaviour.is_loaded())
+                if (duckBehaviour.is_currently_loading())
                 {
-                    ++i;
+                    continue;
                 }
 
+                ++i;
                 co_await ctx.next_frame();
             }
+
+            OBLO_SMOKE_TRUE(duckBehaviour.is_successfully_loaded());
         }
 
         static expected<uuid> import_script(asset_registry& assetRegistry, resource_ptr<model> model)

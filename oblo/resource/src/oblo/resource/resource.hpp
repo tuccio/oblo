@@ -16,6 +16,7 @@ namespace oblo
     {
         unloaded,
         loading,
+        failed,
         loaded,
     };
 

@@ -48,7 +48,7 @@ namespace oblo
         return m_properties;
     }
 
-    bool material::save(cstring_view destination) const
+    expected<> material::save(cstring_view destination) const
     {
         data_document doc;
 
@@ -113,19 +113,19 @@ namespace oblo
             }
         }
 
-        return json::write(doc, destination).has_value();
+        return json::write(doc, destination);
     }
 
-    bool material::load(cstring_view source)
+    expected<> material::load(cstring_view source)
     {
         m_map.clear();
         m_properties.clear();
 
         data_document doc;
 
-        if (!json::read(doc, source))
+        if (const auto e = json::read(doc, source); !e)
         {
-            return false;
+            return e;
         }
 
         const auto root = doc.get_root();
@@ -134,7 +134,7 @@ namespace oblo
 
         if (!doc.is_object(properties))
         {
-            return false;
+            return "Incorrect JSON format for material"_err;
         }
 
         for (const auto index : doc.children(properties))
@@ -245,7 +245,7 @@ namespace oblo
             }
         }
 
-        return true;
+        return no_error;
     }
 
     type_id material_property::get_property_type_id() const

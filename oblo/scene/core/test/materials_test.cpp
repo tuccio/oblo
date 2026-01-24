@@ -46,7 +46,7 @@ namespace oblo
             m.set_property(pbr::AlbedoTexture, albedoTexture);
             m.set_property(pbr::MetalnessRoughnessTexture, mrTexture);
 
-            m.save(string_builder{}.append(testDir).append_path("material.json"));
+            ASSERT_TRUE(m.save(string_builder{}.append(testDir).append_path("material.json")));
         }
 
         {

@@ -13,6 +13,7 @@
 #include <oblo/graphics/components/gpu_components.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/static_mesh_internal.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
@@ -121,19 +122,16 @@ namespace oblo
 
             bool stillLoading = false;
 
-            if (!materialRes.is_loaded())
-            {
-                materialRes.load_start_async();
-                stillLoading = true;
-            }
+            materialRes.load_start_async();
+            stillLoading = materialRes.is_currently_loading();
 
             // If the mesh is already on GPU we don't care about loading the resource
             auto mesh = drawRegistry.try_get_mesh(meshComponent.mesh);
 
-            if (!mesh && !meshRes.is_loaded())
+            if (!mesh)
             {
                 meshRes.load_start_async();
-                stillLoading = true;
+                stillLoading = meshRes.is_currently_loading();
             }
 
             if (stillLoading)
@@ -144,6 +142,14 @@ namespace oblo
                 };
 
                 return;
+            }
+
+            // If loading failed here, we could consider replacing the mesh with something that catches the attention on
+            // the error.
+
+            if (!meshRes.is_successfully_loaded() || !materialRes.is_successfully_loaded())
+            {
+                log::debug("Failed to load mesh resources for entity {}", entity.value);
             }
 
             if (!mesh)

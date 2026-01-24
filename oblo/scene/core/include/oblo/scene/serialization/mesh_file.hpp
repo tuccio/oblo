@@ -1,7 +1,8 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/forward.hpp>
 
 #include <span>
 
@@ -25,9 +26,9 @@ namespace oblo
         enum_max,
     };
 
-    SCENE_API bool save_mesh(const mesh& mesh, cstring_view destination);
+    SCENE_API expected<> save_mesh(const mesh& mesh, cstring_view destination);
 
-    SCENE_API bool load_mesh(mesh& mesh,
+    SCENE_API expected<> load_mesh(mesh& mesh,
         const tinygltf::Model& model,
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
@@ -35,5 +36,5 @@ namespace oblo
         const std::span<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags);
 
-    SCENE_API bool load_mesh(mesh& mesh, cstring_view source);
+    SCENE_API expected<> load_mesh(mesh& mesh, cstring_view source);
 }

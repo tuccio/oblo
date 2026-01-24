@@ -35,7 +35,7 @@ namespace oblo
             }
 
             for (u32 child = doc.child_next(node, data_node::Invalid); child != data_node::Invalid;
-                 child = doc.child_next(node, child))
+                child = doc.child_next(node, child))
             {
                 const uuid id = doc.read_uuid(child).value_or({});
                 array.emplace_back(id);
@@ -45,7 +45,7 @@ namespace oblo
         }
     }
 
-    bool save_model_json(const model& model, cstring_view destination)
+    expected<> save_model_json(const model& model, cstring_view destination)
     {
         data_document doc;
         doc.init();
@@ -53,21 +53,21 @@ namespace oblo
         write_ref_array(doc, doc.get_root(), "meshes"_hsv, model.meshes);
         write_ref_array(doc, doc.get_root(), "materials"_hsv, model.materials);
 
-        return json::write(doc, destination).has_value();
+        return json::write(doc, destination);
     }
 
-    bool load_model(model& model, cstring_view source)
+    expected<> load_model(model& model, cstring_view source)
     {
         data_document doc;
 
-        if (!json::read(doc, source))
+        if (auto e = json::read(doc, source); !e)
         {
-            return false;
+            return e;
         }
 
         read_ref_array(doc, doc.get_root(), "meshes"_hsv, model.meshes);
         read_ref_array(doc, doc.get_root(), "materials"_hsv, model.materials);
 
-        return true;
+        return no_error;
     }
 }

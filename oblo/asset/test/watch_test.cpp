@@ -27,23 +27,27 @@ namespace oblo
                 .typeUuid = "9902b14d-32f6-4bf3-943c-8b6622591b33"_uuid,
                 .typeId = get_type_id<string_builder>(),
                 .fileExtension = ".txt",
-                .load =
-                    [](any_asset& asset, cstring_view source, const any&)
+                .load = [](any_asset& asset, cstring_view source, const any&) -> expected<>
                 {
                     auto& b = asset.emplace<mock_test_asset>();
-                    return filesystem::load_text_file_into_memory(b, source).has_value();
+
+                    if (const auto e = filesystem::load_text_file_into_memory(b, source); !e)
+                    {
+                        return e.error();
+                    }
+
+                    return no_error;
                 },
-                .save =
-                    [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
+                .save = [](const any_asset& asset, cstring_view destination, cstring_view, const any&) -> expected<>
                 {
                     auto* const b = asset.as<mock_test_asset>();
 
                     if (!b)
                     {
-                        return false;
+                        return "Failed to cast asset"_err;
                     }
 
-                    return filesystem::write_file(destination, as_bytes(std::span{*b}), {}).has_value();
+                    return filesystem::write_file(destination, as_bytes(std::span{*b}), {});
                 },
                 .createImporter = [](const any&) -> unique_ptr<file_importer>
                 { return allocate_unique<copy_importer>("3c06e01d-fb44-442d-8f62-3e6e4d14f74d"_uuid, "text"); },

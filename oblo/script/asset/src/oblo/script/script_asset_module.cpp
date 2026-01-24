@@ -461,45 +461,43 @@ namespace oblo
 
                         return any_asset{std::move(g)};
                     },
-                    .load =
-                        [](any_asset& asset, cstring_view source, const any&)
+                    .load = [](any_asset& asset, cstring_view source, const any&) -> expected<>
                     {
                         auto* const self = module_manager::get().find_unique_service<script_graph_provider>();
 
                         if (!self)
                         {
-                            return false;
+                            return "Missing script_graph_provider service"_err;
                         }
 
                         script_graph g;
 
                         if (!load_graph(g, self->m_registry, source))
                         {
-                            return false;
+                            return "Failed to load node graph"_err;
                         }
 
                         asset.emplace<script_graph>(std::move(g));
-                        return true;
+                        return no_error;
                     },
-                    .save =
-                        [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
+                    .save = [](const any_asset& asset, cstring_view destination, cstring_view, const any&) -> expected<>
                     {
                         auto* const g = asset.as<script_graph>();
 
                         if (!g)
                         {
-                            return false;
+                            return "Not a script_graph"_err;
                         }
 
                         data_document doc;
                         doc.init();
 
-                        if (!g->serialize(doc, doc.get_root()))
+                        if (const auto e = g->serialize(doc, doc.get_root()); e)
                         {
-                            return false;
+                            return e.error();
                         }
 
-                        return json::write(doc, destination).has_value();
+                        return json::write(doc, destination);
                     },
                     .createImporter = [](const any& userdata) -> unique_ptr<file_importer>
                     {

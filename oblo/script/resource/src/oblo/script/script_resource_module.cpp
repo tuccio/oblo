@@ -30,8 +30,15 @@ namespace oblo
                     .typeUuid = resource_type<compiled_script>,
                     .create = []() -> void* { return new compiled_script{}; },
                     .destroy = [](void* ptr) { delete static_cast<compiled_script*>(ptr); },
-                    .load = [](void* r, cstring_view source, const any&)
-                    { return load(*static_cast<compiled_script*>(r), source); },
+                    .load = [](void* r, cstring_view source, const any&) -> expected<>
+                    {
+                        if (!load(*static_cast<compiled_script*>(r), source))
+                        {
+                            return "Failed to load"_err;
+                        }
+
+                        return no_error;
+                    },
                 });
 
                 outResourceTypes.push_back({
@@ -39,8 +46,15 @@ namespace oblo
                     .typeUuid = resource_type<compiled_bytecode_module>,
                     .create = []() -> void* { return new compiled_bytecode_module{}; },
                     .destroy = [](void* ptr) { delete static_cast<compiled_bytecode_module*>(ptr); },
-                    .load = [](void* r, cstring_view source, const any&)
-                    { return load(*static_cast<compiled_bytecode_module*>(r), source); },
+                    .load = [](void* r, cstring_view source, const any&) -> expected<>
+                    {
+                        if (!load(*static_cast<compiled_bytecode_module*>(r), source))
+                        {
+                            return "Failed to load"_err;
+                        }
+
+                        return no_error;
+                    },
                 });
 
                 outResourceTypes.push_back({
@@ -48,8 +62,15 @@ namespace oblo
                     .typeUuid = resource_type<compiled_native_module>,
                     .create = []() -> void* { return new compiled_native_module{}; },
                     .destroy = [](void* ptr) { delete static_cast<compiled_native_module*>(ptr); },
-                    .load = [](void* r, cstring_view source, const any&)
-                    { return load(*static_cast<compiled_native_module*>(r), source); },
+                    .load = [](void* r, cstring_view source, const any&) -> expected<>
+                    {
+                        if (!load(*static_cast<compiled_native_module*>(r), source))
+                        {
+                            return "Failed to load"_err;
+                        }
+
+                        return no_error;
+                    },
                 });
             }
         };

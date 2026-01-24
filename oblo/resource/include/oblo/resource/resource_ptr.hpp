@@ -18,7 +18,9 @@ namespace oblo
         string_view resource_name(resource* resource);
         uuid resource_uuid(resource* resource);
         void resource_start_loading(resource* resource);
-        bool resource_is_loaded(resource* resource);
+        bool resource_is_nor_loaded_or_loading(resource* resource);
+        bool resource_is_loading(resource* resource);
+        bool resource_is_successfully_loaded(resource* resource);
         void resource_load_sync(resource* resource);
         bool resource_is_invalidated(resource* resource);
         void resource_invalidate(resource* resource);
@@ -187,11 +189,31 @@ namespace oblo
             }
         }
 
-        bool is_loaded() const noexcept
+        bool is_nor_loaded_or_loading() const noexcept
         {
             if (m_resource)
             {
-                return detail::resource_is_loaded(m_resource);
+                return detail::resource_is_nor_loaded_or_loading(m_resource);
+            }
+
+            return false;
+        }
+
+        bool is_currently_loading() const noexcept
+        {
+            if (m_resource)
+            {
+                return detail::resource_is_loading(m_resource);
+            }
+
+            return false;
+        }
+
+        bool is_successfully_loaded() const noexcept
+        {
+            if (m_resource)
+            {
+                return detail::resource_is_successfully_loaded(m_resource);
             }
 
             return false;
