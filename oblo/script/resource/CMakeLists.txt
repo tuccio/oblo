@@ -9,6 +9,7 @@ target_link_libraries(
     oblo::resource
     PRIVATE
     oblo::modules
+    oblo::properties
     oblo::reflection
 )
 

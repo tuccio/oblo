@@ -24,6 +24,9 @@
 #include <oblo/nodes/common/vec_nodes.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
 #include <oblo/nodes/node_graph_registry.hpp>
+#include <oblo/options/option_proxy.hpp>
+#include <oblo/options/option_traits.hpp>
+#include <oblo/options/options_module.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -37,6 +40,8 @@
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
 #include <oblo/script/compiler/bytecode_generator.hpp>
+#include <oblo/script/compiler/cpp_compiler.hpp>
+#include <oblo/script/compiler/cpp_generator.hpp>
 #include <oblo/script/nodes/api_nodes.hpp>
 #include <oblo/script/nodes/ecs_nodes.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
@@ -44,8 +49,53 @@
 
 namespace oblo
 {
+    namespace compiler_option_names
+    {
+        constexpr fixed_string optimizations = "g.script.compiler.optimize";
+        constexpr fixed_string debug_info = "g.script.compiler.debugInfo";
+    }
+
+    template <>
+    struct option_traits<compiler_option_names::optimizations>
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "4f73af03-87c4-41b4-a2a7-1bafee3e2458"_uuid,
+            .name = "Optimize native code",
+            .category = "Script/Compiler",
+            .defaultValue = property_value_wrapper{true},
+        };
+    };
+
+    template <>
+    struct option_traits<compiler_option_names::debug_info>
+    {
+        using type = bool;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::boolean,
+            .id = "cedd2929-cf5f-453a-85fc-5732b284d07b"_uuid,
+            .name = "Output debug info",
+            .category = "Script/Compiler",
+            .defaultValue = property_value_wrapper{false},
+        };
+    };
     namespace
     {
+        struct compiler_options_proxy
+        {
+            option_proxy<compiler_option_names::optimizations> optimizations;
+            option_proxy<compiler_option_names::debug_info> debugInfo;
+        };
+
+        struct compiler_options
+        {
+            bool optimizations;
+            bool debugInfo;
+        };
+
         bool load_graph(script_graph& g, const node_graph_registry& reg, cstring_view source)
         {
             g.init(reg);
@@ -60,9 +110,44 @@ namespace oblo
             return true;
         }
 
+        void dump_to_log(const platform::file& rPipe)
+        {
+
+            if (rPipe.is_open())
+            {
+                string_builder message;
+
+                char buf[1024];
+
+                while (true)
+                {
+                    const usize readBytes = rPipe.read(buf, sizeof(buf)).value_or(0);
+
+                    message.append(buf, buf + readBytes);
+
+                    if (readBytes != sizeof(buf))
+                    {
+                        break;
+                    }
+                }
+
+                log::error("{}", message.view());
+            }
+        }
+
         class script_graph_importer : public file_importer
         {
-            static constexpr cstring_view g_ArtifactName = "script.obytecode";
+            static constexpr cstring_view artifact_script_paths = "script_paths.json";
+            static constexpr cstring_view artifact_bytecode = "script.obytecode";
+            static constexpr cstring_view artifact_x86_64_avx2 = "x86_64_avx2.odynamiclib";
+
+            enum class importer_artifact
+            {
+                script_paths,
+                bytecode,
+                x86_64_avx2,
+                enum_max,
+            };
 
         public:
             explicit script_graph_importer(const node_graph_registry& registry) : m_registry{registry} {}
@@ -71,9 +156,34 @@ namespace oblo
             {
                 m_source = config.sourceFile;
 
-                auto& n = preview.nodes.emplace_back();
-                n.artifactType = resource_type<compiled_script>;
-                n.name = g_ArtifactName;
+                preview.nodes.resize(preview.nodes.size() + u32(importer_artifact::enum_max));
+
+                {
+                    auto& n = preview.nodes[u32(importer_artifact::script_paths)];
+                    n.artifactType = resource_type<compiled_script>;
+                    n.name = artifact_script_paths;
+                }
+
+                {
+                    auto& n = preview.nodes[u32(importer_artifact::bytecode)];
+                    n.artifactType = resource_type<compiled_bytecode_module>;
+                    n.name = artifact_bytecode;
+                }
+
+                {
+                    auto& n = preview.nodes[u32(importer_artifact::x86_64_avx2)];
+                    n.artifactType = resource_type<compiled_native_module>;
+                    n.name = artifact_x86_64_avx2;
+                }
+
+                if (auto* const optsModule = module_manager::get().find<options_module>())
+                {
+                    auto& optsManager = optsModule->manager();
+
+                    option_proxy_struct<compiler_options_proxy> compilerOpts;
+                    compilerOpts.init(optsManager);
+                    compilerOpts.read(optsManager, m_compilerOptions);
+                }
 
                 return true;
             }
@@ -82,23 +192,10 @@ namespace oblo
             {
                 const std::span configs = ctx.get_import_node_configs();
 
-                const auto& nodeConfig = configs[0];
-
-                if (!nodeConfig.enabled)
-                {
-                    return true;
-                }
-
                 string_builder destination;
-                ctx.get_output_path(nodeConfig.id, destination);
+                compiled_script script;
 
-                if (!filesystem::create_directories(destination))
-                {
-                    return false;
-                }
-
-                destination.append_path(g_ArtifactName);
-
+                // First read the graph and create the AST
                 script_graph sg;
 
                 if (!load_graph(sg, m_registry, m_source))
@@ -123,27 +220,64 @@ namespace oblo
                     return false;
                 }
 
-                auto module = bytecode_generator{}.generate_module(ast);
+                // Then compile to the various targets
 
-                if (!module)
                 {
-                    return false;
+                    const auto& byteCodeNode = configs[u32(importer_artifact::bytecode)];
+
+                    if (byteCodeNode.enabled &&
+                        (!prepare_path(destination, ctx, byteCodeNode.id, artifact_bytecode) ||
+                            !import_bytecode(byteCodeNode, destination, ast)))
+                    {
+                        return false;
+                    }
+
+                    script.bytecode = resource_ref<compiled_bytecode_module>{byteCodeNode.id};
                 }
 
-                compiled_script script;
-                script.module = std::move(*module);
-
-                if (!save(script, destination))
                 {
-                    return false;
+                    const auto& avx2Node = configs[u32(importer_artifact::x86_64_avx2)];
+
+                    if (avx2Node.enabled &&
+                        (!prepare_path(destination, ctx, avx2Node.id, artifact_x86_64_avx2) ||
+                            !compile_native(avx2Node,
+                                destination,
+                                ast,
+                                cpp_compiler::options::target_arch::x86_64_avx2)))
+                    {
+                        return false;
+                    }
+
+                    script.x86_64_avx2 = resource_ref<compiled_native_module>{avx2Node.id};
+                }
+
+                {
+                    m_mainArtifactHint = {};
+
+                    const auto& scriptPathsNode = configs[u32(importer_artifact::script_paths)];
+
+                    if (scriptPathsNode.enabled)
+                    {
+                        if (!prepare_path(destination, ctx, scriptPathsNode.id, artifact_script_paths) ||
+                            !save(script, destination))
+                        {
+                            return false;
+                        }
+
+                        auto& artifact = m_artifacts.emplace_back();
+
+                        artifact.id = scriptPathsNode.id;
+                        artifact.name = artifact_script_paths;
+                        artifact.path = destination.as<string>();
+                        artifact.type = resource_type<compiled_script>;
+
+                        m_mainArtifactHint = scriptPathsNode.id;
+
+                        return true;
+                    }
                 }
 
                 m_sourceFiles.emplace_back(m_source);
-
-                m_artifact.id = nodeConfig.id;
-                m_artifact.name = g_ArtifactName;
-                m_artifact.path = destination.as<string>();
-                m_artifact.type = resource_type<compiled_script>;
 
                 return true;
             }
@@ -151,17 +285,154 @@ namespace oblo
             file_import_results get_results()
             {
                 file_import_results r;
-                r.artifacts = {&m_artifact, 1};
+                r.artifacts = m_artifacts;
                 r.sourceFiles = m_sourceFiles;
-                r.mainArtifactHint = m_artifact.id;
+                r.mainArtifactHint = m_mainArtifactHint;
                 return r;
             }
 
         private:
+            bool prepare_path(string_builder& destination, import_context ctx, uuid id, string_view artifactName)
+            {
+                destination.clear();
+                ctx.get_output_path(id, destination);
+
+                if (!filesystem::create_directories(destination))
+                {
+                    return false;
+                }
+
+                destination.append_path(artifactName);
+                return true;
+            }
+
+            bool import_bytecode(
+                const import_node_config& nodeConfig, cstring_view destination, const abstract_syntax_tree& ast)
+            {
+
+                expected module = bytecode_generator{}.generate_module(ast);
+
+                if (!module)
+                {
+                    return false;
+                }
+
+                if (!save(*module, destination))
+                {
+                    return false;
+                }
+
+                auto& artifact = m_artifacts.emplace_back();
+
+                artifact.id = nodeConfig.id;
+                artifact.name = artifact_bytecode;
+                artifact.path = destination.as<string>();
+                artifact.type = resource_type<compiled_bytecode_module>;
+
+                return true;
+            }
+
+            bool compile_native(const import_node_config& nodeConfig,
+                cstring_view destination,
+                const abstract_syntax_tree& ast,
+                cpp_compiler::options::target_arch target)
+            {
+                const auto code = cpp_generator{}.generate_code(ast);
+
+                if (!code)
+                {
+                    return false;
+                }
+
+                const auto compiler = cpp_compiler::find();
+
+                if (!compiler)
+                {
+                    return false;
+                }
+
+                string_builder src;
+                src.format("{}.cpp", destination);
+
+                if (!filesystem::write_file(src, as_bytes(std::span{code->data(), code->size()}), {}))
+                {
+                    return false;
+                }
+
+                dynamic_array<string> compilerArgs;
+
+                if (!compiler->make_shared_library_command_arguments(compilerArgs,
+                        src.view(),
+                        destination,
+                        {
+                            .target = target,
+                            .optimizations = m_compilerOptions.optimizations
+                                ? cpp_compiler::options::optimization_level::highest
+                                : cpp_compiler::options::optimization_level::none,
+                            .debugInfo = m_compilerOptions.debugInfo,
+                        }))
+                {
+                    return false;
+                }
+
+                platform::process compile;
+
+                dynamic_array<cstring_view> argsArray;
+                argsArray.reserve(compilerArgs.size());
+
+                for (const auto& s : compilerArgs)
+                {
+                    argsArray.emplace_back(s);
+                }
+
+                platform::file rPipe, wPipe;
+
+                if (!platform::file::create_pipe(rPipe, wPipe, 32 << 10u))
+                {
+                    return false;
+                }
+
+                if (!compile.start({
+                        .path = compiler->get_path(),
+                        .arguments = argsArray,
+                        .outputStream = &wPipe,
+                        .errorStream = &wPipe,
+                    }))
+                {
+                    return false;
+                }
+
+                if (!compile.wait())
+                {
+                    return false;
+                }
+
+                const i64 exitCode = compile.get_exit_code().value_or(-1);
+
+                if (exitCode != 0)
+                {
+                    dump_to_log(rPipe);
+                }
+                else
+                {
+                    auto& artifact = m_artifacts.emplace_back();
+
+                    artifact.id = nodeConfig.id;
+                    artifact.name = artifact_x86_64_avx2;
+                    artifact.path = destination.as<string>();
+                    artifact.type = resource_type<compiled_native_module>;
+                }
+
+                return exitCode == 0;
+            }
+
+        private:
             const node_graph_registry& m_registry{};
-            import_artifact m_artifact{};
+            buffered_array<import_artifact, u32(importer_artifact::enum_max)> m_artifacts;
             string m_source;
             dynamic_array<string> m_sourceFiles;
+            uuid m_mainArtifactHint{};
+            compiler_options m_compilerOptions{};
         };
 
         class script_graph_provider final : public native_asset_provider
@@ -250,6 +521,8 @@ namespace oblo
             {
                 const h32 root = tree.get_root();
 
+                // Add type
+
                 tree.add_node(root,
                     ast_type_declaration{
                         .name = script_api::void_t,
@@ -274,34 +547,99 @@ namespace oblo
                         .size = sizeof(f32) * 3,
                     });
 
+                // Add functions
+
+                const auto addSetProperty =
+                    [&tree, root](hashed_string_view name, hashed_string_view type, bool withMask)
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = name,
+                            .returnType = script_api::void_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "componentType",
+                            .type = script_api::string_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "property",
+                            .type = script_api::string_t,
+                        });
+
+                    if (withMask)
+                    {
+                        tree.add_node(h,
+                            ast_function_parameter{
+                                .name = "mask",
+                                .type = script_api::i32_t,
+                            });
+                    }
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "value",
+                            .type = type,
+                        });
+                };
+
+                const auto addGetProperty = [&tree, root](hashed_string_view name, hashed_string_view type)
+                {
+                    const h32 h =
+
+                        tree.add_node(root,
+                            ast_function_declaration{
+                                .name = name,
+                                .returnType = type,
+                            });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "componentType",
+                            .type = script_api::string_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "property",
+                            .type = script_api::string_t,
+                        });
+                };
+
+                const auto addSurjectiveFunction = [&tree, root](hashed_string_view name, hashed_string_view type)
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = name,
+                            .returnType = type,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "x",
+                            .type = type,
+                        });
+                };
+
+                addSurjectiveFunction(script_api::cosine_f32, script_api::f32_t);
+                addSurjectiveFunction(script_api::cosine_vec3, script_api::vec3_t);
+
+                addSurjectiveFunction(script_api::sine_f32, script_api::f32_t);
+                addSurjectiveFunction(script_api::sine_vec3, script_api::vec3_t);
+
+                addGetProperty(script_api::ecs::get_property_f32, script_api::f32_t);
+                addSetProperty(script_api::ecs::set_property_f32, script_api::f32_t, false);
+
+                addGetProperty(script_api::ecs::get_property_vec3, script_api::vec3_t);
+                addSetProperty(script_api::ecs::set_property_vec3, script_api::vec3_t, true);
+
                 tree.add_node(root,
                     ast_function_declaration{
                         .name = script_api::get_time,
                         .returnType = script_api::f32_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::set_property_f32,
-                        .returnType = script_api::void_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::get_property_f32,
-                        .returnType = script_api::f32_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::get_property_vec3,
-                        .returnType = script_api::vec3_t,
-                    });
-
-                tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::ecs::set_property_vec3,
-                        .returnType = script_api::void_t,
                     });
 
                 return true;
@@ -351,6 +689,8 @@ namespace oblo
         {
             initializer.services->add<script_graph_provider>().as<native_asset_provider>().unique(m_scriptRegistry);
             initializer.services->add<behaviour_api_provider>().as<script_api_provider>().unique();
+
+            option_proxy_struct<compiler_options_proxy>::register_options(*initializer.services);
 
             // Load the runtime module to make sure it gets finalized before us, since we want to register the
             // components properties from its property registry

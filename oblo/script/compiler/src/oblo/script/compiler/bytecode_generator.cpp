@@ -127,6 +127,9 @@ namespace oblo
                         body = functionChildHandle;
                         break;
 
+                    case ast_node_kind::function_parameter:
+                        break;
+
                     default:
                         OBLO_ASSERT(false);
                         return unspecified_error;
@@ -435,6 +438,9 @@ namespace oblo
                     break;
 
                     case ast_node_kind::compound:
+                        break;
+
+                    case ast_node_kind::construct_type:
                         break;
 
                     default:

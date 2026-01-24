@@ -86,7 +86,9 @@ namespace oblo::math_nodes
                     .name = nameBuilder.as<hashed_string_view>(),
                 });
 
-            ast.reparent(inputs[0], call);
+            const h32 arg = ast.add_node(call, ast_function_argument{});
+
+            ast.reparent(inputs[0], arg);
 
             outputs.emplace_back(call);
 

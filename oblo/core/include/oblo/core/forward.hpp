@@ -2,9 +2,11 @@
 
 namespace oblo
 {
+    class allocator;
     class cstring_view;
     class hashed_string_view;
     class string;
+    class string_builder;
     class string_view;
 
     template <typename T>
@@ -24,4 +26,7 @@ namespace oblo
 
     template <typename>
     class promise;
+
+    template <typename T, typename D>
+    class unique_ptr;
 }

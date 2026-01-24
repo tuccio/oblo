@@ -4,6 +4,7 @@
 #include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
+#include <oblo/core/iterator/token_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 
 #include <array>
@@ -104,8 +105,8 @@ namespace oblo
 
     TEST(zip_range, span_by_value)
     {
-        std::vector a = {1, 2, 3};
-        std::vector b = {'a', 'b', 'c'};
+        std::array a = {1, 2, 3};
+        std::array b = {'a', 'b', 'c'};
 
         int n = 0;
 
@@ -235,5 +236,99 @@ namespace oblo
 
             ASSERT_EQ(result, expected);
         }
+    }
+
+    namespace
+    {
+        dynamic_array<string_view> collect(const token_range& r)
+        {
+            dynamic_array<string_view> out;
+
+            for (const string_view t : r)
+            {
+                out.push_back(t);
+            }
+
+            return out;
+        }
+    }
+
+    TEST(token_range, basic_split)
+    {
+        token_range r{"a--b--c", "--"};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "b", "c"}}));
+    }
+
+    TEST(token_range, trailing_delimiter)
+    {
+        token_range r{"a--b--", "--"};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "b", ""}}));
+    }
+
+    TEST(token_range, leading_delimiter)
+    {
+        token_range r{"--a--b", "--"};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"", "a", "b"}}));
+    }
+
+    TEST(token_range, consecutive_delimiter)
+    {
+        token_range r{"a----b", "--"};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "", "b"}}));
+    }
+
+    TEST(token_range, no_delimiter)
+    {
+        token_range r{"abc", "--"};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"abc"}}));
+    }
+
+    TEST(token_range, only_delimiter)
+    {
+        token_range r{"--", "--"};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"", ""}}));
+    }
+
+    TEST(token_range, empty_string)
+    {
+        token_range r{"", "--"};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {""}}));
+    }
+
+    TEST(token_range, single_char_delimiter)
+    {
+        token_range r{"a,b,,c,", ","};
+        EXPECT_EQ(collect(r), (dynamic_array<string_view>{get_global_allocator(), {"a", "b", "", "c", ""}}));
+    }
+
+    TEST(token_range, embedded_null_character)
+    {
+        const char data[] = {'a', '\0', 'b', '-', '-', 'c'};
+        string_view s{data, sizeof(data)};
+
+        token_range r{s, "--"};
+        auto v = collect(r);
+
+        ASSERT_EQ(v.size(), 2u);
+        EXPECT_EQ(v[0].size(), 3u); // "a\0b"
+        EXPECT_EQ(v[1], "c");
+    }
+
+    TEST(token_range, iterator_increment_and_equality)
+    {
+        token_range r{"a--b", "--"};
+
+        auto it = r.begin();
+        auto end = r.end();
+
+        ASSERT_NE(it, end);
+        EXPECT_EQ(*it, "a");
+
+        ++it;
+        ASSERT_NE(it, end);
+        EXPECT_EQ(*it, "b");
+
+        ++it;
+        EXPECT_EQ(it, end);
     }
 }

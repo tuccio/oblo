@@ -5,6 +5,9 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/utility/registration.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
+#include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/properties/serialization/json.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
@@ -29,6 +32,24 @@ namespace oblo
                     .destroy = [](void* ptr) { delete static_cast<compiled_script*>(ptr); },
                     .load = [](void* r, cstring_view source, const any&)
                     { return load(*static_cast<compiled_script*>(r), source); },
+                });
+
+                outResourceTypes.push_back({
+                    .typeId = get_type_id<compiled_bytecode_module>(),
+                    .typeUuid = resource_type<compiled_bytecode_module>,
+                    .create = []() -> void* { return new compiled_bytecode_module{}; },
+                    .destroy = [](void* ptr) { delete static_cast<compiled_bytecode_module*>(ptr); },
+                    .load = [](void* r, cstring_view source, const any&)
+                    { return load(*static_cast<compiled_bytecode_module*>(r), source); },
+                });
+
+                outResourceTypes.push_back({
+                    .typeId = get_type_id<compiled_native_module>(),
+                    .typeUuid = resource_type<compiled_native_module>,
+                    .create = []() -> void* { return new compiled_native_module{}; },
+                    .destroy = [](void* ptr) { delete static_cast<compiled_native_module*>(ptr); },
+                    .load = [](void* r, cstring_view source, const any&)
+                    { return load(*static_cast<compiled_native_module*>(r), source); },
                 });
             }
         };
@@ -130,6 +151,46 @@ namespace oblo
 
     bool save(const compiled_script& script, cstring_view destination)
     {
+        data_document doc;
+        doc.init();
+
+        doc.child_value(doc.get_root(), "bytecode"_hsv, property_value_wrapper{script.bytecode.id});
+        doc.child_value(doc.get_root(), "x86_64_avx2"_hsv, property_value_wrapper{script.x86_64_avx2.id});
+
+        return json::write(doc, destination).has_value();
+    }
+
+    bool load(compiled_script& script, cstring_view source)
+    {
+        data_document doc;
+        doc.init();
+
+        if (!json::read(doc, source))
+        {
+            return false;
+        }
+
+        const u32 bytecode = doc.find_child(doc.get_root(), "bytecode"_hsv);
+        const u32 x86_64_avx2 = doc.find_child(doc.get_root(), "x86_64_avx2"_hsv);
+
+        doc.child_value(doc.get_root(), "bytecode"_hsv, property_value_wrapper{script.bytecode.id});
+        doc.child_value(doc.get_root(), "x86_64_avx2"_hsv, property_value_wrapper{script.x86_64_avx2.id});
+
+        script = {
+            .bytecode = {doc.read_uuid(bytecode).value_or(uuid{})},
+            .x86_64_avx2 = {doc.read_uuid(x86_64_avx2).value_or(uuid{})},
+        };
+
+        return true;
+    }
+
+    bool save(const compiled_bytecode_module& script, cstring_view destination)
+    {
+        return save(script.module, destination);
+    }
+
+    bool save(const bytecode_module& module, cstring_view destination)
+    {
         buffered_array<byte, 2048> data;
         buffered_array<char, 1024> stringsBuffer;
 
@@ -139,16 +200,16 @@ namespace oblo
             h.magicBytes = g_MagicBytes;
             h.byteswap = g_ByteSwapCheck;
             h.version = g_CurrentVersion;
-            h.functionsCount = script.module.functions.size32();
-            h.textCount = script.module.text.size32();
-            h.readOnlyStringsCount = script.module.readOnlyStrings.size32();
+            h.functionsCount = module.functions.size32();
+            h.textCount = module.text.size32();
+            h.readOnlyStringsCount = module.readOnlyStrings.size32();
 
             const std::span headerData = as_bytes(std::span{&h, 1});
             data.append(headerData.begin(), headerData.end());
         }
 
         {
-            for (const auto& f : script.module.functions)
+            for (const auto& f : module.functions)
             {
                 const u32 idOffset = stringsBuffer.size32();
                 const u32 idLength = f.id.size32();
@@ -172,14 +233,14 @@ namespace oblo
         }
 
         {
-            static_assert(std::is_trivially_copyable_v<decltype(script.module.text)::value_type>);
+            static_assert(std::is_trivially_copyable_v<decltype(module.text)::value_type>);
 
-            const std::span dataSpan = as_bytes(std::span{script.module.text});
+            const std::span dataSpan = as_bytes(std::span{module.text});
             data.append(dataSpan.begin(), dataSpan.end());
         }
 
         {
-            for (const auto& str : script.module.readOnlyStrings)
+            for (const auto& str : module.readOnlyStrings)
             {
                 const bytecode_string_ref strRef{
                     .offset = stringsBuffer.size32(),
@@ -200,7 +261,7 @@ namespace oblo
                 .has_value();
     }
 
-    bool load(compiled_script& script, cstring_view source)
+    bool load(compiled_bytecode_module& script, cstring_view source)
     {
         buffered_array<byte, 4096> data;
 
@@ -327,6 +388,11 @@ namespace oblo
         }
 
         return true;
+    }
+
+    bool load(compiled_native_module& script, cstring_view source)
+    {
+        return script.module.open(source, platform::shared_library::open_flags::exact_name);
     }
 }
 

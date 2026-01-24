@@ -162,7 +162,7 @@ namespace oblo
         h32<ast_node> create_variable_decl_or_ref(abstract_syntax_tree& ast, string_builder& buffer, h32<ast_node> expr)
         {
             const h32 parent = ast.get(expr).parent;
-            buffer.clear().format("__$n{}", expr.value);
+            buffer.clear().format("expr{}", expr.value);
             return ast.add_node(parent, T{.name = buffer.as<hashed_string_view>()});
         }
     }

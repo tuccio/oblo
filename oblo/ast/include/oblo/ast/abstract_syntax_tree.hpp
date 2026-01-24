@@ -24,6 +24,7 @@ namespace oblo
         function_call,
         function_argument,
         compound,
+        construct_type,
         binary_operator,
         i32_constant,
         u32_constant,
@@ -100,6 +101,13 @@ namespace oblo
     struct ast_compound
     {
         static constexpr ast_node_kind node_kind = ast_node_kind::compound;
+    };
+
+    struct ast_construct_type
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::construct_type;
+
+        hashed_string_view type;
     };
 
     struct ast_binary_operator
@@ -200,6 +208,7 @@ namespace oblo
             ast_function_call functionCall;
             ast_function_argument functionArgument;
             ast_compound compound;
+            ast_construct_type constructType;
             ast_binary_operator binaryOp;
             ast_i32_constant i32;
             ast_u32_constant u32;
@@ -306,6 +315,13 @@ namespace oblo
         {
             n.kind = ast_node_kind::compound;
             n.node.compound = v;
+        }
+
+        void set_node(ast_node& n, const ast_construct_type& v)
+        {
+            n.kind = ast_node_kind::construct_type;
+            n.node.constructType = v;
+            n.node.constructType.type = intern_h_str(v.type);
         }
 
         void set_node(ast_node& n, const ast_binary_operator& v)

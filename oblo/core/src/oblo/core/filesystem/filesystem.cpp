@@ -419,4 +419,20 @@ namespace oblo::filesystem
         const auto p = std::filesystem::current_path();
         out.clear().append(p.c_str());
     }
+
+    bool search_file_in_paths(string_builder& out, string_view fileName, std::span<const string_view> extraPaths)
+    {
+        for (const string_view p : extraPaths)
+        {
+            out = p;
+            out.append_path(fileName);
+
+            if (filesystem::exists(out).value_or(false))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
