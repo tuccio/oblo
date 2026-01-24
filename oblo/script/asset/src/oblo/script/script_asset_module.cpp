@@ -492,7 +492,7 @@ namespace oblo
                         data_document doc;
                         doc.init();
 
-                        if (const auto e = g->serialize(doc, doc.get_root()); e)
+                        if (const auto e = g->serialize(doc, doc.get_root()); !e)
                         {
                             return e.error();
                         }

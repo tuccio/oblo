@@ -34,6 +34,20 @@ namespace oblo
 {
     namespace
     {
+        texture_format map_imgui_format(ImTextureFormat format)
+        {
+            switch (format)
+            {
+            case ImTextureFormat_RGBA32:
+                return texture_format::r8g8b8a8_unorm;
+            case ImTextureFormat_Alpha8:
+                return texture_format::r8_unorm;
+            default:
+                OBLO_ASSERT("Unrecognized format");
+                return texture_format::undefined;
+            }
+        }
+
         void imgui_win32_dispatch_event(const void* event)
         {
             const MSG* msg = reinterpret_cast<const MSG*>(event);
@@ -85,7 +99,7 @@ namespace oblo
             std::unordered_map<resource_ref<texture>, usize, hash<resource_ref<texture>>> registeredTexturesMap;
             deque<resource_ptr<texture>> registeredTextures;
 
-            ImTextureID nextTextureId{};
+            ImTextureID nextTextureId{ImTextureID_Invalid + 1};
 
             static constexpr u64 subgraph_image_bit = u64{1} << 63;
 
@@ -128,6 +142,70 @@ namespace oblo
                 return newId;
             }
 
+            void create_imgui_texture(ImTextureData& tex)
+            {
+                texture t{};
+
+                t.allocate(texture_desc::make_2d(tex.Width, tex.Height, map_imgui_format(tex.Format))).assert_value();
+
+                const std::span textureData = t.get_data();
+
+                if (tex.GetSizeInBytes() == textureData.size_bytes())
+                {
+                    std::memcpy(textureData.data(), tex.Pixels, textureData.size_bytes());
+                }
+                else
+                {
+                    OBLO_ASSERT(false);
+                }
+
+                resource_ptr r = resourceRegistry->instantiate<texture>(std::move(t), "imgui_texture");
+                const ImTextureID id = register_texture(std::move(r));
+
+                tex.SetStatus(ImTextureStatus_OK);
+                tex.SetTexID(id);
+            }
+
+            void update_imgui_texture(ImTextureData& tex)
+            {
+                // Just to keep everything working as it used to before the ImGui update that allows for font scaling,
+                // We don't handle the update and just copy and reupload everything here.
+                // The alternative would require more changes, to handle gpu uploads properly.
+                const resource_ptr<texture> src = registeredTextures[tex.TexID];
+
+                texture dst{};
+
+                if (src.is_successfully_loaded() && dst.allocate(src->get_description()))
+                {
+                    const std::span dstData = dst.get_data();
+
+                    if (tex.GetSizeInBytes() == dstData.size_bytes())
+                    {
+                        std::memcpy(dstData.data(), tex.Pixels, dstData.size_bytes());
+                    }
+
+                    registeredTextures[tex.TexID] =
+                        resourceRegistry->instantiate<texture>(std::move(dst), "imgui_texture");
+
+                    tex.SetStatus(ImTextureStatus_OK);
+                }
+                else
+                {
+                    OBLO_ASSERT(false);
+                }
+            }
+
+            void destroy_imgui_texture(ImTextureData& tex)
+            {
+                if (tex.TexID >= registeredTextures.size())
+                {
+                    OBLO_ASSERT(false);
+                    return;
+                }
+
+                registeredTextures[tex.TexID] = {};
+            }
+
             static bool is_subgraph_texture(ImTextureID id)
             {
                 return (subgraph_image_bit & id) != 0;
@@ -164,7 +242,7 @@ namespace oblo
 
         struct imgui_render_node
         {
-            vk::data<const imgui_render_backend*> inBackend;
+            vk::data<imgui_render_backend*> inBackend;
             vk::data<ImGuiViewport*> inViewport;
 
             vk::resource<vk::texture> inOutRenderTarget;
@@ -245,6 +323,22 @@ namespace oblo
                 auto* const backend = ctx.access(inBackend);
                 OBLO_ASSERT(backend);
 
+                ImGuiViewport* const viewport = ctx.access(inViewport);
+                OBLO_ASSERT(viewport);
+
+                auto* const drawData = viewport->DrawData;
+
+                if (drawData->Textures != nullptr)
+                {
+                    for (ImTextureData* tex : *drawData->Textures)
+                    {
+                        if (tex->Status != ImTextureStatus_OK)
+                        {
+                            handle_imgui_texture(*backend, *tex);
+                        }
+                    }
+                }
+
                 registeredTextures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
                     backend->registeredTextures.size());
 
@@ -263,11 +357,6 @@ namespace oblo
                     subgraphTextures[textureId] =
                         ctx.acquire_bindless(graphImage.texture, vk::texture_usage::shader_read);
                 }
-
-                ImGuiViewport* const viewport = ctx.access(inViewport);
-                OBLO_ASSERT(viewport);
-
-                auto* const drawData = viewport->DrawData;
 
                 ctx.acquire(inOutRenderTarget, vk::texture_usage::render_target_write);
 
@@ -354,6 +443,8 @@ namespace oblo
                     OBLO_ASSERT(viewport);
 
                     auto* const drawData = viewport->DrawData;
+
+                    OBLO_PROFILE_SCOPE();
 
                     const vec2 scale = vec2::splat(2.f) / vec2{drawData->DisplaySize.x, drawData->DisplaySize.y};
                     const vec2 translation =
@@ -444,6 +535,26 @@ namespace oblo
                     ctx.end_pass();
                 }
             }
+
+            void handle_imgui_texture(imgui_render_backend& backend, ImTextureData& tex)
+            {
+                switch (tex.Status)
+                {
+                case ImTextureStatus_WantCreate:
+                    backend.create_imgui_texture(tex);
+                    break;
+
+                case ImTextureStatus_WantUpdates:
+                    backend.update_imgui_texture(tex);
+                    break;
+                case ImTextureStatus_WantDestroy:
+                    backend.destroy_imgui_texture(tex);
+                    break;
+
+                default:
+                    break;
+                }
+            }
         };
 
         constexpr string_view g_InImGuiViewport{"ImGuiViewport"};
@@ -484,7 +595,7 @@ namespace oblo
             }
         }
 
-        imgui_render_userdata* create_render_userdata(const imgui_render_backend* backend,
+        imgui_render_userdata* create_render_userdata(imgui_render_backend* backend,
             graphics_window_context* windowContext,
             bool isOwned,
             ImGuiViewport* viewport)
@@ -598,6 +709,7 @@ namespace oblo
 
             io.BackendRendererUserData = &backend;
             io.BackendRendererName = "oblo";
+            io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;  // We need this for scaling fonts.
             io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset; // We can honor the ImDrawCmd::VtxOffset
                                                                        // field, allowing for large meshes.
             io.BackendFlags |= ImGuiBackendFlags_RendererHasViewports; // We can create multi-viewports on the
@@ -750,7 +862,6 @@ namespace oblo
 
     void imgui_app::end_ui()
     {
-        OBLO_PROFILE_SCOPE();
         ImGui::Render();
 
         // Update and Render additional Platform Windows

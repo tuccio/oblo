@@ -137,7 +137,7 @@ namespace oblo::editor
                         ImGui::PushID(static_cast<int>(type.value));
 
                         const auto isComponentExpanded = ImGui::CollapsingHeader(builder.c_str(),
-                            ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_DefaultOpen);
+                            ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_DefaultOpen);
 
                         const auto headerY = ImGui::GetItemRectMin().y;
                         const auto hamburgerX = ImGui::GetItemRectMax().x - 24;
