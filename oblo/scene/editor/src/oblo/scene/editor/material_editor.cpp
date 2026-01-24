@@ -1,4 +1,4 @@
-#include <oblo/scene/editor/material_editor.hpp>
+﻿#include <oblo/scene/editor/material_editor.hpp>
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
@@ -252,7 +252,7 @@ namespace oblo::editor
 
         if (!h)
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         m_editor = h;
@@ -272,7 +272,7 @@ namespace oblo::editor
 
         if (!materialEditor)
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         return materialEditor->save_asset(assetRegistry);

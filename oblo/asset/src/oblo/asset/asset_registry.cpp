@@ -1,4 +1,4 @@
-#include <oblo/asset/asset_registry.hpp>
+﻿#include <oblo/asset/asset_registry.hpp>
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_meta.hpp>
@@ -472,14 +472,14 @@ namespace oblo
 
         if (!assetSource)
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         auto importer = m_impl->create_importer(sourceFile);
 
         if (!importer.is_valid())
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         const uuid assetId = asset_registry_impl::generate_uuid();
@@ -488,12 +488,12 @@ namespace oblo
 
         if (!m_impl->create_temporary_files_dir(workDir, assetId))
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         if (!importer.init(*m_impl, assetId, workDir, false))
         {
-            return unspecified_error;
+            return "Asset operation failed"_err;
         }
 
         if (!assetName.empty())
@@ -548,12 +548,12 @@ namespace oblo
 
         if (it == m_impl->assets.end())
         {
-            return unspecified_error;
+            return "Asset not found"_err;
         }
 
         if (it->second.isProcessing)
         {
-            return unspecified_error;
+            return "Asset operation failed"_err;
         }
 
         // TODO: Maybe check if it's being reprocessed
@@ -564,7 +564,7 @@ namespace oblo
 
         if (!importer::read_source_file_path(*m_impl, meta.assetId, it->second.assetSource, fileSourcePath))
         {
-            return unspecified_error;
+            return "Asset not found"_err;
         }
 
         oblo::importer importer;
@@ -590,12 +590,12 @@ namespace oblo
 
         if (!m_impl->create_temporary_files_dir(workDir, asset_registry_impl::generate_uuid()))
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         if (!importer.init(*m_impl, meta.assetId, workDir, true))
         {
-            return unspecified_error;
+            return "Asset operation failed"_err;
         }
 
         // TODO: Read previous settings
@@ -623,7 +623,7 @@ namespace oblo
 
         if (it == nativeAssetTypes.end())
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         const auto& desc = it->second;
@@ -633,19 +633,19 @@ namespace oblo
         string_builder workDir;
         if (!create_temporary_files_dir(workDir, generate_uuid()))
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         if (!desc.createImporter)
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         auto fileImporter = desc.createImporter(desc.userdata);
 
         if (!fileImporter)
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         string_builder sourceFile;
@@ -662,7 +662,7 @@ namespace oblo
 
         if (!desc.save(asset, source, workDir, desc.userdata))
         {
-            return unspecified_error;
+            return "Asset operation failed"_err;
         }
 
         import_config config;
@@ -674,7 +674,7 @@ namespace oblo
 
         if (!importer.init(*this, assetId, workDir, isReimport))
         {
-            return unspecified_error;
+            return "Asset not found"_err;
         }
 
         push_import_process(optAssetEntry, std::move(importer), {}, destination, assetSource);
@@ -747,7 +747,7 @@ namespace oblo
 
         if (!asset)
         {
-            return unspecified_error;
+            return "Asset operation failed"_err;
         }
 
         string_builder fullPath;
@@ -755,14 +755,14 @@ namespace oblo
 
         if (!assetSource)
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         const auto assetId = asset_registry_impl::generate_uuid();
 
         if (!m_impl->create_or_save_asset(nullptr, asset, assetId, {}, destination, name, assetSource))
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         return assetId;
@@ -774,7 +774,7 @@ namespace oblo
 
         if (it == m_impl->assets.end())
         {
-            return unspecified_error;
+            return "Asset not found"_err;
         }
 
         const uuid& type = it->second.meta.nativeAssetType;
@@ -783,21 +783,21 @@ namespace oblo
 
         if (typeIt == m_impl->nativeAssetTypes.end())
         {
-            return unspecified_error;
+            return "Asset not found"_err;
         }
 
         string_builder sourceFilePath;
 
         if (!importer::read_source_file_path(*m_impl, assetId, it->second.assetSource, sourceFilePath))
         {
-            return unspecified_error;
+            return "Failed to load asset"_err;
         }
 
         any_asset asset;
 
         if (!typeIt->second.load(asset, sourceFilePath, typeIt->second.userdata))
         {
-            return unspecified_error;
+            return "Failed to load asset"_err;
         }
 
         return asset;
@@ -809,14 +809,14 @@ namespace oblo
 
         if (it == m_impl->assets.end())
         {
-            return unspecified_error;
+            return "Asset not found"_err;
         }
 
         string_builder sourceFilePath;
 
         if (!importer::read_source_file_path(*m_impl, assetId, it->second.assetSource, sourceFilePath))
         {
-            return unspecified_error;
+            return "Failed to register asset"_err;
         }
 
         return m_impl

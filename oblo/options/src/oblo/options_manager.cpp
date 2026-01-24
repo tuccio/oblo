@@ -1,4 +1,4 @@
-#include <oblo/options/options_manager.hpp>
+﻿#include <oblo/options/options_manager.hpp>
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
@@ -220,19 +220,19 @@ namespace oblo
         // You cannot write the default value here
         if (layer <= g_defaultValuesLayer || layer.value >= m_impl->layers.size())
         {
-            return unspecified_error;
+            return "Failed to save options"_err;
         }
 
         if (option.value >= m_impl->options.size())
         {
-            return unspecified_error;
+            return "Option not found"_err;
         }
 
         auto& opt = m_impl->options[option.value];
 
         if (opt.kind != value.get_kind())
         {
-            return unspecified_error;
+            return "Option not found"_err;
         }
 
         // Locate the value, the -1 is for the invalid layer
@@ -250,12 +250,12 @@ namespace oblo
         // You can read the default value here
         if (layer < g_defaultValuesLayer || layer.value >= m_impl->layers.size())
         {
-            return unspecified_error;
+            return "Failed to load options"_err;
         }
 
         if (option.value >= m_impl->options.size())
         {
-            return unspecified_error;
+            return "Options operation failed"_err;
         }
 
         auto& opt = m_impl->options[option.value];
@@ -288,12 +288,12 @@ namespace oblo
         // You cannot write the default value here
         if (layer <= g_defaultValuesLayer || layer.value >= m_impl->layers.size())
         {
-            return unspecified_error;
+            return "Failed to save options"_err;
         }
 
         if (option.value >= m_impl->options.size())
         {
-            return unspecified_error;
+            return "Options operation failed"_err;
         }
 
         auto& opt = m_impl->options[option.value];

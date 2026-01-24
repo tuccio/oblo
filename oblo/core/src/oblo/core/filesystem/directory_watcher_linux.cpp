@@ -1,4 +1,4 @@
-#ifdef __linux__
+﻿#ifdef __linux__
 
     #include <oblo/core/array_size.hpp>
     #include <oblo/core/filesystem/directory_watcher.hpp>
@@ -34,7 +34,7 @@ namespace oblo::filesystem
 
             if (it == wdToPath.end())
             {
-                return unspecified_error;
+                return "Failed to access filesystem"_err;
             }
 
             out = it->second;
@@ -46,7 +46,7 @@ namespace oblo::filesystem
         {
             if (!add_watch_impl(directoryPath))
             {
-                return unspecified_error;
+                return "Failed to watch directory"_err;
             }
 
             if (isRecursive)
@@ -160,7 +160,7 @@ namespace oblo::filesystem
 
         if (!absolute(initializer.path, builder))
         {
-            return unspecified_error;
+            return "Operation failed"_err;
         }
 
         m_impl->path = builder.c_str();
@@ -169,7 +169,7 @@ namespace oblo::filesystem
 
         if (m_impl->inotifyFd < 0)
         {
-            return unspecified_error;
+            return "Failed to watch directory"_err;
         }
 
         const auto r = m_impl->add_watch(m_impl->path.c_str());
@@ -204,7 +204,7 @@ namespace oblo::filesystem
     {
         if (!m_impl)
         {
-            return unspecified_error;
+            return "Failed to watch directory"_err;
         }
 
         const ssize_t bytesRead = read(m_impl->inotifyFd, m_impl->buffer, sizeof(m_impl->buffer));
@@ -215,7 +215,7 @@ namespace oblo::filesystem
             {
                 return no_error;
             }
-            return unspecified_error;
+            return "Operation failed"_err;
         }
 
         string_builder fullPath;
@@ -387,3 +387,4 @@ namespace oblo::filesystem
 }
 
 #endif
+

@@ -1,4 +1,4 @@
-#ifdef __linux__
+﻿#ifdef __linux__
 
     #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/invoke/function_ref.hpp>
@@ -24,7 +24,7 @@ namespace oblo::filesystem
 
         if (!dir)
         {
-            return unspecified_error;
+            return "Operation failed"_err;
         }
 
         walk_entry::impl impl{};
@@ -93,3 +93,4 @@ namespace oblo::filesystem
 }
 
 #endif
+

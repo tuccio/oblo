@@ -1,4 +1,4 @@
-#include "clang_worker.hpp"
+﻿#include "clang_worker.hpp"
 
 #include <oblo/core/string/string_builder.hpp>
 
@@ -398,7 +398,7 @@ namespace oblo::gen
 
         if (!tu)
         {
-            return unspecified_error;
+            return "Code generation failed"_err;
         }
 
         if (const u32 numErrors = clang_getNumDiagnostics(tu))
@@ -426,7 +426,7 @@ namespace oblo::gen
 
             if (hasErrors)
             {
-                return unspecified_error;
+                return "Code generation failed"_err;
             }
         }
 

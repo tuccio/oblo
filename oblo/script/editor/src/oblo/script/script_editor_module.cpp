@@ -1,4 +1,4 @@
-#include <oblo/asset/any_asset.hpp>
+﻿#include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/asset/providers/native_asset_provider.hpp>
 #include <oblo/ast/abstract_syntax_tree.hpp>
@@ -281,7 +281,7 @@ namespace oblo::editor
 
                 if (!m_window)
                 {
-                    return unspecified_error;
+                    return "Editor operation failed"_err;
                 }
 
                 return no_error;
@@ -300,7 +300,7 @@ namespace oblo::editor
                     return w->save_asset(assetRegistry);
                 }
 
-                return unspecified_error;
+                return "Editor operation failed"_err;
             }
 
             window_handle get_window() const override

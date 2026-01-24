@@ -1,4 +1,4 @@
-#ifdef WIN32
+﻿#ifdef WIN32
 
     #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/invoke/function_ref.hpp>
@@ -26,7 +26,7 @@ namespace oblo::filesystem
         if (usize(outIt - wDir) < sizeof(suffix))
         {
             // Not enough space in the buffer
-            return unspecified_error;
+            return "Failed to access filesystem"_err;
         }
 
         std::memcpy(outIt, suffix, sizeof(suffix));
@@ -35,7 +35,7 @@ namespace oblo::filesystem
 
         if (hFind == INVALID_HANDLE_VALUE)
         {
-            return unspecified_error;
+            return "Failed to access filesystem"_err;
         }
 
         walk_entry entry;
@@ -55,7 +55,7 @@ namespace oblo::filesystem
 
         if (dwError != ERROR_NO_MORE_FILES)
         {
-            return unspecified_error;
+            return "Failed to access filesystem"_err;
         }
 
         FindClose(hFind);

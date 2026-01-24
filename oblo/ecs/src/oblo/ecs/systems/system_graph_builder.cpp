@@ -1,4 +1,4 @@
-#include <oblo/ecs/systems/system_graph.hpp>
+﻿#include <oblo/ecs/systems/system_graph.hpp>
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
@@ -65,7 +65,7 @@ namespace oblo::ecs
 
                 if (it == m_barrier.end())
                 {
-                    return unspecified_error;
+                    return "System operation failed"_err;
                 }
 
                 for (const auto self : systems.identity)
@@ -83,7 +83,7 @@ namespace oblo::ecs
 
                 if (it == m_barrier.end())
                 {
-                    return unspecified_error;
+                    return "System operation failed"_err;
                 }
 
                 for (const auto self : systems.identity)

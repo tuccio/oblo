@@ -1,4 +1,4 @@
-#include <oblo/nodes/node_graph_registry.hpp>
+﻿#include <oblo/nodes/node_graph_registry.hpp>
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
@@ -17,7 +17,7 @@ namespace oblo
         if (!inserted)
         {
             OBLO_ASSERT(false);
-            return unspecified_error;
+            return "Node graph operation failed"_err;
         }
 
         return no_error;
@@ -30,7 +30,7 @@ namespace oblo
         if (!m_primitiveKindToTypeId[kindIdx].is_nil())
         {
             OBLO_ASSERT(false);
-            return unspecified_error;
+            return "Node graph operation failed"_err;
         }
 
         const auto [it, inserted] = m_primitiveTypes.emplace(desc.id, std::move(desc));
@@ -42,7 +42,7 @@ namespace oblo
         }
 
         OBLO_ASSERT(false);
-        return unspecified_error;
+        return "Node not found"_err;
     }
 
     const node_descriptor* node_graph_registry::find_node(const uuid& id) const
@@ -134,3 +134,4 @@ namespace oblo
         return m_primitiveKindToTypeId[u32(outKind)];
     }
 }
+

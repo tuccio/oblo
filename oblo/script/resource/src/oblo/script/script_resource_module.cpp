@@ -1,4 +1,4 @@
-#include <oblo/core/array_size.hpp>
+﻿#include <oblo/core/array_size.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/cstring_view.hpp>
@@ -131,7 +131,7 @@ namespace oblo
         {
             if (size != 0 && offset + size > data.size())
             {
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             return std::span{data.data() + offset, size};
@@ -141,7 +141,7 @@ namespace oblo
         {
             if (!out.empty() && offset + out.size() >= data.size())
             {
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             std::memcpy(out.data(), data.data() + offset, out.size());

@@ -159,7 +159,7 @@ namespace oblo::vk
 
         if (!fetch_buffers({&commandBuffer, 1}))
         {
-            return unspecified_error;
+            return "Failed to fetch command buffer from pool"_err;
         }
 
         return commandBuffer;
@@ -171,7 +171,7 @@ namespace oblo::vk
 
         if (!m_commandBuffers.has_available(fetchedBuffersCount))
         {
-            return unspecified_error;
+            return "Insufficient command buffers available in pool"_err;
         }
 
         const auto fetchResult = m_commandBuffers.fetch(fetchedBuffersCount);

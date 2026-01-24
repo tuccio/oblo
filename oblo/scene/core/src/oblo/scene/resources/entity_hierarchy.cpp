@@ -1,4 +1,4 @@
-#include <oblo/scene/resources/entity_hierarchy.hpp>
+﻿#include <oblo/scene/resources/entity_hierarchy.hpp>
 
 #include <oblo/properties/serialization/common.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
@@ -44,12 +44,12 @@ namespace oblo
 
         if (!json::read(doc, source))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         if (!ecs_serializer::read(m_registry, doc, doc.get_root(), propertyRegistry, {}, cfg))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         return no_error;
@@ -60,7 +60,7 @@ namespace oblo
     {
         if (!ecs_serializer::read(m_registry, doc, doc.get_root(), propertyRegistry, {}, cfg))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         return no_error;
@@ -80,12 +80,12 @@ namespace oblo
 
         if (!ecs_serializer::write(doc, doc.get_root(), m_registry, propertyRegistry, cfg))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         if (!json::write(doc, destination))
         {
-            return unspecified_error;
+            return "Failed to save scene"_err;
         }
 
         return no_error;
@@ -96,7 +96,7 @@ namespace oblo
     {
         if (!ecs_serializer::write(doc, doc.get_root(), m_registry, propertyRegistry, cfg))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         return no_error;
@@ -109,7 +109,7 @@ namespace oblo
     {
         if (&other == &m_registry)
         {
-            return unspecified_error;
+            return "Failed to load scene"_err;
         }
 
         data_document doc;
@@ -117,7 +117,7 @@ namespace oblo
 
         if (!ecs_serializer::write(doc, doc.get_root(), other, propertyRegistry, wCfg))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         return load(doc, propertyRegistry, rCfg);
@@ -130,7 +130,7 @@ namespace oblo
     {
         if (&other == &m_registry)
         {
-            return unspecified_error;
+            return "Failed to load scene"_err;
         }
 
         data_document doc;
@@ -138,12 +138,12 @@ namespace oblo
 
         if (!ecs_serializer::write(doc, doc.get_root(), m_registry, propertyRegistry, wCfg))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         if (!ecs_serializer::read(other, doc, doc.get_root(), propertyRegistry, {}, rCfg))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         return no_error;

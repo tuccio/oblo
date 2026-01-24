@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <oblo/core/type_id.hpp>
 #include <oblo/math/vec3.hpp>
@@ -97,7 +97,7 @@ namespace oblo
 
             if (!v)
             {
-                return unspecified_error;
+                return "Node graph operation failed"_err;
             }
 
             return i32(*v);

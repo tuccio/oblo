@@ -125,12 +125,12 @@ namespace oblo
 
         if (!r->load_hostfxr())
         {
-            return unspecified_error;
+            return "Failed to load .NET hostfxr runtime"_err;
         }
 
         if (!r->load_dotnet_load_assembly())
         {
-            return unspecified_error;
+            return "Failed to load .NET assembly loader function"_err;
         }
 
         m_impl = std::move(r);

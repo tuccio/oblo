@@ -1,4 +1,4 @@
-#include <oblo/scene/resources/texture.hpp>
+﻿#include <oblo/scene/resources/texture.hpp>
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/filesystem/file.hpp>
@@ -87,7 +87,7 @@ namespace oblo
 
         if (err != ktx_error_code_e::KTX_SUCCESS)
         {
-            return unspecified_error;
+            return "Failed to create entity"_err;
         }
 
         m_impl = to_impl(newKtx);
@@ -178,7 +178,7 @@ namespace oblo
 
         if (!f || KTX_SUCCESS != ktxTexture_WriteToStdioStream(to_ktx(m_impl), f.get()))
         {
-            return unspecified_error;
+            return "Entity not found"_err;
         }
 
         return no_error;
@@ -194,7 +194,7 @@ namespace oblo
 
         if (!f)
         {
-            return unspecified_error;
+            return "Failed to create entity"_err;
         }
 
         const auto err = ktxTexture_CreateFromStdioStream(f.get(),
@@ -203,7 +203,7 @@ namespace oblo
 
         if (err != KTX_SUCCESS)
         {
-            return unspecified_error;
+            return "Failed to create entity"_err;
         }
 
         m_impl = to_impl(newKtx);

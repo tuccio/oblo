@@ -62,7 +62,7 @@ namespace oblo::editor
 
             expected<> save_asset(asset_registry&) const
             {
-                return unspecified_error;
+                return "Saving dotnet script assets is not supported"_err;
             }
 
         private:
@@ -80,7 +80,7 @@ namespace oblo::editor
 
                 if (!m_window)
                 {
-                    return unspecified_error;
+                    return "Failed to create dotnet script editor window"_err;
                 }
 
                 return no_error;
@@ -99,7 +99,7 @@ namespace oblo::editor
                     return w->save_asset(assetRegistry);
                 }
 
-                return unspecified_error;
+                return "Failed to access dotnet script editor window"_err;
             }
 
             window_handle get_window() const override

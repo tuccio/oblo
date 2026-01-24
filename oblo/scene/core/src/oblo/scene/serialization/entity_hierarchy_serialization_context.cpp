@@ -1,4 +1,4 @@
-#include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
+﻿#include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/tag_type_desc.hpp>
@@ -32,7 +32,7 @@ namespace oblo
 
         if (!m_types || !m_properties)
         {
-            return unspecified_error;
+            return "Serialization failed"_err;
         }
 
         const auto& reflection = m_properties->get_reflection_registry();

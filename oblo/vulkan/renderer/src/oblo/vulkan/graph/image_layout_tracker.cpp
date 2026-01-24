@@ -209,7 +209,7 @@ namespace oblo::vk
 
         if (!state)
         {
-            return unspecified_error;
+            return "Texture layout not found in tracker"_err;
         }
 
         return state->layout;

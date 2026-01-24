@@ -142,7 +142,7 @@ namespace oblo::vk
     {
         if (!m_impl.ring.has_available(size))
         {
-            return unspecified_error;
+            return "Insufficient space in staging buffer ring"_err;
         }
 
         const auto segmentedSpan = m_impl.ring.fetch(size);
@@ -159,7 +159,7 @@ namespace oblo::vk
 
         if (available < size)
         {
-            return unspecified_error;
+            return "Insufficient space in staging buffer for allocation"_err;
         }
 
         OBLO_ASSERT(is_power_of_two(alignment));
@@ -180,7 +180,7 @@ namespace oblo::vk
         }
         else
         {
-            return unspecified_error;
+            return "Unable to allocate contiguous aligned space in staging buffer"_err;
         }
 
         return stage_allocate_internal(size);

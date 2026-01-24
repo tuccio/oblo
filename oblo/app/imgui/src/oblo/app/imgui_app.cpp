@@ -1,4 +1,4 @@
-#include <oblo/app/imgui_app.hpp>
+﻿#include <oblo/app/imgui_app.hpp>
 
 #include <oblo/app/graphics_engine.hpp>
 #include <oblo/app/graphics_window.hpp>
@@ -537,7 +537,7 @@ namespace oblo
         {
             if (!window.is_ready())
             {
-                return unspecified_error;
+                return "Failed to initialize graphics"_err;
             }
 
             context = ImGui::CreateContext();
@@ -565,7 +565,7 @@ namespace oblo
 
             if (!ImGui_ImplWin32_Init(win32Window))
             {
-                return unspecified_error;
+                return "Failed to initialize ImGui Windows implementation"_err;
             }
 
             return init_render_backend(window);
@@ -579,14 +579,14 @@ namespace oblo
 
             if (!gfxEngine)
             {
-                return unspecified_error;
+                return "Graphics engine service not found"_err;
             }
 
             auto* const vkEngine = mm.find<vk::vulkan_engine_module>();
 
             if (!vkEngine)
             {
-                return unspecified_error;
+                return "Vulkan engine module not found"_err;
             }
 
             ImGuiIO& io = ImGui::GetIO();
@@ -687,7 +687,7 @@ namespace oblo
     {
         if (m_impl)
         {
-            return unspecified_error;
+            return "ImGui app already initialized"_err;
         }
 
         if (auto e = graphics_app::init(initializer); !e)
@@ -719,7 +719,7 @@ namespace oblo
 
         if (!font.allocate(texture_desc::make_2d(width, height, texture_format::r8g8b8a8_unorm)))
         {
-            return unspecified_error;
+            return "Failed to allocate font texture"_err;
         }
 
         std::span fontData = font.get_data();
@@ -727,7 +727,7 @@ namespace oblo
 
         if (fontData.size() != expectedSize)
         {
-            return unspecified_error;
+            return "Font texture data size mismatch"_err;
         }
 
         std::memcpy(fontData.data(), pixels, fontData.size_bytes());

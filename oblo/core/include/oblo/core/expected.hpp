@@ -9,12 +9,13 @@
 
 namespace oblo
 {
-    // A tag that indicates failure, used as default error type for expected.
-    struct unspecified_error_tag
+    /// @brief Error literal used as default error type for expected.
+    struct error_literal
     {
+        const char* message;
     };
 
-    // A tag for success, useful as default value for expected, if we only care about success.
+    /// @brief A tag for success, useful as default value for expected, if we only care about success.
     struct success_tag
     {
     };
@@ -25,10 +26,15 @@ namespace oblo
     template <typename T>
     concept non_trivial_type = !std::is_trivial_v<T>;
 
-    template <typename T = success_tag, trivial_type E = unspecified_error_tag>
+    /// @brief Monadic type that wraps an optional value or, alternatively, an error.
+    /// @tparam T A value type.
+    /// @tparam E A trivial type for the error.
+    template <typename T = success_tag, trivial_type E = error_literal>
     class [[nodiscard]] expected;
 
-    // A simplified version of std::expected for trivial types.
+    /// @brief Specialization of expected for trivial types. This specialization is itself trivial.
+    /// @tparam T A trivial type for the value.
+    /// @tparam E A trivial type for the error.
     template <trivial_type T, trivial_type E>
     class [[nodiscard]] expected<T, E>
     {
@@ -121,7 +127,7 @@ namespace oblo
         };
     };
 
-    // Implementation for void type
+    /// @brief Specialization of void value type, which holds no actual value.
     template <trivial_type E>
     class [[nodiscard]] expected<void, E> : public expected<success_tag, E>
     {
@@ -132,7 +138,9 @@ namespace oblo
         using expected<success_tag, E>::error;
     };
 
-    // Implementation for non trivial types
+    /// @brief Specialization of expected for non-trivial value types.
+    /// @tparam T A non-trivial type for the value.
+    /// @tparam E A trivial type for the error.
     template <non_trivial_type T, trivial_type E>
     class [[nodiscard]] expected<T, E>
     {
@@ -343,6 +351,10 @@ namespace oblo
         }
     };
 
-    constexpr unspecified_error_tag unspecified_error{};
     constexpr success_tag no_error{};
+
+    consteval error_literal operator""_err(const char* message, usize)
+    {
+        return {message};
+    }
 }

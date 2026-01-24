@@ -1,4 +1,4 @@
-#include <oblo/ecs/systems/system_graph.hpp>
+﻿#include <oblo/ecs/systems/system_graph.hpp>
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
@@ -50,7 +50,7 @@ namespace oblo::ecs
 
         if (!topological_sort(m_systems, vertices))
         {
-            return unspecified_error;
+            return "System operation failed"_err;
         }
 
         for (const auto v : reverse_range(vertices))

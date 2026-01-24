@@ -1,4 +1,4 @@
-#include <oblo/script/compiler/cpp_generator.hpp>
+﻿#include <oblo/script/compiler/cpp_generator.hpp>
 
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/deque.hpp>
@@ -280,7 +280,7 @@ namespace oblo
 
                     default:
                         OBLO_ASSERT(false);
-                        return unspecified_error;
+                        return "Operation failed"_err;
                     }
                 }
 
@@ -370,7 +370,7 @@ namespace oblo
 
             if (!types.contains(fDecl.node.functionDecl.returnType))
             {
-                return unspecified_error;
+                return "Operation failed"_err;
             }
 
             g.append("extern \"C\" OBLO_SHARED_LIBRARY_EXPORT ");
@@ -474,7 +474,7 @@ namespace oblo
                         case ast_binary_operator_kind::add_f32:
                             if (!write_binary_operation("+", "f32"))
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
                             // thisNodeInfo.expressionResultSize = sizeof(u32);
                             break;
@@ -482,7 +482,7 @@ namespace oblo
                         case ast_binary_operator_kind::sub_f32:
                             if (!write_binary_operation("-", "f32"))
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
                             // thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
@@ -490,7 +490,7 @@ namespace oblo
                         case ast_binary_operator_kind::mul_f32:
                             if (!write_binary_operation("*", "f32"))
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
                             // thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
@@ -498,7 +498,7 @@ namespace oblo
                         case ast_binary_operator_kind::div_f32:
                             if (!write_binary_operation("/", "f32"))
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
                             // thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
@@ -506,13 +506,13 @@ namespace oblo
                         case ast_binary_operator_kind::mul_vec3:
                             if (!write_binary_operation("*", "vec3"))
                             {
-                                return unspecified_error;
+                                return "Operation failed"_err;
                             }
                             // thisNodeInfo.expressionResultSize = 3 * sizeof(f32);
                             break;
 
                         default:
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
                     }
                     break;
@@ -534,7 +534,7 @@ namespace oblo
 
                         if (fnIt == functionDeclarations.end())
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         referencedFunctions.emplace(n.node.functionCall.name);
@@ -554,7 +554,7 @@ namespace oblo
 
                         if (returnTypeIt == types.end())
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         if (returnTypeIt->second.size == 0)
@@ -575,7 +575,7 @@ namespace oblo
 
                         if (!get_children(ast, node, argExpr))
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         append_var_name(stmt, argExpr[0]);
@@ -590,14 +590,14 @@ namespace oblo
                     case ast_node_kind::variable_definition: {
                         if (!n.parent)
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         auto& decl = ast.get(n.parent);
 
                         if (decl.kind != ast_node_kind::variable_declaration)
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         stmt.set_is_expression(false);
@@ -608,7 +608,7 @@ namespace oblo
 
                         if (!get_children(ast, node, argExpr))
                         {
-                            return unspecified_error;
+                            return "Operation failed"_err;
                         }
 
                         append_var_name(stmt, argExpr[0]);
@@ -633,7 +633,7 @@ namespace oblo
                     break;
 
                     default:
-                        return unspecified_error;
+                        return "Operation failed"_err;
                     }
 
                     thisNodeInfo.processed = true;

@@ -1,4 +1,4 @@
-#include <oblo/scene/editor/scene_editing_window.hpp>
+﻿#include <oblo/scene/editor/scene_editing_window.hpp>
 
 #include <oblo/asset/any_asset.hpp>
 #include <oblo/asset/asset_registry.hpp>
@@ -270,14 +270,14 @@ namespace oblo::editor
 
         if (!anyAsset)
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         auto* const sceneAsset = anyAsset->as<scene>();
 
         if (!sceneAsset)
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         m_assetId = {};
@@ -287,7 +287,7 @@ namespace oblo::editor
 
         if (!copy_current_from(*sceneAsset, newMode))
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         m_assetId = assetId;
@@ -301,7 +301,7 @@ namespace oblo::editor
 
         if (!copy_scene_to(sceneAsset))
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         return assetRegistry.save_asset(asset, m_assetId);
@@ -316,7 +316,7 @@ namespace oblo::editor
         // Try to create the world first, so we keep the current around in case it fails
         if (!create_world(newScene, *m_propertyRegistry, *m_resourceRegistry, make_system_usages(newMode)))
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         // Now we can replace it
@@ -333,7 +333,7 @@ namespace oblo::editor
         if (!serializationCtx.init() ||
             !source.copy_to(m_scene.get_entity_registry(), serializationCtx.get_property_registry(), {}, {}))
         {
-            return unspecified_error;
+            return "Failed to initialize editor"_err;
         }
 
         return no_error;
@@ -354,7 +354,7 @@ namespace oblo::editor
             break;
 
         default:
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         return copy_to(*source, destination);
@@ -371,7 +371,7 @@ namespace oblo::editor
                 serializationCtx.make_write_config(),
                 serializationCtx.make_read_config()))
         {
-            return unspecified_error;
+            return "Editor operation failed"_err;
         }
 
         return no_error;

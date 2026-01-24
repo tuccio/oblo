@@ -2749,7 +2749,7 @@ namespace oblo::vk
 
         if (!pipeline)
         {
-            return unspecified_error;
+            return "Render pipeline not found"_err;
         }
 
         const render_pass_context renderPassContext{
@@ -2801,7 +2801,7 @@ namespace oblo::vk
 
         if (!pipeline)
         {
-            return unspecified_error;
+            return "Compute pipeline not found"_err;
         }
 
         const compute_pass_context computePassContext{
@@ -2851,7 +2851,7 @@ namespace oblo::vk
 
         if (!pipeline)
         {
-            return unspecified_error;
+            return "Raytracing pipeline not found"_err;
         }
 
         const raytracing_pass_context rtPipelineContext{

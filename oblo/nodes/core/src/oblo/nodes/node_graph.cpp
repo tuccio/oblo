@@ -1,4 +1,4 @@
-#include <oblo/nodes/node_graph.hpp>
+﻿#include <oblo/nodes/node_graph.hpp>
 
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/dynamic_array.hpp>
@@ -532,7 +532,7 @@ namespace oblo
 
         if (nodesArray == data_node::Invalid || edgesArray == data_node::Invalid)
         {
-            return unspecified_error;
+            return "Failed to connect nodes"_err;
         }
 
         bool anyNodeFailed = false;
@@ -663,12 +663,12 @@ namespace oblo
 
         if (anyNodeFailed)
         {
-            return unspecified_error;
+            return "Failed to connect nodes"_err;
         }
 
         if (anyEdgeFailed)
         {
-            return unspecified_error;
+            return "Failed to connect nodes"_err;
         }
 
         return no_error;
@@ -711,7 +711,7 @@ namespace oblo
 
         if (!wasSorted)
         {
-            return unspecified_error;
+            return "Failed to create node"_err;
         }
 
         const h32 root = ast.get_root();
@@ -760,7 +760,7 @@ namespace oblo
 
                     if (!outPin || !outPin->expression || outPin->varDecl)
                     {
-                        return unspecified_error;
+                        return "Failed to create node"_err;
                     }
 
                     // If they are only connected to 1 pin, we already have our expression.
@@ -802,7 +802,7 @@ namespace oblo
 
                         if (!astNode || !astNode->expression)
                         {
-                            return unspecified_error;
+                            return "Failed to connect nodes"_err;
                         }
 
                         if (astNode->varDecl)
@@ -832,12 +832,12 @@ namespace oblo
 
                 if (!node.node->generate(ctx, ast, executeStatements, inputs, outputs))
                 {
-                    return unspecified_error;
+                    return "Node graph operation failed"_err;
                 }
 
                 if (node.outputPins.size() != outputs.size())
                 {
-                    return unspecified_error;
+                    return "Failed to connect nodes"_err;
                 }
 
                 // Store the generated AST node for each output pin, they will be used to feed the connected inputs
