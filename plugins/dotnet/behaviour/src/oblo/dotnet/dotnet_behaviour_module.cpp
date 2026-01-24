@@ -32,17 +32,18 @@ namespace oblo
                     .typeUuid = resource_type<dotnet_assembly>,
                     .create = []() -> void* { return new dotnet_assembly{}; },
                     .destroy = [](void* ptr) { delete static_cast<dotnet_assembly*>(ptr); },
-                    .load =
-                        [](void* ptr, cstring_view source, const any&)
+                    .load = [](void* ptr, cstring_view source, const any&) -> expected<>
                     {
                         auto* const bc = static_cast<dotnet_assembly*>(ptr);
 
-                        if (!filesystem::load_binary_file_into_memory(bc->assembly, source))
+                        const auto e = filesystem::load_binary_file_into_memory(bc->assembly, source);
+
+                        if (!e)
                         {
-                            return false;
+                            return e.error();
                         }
 
-                        return true;
+                        return no_error;
                     },
                 });
             }

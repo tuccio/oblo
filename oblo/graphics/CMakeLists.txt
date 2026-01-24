@@ -8,9 +8,10 @@ target_link_libraries(
     oblo::vk_renderer
     PRIVATE
     oblo::ecs
+    oblo::log
     oblo::options
-    oblo::scene
     oblo::reflection
+    oblo::scene
     oblo::vk
     oblo::vk_engine
 )

@@ -1,5 +1,7 @@
 #include <oblo/vulkan/draw/resource_cache.hpp>
 
+#include <oblo/core/formatters/uuid_formatter.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -12,7 +14,7 @@ namespace oblo::vk
         bool load_and_add(
             texture_registry& registry, const resource_ptr<texture>& resource, h32<resident_texture>& handle)
         {
-            if (resource.is_loaded())
+            if (resource.is_successfully_loaded())
             {
                 handle = registry.add(*resource, resource.get_name());
                 return true;
@@ -49,12 +51,19 @@ namespace oblo::vk
     {
         for (auto it = m_asyncLoads.begin(); it != m_asyncLoads.end();)
         {
-            if (!it->resource.is_loaded())
+            if (it->resource.is_currently_loading())
             {
                 ++it;
             }
             else
             {
+                if (!it->resource.is_successfully_loaded())
+                {
+                    log::debug("Failed to load async texture {}", it->resource.get_id());
+                    it = m_asyncLoads.erase_unordered(it);
+                    continue;
+                }
+
                 if (m_textureRegistry->set_texture(it->handle, *it->resource, it->resource.get_name()))
                 {
                     it = m_asyncLoads.erase_unordered(it);

@@ -52,20 +52,18 @@ namespace oblo
 
                         return any_asset{std::move(m)};
                     },
-                    .load =
-                        [](any_asset& asset, cstring_view source, const any&)
+                    .load = [](any_asset& asset, cstring_view source, const any&) -> expected<>
                     {
                         auto& m = asset.emplace<material>();
                         return m.load(source);
                     },
-                    .save =
-                        [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
+                    .save = [](const any_asset& asset, cstring_view destination, cstring_view, const any&) -> expected<>
                     {
                         auto* const m = asset.as<material>();
 
                         if (!m)
                         {
-                            return false;
+                            return "Not a material asset"_err;
                         }
 
                         return m->save(destination);
@@ -118,24 +116,34 @@ namespace oblo
 
                         return r;
                     },
-                    .load =
-                        [](any_asset& asset, cstring_view source, const any& ctx)
+                    .load = [](any_asset& asset, cstring_view source, const any& ctx) -> expected<>
                     {
                         auto& ehCtx = *ctx.as<entity_hierarchy_serialization_context>();
                         auto& m = asset.emplace<scene>();
-                        return m.init(ehCtx.get_type_registry()).has_value() && m.load(source, ehCtx).has_value();
+
+                        if (const auto e = m.init(ehCtx.get_type_registry()); !e)
+                        {
+                            return e;
+                        }
+
+                        if (const auto e = m.load(source, ehCtx); !e)
+                        {
+                            return e;
+                        }
+
+                        return no_error;
                     },
                     .save =
-                        [](const any_asset& asset, cstring_view destination, cstring_view, const any& ctx)
+                        [](const any_asset& asset, cstring_view destination, cstring_view, const any& ctx) -> expected<>
                     {
                         auto* const m = asset.as<scene>();
 
                         if (!m)
                         {
-                            return false;
+                            return "Not a scene asset"_err;
                         }
 
-                        return m->save(destination, *ctx.as<entity_hierarchy_serialization_context>()).has_value();
+                        return m->save(destination, *ctx.as<entity_hierarchy_serialization_context>());
                     },
                     .createImporter = [](const any&) -> unique_ptr<file_importer>
                     { return allocate_unique<copy_importer>(resource_type<entity_hierarchy>, "scene"); },

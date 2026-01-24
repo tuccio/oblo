@@ -102,16 +102,30 @@ namespace oblo::detail
                     OBLO_ASSERT(!resource->data);
                     resource->data = resource->descriptor->create();
 
-                    // TODO: We should handle load failure somehow, instead of handing a half baked resource
-                    resource->descriptor->load(resource->data, resource->path, resource->descriptor->userdata);
+                    auto finalState = resource_load_state::loaded;
 
-                    resource->loadState.store(resource_load_state::loaded);
+                    if (!resource->descriptor->load(resource->data, resource->path, resource->descriptor->userdata))
+                    {
+                        finalState = resource_load_state::failed;
+                    }
+
+                    resource->loadState.store(finalState);
                     resource_release(resource);
                 });
         }
     }
 
-    bool resource_is_loaded(resource* resource)
+    bool resource_is_nor_loaded_or_loading(resource* resource)
+    {
+        return resource->loadState.load() == resource_load_state::unloaded;
+    }
+
+    bool resource_is_loading(resource* resource)
+    {
+        return resource->loadState.load() == resource_load_state::loading;
+    }
+
+    bool resource_is_successfully_loaded(resource* resource)
     {
         return resource->loadState.load() == resource_load_state::loaded;
     }

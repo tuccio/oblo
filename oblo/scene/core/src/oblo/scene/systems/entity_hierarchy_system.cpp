@@ -57,7 +57,7 @@ namespace oblo
         {
             for (auto&& [e, loading] : chunk.zip<ecs::entity, entity_hierarchy_loading>())
             {
-                if (loading.hierarchy.is_loaded())
+                if (loading.hierarchy.is_successfully_loaded())
                 {
                     auto* const propertyRegistry = ctx.services->find<const property_registry>();
                     OBLO_ASSERT(propertyRegistry);

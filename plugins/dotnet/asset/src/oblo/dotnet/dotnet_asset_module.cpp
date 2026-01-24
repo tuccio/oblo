@@ -239,8 +239,7 @@ public class Behaviour : IBehaviour
 
                         return any_asset{std::move(s)};
                     },
-                    .load =
-                        [](any_asset& asset, cstring_view source, const any&)
+                    .load = [](any_asset& asset, cstring_view source, const any&) -> expected<>
                     {
                         auto& s = asset.emplace<dotnet_script_asset>();
 
@@ -261,25 +260,24 @@ public class Behaviour : IBehaviour
                                 }
                             });
 
-                        return r.has_value();
+                        return r;
                     },
-                    .save =
-                        [](const any_asset& asset, cstring_view destination, cstring_view, const any&)
+                    .save = [](const any_asset& asset, cstring_view destination, cstring_view, const any&) -> expected<>
                     {
                         auto* const s = asset.as<dotnet_script_asset>();
 
                         if (!s)
                         {
-                            return false;
+                            return "Not a dotnet_script_asset"_err;
                         }
 
                         // This will eventually contain settings for the script, maybe references to other scripts
                         data_document doc;
                         doc.init();
 
-                        if (!json::write(doc, destination))
+                        if (const auto e = json::write(doc, destination); !e)
                         {
-                            return false;
+                            return e.error();
                         }
 
                         string_builder path;
@@ -294,13 +292,13 @@ public class Behaviour : IBehaviour
                                 path.append(".cs");
                             }
 
-                            if (!filesystem::write_file(path, as_bytes(std::span{code}), {}))
+                            if (const auto e = filesystem::write_file(path, as_bytes(std::span{code}), {}); !e)
                             {
-                                return false;
+                                return e.error();
                             }
                         }
 
-                        return true;
+                        return no_error;
                     },
                     .createImporter = [](const any&) -> unique_ptr<file_importer>
                     { return allocate_unique<dotnet_script_importer>(); },

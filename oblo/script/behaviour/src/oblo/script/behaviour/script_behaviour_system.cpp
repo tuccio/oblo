@@ -665,11 +665,7 @@ namespace oblo
                     continue;
                 }
 
-                if (!state.script.is_loaded())
-                {
-                    state.script.load_start_async();
-                    continue;
-                }
+                state.script.load_start_async();
             }
         }
 
@@ -699,7 +695,7 @@ namespace oblo
 
                     if (!state.native)
                     {
-                        if (!state.script.is_loaded())
+                        if (!state.script.is_successfully_loaded())
                         {
                             state.script.load_start_async();
                             continue;
@@ -710,7 +706,7 @@ namespace oblo
                             state.native = m_resourceRegistry->get_resource(state.script->x86_64_avx2);
                         }
 
-                        if (state.native && !state.native.is_loaded())
+                        if (state.native && !state.native.is_successfully_loaded())
                         {
                             state.native.load_start_async();
                             continue;
@@ -722,12 +718,12 @@ namespace oblo
                             state.fallbackToInterpreted = true;
                         }
                     }
-                    else if (!state.native.is_loaded())
+                    else if (state.native.is_currently_loading())
                     {
                         // Still loading, keep waiting
                         continue;
                     }
-                    else if (state.native->module.is_open())
+                    else if (state.native.is_successfully_loaded() && state.native->module.is_open())
                     {
                         // Loaded, we can set up the state
                         if (m_scriptApi->load_native_module(state))
@@ -753,20 +749,20 @@ namespace oblo
                         continue;
                     }
 
-                    if (state.script.is_loaded())
+                    if (state.script.is_successfully_loaded())
                     {
                         if (!state.bytecode)
                         {
                             auto& scriptInfo = *state.script;
                             state.bytecode = m_resourceRegistry->get_resource(scriptInfo.bytecode);
 
-                            if (!state.bytecode.is_loaded())
+                            if (!state.bytecode.is_successfully_loaded())
                             {
                                 state.bytecode.load_start_async();
                                 continue;
                             }
                         }
-                        else if (!state.bytecode.is_loaded())
+                        else if (!state.bytecode.is_successfully_loaded())
                         {
                             continue;
                         }

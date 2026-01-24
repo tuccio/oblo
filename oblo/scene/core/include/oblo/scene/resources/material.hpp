@@ -102,8 +102,8 @@ namespace oblo
             set_property<material_type_tag::none, T>(name, value);
         }
 
-        SCENE_API bool save(cstring_view destination) const;
-        SCENE_API bool load(cstring_view source);
+        SCENE_API expected<> save(cstring_view destination) const;
+        SCENE_API expected<> load(cstring_view source);
 
     private:
         struct string_hash

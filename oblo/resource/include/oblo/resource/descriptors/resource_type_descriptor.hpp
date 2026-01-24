@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/any.hpp>
+#include <oblo/core/forward.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 
@@ -10,7 +11,7 @@ namespace oblo
 
     using create_resource_fn = void* (*) ();
     using destroy_resource_fn = void (*)(void*);
-    using load_resource_fn = bool (*)(void* resource, cstring_view source, const any& userdata);
+    using load_resource_fn = expected<> (*)(void* resource, cstring_view source, const any& userdata);
 
     struct resource_type_descriptor
     {

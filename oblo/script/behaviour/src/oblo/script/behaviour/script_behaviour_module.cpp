@@ -33,11 +33,16 @@ namespace oblo
                     .typeUuid = resource_type<compiled_script>,
                     .create = []() -> void* { return new compiled_script{}; },
                     .destroy = [](void* ptr) { delete static_cast<compiled_script*>(ptr); },
-                    .load =
-                        [](void* r, cstring_view source, const any&)
+                    .load = [](void* r, cstring_view source, const any&) -> expected<>
                     {
                         auto* script = reinterpret_cast<compiled_script*>(r);
-                        return load(*script, source);
+
+                        if (!load(*script, source))
+                        {
+                            return "Failed to load script"_err;
+                        }
+
+                        return no_error;
                     },
                 });
             }

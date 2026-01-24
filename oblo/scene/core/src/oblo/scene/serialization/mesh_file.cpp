@@ -4,6 +4,7 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/expected.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/string/cstring_view.hpp>
@@ -223,7 +224,7 @@ namespace oblo
         }
     }
 
-    bool save_mesh(const mesh& mesh, cstring_view destination)
+    expected<> save_mesh(const mesh& mesh, cstring_view destination)
     {
         tinygltf::Model model;
         tinygltf::TinyGLTF loader;
@@ -412,13 +413,18 @@ namespace oblo
 
         if (!ofs)
         {
-            return false;
+            return "Failed to write to file"_err;
         }
 
-        return loader.WriteGltfSceneToStream(&model, ofs, PrettyFormatGLTF, WriteBinaryGLB);
+        if (!loader.WriteGltfSceneToStream(&model, ofs, PrettyFormatGLTF, WriteBinaryGLB))
+        {
+            return "Failed to write glTF to output stream"_err;
+        }
+
+        return no_error;
     }
 
-    bool load_mesh(mesh& mesh,
+    expected<> load_mesh(mesh& mesh,
         const tinygltf::Model& model,
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
@@ -430,7 +436,7 @@ namespace oblo
 
         if (primitiveKind == primitive_kind::enum_max)
         {
-            return false;
+            return "Invalid primitive"_err;
         }
 
         attributes.clear();
@@ -445,7 +451,7 @@ namespace oblo
         }
         else
         {
-            return false;
+            return "Invalid attribute"_err;
         }
 
         if (primitive.indices >= 0)
@@ -457,7 +463,7 @@ namespace oblo
 
             if (format == data_format::enum_max)
             {
-                return false;
+                return "Invalid data format"_err;
             }
 
             attributes.push_back({
@@ -590,7 +596,7 @@ namespace oblo
             }
             else
             {
-                return false;
+                return "Unhandled data type"_err;
             }
         }
 
@@ -608,7 +614,7 @@ namespace oblo
             if (tangents.size() != accessor.count || normals.size() != accessor.count ||
                 (bitangents.size() != accessor.count && !bitangents.empty()))
             {
-                return false;
+                return "Tangent space is not correctly setup"_err;
             }
 
             const auto* const src =
@@ -655,26 +661,17 @@ namespace oblo
                         // Gram-Schmidt orthogonalization (i.e. project onto the plane formed by the normal)
                         const vec3 tangent = normalize(t - normal * dot(normal, t));
                         const vec3 bitangent = normalize(cross(normal, tangent));
-                        // const vec3 bitangent = normalize(b - normal * dot(normal, b));
-
-                        // const vec3 bitangent = normalize(cross(normal, tangent));
-                        // const auto direction = dot(normal, cross(tangent, bitangent));
 
                         tangents[v] = tangent;
                         bitangents[v] = bitangent;
-                        // bitangents[v] = direction < 0 ? -bitangent : bitangent;
-
-                        // const auto n2 = normalize(cross(tangents[v], bitangents[v]));
-                        // const auto ndt = dot(n2, normals[v]);
-                        // OBLO_ASSERT(float_equal(ndt, 1.f, 0.01f));
                     }
                 });
         }
 
-        return true;
+        return no_error;
     }
 
-    bool load_mesh(mesh& mesh, cstring_view source)
+    expected<> load_mesh(mesh& mesh, cstring_view source)
     {
         dynamic_array<byte> content;
 
@@ -682,14 +679,14 @@ namespace oblo
 
         if (!r)
         {
-            return false;
+            return "Failed to read mesh file"_err;
         }
 
         constexpr string_view fourCC = "glTF";
 
         if (fourCC.size() > r->size())
         {
-            return false;
+            return "Invalid glTF file"_err;
         }
 
         const bool isBinary =
@@ -728,12 +725,12 @@ namespace oblo
 
         if (!success)
         {
-            return false;
+            return "Failed to parse glTF file"_err;
         }
 
         if (model.meshes.size() != 1 || model.meshes[0].primitives.size() != 1)
         {
-            return false;
+            return "No meshes present in glTF file"_err;
         }
 
         const auto& primitive = model.meshes[0].primitives[0];
@@ -747,79 +744,80 @@ namespace oblo
         dynamic_array<gltf_accessor> sources;
         sources.reserve(maxAttributes);
 
-        if (load_mesh(mesh, model, primitive, attributes, sources, nullptr, {}))
+        const auto meshLoadResult = load_mesh(mesh, model, primitive, attributes, sources, nullptr, {});
+
+        if (!meshLoadResult)
         {
-            aabb aabb = aabb::make_invalid();
+            return meshLoadResult;
+        }
 
-            if (const auto& extra = model.meshes[0].extras_json_string; !extra.empty())
-            {
-                tinygltf::detail::json json;
+        aabb aabb = aabb::make_invalid();
 
-                rapidjson::StringStream ss{extra.c_str()};
+        if (const auto& extra = model.meshes[0].extras_json_string; !extra.empty())
+        {
+            tinygltf::detail::json json;
 
-                rapidjson::GenericDocument<tinygltf::detail::json::EncodingType,
-                    rapidjson::CrtAllocator,
-                    rapidjson::CrtAllocator>
+            rapidjson::StringStream ss{extra.c_str()};
+
+            rapidjson::
+                GenericDocument<tinygltf::detail::json::EncodingType, rapidjson::CrtAllocator, rapidjson::CrtAllocator>
                     doc;
 
-                doc.ParseStream(ss);
+            doc.ParseStream(ss);
 
-                using tinygltf::Value;
-                Value extraValue;
+            using tinygltf::Value;
+            Value extraValue;
 
-                if (doc.IsObject() && tinygltf::ParseJsonAsValue(&extraValue, doc.GetObject()))
+            if (doc.IsObject() && tinygltf::ParseJsonAsValue(&extraValue, doc.GetObject()))
+            {
+                auto& aabbValue = extraValue.Get(ExtraAabb);
+
+                if (aabbValue.IsObject())
                 {
-                    auto& aabbValue = extraValue.Get(ExtraAabb);
+                    auto& minValue = aabbValue.Get("min");
+                    auto& maxValue = aabbValue.Get("max");
 
-                    if (aabbValue.IsObject())
+                    for (u32 i = 0; i < 3; ++i)
                     {
-                        auto& minValue = aabbValue.Get("min");
-                        auto& maxValue = aabbValue.Get("max");
-
-                        for (u32 i = 0; i < 3; ++i)
-                        {
-                            aabb.min[i] = f32(minValue.Get(i).GetNumberAsDouble());
-                            aabb.max[i] = f32(maxValue.Get(i).GetNumberAsDouble());
-                        }
+                        aabb.min[i] = f32(minValue.Get(i).GetNumberAsDouble());
+                        aabb.max[i] = f32(maxValue.Get(i).GetNumberAsDouble());
                     }
+                }
 
-                    auto& meshletsValue = extraValue.Get(ExtraMeshlets);
+                auto& meshletsValue = extraValue.Get(ExtraMeshlets);
 
-                    if (meshletsValue.IsObject())
+                if (meshletsValue.IsObject())
+                {
+                    auto& countValue = meshletsValue.Get("count");
+                    auto& bufferViewIdValue = meshletsValue.Get("bufferViewId");
+
+                    const u32 meshletCount = u32(countValue.GetNumberAsInt());
+                    const u32 bufferViewId = u32(bufferViewIdValue.GetNumberAsInt());
+
+                    mesh.reset_meshlets(meshletCount);
+
+                    if (bufferViewId < model.bufferViews.size())
                     {
-                        auto& countValue = meshletsValue.Get("count");
-                        auto& bufferViewIdValue = meshletsValue.Get("bufferViewId");
+                        const auto dstMeshlets = mesh.get_meshlets();
 
-                        const u32 meshletCount = u32(countValue.GetNumberAsInt());
-                        const u32 bufferViewId = u32(bufferViewIdValue.GetNumberAsInt());
+                        auto& bufferView = model.bufferViews[bufferViewId];
+                        OBLO_ASSERT(bufferView.byteLength == dstMeshlets.size_bytes());
 
-                        mesh.reset_meshlets(meshletCount);
-
-                        if (bufferViewId < model.bufferViews.size())
+                        if (bufferView.byteLength == dstMeshlets.size_bytes())
                         {
-                            const auto dstMeshlets = mesh.get_meshlets();
+                            auto& buffer = model.buffers[bufferView.buffer];
 
-                            auto& bufferView = model.bufferViews[bufferViewId];
-                            OBLO_ASSERT(bufferView.byteLength == dstMeshlets.size_bytes());
-
-                            if (bufferView.byteLength == dstMeshlets.size_bytes())
-                            {
-                                auto& buffer = model.buffers[bufferView.buffer];
-
-                                std::memcpy(dstMeshlets.data(),
-                                    buffer.data.data() + bufferView.byteOffset,
-                                    bufferView.byteLength);
-                            }
+                            std::memcpy(dstMeshlets.data(),
+                                buffer.data.data() + bufferView.byteOffset,
+                                bufferView.byteLength);
                         }
                     }
                 }
             }
-
-            mesh.set_aabb(aabb);
-
-            return true;
         }
 
-        return false;
+        mesh.set_aabb(aabb);
+
+        return no_error;
     }
 }

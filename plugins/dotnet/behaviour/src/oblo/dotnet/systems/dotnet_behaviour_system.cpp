@@ -85,11 +85,7 @@ namespace oblo
                         continue;
                     }
 
-                    if (!state.script.is_loaded())
-                    {
-                        state.script.load_start_async();
-                        continue;
-                    }
+                    state.script.load_start_async();
                 }
             }
 
@@ -104,7 +100,7 @@ namespace oblo
                         continue;
                     }
 
-                    if (!state.initialized && state.script.is_loaded())
+                    if (!state.initialized && state.script.is_successfully_loaded())
                     {
                         m_registerBehaviour(m_managedSystem,
                             e.value,
