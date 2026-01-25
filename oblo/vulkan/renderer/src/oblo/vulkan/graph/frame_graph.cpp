@@ -417,7 +417,7 @@ namespace oblo::vk
                     auto& pin = m_impl->pins.at(vertexData.pin);
                     auto& storage = m_impl->pinStorage.at(pin.ownedStorage);
 
-                    m_impl->free_pin_storage(storage, false);
+                    m_impl->free_pin_storage(pin.ownedStorage, storage, false);
 
                     m_impl->pinStorage.erase(pin.ownedStorage);
                     m_impl->pins.erase(vertexData.pin);
@@ -516,10 +516,13 @@ namespace oblo::vk
             m_impl->memoryPool.deallocate(node.ptr, node.size, node.alignment);
         }
 
-        for (const auto& pinStorage : m_impl->pinStorage.values())
+        for (const auto& [key, pinStorage] : zip_range(m_impl->pinStorage.keys(), m_impl->pinStorage.values()))
         {
-            m_impl->free_pin_storage(pinStorage, false);
+            m_impl->free_pin_storage(key, pinStorage, false);
         }
+
+        // free_pin_storage might defer destruction of retained textures
+        m_impl->free_pending_textures(ctx);
 
         m_impl->resourcePool.shutdown(ctx);
         m_impl->dynamicAllocator.shutdown();
@@ -530,6 +533,11 @@ namespace oblo::vk
     void frame_graph::build(renderer& renderer)
     {
         OBLO_PROFILE_SCOPE("Frame Graph Build");
+
+        auto& vkCtx = renderer.get_vulkan_context();
+
+        // Free retained textures if the user destroyed some subgraphs that owned some
+        m_impl->free_pending_textures(vkCtx);
 
         m_impl->dynamicAllocator.restore_all();
 
@@ -555,8 +563,6 @@ namespace oblo::vk
             ps.transientBuffer = {};
             ps.transientTexture = {};
         }
-
-        auto& vkCtx = renderer.get_vulkan_context();
 
         // This is used to register external textures (e.g. the swapchain images)
         m_impl->resourceManager = &vkCtx.get_resource_manager();
@@ -709,7 +715,14 @@ namespace oblo::vk
             // The frame graph context also assumes this is the case when reading the layout
             imageLayoutTracker.start_tracking(transientTextureHandle, t);
 
-            new (m_impl->access_storage(resource)) texture{t};
+            auto& storage = m_impl->pinStorage.at(resource);
+
+            // Owned textures already don't need to be overwritten, but actual transient textures are created every
+            // frame.
+            if (!storage.isOwnedTexture)
+            {
+                new (storage.data) texture{t};
+            }
         }
 
         {
@@ -1167,6 +1180,7 @@ namespace oblo::vk
             return {};
         }
 
+        // TODO: We need to add this to the subgraph
         const auto [storage, key] = pinStorage.emplace();
         const auto handle = h32<frame_graph_pin_storage>{key};
 
@@ -1180,6 +1194,7 @@ namespace oblo::vk
         storage->data = t;
         storage->isOwnedTexture = true;
         storage->transientTexture = resourcePool.add_external_texture(*t);
+        storage->typeDesc = frame_graph_data_desc::make<texture>();
 
         transientTextures.emplace_back(key, storage->transientTexture);
         retainedTextures.emplace(key);
@@ -1584,7 +1599,7 @@ namespace oblo::vk
         for (auto& h : dynamicPins)
         {
             const auto& storage = pinStorage.at(h);
-            free_pin_storage(storage, true);
+            free_pin_storage(h, storage, true);
             pinStorage.erase(h);
         }
 
@@ -1611,11 +1626,22 @@ namespace oblo::vk
         return future{nextFrameMetrics};
     }
 
-    void frame_graph_impl::free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated)
+    void frame_graph_impl::free_pin_storage(
+        h32<frame_graph_pin_storage> key, const frame_graph_pin_storage& storage, bool isFrameAllocated)
     {
-        if (storage.data && storage.typeDesc.destruct)
+        if (storage.data)
         {
-            storage.typeDesc.destruct(storage.data);
+            if (storage.isOwnedTexture)
+            {
+                const auto* const t = static_cast<texture*>(storage.data);
+                pendingTexturesToFree.emplace_back(*t);
+                retainedTextures.erase(key);
+            }
+
+            if (storage.typeDesc.destruct)
+            {
+                storage.typeDesc.destruct(storage.data);
+            }
 
             // These pointers should always come from the frame allocator, no need to delete them
             OBLO_ASSERT(isFrameAllocated == dynamicAllocator.contains(storage.data));
@@ -1625,6 +1651,29 @@ namespace oblo::vk
                 memoryPool.deallocate(storage.data, storage.typeDesc.size, storage.typeDesc.alignment);
             }
         }
+    }
+
+    void frame_graph_impl::free_pending_textures(vulkan_context& ctx)
+    {
+        for (const auto& t : pendingTexturesToFree)
+        {
+            if (t.allocation)
+            {
+                ctx.destroy_deferred(t.allocation, ctx.get_submit_index());
+            }
+
+            if (t.image)
+            {
+                ctx.destroy_deferred(t.image, ctx.get_submit_index());
+            }
+
+            if (t.view)
+            {
+                ctx.destroy_deferred(t.view, ctx.get_submit_index());
+            }
+        }
+
+        pendingTexturesToFree.clear();
     }
 
     void frame_graph_impl::write_dot(std::ostream& os) const

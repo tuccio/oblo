@@ -289,6 +289,7 @@ namespace oblo::vk
         dynamic_array<frame_graph_bindless_texture> bindlessTextures;
 
         deque<frame_graph_pending_download> pendingDownloads;
+        deque<texture> pendingTexturesToFree;
 
         deque<frame_graph_pin_reroute> rerouteStash;
 
@@ -359,7 +360,10 @@ namespace oblo::vk
         bool is_recording_metrics() const;
 
     public: // Utility
-        void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
+        void free_pin_storage(
+            h32<frame_graph_pin_storage> key, const frame_graph_pin_storage& storage, bool isFrameAllocated);
+
+        void free_pending_textures(vulkan_context& ctx);
 
         [[maybe_unused]] void write_dot(std::ostream& os) const;
     };
