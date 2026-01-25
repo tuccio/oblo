@@ -272,8 +272,6 @@ namespace oblo
                         artifact.type = resource_type<compiled_script>;
 
                         m_mainArtifactHint = scriptPathsNode.id;
-
-                        return true;
                     }
                 }
 
@@ -492,7 +490,7 @@ namespace oblo
                         data_document doc;
                         doc.init();
 
-                        if (const auto e = g->serialize(doc, doc.get_root()); e)
+                        if (const auto e = g->serialize(doc, doc.get_root()); !e)
                         {
                             return e.error();
                         }

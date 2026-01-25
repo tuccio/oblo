@@ -98,6 +98,8 @@ namespace oblo::editor
             }
         };
 
+        constexpr f32 g_BigIconsFontSize = 48.f;
+
         constexpr u32 g_Transparent = 0x00000000;
         constexpr u32 g_DirectoryColor = 0xFF7CC9E6;
         constexpr u32 g_FileColor = 0xFFDCEEEE;
@@ -115,8 +117,7 @@ namespace oblo::editor
 
         constexpr const char* g_PayloadAssetDir = "oblo::assetdir";
 
-        bool big_icon_widget(ImFont* bigIcons,
-            ImU32 iconColor,
+        bool big_icon_widget(ImU32 iconColor,
             const char* icon,
             ImU32 accentColor,
             const char* text,
@@ -131,10 +132,8 @@ namespace oblo::editor
 
             const auto& style = ImGui::GetStyle();
 
-            const f32 fontSize = bigIcons->FontSize;
-
             const auto selectableSize = ImVec2(ImGui::GetContentRegionAvail().x,
-                fontSize + ImGui::GetTextLineHeightWithSpacing() + style.ItemInnerSpacing.y * 2);
+                g_BigIconsFontSize + ImGui::GetTextLineHeightWithSpacing() + style.ItemInnerSpacing.y * 2);
 
             ImGui::PushID(selectableId);
 
@@ -157,7 +156,7 @@ namespace oblo::editor
                     {itemPosX + selectableSize.x, itemPosY + selectableSize.y},
                     true);
 
-                ImGui::PushFont(bigIcons);
+                ImGui::PushFont(nullptr, g_BigIconsFontSize);
                 ImGui::PushStyleColor(ImGuiCol_Text, iconColor);
 
                 const f32 iconTextWidth = ImGui::CalcTextSize(icon).x;
@@ -256,8 +255,6 @@ namespace oblo::editor
 
         std::unordered_map<string_builder, asset_browser_directory, hash<string_builder>> assetBrowserEntries;
 
-        ImFont* bigIconsFont{};
-
         u64 lastVersionId;
 
         const asset_browser_entry* selectedEntry{};
@@ -330,10 +327,6 @@ namespace oblo::editor
         }
 
         m_impl->populate_asset_editors();
-
-        auto& fonts = ImGui::GetIO().Fonts;
-
-        m_impl->bigIconsFont = fonts->Fonts.back();
     }
 
     bool asset_browser::update(const window_update_context& ctx)
@@ -763,7 +756,7 @@ namespace oblo::editor
 
         const asset_browser_directory& dir = get_or_build(currentAssetPath);
 
-        const f32 entryWidth = bigIconsFont->FontSize + 4.f * ImGui::GetStyle().ItemSpacing.x;
+        const f32 entryWidth = g_BigIconsFontSize + 4.f * ImGui::GetStyle().ItemSpacing.x;
 
         u32 columns = max(u32(ImGui::GetContentRegionAvail().x / entryWidth), 1u);
 
@@ -784,8 +777,7 @@ namespace oblo::editor
             {
                 layout.next_element();
 
-                if (bool isSelected = false; big_icon_widget(bigIconsFont,
-                        g_DirectoryColor,
+                if (bool isSelected = false; big_icon_widget(g_DirectoryColor,
                         ICON_FA_ARROW_LEFT,
                         g_Transparent,
                         "Back",
@@ -818,8 +810,7 @@ namespace oblo::editor
 
                     auto* const entryRename = renameCtx.is_renaming(&entry) ? &renameCtx : nullptr;
 
-                    if (big_icon_widget(bigIconsFont,
-                            g_DirectoryColor,
+                    if (big_icon_widget(g_DirectoryColor,
                             ICON_FA_FOLDER,
                             g_Transparent,
                             entry.name.c_str(),
@@ -913,8 +904,7 @@ namespace oblo::editor
 
                     auto* const entryRename = renameCtx.is_renaming(&entry) ? &renameCtx : nullptr;
 
-                    const bool isPressed = big_icon_widget(bigIconsFont,
-                        g_FileColor,
+                    const bool isPressed = big_icon_widget(g_FileColor,
                         ICON_FA_FILE,
                         assetColor,
                         entry.name.c_str(),
@@ -1020,8 +1010,7 @@ namespace oblo::editor
                             const auto artifactColorId = hash_all<hash>(artifactMeta.type) % array_size(g_Colors);
                             const auto artifactColor = g_Colors[artifactColorId];
 
-                            big_icon_widget(bigIconsFont,
-                                g_FileColor,
+                            big_icon_widget(g_FileColor,
                                 ICON_FA_FILE_LINES,
                                 artifactColor,
                                 artifactName,

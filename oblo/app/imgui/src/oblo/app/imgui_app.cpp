@@ -5,7 +5,9 @@
 #include <oblo/app/graphics_window_context.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/overload.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/core/variant.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -34,6 +36,34 @@ namespace oblo
 {
     namespace
     {
+        texture_format map_imgui_format(ImTextureFormat format)
+        {
+            switch (format)
+            {
+            case ImTextureFormat_RGBA32:
+                return texture_format::r8g8b8a8_unorm;
+            case ImTextureFormat_Alpha8:
+                return texture_format::r8_unorm;
+            default:
+                OBLO_ASSERT("Unrecognized format");
+                return texture_format::undefined;
+            }
+        }
+
+        vk::texture_format to_vk_format(ImTextureFormat format)
+        {
+            switch (format)
+            {
+            case ImTextureFormat_RGBA32:
+                return vk::texture_format::r8g8b8a8_unorm;
+            case ImTextureFormat_Alpha8:
+                return vk::texture_format::r8_unorm;
+            default:
+                OBLO_ASSERT("Unrecognized format");
+                return vk::texture_format::undefined;
+            }
+        }
+
         void imgui_win32_dispatch_event(const void* event)
         {
             const MSG* msg = reinterpret_cast<const MSG*>(event);
@@ -72,6 +102,8 @@ namespace oblo
             bool isOwned;
         };
 
+        using registered_texture = variant<resource_ptr<texture>, h32<vk::retained_texture>>;
+
         struct imgui_render_backend
         {
             const resource_registry* resourceRegistry{};
@@ -83,9 +115,10 @@ namespace oblo
             deque<h32<vk::frame_graph_subgraph>> pushImageSubgraphs;
 
             std::unordered_map<resource_ref<texture>, usize, hash<resource_ref<texture>>> registeredTexturesMap;
-            deque<resource_ptr<texture>> registeredTextures;
+            deque<registered_texture> registeredTextures;
+            deque<ImTextureID> imguiIdsFreeList;
 
-            ImTextureID nextTextureId{};
+            ImTextureID nextTextureId{ImTextureID_Invalid + 1};
 
             static constexpr u64 subgraph_image_bit = u64{1} << 63;
 
@@ -109,16 +142,56 @@ namespace oblo
                 return it->second;
             }
 
-            ImTextureID register_texture(resource_ptr<texture> ptr)
+            ImTextureID allocate_new_registered_texture()
             {
-                const auto newId = nextTextureId;
+                ImTextureID newId;
 
-                registeredTextures.resize(newId + 1);
-
-                registeredTextures[newId] = std::move(ptr);
-                ++nextTextureId;
+                if (imguiIdsFreeList.empty())
+                {
+                    newId = nextTextureId;
+                    registeredTextures.resize(newId + 1);
+                    ++nextTextureId;
+                }
+                else
+                {
+                    newId = imguiIdsFreeList.back();
+                    imguiIdsFreeList.pop_back();
+                }
 
                 return newId;
+            }
+
+            void free_registered_texture_id(ImTextureID id)
+            {
+                imguiIdsFreeList.emplace_back(id);
+            }
+
+            ImTextureID register_texture(resource_ptr<texture> ptr)
+            {
+                const auto newId = allocate_new_registered_texture();
+                registeredTextures[newId] = std::move(ptr);
+
+                return newId;
+            }
+
+            ImTextureID register_texture(h32<vk::retained_texture> retainedTexture)
+            {
+                const auto newId = allocate_new_registered_texture();
+                registeredTextures[newId] = retainedTexture;
+
+                return newId;
+            }
+
+            void unregister_texture(ImTextureID id)
+            {
+                registeredTextures[id] = {};
+
+                free_registered_texture_id(id);
+            }
+
+            h32<vk::retained_texture> get_retained_texture(ImTextureID id)
+            {
+                return registeredTextures[id].as<h32<vk::retained_texture>>();
             }
 
             ImTextureID register_subgraph_image(h32<vk::frame_graph_subgraph> subgraph)
@@ -126,6 +199,30 @@ namespace oblo
                 const auto newId = ImTextureID{subgraph_image_bit | pushImageSubgraphs.size()};
                 pushImageSubgraphs.emplace_back(subgraph);
                 return newId;
+            }
+
+            void create_imgui_texture(ImTextureData& tex)
+            {
+                texture t{};
+
+                t.allocate(texture_desc::make_2d(tex.Width, tex.Height, map_imgui_format(tex.Format))).assert_value();
+
+                const std::span textureData = t.get_data();
+
+                if (usize(tex.GetSizeInBytes()) == textureData.size_bytes())
+                {
+                    std::memcpy(textureData.data(), tex.Pixels, textureData.size_bytes());
+                }
+                else
+                {
+                    OBLO_ASSERT(false);
+                }
+
+                resource_ptr r = resourceRegistry->instantiate<texture>(std::move(t), "imgui_texture");
+                const ImTextureID id = register_texture(std::move(r));
+
+                tex.SetStatus(ImTextureStatus_OK);
+                tex.SetTexID(id);
             }
 
             static bool is_subgraph_texture(ImTextureID id)
@@ -164,7 +261,7 @@ namespace oblo
 
         struct imgui_render_node
         {
-            vk::data<const imgui_render_backend*> inBackend;
+            vk::data<imgui_render_backend*> inBackend;
             vk::data<ImGuiViewport*> inViewport;
 
             vk::resource<vk::texture> inOutRenderTarget;
@@ -174,11 +271,21 @@ namespace oblo
             vk::resource<vk::buffer> outVertexBuffer;
             vk::resource<vk::buffer> outIndexBuffer;
 
+            h32<vk::transfer_pass_instance> transferPassInstance;
+
             h32<vk::render_pass> renderPass;
             h32<vk::render_pass_instance> renderPassInstance;
 
             std::span<h32<vk::resident_texture>> registeredTextures;
             std::span<h32<vk::resident_texture>> subgraphTextures;
+
+            struct pending_upload
+            {
+                vk::resource<vk::texture> resource;
+                vk::staging_buffer_span staged;
+            };
+
+            dynamic_array<pending_upload> uploads;
 
             void init(const vk::frame_graph_init_context& ctx)
             {
@@ -200,10 +307,77 @@ namespace oblo
 
             void build(const vk::frame_graph_build_context& ctx)
             {
+                transferPassInstance = {};
+
                 if (!ctx.has_source(inOutRenderTarget))
                 {
                     renderPassInstance = {};
                     return;
+                }
+
+                auto* const backend = ctx.access(inBackend);
+                OBLO_ASSERT(backend);
+
+                ImGuiViewport* const viewport = ctx.access(inViewport);
+                OBLO_ASSERT(viewport);
+
+                auto* const drawData = viewport->DrawData;
+
+                if (drawData->Textures != nullptr)
+                {
+                    for (ImTextureData* tex : *drawData->Textures)
+                    {
+                        switch (tex->Status)
+                        {
+                        case ImTextureStatus_WantCreate: {
+                            constexpr flags usages =
+                                vk::texture_usage::transfer_destination | vk::texture_usage::shader_read;
+
+                            const h32 newTexture = ctx.create_retained_texture(
+                                {
+                                    .width = u32(tex->Width),
+                                    .height = u32(tex->Height),
+                                    .format = to_vk_format(tex->Format),
+                                    .debugLabel = "ImGui::ImTexture",
+                                },
+                                usages);
+
+                            OBLO_ASSERT(newTexture);
+
+                            if (newTexture)
+                            {
+                                const ImTextureID imguiId = backend->register_texture(newTexture);
+
+                                tex->SetStatus(ImTextureStatus_OK);
+                                tex->SetTexID(imguiId);
+
+                                enqueue_upload(ctx, newTexture, *tex);
+                            }
+                        }
+                        break;
+
+                        case ImTextureStatus_WantUpdates: {
+                            const h32 id = backend->get_retained_texture(tex->TexID);
+                            enqueue_upload(ctx, id, *tex);
+
+                            tex->SetStatus(ImTextureStatus_OK);
+                        }
+
+                        break;
+
+                        case ImTextureStatus_WantDestroy: {
+                            const h32 id = backend->get_retained_texture(tex->TexID);
+                            ctx.destroy_retained_texture(id);
+                            backend->unregister_texture(tex->TexID);
+
+                            tex->SetStatus(ImTextureStatus_OK);
+                        }
+                        break;
+
+                        default:
+                            break;
+                        }
+                    }
                 }
 
                 const auto rtInitializer =
@@ -242,9 +416,6 @@ namespace oblo
                             },
                     });
 
-                auto* const backend = ctx.access(inBackend);
-                OBLO_ASSERT(backend);
-
                 registeredTextures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
                     backend->registeredTextures.size());
 
@@ -253,7 +424,14 @@ namespace oblo
 
                 for (usize i = 0; i < backend->registeredTextures.size(); ++i)
                 {
-                    registeredTextures[i] = ctx.load_resource(backend->registeredTextures[i]);
+                    registeredTextures[i] = backend->registeredTextures[i].visit(overload{
+                        [&ctx](const resource_ptr<texture>& t) { return ctx.load_resource(t); },
+                        [&ctx](h32<vk::retained_texture> t)
+                        {
+                            const auto r = ctx.get_resource(t);
+                            return ctx.acquire_bindless(r, vk::texture_usage::shader_read);
+                        },
+                    });
                 }
 
                 for (auto& graphImage : ctx.access(inImageSink))
@@ -263,11 +441,6 @@ namespace oblo
                     subgraphTextures[textureId] =
                         ctx.acquire_bindless(graphImage.texture, vk::texture_usage::shader_read);
                 }
-
-                ImGuiViewport* const viewport = ctx.access(inViewport);
-                OBLO_ASSERT(viewport);
-
-                auto* const drawData = viewport->DrawData;
 
                 ctx.acquire(inOutRenderTarget, vk::texture_usage::render_target_write);
 
@@ -309,6 +482,8 @@ namespace oblo
             void execute(const vk::frame_graph_execute_context& ctx)
             {
                 using namespace vk;
+
+                execute_uploads(ctx);
 
                 if (!renderPassInstance)
                 {
@@ -354,6 +529,8 @@ namespace oblo
                     OBLO_ASSERT(viewport);
 
                     auto* const drawData = viewport->DrawData;
+
+                    OBLO_PROFILE_SCOPE();
 
                     const vec2 scale = vec2::splat(2.f) / vec2{drawData->DisplaySize.x, drawData->DisplaySize.y};
                     const vec2 translation =
@@ -444,6 +621,47 @@ namespace oblo
                     ctx.end_pass();
                 }
             }
+
+            void enqueue_upload(
+                const vk::frame_graph_build_context& ctx, h32<vk::retained_texture> texture, const ImTextureData& tex)
+            {
+                if (!transferPassInstance)
+                {
+                    transferPassInstance = ctx.transfer_pass();
+                }
+
+                // TODO: For updates, we could check which rects we need to upload, instead of uploading the whole
+                // thing, but this is good enough for now.
+
+                const vk::resource<vk::texture> resource = ctx.get_resource(texture);
+
+                ctx.acquire(resource, vk::texture_usage::transfer_destination);
+
+                const std::span src = as_bytes(std::span{tex.Pixels, usize(tex.GetSizeInBytes())});
+                const auto staged = ctx.stage_upload_image(src, u32(tex.BytesPerPixel));
+
+                uploads.emplace_back(resource, staged);
+            }
+
+            void execute_uploads(const vk::frame_graph_execute_context& ctx)
+            {
+                if (!transferPassInstance)
+                {
+                    return;
+                }
+
+                if (ctx.begin_pass(transferPassInstance))
+                {
+                    for (const auto& upload : uploads)
+                    {
+                        ctx.upload(upload.resource, upload.staged);
+                    }
+
+                    ctx.end_pass();
+
+                    uploads.clear();
+                }
+            }
         };
 
         constexpr string_view g_InImGuiViewport{"ImGuiViewport"};
@@ -484,7 +702,7 @@ namespace oblo
             }
         }
 
-        imgui_render_userdata* create_render_userdata(const imgui_render_backend* backend,
+        imgui_render_userdata* create_render_userdata(imgui_render_backend* backend,
             graphics_window_context* windowContext,
             bool isOwned,
             ImGuiViewport* viewport)
@@ -598,6 +816,7 @@ namespace oblo
 
             io.BackendRendererUserData = &backend;
             io.BackendRendererName = "oblo";
+            io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures;  // We need this for scaling fonts.
             io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset; // We can honor the ImDrawCmd::VtxOffset
                                                                        // field, allowing for large meshes.
             io.BackendFlags |= ImGuiBackendFlags_RendererHasViewports; // We can create multi-viewports on the
@@ -750,7 +969,6 @@ namespace oblo
 
     void imgui_app::end_ui()
     {
-        OBLO_PROFILE_SCOPE();
         ImGui::Render();
 
         // Update and Render additional Platform Windows

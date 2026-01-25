@@ -4,6 +4,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
@@ -69,6 +70,7 @@ namespace oblo::vk
         type_id typeId;
         u32 size;
         u32 alignment;
+        h32<frame_graph_subgraph> subgraph;
         bool initialized;
         bool markedForRemoval;
     };
@@ -97,6 +99,9 @@ namespace oblo::vk
 
         // Whether or not the pin leads to a frame graph output. Updated every frame.
         bool hasPathToOutput;
+
+        // Owned textures, e.g. retained textures. We don't really need this flag, it's more for debugging purposes.
+        bool isOwnedTexture;
     };
 
     enum class frame_graph_vertex_state : u8
@@ -174,7 +179,12 @@ namespace oblo::vk
 
     struct frame_graph_subgraph
     {
-        flat_dense_map<frame_graph_template_vertex_handle, frame_graph_topology::vertex_handle> templateToInstanceMap;
+        dynamic_array<frame_graph_topology::vertex_handle> vertices;
+
+        // Nodes might create storage at runtime for buffers or textures they want to retain.
+        // These are owned by the subgraph, if the subgraph is removed, these have to be cleaned up.
+        dynamic_array<h32<frame_graph_pin_storage>> dynamicStorage;
+
         name_to_vertex_map inputs;
         name_to_vertex_map outputs;
     };
@@ -238,6 +248,12 @@ namespace oblo::vk
         resource<buffer> buffer;
     };
 
+    struct frame_graph_retained_texture_desc
+    {
+        image_initializer initializer;
+        h32<frame_graph_pin_storage> pin;
+    };
+
     struct frame_graph_impl
     {
     public: // Topology
@@ -246,6 +262,9 @@ namespace oblo::vk
         h32_flat_pool_dense_map<frame_graph_pin> pins;
         h32_flat_pool_dense_map<frame_graph_pin_storage> pinStorage;
         h32_flat_pool_dense_map<frame_graph_subgraph> subgraphs;
+
+        // The pin storages of our retained textures, these are added at runtime but they stay alive
+        h32_flat_extpool_dense_set<frame_graph_pin_storage> retainedTextures;
 
         std::pmr::unsynchronized_pool_resource memoryPool;
 
@@ -276,6 +295,7 @@ namespace oblo::vk
         dynamic_array<frame_graph_bindless_texture> bindlessTextures;
 
         deque<frame_graph_pending_download> pendingDownloads;
+        deque<texture> pendingTexturesToFree;
 
         deque<frame_graph_pin_reroute> rerouteStash;
 
@@ -329,6 +349,9 @@ namespace oblo::vk
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 
+        h32<frame_graph_pin_storage> create_retained_texture(vulkan_context& ctx, const image_initializer& initializer);
+        void destroy_retained_texture(vulkan_context& ctx, h32<frame_graph_pin_storage> handle);
+
         const frame_graph_node* get_owner_node(resource<buffer> buffer) const;
         const frame_graph_node* get_owner_node(resource<texture> texture) const;
 
@@ -343,7 +366,10 @@ namespace oblo::vk
         bool is_recording_metrics() const;
 
     public: // Utility
-        void free_pin_storage(const frame_graph_pin_storage& storage, bool isFrameAllocated);
+        void free_pin_storage(
+            h32<frame_graph_pin_storage> key, const frame_graph_pin_storage& storage, bool isFrameAllocated);
+
+        void free_pending_textures(vulkan_context& ctx);
 
         [[maybe_unused]] void write_dot(std::ostream& os) const;
     };

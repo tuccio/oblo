@@ -38,7 +38,8 @@ namespace oblo::editor
             style.GrabRounding = 0.0f;
             style.TabRounding = 0.0f;
             style.TabBorderSize = 0.0f;
-            style.TabMinWidthForCloseButton = 0.0f;
+            style.TabCloseButtonMinWidthSelected = 0.0f;
+            style.TabCloseButtonMinWidthUnselected = 0.0f;
             style.ColorButtonPosition = ImGuiDir_Right;
             style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
             style.SelectableTextAlign = ImVec2(0.0f, 0.0f);
@@ -112,7 +113,6 @@ namespace oblo::editor
         void init_fonts(ImGuiIO& io)
         {
             constexpr f32 textPixels{14.f};
-            constexpr f32 bigIconsPixels{48.f};
 
             ImFontConfig config{};
 
@@ -125,14 +125,6 @@ namespace oblo::editor
             io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf,
                 fa_solid_900_ttf_len,
                 textPixels,
-                &config,
-                FontAwesome6Ranges);
-
-            config.MergeMode = false;
-
-            io.Fonts->AddFontFromMemoryTTF(fa_solid_900_ttf,
-                fa_solid_900_ttf_len,
-                bigIconsPixels,
                 &config,
                 FontAwesome6Ranges);
         }
