@@ -116,6 +116,7 @@ namespace oblo
 
             std::unordered_map<resource_ref<texture>, usize, hash<resource_ref<texture>>> registeredTexturesMap;
             deque<registered_texture> registeredTextures;
+            deque<ImTextureID> imguiIdsFreeList;
 
             ImTextureID nextTextureId{ImTextureID_Invalid + 1};
 
@@ -141,34 +142,51 @@ namespace oblo
                 return it->second;
             }
 
+            ImTextureID allocate_new_registered_texture()
+            {
+                ImTextureID newId;
+
+                if (imguiIdsFreeList.empty())
+                {
+                    newId = nextTextureId;
+                    registeredTextures.resize(newId + 1);
+                    ++nextTextureId;
+                }
+                else
+                {
+                    newId = imguiIdsFreeList.back();
+                    imguiIdsFreeList.pop_back();
+                }
+
+                return newId;
+            }
+
+            void free_registered_texture_id(ImTextureID id)
+            {
+                imguiIdsFreeList.emplace_back(id);
+            }
+
             ImTextureID register_texture(resource_ptr<texture> ptr)
             {
-                const auto newId = nextTextureId;
-
-                registeredTextures.resize(newId + 1);
-
+                const auto newId = allocate_new_registered_texture();
                 registeredTextures[newId] = std::move(ptr);
-                ++nextTextureId;
 
                 return newId;
             }
 
             ImTextureID register_texture(h32<vk::retained_texture> retainedTexture)
             {
-                const auto newId = nextTextureId;
-
-                registeredTextures.resize(newId + 1);
-
+                const auto newId = allocate_new_registered_texture();
                 registeredTextures[newId] = retainedTexture;
-                ++nextTextureId;
 
                 return newId;
             }
 
             void unregister_texture(ImTextureID id)
             {
-                // TODO: This creates a whole, we may want a free list
                 registeredTextures[id] = {};
+
+                free_registered_texture_id(id);
             }
 
             h32<vk::retained_texture> get_retained_texture(ImTextureID id)
@@ -260,6 +278,14 @@ namespace oblo
 
             std::span<h32<vk::resident_texture>> registeredTextures;
             std::span<h32<vk::resident_texture>> subgraphTextures;
+
+            struct pending_upload
+            {
+                vk::resource<vk::texture> resource;
+                vk::staging_buffer_span staged;
+            };
+
+            dynamic_array<pending_upload> uploads;
 
             void init(const vk::frame_graph_init_context& ctx)
             {
@@ -636,14 +662,6 @@ namespace oblo
                     uploads.clear();
                 }
             }
-
-            struct pending_upload
-            {
-                vk::resource<vk::texture> resource;
-                vk::staging_buffer_span staged;
-            };
-
-            dynamic_array<pending_upload> uploads;
         };
 
         constexpr string_view g_InImGuiViewport{"ImGuiViewport"};
