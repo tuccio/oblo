@@ -20,6 +20,7 @@
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
+#include <oblo/vulkan/utility/image_utils.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk
@@ -29,7 +30,7 @@ namespace oblo::vk
         // We only support the global TLAS for now, acceleration structures are not proper resources yet
         constexpr resource<acceleration_structure> g_globalTLAS{1u};
 
-        VkImageUsageFlags convert_usage(texture_usage usage)
+        VkImageUsageFlags convert_texture_usage(texture_usage usage)
         {
             switch (usage)
             {
@@ -57,6 +58,18 @@ namespace oblo::vk
                 OBLO_ASSERT(false);
                 return {};
             };
+        }
+
+        VkImageUsageFlags convert_texture_usage(flags<texture_usage> usages)
+        {
+            VkImageUsageFlags r = 0;
+
+            for (const texture_usage usage : flags_range{usages})
+            {
+                r |= convert_texture_usage(usage);
+            }
+
+            return r;
         }
 
         VkBufferUsageFlags convert_buffer_usage(buffer_usage usage)
@@ -94,6 +107,24 @@ namespace oblo::vk
             }
 
             return result;
+        }
+
+        image_initializer create_image_initializer(const texture_resource_initializer& initializer,
+            VkImageUsageFlags usageFlags)
+        {
+            return {
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = convert_to_vk(initializer.format),
+                .extent = {.width = initializer.width, .height = initializer.height, .depth = 1},
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = usageFlags,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .memoryUsage = memory_usage::gpu_only,
+                .debugLabel = initializer.debugLabel,
+            };
         }
 
         struct buffer_access_info
@@ -221,7 +252,12 @@ namespace oblo::vk
         }
 
         template <typename R>
-        h32<frame_graph_pin_storage> as_storage_handle(resource<R> h)
+        constexpr h32<frame_graph_pin_storage> as_storage_handle(resource<R> h)
+        {
+            return h32<frame_graph_pin_storage>{h.value};
+        }
+
+        constexpr h32<frame_graph_pin_storage> as_storage_handle(h32<retained_texture> h)
         {
             return h32<frame_graph_pin_storage>{h.value};
         }
@@ -354,19 +390,8 @@ namespace oblo::vk
     {
         OBLO_ASSERT(m_state.currentPass);
 
-        const image_initializer imageInitializer{
-            .imageType = VK_IMAGE_TYPE_2D,
-            .format = convert_to_vk(initializer.format),
-            .extent = {.width = initializer.width, .height = initializer.height, .depth = 1},
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = convert_usage(usage) | VK_IMAGE_USAGE_SAMPLED_BIT,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .memoryUsage = memory_usage::gpu_only,
-            .debugLabel = initializer.debugLabel,
-        };
+        const image_initializer imageInitializer =
+            create_image_initializer(initializer, convert_texture_usage(usage) | VK_IMAGE_USAGE_SAMPLED_BIT);
 
         // TODO: (#29) Reuse and alias texture memory
         constexpr lifetime_range range{0, 0};
@@ -475,6 +500,25 @@ namespace oblo::vk
             OBLO_ASSERT(currentPass.kind == pass_kind::transfer);
             m_frameGraph.add_download(buffer);
         }
+    }
+
+    h32<retained_texture> frame_graph_build_context::create_retained_texture(
+        const texture_resource_initializer& initializer, flags<texture_usage> usages) const
+    {
+        const image_initializer& imageInit = create_image_initializer(initializer, convert_texture_usage(usages));
+        const h32 storage = m_frameGraph.create_retained_texture(m_renderer.get_vulkan_context(), imageInit);
+        return h32<retained_texture>{storage.value};
+    }
+
+    void frame_graph_build_context::destroy_retained_texture(h32<retained_texture> handle) const
+    {
+        const h32 storageHandle = as_storage_handle(handle);
+        m_frameGraph.destroy_retained_texture(m_renderer.get_vulkan_context(), storageHandle);
+    }
+
+    resource<texture> frame_graph_build_context::get_resource(h32<retained_texture> texture) const
+    {
+        return {texture.value};
     }
 
     void frame_graph_build_context::register_texture(resource<texture> resource, h32<texture> externalTexture) const
@@ -639,6 +683,11 @@ namespace oblo::vk
     staging_buffer_span frame_graph_build_context::stage_upload(std::span<const byte> data) const
     {
         return m_renderer.get_staging_buffer().stage(data).value();
+    }
+
+    staging_buffer_span frame_graph_build_context::stage_upload_image(std::span<const byte> data, u32 texelSize) const
+    {
+        return m_renderer.get_staging_buffer().stage_image(data, texelSize).value();
     }
 
     u32 frame_graph_build_context::get_current_frames_count() const
@@ -1041,6 +1090,45 @@ namespace oblo::vk
 
         // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
         stagingBuffer.upload(m_state.commandBuffer, data, b.buffer, b.offset + bufferOffset);
+    }
+
+    void frame_graph_execute_context::upload(resource<texture> h, const staging_buffer_span& data) const
+    {
+        auto& stagingBuffer = m_renderer.get_staging_buffer();
+        const auto t = access(h);
+
+        VkBufferImageCopy fullCopy[2]{};
+
+        u32 copies = 0;
+
+        for (const auto& segment : data.segments)
+        {
+            if (segment.begin != segment.end)
+            {
+                constexpr u32 levelIndex = 0;
+
+                fullCopy[copies] = {
+                    .bufferOffset = segment.begin,
+                    .imageSubresource =
+                        {
+                            .aspectMask = image_utils::deduce_aspect_mask(t.initializer.format),
+                            .mipLevel = levelIndex,
+                            .baseArrayLayer = 0,
+                            .layerCount = 1,
+                        },
+                    .imageOffset = VkOffset3D{},         // Zero because we do a full copy
+                    .imageExtent = t.initializer.extent, // Full extent because we assume level index 0 too
+                };
+
+                ++copies;
+            }
+        }
+
+        if (copies > 0)
+        {
+            // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
+            stagingBuffer.upload(m_state.commandBuffer, t.image, {fullCopy, copies});
+        }
     }
 
     async_download frame_graph_execute_context::download(resource<buffer> h) const

@@ -23,6 +23,7 @@ namespace oblo::vk
         transfer_source,
         transfer_destination,
         present,
+        enum_max,
     };
 
     enum class buffer_usage : u8

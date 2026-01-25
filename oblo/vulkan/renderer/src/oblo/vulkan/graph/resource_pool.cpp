@@ -6,6 +6,7 @@
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
+#include <oblo/vulkan/utility/image_utils.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 // For the sake of pooling textures, we ignore the debug labels
@@ -31,54 +32,6 @@ namespace oblo::vk
 {
     namespace
     {
-        VkImageAspectFlags deduce_aspect_mask(VkFormat format)
-        {
-            switch (format)
-            {
-            case VK_FORMAT_D16_UNORM:
-            case VK_FORMAT_X8_D24_UNORM_PACK32:
-            case VK_FORMAT_D32_SFLOAT:
-                return VK_IMAGE_ASPECT_DEPTH_BIT;
-
-            case VK_FORMAT_S8_UINT:
-                return VK_IMAGE_ASPECT_STENCIL_BIT;
-
-            case VK_FORMAT_D16_UNORM_S8_UINT:
-            case VK_FORMAT_D24_UNORM_S8_UINT:
-            case VK_FORMAT_D32_SFLOAT_S8_UINT:
-                // These have the stencil bit as well, but we cannot create a view for both
-                // see VUID-VkDescriptorImageInfo-imageView-01976
-                return VK_IMAGE_ASPECT_DEPTH_BIT;
-
-            default:
-                return VK_IMAGE_ASPECT_COLOR_BIT;
-            }
-        }
-
-        VkImageView create_image_view_2d(
-            VkDevice device, VkImage image, VkFormat format, const VkAllocationCallbacks* allocationCbs)
-        {
-            VkImageView imageView;
-
-            const VkImageViewCreateInfo imageViewInit{
-                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .image = image,
-                .viewType = VK_IMAGE_VIEW_TYPE_2D,
-                .format = format,
-                .subresourceRange =
-                    {
-                        .aspectMask = deduce_aspect_mask(format),
-                        .baseMipLevel = 0,
-                        .levelCount = 1,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1,
-                    },
-            };
-
-            OBLO_VK_PANIC(vkCreateImageView(device, &imageViewInit, allocationCbs, &imageView));
-            return imageView;
-        }
-
         constexpr u32 FramesBeforeDeletingStableResources{1};
     }
 
@@ -478,8 +431,12 @@ namespace oblo::vk
             OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, m_allocation, offset));
             offset += textureResource.size + textureResource.size % newRequirements.alignment;
 
-            textureResource.imageView =
-                create_image_view_2d(device, textureResource.image, textureResource.initializer.format, allocationCbs);
+            const expected imageView = image_utils::create_image_view_2d(device,
+                textureResource.image,
+                textureResource.initializer.format,
+                allocationCbs);
+
+            textureResource.imageView = imageView.assert_value_or(nullptr);
 
             if (!textureResource.initializer.debugLabel.empty())
             {
@@ -549,17 +506,17 @@ namespace oblo::vk
 
             auto device = ctx.get_device();
 
-            const auto imageView = create_image_view_2d(device,
+            const expected imageView = image_utils::create_image_view_2d(device,
                 it->second.allocatedImage.image,
                 resource.initializer.format,
                 allocator.get_allocation_callbacks());
 
-            it->second.imageView = imageView;
+            it->second.imageView = imageView.assert_value_or(nullptr);
             it->second.creationTime = m_frame;
 
-            if (!resource.initializer.debugLabel.empty())
+            if (!resource.initializer.debugLabel.empty() && imageView)
             {
-                ctx.get_debug_utils_object().set_object_name(device, imageView, resource.initializer.debugLabel.get());
+                ctx.get_debug_utils_object().set_object_name(device, *imageView, resource.initializer.debugLabel.get());
             }
         }
 

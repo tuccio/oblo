@@ -2,11 +2,13 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/draw/types.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -81,6 +83,13 @@ namespace oblo::vk
 
         void create(resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
 
+        h32<retained_texture> create_retained_texture(const texture_resource_initializer& initializer,
+            flags<texture_usage> usages) const;
+
+        void destroy_retained_texture(h32<retained_texture> handle) const;
+
+        resource<texture> get_resource(h32<retained_texture> texture) const;
+
         void register_texture(resource<texture> resource, h32<texture> externalTexture) const;
 
         // Temporary solution until the acceleration structure is a proper resource.
@@ -147,6 +156,7 @@ namespace oblo::vk
         random_generator& get_random_generator() const;
 
         staging_buffer_span stage_upload(std::span<const byte> data) const;
+        staging_buffer_span stage_upload_image(std::span<const byte> data, u32 texelSize) const;
 
         u32 get_current_frames_count() const;
 
@@ -242,6 +252,8 @@ namespace oblo::vk
         void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
 
         void upload(resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
+
+        void upload(resource<texture> h, const staging_buffer_span& data) const;
 
         async_download download(resource<buffer> h) const;
 

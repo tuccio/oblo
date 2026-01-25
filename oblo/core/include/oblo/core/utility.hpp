@@ -10,6 +10,12 @@
 namespace oblo
 {
     template <typename T>
+    constexpr T min(const T first) noexcept
+    {
+        return first;
+    }
+
+    template <typename T>
     constexpr T min(const T lhs, const T rhs) noexcept
     {
         return lhs < rhs ? lhs : rhs;
@@ -25,6 +31,12 @@ namespace oblo
     constexpr T max(const T lhs, const T rhs) noexcept
     {
         return lhs > rhs ? lhs : rhs;
+    }
+
+    template <typename T>
+    constexpr T max(const T first) noexcept
+    {
+        return first;
     }
 
     template <typename T, typename... U>

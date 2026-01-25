@@ -5,7 +5,9 @@
 #include <oblo/app/graphics_window_context.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/allocation_helpers.hpp>
+#include <oblo/core/overload.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/core/variant.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -48,6 +50,20 @@ namespace oblo
             }
         }
 
+        vk::texture_format to_vk_format(ImTextureFormat format)
+        {
+            switch (format)
+            {
+            case ImTextureFormat_RGBA32:
+                return vk::texture_format::r8g8b8a8_unorm;
+            case ImTextureFormat_Alpha8:
+                return vk::texture_format::r8_unorm;
+            default:
+                OBLO_ASSERT("Unrecognized format");
+                return vk::texture_format::undefined;
+            }
+        }
+
         void imgui_win32_dispatch_event(const void* event)
         {
             const MSG* msg = reinterpret_cast<const MSG*>(event);
@@ -86,6 +102,8 @@ namespace oblo
             bool isOwned;
         };
 
+        using registered_texture = variant<resource_ptr<texture>, h32<vk::retained_texture>>;
+
         struct imgui_render_backend
         {
             const resource_registry* resourceRegistry{};
@@ -97,7 +115,7 @@ namespace oblo
             deque<h32<vk::frame_graph_subgraph>> pushImageSubgraphs;
 
             std::unordered_map<resource_ref<texture>, usize, hash<resource_ref<texture>>> registeredTexturesMap;
-            deque<resource_ptr<texture>> registeredTextures;
+            deque<registered_texture> registeredTextures;
 
             ImTextureID nextTextureId{ImTextureID_Invalid + 1};
 
@@ -135,6 +153,29 @@ namespace oblo
                 return newId;
             }
 
+            ImTextureID register_texture(h32<vk::retained_texture> retainedTexture)
+            {
+                const auto newId = nextTextureId;
+
+                registeredTextures.resize(newId + 1);
+
+                registeredTextures[newId] = retainedTexture;
+                ++nextTextureId;
+
+                return newId;
+            }
+
+            void unregister_texture(ImTextureID id)
+            {
+                // TODO: This creates a whole, we may want a free list
+                registeredTextures[id] = {};
+            }
+
+            h32<vk::retained_texture> get_retained_texture(ImTextureID id)
+            {
+                return registeredTextures[id].as<h32<vk::retained_texture>>();
+            }
+
             ImTextureID register_subgraph_image(h32<vk::frame_graph_subgraph> subgraph)
             {
                 const auto newId = ImTextureID{subgraph_image_bit | pushImageSubgraphs.size()};
@@ -164,46 +205,6 @@ namespace oblo
 
                 tex.SetStatus(ImTextureStatus_OK);
                 tex.SetTexID(id);
-            }
-
-            void update_imgui_texture(ImTextureData& tex)
-            {
-                // Just to keep everything working as it used to before the ImGui update that allows for font scaling,
-                // We don't handle the update and just copy and reupload everything here.
-                // The alternative would require more changes, to handle gpu uploads properly.
-                const resource_ptr<texture> src = registeredTextures[tex.TexID];
-
-                texture dst{};
-
-                if (src.is_successfully_loaded() && dst.allocate(src->get_description()))
-                {
-                    const std::span dstData = dst.get_data();
-
-                    if (usize(tex.GetSizeInBytes()) == dstData.size_bytes())
-                    {
-                        std::memcpy(dstData.data(), tex.Pixels, dstData.size_bytes());
-                    }
-
-                    registeredTextures[tex.TexID] =
-                        resourceRegistry->instantiate<texture>(std::move(dst), "imgui_texture");
-
-                    tex.SetStatus(ImTextureStatus_OK);
-                }
-                else
-                {
-                    OBLO_ASSERT(false);
-                }
-            }
-
-            void destroy_imgui_texture(ImTextureData& tex)
-            {
-                if (tex.TexID >= registeredTextures.size())
-                {
-                    OBLO_ASSERT(false);
-                    return;
-                }
-
-                registeredTextures[tex.TexID] = {};
             }
 
             static bool is_subgraph_texture(ImTextureID id)
@@ -252,6 +253,8 @@ namespace oblo
             vk::resource<vk::buffer> outVertexBuffer;
             vk::resource<vk::buffer> outIndexBuffer;
 
+            h32<vk::transfer_pass_instance> transferPassInstance;
+
             h32<vk::render_pass> renderPass;
             h32<vk::render_pass_instance> renderPassInstance;
 
@@ -278,10 +281,77 @@ namespace oblo
 
             void build(const vk::frame_graph_build_context& ctx)
             {
+                transferPassInstance = {};
+
                 if (!ctx.has_source(inOutRenderTarget))
                 {
                     renderPassInstance = {};
                     return;
+                }
+
+                auto* const backend = ctx.access(inBackend);
+                OBLO_ASSERT(backend);
+
+                ImGuiViewport* const viewport = ctx.access(inViewport);
+                OBLO_ASSERT(viewport);
+
+                auto* const drawData = viewport->DrawData;
+
+                if (drawData->Textures != nullptr)
+                {
+                    for (ImTextureData* tex : *drawData->Textures)
+                    {
+                        switch (tex->Status)
+                        {
+                        case ImTextureStatus_WantCreate: {
+                            constexpr flags usages =
+                                vk::texture_usage::transfer_destination | vk::texture_usage::shader_read;
+
+                            const h32 newTexture = ctx.create_retained_texture(
+                                {
+                                    .width = u32(tex->Width),
+                                    .height = u32(tex->Height),
+                                    .format = to_vk_format(tex->Format),
+                                    .debugLabel = "ImGui::ImTexture",
+                                },
+                                usages);
+
+                            OBLO_ASSERT(newTexture);
+
+                            if (newTexture)
+                            {
+                                const ImTextureID imguiId = backend->register_texture(newTexture);
+
+                                tex->SetStatus(ImTextureStatus_OK);
+                                tex->SetTexID(imguiId);
+
+                                enqueue_upload(ctx, newTexture, *tex);
+                            }
+                        }
+                        break;
+
+                        case ImTextureStatus_WantUpdates: {
+                            const h32 id = backend->get_retained_texture(tex->TexID);
+                            enqueue_upload(ctx, id, *tex);
+
+                            tex->SetStatus(ImTextureStatus_OK);
+                        }
+
+                        break;
+
+                        case ImTextureStatus_WantDestroy: {
+                            const h32 id = backend->get_retained_texture(tex->TexID);
+                            ctx.destroy_retained_texture(id);
+                            backend->unregister_texture(tex->TexID);
+
+                            tex->SetStatus(ImTextureStatus_OK);
+                        }
+                        break;
+
+                        default:
+                            break;
+                        }
+                    }
                 }
 
                 const auto rtInitializer =
@@ -320,25 +390,6 @@ namespace oblo
                             },
                     });
 
-                auto* const backend = ctx.access(inBackend);
-                OBLO_ASSERT(backend);
-
-                ImGuiViewport* const viewport = ctx.access(inViewport);
-                OBLO_ASSERT(viewport);
-
-                auto* const drawData = viewport->DrawData;
-
-                if (drawData->Textures != nullptr)
-                {
-                    for (ImTextureData* tex : *drawData->Textures)
-                    {
-                        if (tex->Status != ImTextureStatus_OK)
-                        {
-                            handle_imgui_texture(*backend, *tex);
-                        }
-                    }
-                }
-
                 registeredTextures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
                     backend->registeredTextures.size());
 
@@ -347,7 +398,14 @@ namespace oblo
 
                 for (usize i = 0; i < backend->registeredTextures.size(); ++i)
                 {
-                    registeredTextures[i] = ctx.load_resource(backend->registeredTextures[i]);
+                    registeredTextures[i] = backend->registeredTextures[i].visit(overload{
+                        [&ctx](const resource_ptr<texture>& t) { return ctx.load_resource(t); },
+                        [&ctx](h32<vk::retained_texture> t)
+                        {
+                            const auto r = ctx.get_resource(t);
+                            return ctx.acquire_bindless(r, vk::texture_usage::shader_read);
+                        },
+                    });
                 }
 
                 for (auto& graphImage : ctx.access(inImageSink))
@@ -398,6 +456,8 @@ namespace oblo
             void execute(const vk::frame_graph_execute_context& ctx)
             {
                 using namespace vk;
+
+                execute_uploads(ctx);
 
                 if (!renderPassInstance)
                 {
@@ -536,25 +596,54 @@ namespace oblo
                 }
             }
 
-            void handle_imgui_texture(imgui_render_backend& backend, ImTextureData& tex)
+            void enqueue_upload(
+                const vk::frame_graph_build_context& ctx, h32<vk::retained_texture> texture, const ImTextureData& tex)
             {
-                switch (tex.Status)
+                if (!transferPassInstance)
                 {
-                case ImTextureStatus_WantCreate:
-                    backend.create_imgui_texture(tex);
-                    break;
+                    transferPassInstance = ctx.transfer_pass();
+                }
 
-                case ImTextureStatus_WantUpdates:
-                    backend.update_imgui_texture(tex);
-                    break;
-                case ImTextureStatus_WantDestroy:
-                    backend.destroy_imgui_texture(tex);
-                    break;
+                // TODO: For updates, we could check which rects we need to upload, instead of uploading the whole
+                // thing, but this is good enough for now.
 
-                default:
-                    break;
+                const vk::resource<vk::texture> resource = ctx.get_resource(texture);
+
+                ctx.acquire(resource, vk::texture_usage::transfer_destination);
+
+                const std::span src = as_bytes(std::span{tex.Pixels, usize(tex.GetSizeInBytes())});
+                const auto staged = ctx.stage_upload_image(src, u32(tex.BytesPerPixel));
+
+                uploads.emplace_back(resource, staged);
+            }
+
+            void execute_uploads(const vk::frame_graph_execute_context& ctx)
+            {
+                if (!transferPassInstance)
+                {
+                    return;
+                }
+
+                if (ctx.begin_pass(transferPassInstance))
+                {
+                    for (const auto& upload : uploads)
+                    {
+                        ctx.upload(upload.resource, upload.staged);
+                    }
+
+                    ctx.end_pass();
+
+                    uploads.clear();
                 }
             }
+
+            struct pending_upload
+            {
+                vk::resource<vk::texture> resource;
+                vk::staging_buffer_span staged;
+            };
+
+            dynamic_array<pending_upload> uploads;
         };
 
         constexpr string_view g_InImGuiViewport{"ImGuiViewport"};

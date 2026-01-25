@@ -42,6 +42,7 @@ namespace oblo::vk
     struct texture;
 
     struct resident_texture;
+    struct retained_texture;
 
     struct image_initializer;
 

@@ -67,7 +67,7 @@ namespace oblo
         variant(U&& o)
         {
             static_assert(index_of<U>() < types_count);
-            new (m_buffer) U{std::forward<U>(o)};
+            new (m_buffer) std::decay_t<U>{std::forward<U>(o)};
             m_index = index_of<U>();
         }
 

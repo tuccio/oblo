@@ -18,6 +18,7 @@
 #include <oblo/vulkan/graph/frame_graph_impl.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>
 #include <oblo/vulkan/renderer.hpp>
+#include <oblo/vulkan/utility/image_utils.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 #include <iosfwd>
@@ -549,18 +550,34 @@ namespace oblo::vk
         // Clearing these is required for certain operations that query created textures during the build process (e.g.
         // get_texture_initializer).
         // An alternative would be using a few bits as generation id for the handles.
-        for (auto& ps : m_impl->pinStorage.values())
+        for (auto&& [key, ps] : zip_range(m_impl->pinStorage.keys(), m_impl->pinStorage.values()))
         {
             ps.transientBuffer = {};
             ps.transientTexture = {};
         }
 
+        auto& vkCtx = renderer.get_vulkan_context();
+
         // This is used to register external textures (e.g. the swapchain images)
-        m_impl->resourceManager = &renderer.get_vulkan_context().get_resource_manager();
+        m_impl->resourceManager = &vkCtx.get_resource_manager();
 
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
         m_impl->resourcePool.begin_build();
+
+        // Recreate the transient instances for the retained textures
+        for (const h32 retainedTexturePin : m_impl->retainedTextures.keys())
+        {
+            const h32<frame_graph_pin_storage> storageKey{retainedTexturePin.value};
+
+            auto& ps = m_impl->pinStorage.at(storageKey);
+            OBLO_ASSERT(ps.isOwnedTexture);
+
+            const auto* t = static_cast<texture*>(ps.data);
+            ps.transientTexture = m_impl->resourcePool.add_external_texture(*t);
+
+            m_impl->transientTextures.emplace_back(storageKey, ps.transientTexture);
+        }
 
         for (const auto [vertexHandle] : m_impl->sortedNodes)
         {
@@ -1126,6 +1143,85 @@ namespace oblo::vk
         dynamicPins.emplace_back(handle);
 
         return handle;
+    }
+
+    h32<frame_graph_pin_storage> frame_graph_impl::create_retained_texture(vulkan_context& ctx,
+        const image_initializer& initializer)
+    {
+        auto& gpuAllocator = ctx.get_allocator();
+
+        allocated_image outImage{};
+
+        if (gpuAllocator.create_image(initializer, &outImage) != VK_SUCCESS)
+        {
+            return {};
+        }
+
+        const expected view = image_utils::create_image_view_2d(ctx.get_device(),
+            outImage.image,
+            initializer.format,
+            gpuAllocator.get_allocation_callbacks());
+
+        if (!view)
+        {
+            return {};
+        }
+
+        const auto [storage, key] = pinStorage.emplace();
+        const auto handle = h32<frame_graph_pin_storage>{key};
+
+        texture* const t = new (memoryPool.allocate(sizeof(texture), alignof(texture))) texture{
+            .image = outImage.image,
+            .allocation = outImage.allocation,
+            .view = *view,
+            .initializer = initializer,
+        };
+
+        storage->data = t;
+        storage->isOwnedTexture = true;
+        storage->transientTexture = resourcePool.add_external_texture(*t);
+
+        transientTextures.emplace_back(key, storage->transientTexture);
+        retainedTextures.emplace(key);
+
+        return handle;
+    }
+
+    void frame_graph_impl::destroy_retained_texture(vulkan_context& ctx, h32<frame_graph_pin_storage> handle)
+    {
+        auto* const storage = pinStorage.try_find(handle);
+
+        if (!storage)
+        {
+            return;
+        }
+
+        OBLO_ASSERT(storage->isOwnedTexture);
+
+        auto* const t = static_cast<texture*>(storage->data);
+
+        if (t)
+        {
+            if (t->image)
+            {
+                ctx.destroy_deferred(t->image, ctx.get_submit_index());
+            }
+
+            if (t->view)
+            {
+                ctx.destroy_deferred(t->view, ctx.get_submit_index());
+            }
+
+            if (t->allocation)
+            {
+                ctx.destroy_deferred(t->allocation, ctx.get_submit_index());
+            }
+
+            memoryPool.deallocate(t, sizeof(texture), alignof(texture));
+        }
+
+        pinStorage.erase(handle);
+        retainedTextures.erase(handle);
     }
 
     const frame_graph_node* frame_graph_impl::get_owner_node(resource<buffer> buffer) const
