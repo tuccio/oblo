@@ -242,6 +242,8 @@ namespace oblo::vk
 
         const h32<frame_graph_subgraph> subgraph{key};
 
+        flat_dense_map<frame_graph_template_vertex_handle, frame_graph_topology::vertex_handle> templateToInstanceMap;
+
         for (const auto v : templateGraph.get_vertices())
         {
             const auto& src = templateGraph[v];
@@ -277,6 +279,7 @@ namespace oblo::vk
                     .typeId = src.nodeDesc.typeDesc.typeId,
                     .size = nodeDesc.typeDesc.size,
                     .alignment = nodeDesc.typeDesc.alignment,
+                    .subgraph = subgraph,
                 };
 
                 dst.node = h32<frame_graph_node>{nodeKey};
@@ -295,12 +298,11 @@ namespace oblo::vk
                 unreachable();
             }
 
-            it->templateToInstanceMap.emplace(v, instance);
+            templateToInstanceMap.emplace(v, instance);
         }
 
         // Now we can actually initialize pins
-        for (const auto [source, instance] :
-            zip_range(it->templateToInstanceMap.keys(), it->templateToInstanceMap.values()))
+        for (const auto [source, instance] : zip_range(templateToInstanceMap.keys(), templateToInstanceMap.values()))
         {
             auto& src = templateGraph[source];
             auto& dst = frameGraph[instance];
@@ -327,7 +329,7 @@ namespace oblo::vk
 
             *pinIt = {
                 .ownedStorage = h32<frame_graph_pin_storage>{pinStorageKey},
-                .nodeHandle = *it->templateToInstanceMap.try_find(src.nodeHandle),
+                .nodeHandle = *templateToInstanceMap.try_find(src.nodeHandle),
                 .pinMemberOffset = src.pinMemberOffset,
                 .clearDataSink = src.clearDataSink,
             };
@@ -355,20 +357,23 @@ namespace oblo::vk
             const auto from = templateGraph.get_source(e);
             const auto to = templateGraph.get_destination(e);
 
-            frameGraph.add_edge(*it->templateToInstanceMap.try_find(from), *it->templateToInstanceMap.try_find(to));
+            frameGraph.add_edge(*templateToInstanceMap.try_find(from), *templateToInstanceMap.try_find(to));
         }
 
         for (const auto in : graphTemplate.get_inputs())
         {
-            const auto inVertex = *it->templateToInstanceMap.try_find(in);
+            const auto inVertex = *templateToInstanceMap.try_find(in);
             it->inputs.emplace(templateGraph[in].name, inVertex);
         }
 
         for (const auto out : graphTemplate.get_outputs())
         {
-            const auto outVertex = *it->templateToInstanceMap.try_find(out);
+            const auto outVertex = *templateToInstanceMap.try_find(out);
             it->outputs.emplace(templateGraph[out].name, outVertex);
         }
+
+        const std::span allVertices = templateToInstanceMap.values();
+        it->vertices.assign(allVertices.begin(), allVertices.end());
 
         return subgraph;
     }
@@ -382,11 +387,18 @@ namespace oblo::vk
             return;
         }
 
+        // Delete all the dynamic storage
+        for (const h32 storage : g->dynamicStorage)
+        {
+            m_impl->free_pin_storage(storage, m_impl->pinStorage.at(storage), false);
+            m_impl->pinStorage.erase(storage);
+        }
+
         using edge_handle = frame_graph_topology::edge_handle;
 
         buffered_array<edge_handle, 32> edgesToRemove;
 
-        for (const auto v : g->templateToInstanceMap.values())
+        for (const h32 v : g->vertices)
         {
             const auto& vertexData = m_impl->graph[v];
 
@@ -520,6 +532,8 @@ namespace oblo::vk
         {
             m_impl->free_pin_storage(key, pinStorage, false);
         }
+
+        m_impl->pinStorage.clear();
 
         // free_pin_storage might defer destruction of retained textures
         m_impl->free_pending_textures(ctx);
@@ -1180,7 +1194,6 @@ namespace oblo::vk
             return {};
         }
 
-        // TODO: We need to add this to the subgraph
         const auto [storage, key] = pinStorage.emplace();
         const auto handle = h32<frame_graph_pin_storage>{key};
 
@@ -1198,6 +1211,12 @@ namespace oblo::vk
 
         transientTextures.emplace_back(key, storage->transientTexture);
         retainedTextures.emplace(key);
+
+        if (currentNode->subgraph)
+        {
+            auto& sg = subgraphs.at(currentNode->subgraph);
+            sg.dynamicStorage.emplace_back(key);
+        }
 
         return handle;
     }
@@ -1237,6 +1256,20 @@ namespace oblo::vk
 
         pinStorage.erase(handle);
         retainedTextures.erase(handle);
+
+        if (currentNode->subgraph)
+        {
+            auto& sg = subgraphs.at(currentNode->subgraph);
+
+            for (auto it = sg.dynamicStorage.begin(); it != sg.dynamicStorage.end(); ++it)
+            {
+                if (*it == handle)
+                {
+                    sg.dynamicStorage.erase_unordered(it);
+                    break;
+                }
+            }
+        }
     }
 
     const frame_graph_node* frame_graph_impl::get_owner_node(resource<buffer> buffer) const

@@ -70,6 +70,7 @@ namespace oblo::vk
         type_id typeId;
         u32 size;
         u32 alignment;
+        h32<frame_graph_subgraph> subgraph;
         bool initialized;
         bool markedForRemoval;
     };
@@ -178,7 +179,12 @@ namespace oblo::vk
 
     struct frame_graph_subgraph
     {
-        flat_dense_map<frame_graph_template_vertex_handle, frame_graph_topology::vertex_handle> templateToInstanceMap;
+        dynamic_array<frame_graph_topology::vertex_handle> vertices;
+
+        // Nodes might create storage at runtime for buffers or textures they want to retain.
+        // These are owned by the subgraph, if the subgraph is removed, these have to be cleaned up.
+        dynamic_array<h32<frame_graph_pin_storage>> dynamicStorage;
+
         name_to_vertex_map inputs;
         name_to_vertex_map outputs;
     };
