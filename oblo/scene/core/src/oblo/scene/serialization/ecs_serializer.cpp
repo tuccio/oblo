@@ -216,7 +216,8 @@ namespace oblo::ecs_serializer
                         if (!skipTypes.tags.contains(tagType))
                         {
                             const auto& tagDesc = typeRegistry.get_tag_type_desc(tagType);
-                            doc.child_object(componentsObject, tagDesc.type.name);
+                            const hashed_string_view typeUuid{tagDesc.stableId.format_to(uuidBuffer)};
+                            doc.child_object(componentsObject, typeUuid);
                         }
                     }
 

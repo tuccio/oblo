@@ -361,7 +361,7 @@ namespace oblo::json
             return "Serialization failed"_err;
         }
 
-        constexpr auto bufferSize{1024};
+        constexpr auto bufferSize{4096};
         char buffer[bufferSize];
 
         rapidjson::FileReadStream rs{file.get(), buffer, bufferSize};

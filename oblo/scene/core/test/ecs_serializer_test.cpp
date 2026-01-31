@@ -240,6 +240,7 @@ namespace oblo
                 .add_field(&array_test_component::dds, "dds")
                 .add_field(&array_test_component::ddU32, "ddU32")
                 .add_tag<ecs::component_type_tag>()
+                .add_concept<uuid>("428382d0-ce01-4fb2-9e0e-add8a6bde69c"_uuid)
                 .add_ranged_type_erasure();
         }
 
