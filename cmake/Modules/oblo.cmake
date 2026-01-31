@@ -18,7 +18,7 @@ option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requirin
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
-option(OBLO_FORCE_CONAN_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
+option(OBLO_CONAN_FORCE_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
@@ -363,19 +363,14 @@ function(oblo_init_reflection)
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
 
-macro(_oblo_conan_get_last_install_hash_path varName)
-    set(${varName} "${CMAKE_BINARY_DIR}/conan/last_conan_install")
-endmacro()
-
 function(oblo_init_conan)
-    if(OBLO_FORCE_CONAN_INSTALL)
+    if(OBLO_CONAN_FORCE_INSTALL)
         message(STATUS "Conan install will not be skipped due to CMake configuration")
         return()
     endif()
 
     # Run conan install only if conanfile.py changed
     set(_conanfile "${CMAKE_SOURCE_DIR}/conanfile.py")
-    _oblo_conan_get_last_install_hash_path(_last_hashfile)
 
     if(NOT EXISTS "${_conanfile}")
         message(FATAL_ERROR "conanfile.py not found at ${_conanfile}")
@@ -383,17 +378,11 @@ function(oblo_init_conan)
 
     file(SHA256 "${_conanfile}" _conanfile_hash)
 
-    if(EXISTS "${_last_hashfile}")
-        file(READ "${_last_hashfile}" _last_hash)
-        string(STRIP "${_last_hash}" _last_hash)
-    else()
-        set(_last_hash "")
-    endif()
-
-    if("${_conanfile_hash}" STREQUAL "${_last_hash}")
+    if("${_conanfile_hash}" STREQUAL "${OBLO_CONAN_LAST_INSTALL_ID}")
         message(STATUS "Conan install skipped: no change detected")
         set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
     else()
+        message(STATUS "Conan install required: last hash was ${OBLO_CONAN_LAST_INSTALL_ID}, current is ${_conanfile_hash}")
         set_property(GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH "${_conanfile_hash}")
     endif()
 endfunction()
@@ -426,8 +415,11 @@ function(oblo_shutdown_conan)
 
     if(${_success})
         get_property(_conanfile_hash GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH)
-        _oblo_conan_get_last_install_hash_path(_last_hashfile)
-        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
+
+        if(OBLO_CONAN_PENDING_HASH)
+            set(OBLO_CONAN_LAST_INSTALL_ID "${_conanfile_hash}" CACHE STRING "The id of the last successful conan install" FORCE)
+            mark_as_advanced(OBLO_CONAN_LAST_INSTALL_ID)
+        endif()
     endif()
 endfunction()
 
