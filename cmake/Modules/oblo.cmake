@@ -368,6 +368,7 @@ function(oblo_symlink_to_data_folder target data_target destination)
     add_custom_command(
         TARGET ${target}
         POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<PATH:GET_PARENT_PATH,${destination}>
         COMMAND ${_create_link_cmd}
         COMMAND_EXPAND_LISTS
         COMMENT "Linking data folder ${data_target} to ${target}"
