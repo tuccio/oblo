@@ -229,7 +229,7 @@ namespace oblo::ecs_utility
         }
     }
 
-    SCENE_API ecs::entity find_root(const ecs::entity_registry& registry, ecs::entity e)
+    OBLO_SCENE_API ecs::entity find_root(const ecs::entity_registry& registry, ecs::entity e)
     {
         auto current = e;
 

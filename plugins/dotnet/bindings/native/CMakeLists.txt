@@ -1,4 +1,7 @@
-oblo_add_library(dotnet_bindings MODULE)
+oblo_add_library(
+    bindings MODULE
+    NAMESPACE oblo::dotnet
+)
 
 target_link_libraries(
     oblo_dotnet_bindings
@@ -10,5 +13,3 @@ target_link_libraries(
     oblo::resource
     oblo::scene
 )
-
-add_library(oblo::dotnet::bindings ALIAS oblo_dotnet_bindings)

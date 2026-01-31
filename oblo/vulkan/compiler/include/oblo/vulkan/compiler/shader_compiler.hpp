@@ -60,25 +60,25 @@ namespace oblo::vk
     class shader_compiler::result
     {
     public:
-        VK_COMPILER_API result();
-        VK_COMPILER_API result(unique_ptr<shader_compiler::result_core> core);
+        OBLO_VK_COMPILER_API result();
+        OBLO_VK_COMPILER_API result(unique_ptr<shader_compiler::result_core> core);
         result(const result&) = delete;
-        VK_COMPILER_API result(result&&) noexcept;
+        OBLO_VK_COMPILER_API result(result&&) noexcept;
 
         result& operator=(const result&) = delete;
-        VK_COMPILER_API result& operator=(result&&) noexcept;
+        OBLO_VK_COMPILER_API result& operator=(result&&) noexcept;
 
-        VK_COMPILER_API ~result();
+        OBLO_VK_COMPILER_API ~result();
 
-        VK_COMPILER_API bool has_errors() const;
+        OBLO_VK_COMPILER_API bool has_errors() const;
 
-        VK_COMPILER_API string_view get_error_message() const;
+        OBLO_VK_COMPILER_API string_view get_error_message() const;
 
-        VK_COMPILER_API string_view get_source_code() const;
+        OBLO_VK_COMPILER_API string_view get_source_code() const;
 
-        VK_COMPILER_API void get_source_files(deque<string_view>& sourceFiles) const;
+        OBLO_VK_COMPILER_API void get_source_files(deque<string_view>& sourceFiles) const;
 
-        VK_COMPILER_API std::span<const u32> get_spirv() const;
+        OBLO_VK_COMPILER_API std::span<const u32> get_spirv() const;
 
     private:
         unique_ptr<shader_compiler::result_core> m_core;

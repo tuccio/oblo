@@ -1,4 +1,7 @@
-oblo_add_library(nodes_core)
+oblo_add_library(
+    core
+    NAMESPACE oblo::nodes
+)
 
 target_link_libraries(
     oblo_nodes_core
@@ -7,5 +10,3 @@ target_link_libraries(
     oblo::core
     oblo::properties
 )
-
-add_library(oblo::nodes::core ALIAS oblo_nodes_core)

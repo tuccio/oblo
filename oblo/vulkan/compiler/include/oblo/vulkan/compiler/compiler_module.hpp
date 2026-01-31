@@ -11,11 +11,11 @@ namespace oblo::vk
     class compiler_module final : public module_interface
     {
     public:
-        VK_COMPILER_API bool startup(const module_initializer& initializer) override;
-        VK_COMPILER_API void shutdown() override;
-        VK_COMPILER_API bool finalize() override;
+        OBLO_VK_COMPILER_API bool startup(const module_initializer& initializer) override;
+        OBLO_VK_COMPILER_API void shutdown() override;
+        OBLO_VK_COMPILER_API bool finalize() override;
 
-        VK_COMPILER_API unique_ptr<shader_compiler> make_glslc_compiler(cstring_view workDir) const;
-        VK_COMPILER_API unique_ptr<shader_compiler> make_glslang_compiler() const;
+        OBLO_VK_COMPILER_API unique_ptr<shader_compiler> make_glslc_compiler(cstring_view workDir) const;
+        OBLO_VK_COMPILER_API unique_ptr<shader_compiler> make_glslang_compiler() const;
     };
 }

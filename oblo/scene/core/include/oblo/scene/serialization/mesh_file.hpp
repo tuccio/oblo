@@ -26,9 +26,9 @@ namespace oblo
         enum_max,
     };
 
-    SCENE_API expected<> save_mesh(const mesh& mesh, cstring_view destination);
+    OBLO_SCENE_API expected<> save_mesh(const mesh& mesh, cstring_view destination);
 
-    SCENE_API expected<> load_mesh(mesh& mesh,
+    OBLO_SCENE_API expected<> load_mesh(mesh& mesh,
         const tinygltf::Model& model,
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
@@ -36,5 +36,5 @@ namespace oblo
         const std::span<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags);
 
-    SCENE_API expected<> load_mesh(mesh& mesh, cstring_view source);
+    OBLO_SCENE_API expected<> load_mesh(mesh& mesh, cstring_view source);
 }

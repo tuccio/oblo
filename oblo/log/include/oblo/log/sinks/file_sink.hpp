@@ -5,7 +5,7 @@
 
 namespace oblo::log
 {
-    class LOG_API file_sink : public log_sink
+    class OBLO_LOG_API file_sink : public log_sink
     {
     public:
         explicit file_sink(filesystem::file_ptr ptr);

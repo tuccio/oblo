@@ -1,6 +1,9 @@
-oblo_add_library(script_behaviour MODULE)
+oblo_add_library(
+    behaviour MODULE
+    NAMESPACE oblo::script
+)
 
-oblo_register_core_module(script_behaviour)
+oblo_register_core_module(oblo::script::behaviour)
 
 target_link_libraries(
     oblo_script_behaviour

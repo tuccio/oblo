@@ -38,22 +38,22 @@ namespace oblo
     class runtime
     {
     public:
-        RUNTIME_API runtime();
+        OBLO_RUNTIME_API runtime();
         runtime(const runtime&) = delete;
-        RUNTIME_API runtime(runtime&&) noexcept;
+        OBLO_RUNTIME_API runtime(runtime&&) noexcept;
 
-        RUNTIME_API ~runtime();
+        OBLO_RUNTIME_API ~runtime();
 
         runtime& operator=(const runtime&) = delete;
-        RUNTIME_API runtime& operator=(runtime&&) noexcept;
+        OBLO_RUNTIME_API runtime& operator=(runtime&&) noexcept;
 
-        [[nodiscard]] RUNTIME_API bool init(const runtime_initializer& initializer);
-        RUNTIME_API void shutdown();
+        [[nodiscard]] OBLO_RUNTIME_API bool init(const runtime_initializer& initializer);
+        OBLO_RUNTIME_API void shutdown();
 
-        RUNTIME_API void update(const runtime_update_context& ctx);
+        OBLO_RUNTIME_API void update(const runtime_update_context& ctx);
 
-        RUNTIME_API ecs::entity_registry& get_entity_registry() const;
-        RUNTIME_API const service_registry& get_service_registry() const;
+        OBLO_RUNTIME_API ecs::entity_registry& get_entity_registry() const;
+        OBLO_RUNTIME_API const service_registry& get_service_registry() const;
 
     private:
         struct impl;

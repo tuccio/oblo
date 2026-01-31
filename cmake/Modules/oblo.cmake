@@ -135,12 +135,12 @@ function(_oblo_setup_include_dirs target)
 endfunction(_oblo_setup_include_dirs)
 
 macro(_oblo_setup_target_namespace namespace)
-    if(NOT DEFINED namespace OR namespace STREQUAL "")
+    if("${namespace}" STREQUAL "")
         set(_oblo_alias_prefix "oblo")
         set(_oblo_target_prefix "oblo")
     else()
-        set(_oblo_alias_prefix "oblo::${namespace}")
-        set(_oblo_target_prefix "oblo_${namespace}")
+        set(_oblo_alias_prefix "${namespace}")
+        string(REPLACE "::" "_" _oblo_target_prefix "${_oblo_alias_prefix}")
     endif()
 endmacro(_oblo_setup_target_namespace)
 
@@ -274,7 +274,7 @@ function(oblo_add_library name)
         _oblo_setup_include_dirs(${_target})
         _oblo_configure_cxx_target(${_target})
 
-        string(TOUPPER ${name} _upper_name)
+        string(TOUPPER ${_target} _upper_name)
         set(_api_define "${_upper_name}_API")
 
         if(OBLO_LIB_MODULE)
@@ -310,9 +310,16 @@ function(oblo_add_library name)
     add_library("${_oblo_alias_prefix}::${name}" ALIAS ${_target})
     _oblo_setup_source_groups()
 
+    set(_folder "${OBLO_FOLDER_LIBRARIES}")
+
+    if(OBLO_LIB_NAMESPACE MATCHES "^oblo::(.+)$")
+        string(REPLACE "::" "/" _ns_path "${CMAKE_MATCH_1}")
+        set(_folder "${_folder}/${_ns_path}")
+    endif()
+
     set_target_properties(
         ${_vs_proj_target} PROPERTIES
-        FOLDER ${OBLO_FOLDER_LIBRARIES}
+        FOLDER ${_folder}
         PROJECT_LABEL ${name}
     )
 endfunction(oblo_add_library target)

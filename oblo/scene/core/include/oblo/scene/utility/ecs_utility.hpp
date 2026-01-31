@@ -30,11 +30,11 @@ namespace oblo::reflection
 
 namespace oblo::ecs_utility
 {
-    SCENE_API void register_reflected_component_and_tag_types(const reflection::reflection_registry& reflection,
+    OBLO_SCENE_API void register_reflected_component_and_tag_types(const reflection::reflection_registry& reflection,
         ecs::type_registry* typeRegistry,
         property_registry* propertyRegistry);
 
-    SCENE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
+    OBLO_SCENE_API ecs::entity create_named_physical_entity(ecs::entity_registry& registry,
         const ecs::component_and_tag_sets& extraComponentsOrTags,
         string_view name,
         ecs::entity parent,
@@ -42,13 +42,13 @@ namespace oblo::ecs_utility
         const quaternion& rotation,
         const vec3& scale);
 
-    SCENE_API void reparent_entity(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent);
+    OBLO_SCENE_API void reparent_entity(ecs::entity_registry& registry, ecs::entity e, ecs::entity parent);
 
-    SCENE_API ecs::entity find_parent(const ecs::entity_registry& registry, ecs::entity e);
-    SCENE_API void find_children(const ecs::entity_registry& registry, ecs::entity e, deque<ecs::entity>& outChildren);
-    SCENE_API ecs::entity find_root(const ecs::entity_registry& registry, ecs::entity e);
-    SCENE_API void find_roots(const ecs::entity_registry& registry, deque<ecs::entity>& outRoots);
-    SCENE_API void destroy_hierarchy(ecs::entity_registry& registry, ecs::entity e);
+    OBLO_SCENE_API ecs::entity find_parent(const ecs::entity_registry& registry, ecs::entity e);
+    OBLO_SCENE_API void find_children(const ecs::entity_registry& registry, ecs::entity e, deque<ecs::entity>& outChildren);
+    OBLO_SCENE_API ecs::entity find_root(const ecs::entity_registry& registry, ecs::entity e);
+    OBLO_SCENE_API void find_roots(const ecs::entity_registry& registry, deque<ecs::entity>& outRoots);
+    OBLO_SCENE_API void destroy_hierarchy(ecs::entity_registry& registry, ecs::entity e);
 
     template <typename... ComponentsOrTags>
     ecs::entity create_named_physical_entity(ecs::entity_registry& registry,

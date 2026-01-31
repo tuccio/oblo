@@ -14,22 +14,22 @@ namespace oblo
         static runtime_module& get();
 
     public:
-        RUNTIME_API runtime_module();
+        OBLO_RUNTIME_API runtime_module();
         runtime_module(const runtime_module&) = delete;
         runtime_module(runtime_module&&) noexcept = delete;
 
-        RUNTIME_API ~runtime_module();
+        OBLO_RUNTIME_API ~runtime_module();
 
         runtime_module& operator=(const runtime_module&) = delete;
         runtime_module& operator=(runtime_module&&) noexcept = delete;
 
-        RUNTIME_API bool startup(const module_initializer& initializer) override;
-        RUNTIME_API void shutdown() override;
+        OBLO_RUNTIME_API bool startup(const module_initializer& initializer) override;
+        OBLO_RUNTIME_API void shutdown() override;
         bool finalize() override;
 
-        RUNTIME_API runtime_registry create_runtime_registry() const;
+        OBLO_RUNTIME_API runtime_registry create_runtime_registry() const;
 
-        RUNTIME_API const property_registry& get_property_registry() const;
+        OBLO_RUNTIME_API const property_registry& get_property_registry() const;
 
     private:
         struct impl;

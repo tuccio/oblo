@@ -8,13 +8,15 @@ _oblo_init_module_load_type(core)
 _oblo_init_module_load_type(editor)
 
 function(_oblo_register_module_as module type)
+    string(REPLACE "::" "_" _module_lib_name "${module}")
+
     get_target_property(
         _modules
         oblo_register_module_${type}
         oblo_registered_modules
     )
 
-    list(APPEND _modules ${module})
+    list(APPEND _modules ${_module_lib_name})
 
     set_target_properties(
         oblo_register_module_${type}
@@ -23,12 +25,11 @@ function(_oblo_register_module_as module type)
         FOLDER ${OBLO_FOLDER_INTERNAL}
     )
 
-    add_dependencies(oblo_register_module_${type} oblo_${module})
+    add_dependencies(oblo_register_module_${type} ${_module_lib_name})
 endfunction(_oblo_register_module_as)
 
 function(_oblo_register_module_loader_as module type)
-    # Name prefix added by oblo_add_library
-    set(_module_prefix oblo_)
+    string(REPLACE "::" "_" _module_lib_name "${module}")
 
     set(_include_dir ${CMAKE_CURRENT_BINARY_DIR}/include)
     set(_gen_file ${_include_dir}/module_loader_${type}.gen.hpp)
@@ -43,19 +44,14 @@ namespace oblo::gen
     {
         [[maybe_unused]] auto& mm = module_manager::get();
 
-$<LIST:JOIN,$<LIST:TRANSFORM,$<TARGET_PROPERTY:oblo_register_module_${type},oblo_registered_modules>,REPLACE,(.+),        mm.load(\"${_module_prefix}\\0\")>,;\n>;
+$<LIST:JOIN,$<LIST:TRANSFORM,$<TARGET_PROPERTY:oblo_register_module_${type},oblo_registered_modules>,REPLACE,(.+),        mm.load(\"\\0\")>,;\n>;
     }
 }")
-    set(_target ${_module_prefix}${module})
 
     # Make sure we inherit all the dependencies, so that the modules are built before the loader
-    if (NOT TARGET ${_target})
-        set(_target ${module})
-    endif()
+    add_dependencies(${_module_lib_name} oblo_register_module_${type})
 
-    add_dependencies(${_target} oblo_register_module_${type})
-
-    target_include_directories(${_target} PRIVATE ${_include_dir})
+    target_include_directories(${_module_lib_name} PRIVATE ${_include_dir})
 endfunction(_oblo_register_module_loader_as)
 
 function(oblo_register_core_module module)

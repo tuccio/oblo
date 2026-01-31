@@ -276,37 +276,37 @@ namespace oblo
     }
 
     template <>
-    SCENE_API material_property_type get_material_property_type<f32, material_type_tag::none>()
+    OBLO_SCENE_API material_property_type get_material_property_type<f32, material_type_tag::none>()
     {
         return material_property_type::f32;
     }
 
     template <>
-    SCENE_API material_property_type get_material_property_type<vec2, material_type_tag::none>()
+    OBLO_SCENE_API material_property_type get_material_property_type<vec2, material_type_tag::none>()
     {
         return material_property_type::vec2;
     }
 
     template <>
-    SCENE_API material_property_type get_material_property_type<vec3, material_type_tag::none>()
+    OBLO_SCENE_API material_property_type get_material_property_type<vec3, material_type_tag::none>()
     {
         return material_property_type::vec3;
     }
 
     template <>
-    SCENE_API material_property_type get_material_property_type<vec3, material_type_tag::linear_color>()
+    OBLO_SCENE_API material_property_type get_material_property_type<vec3, material_type_tag::linear_color>()
     {
         return material_property_type::linear_color_rgb_f32;
     }
 
     template <>
-    SCENE_API material_property_type get_material_property_type<vec4, material_type_tag::none>()
+    OBLO_SCENE_API material_property_type get_material_property_type<vec4, material_type_tag::none>()
     {
         return material_property_type::vec4;
     }
 
     template <>
-    SCENE_API material_property_type get_material_property_type<resource_ref<texture>, material_type_tag::none>()
+    OBLO_SCENE_API material_property_type get_material_property_type<resource_ref<texture>, material_type_tag::none>()
     {
         return material_property_type::texture;
     }

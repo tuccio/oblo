@@ -1,9 +1,10 @@
-oblo_add_library(script_rt)
+oblo_add_library(
+    runtime
+    NAMESPACE oblo::script
+)
 
 target_link_libraries(
-    oblo_script_rt
+    oblo_script_runtime
     PUBLIC
     oblo::core
 )
-
-add_library(oblo::script::runtime ALIAS oblo_script_rt)

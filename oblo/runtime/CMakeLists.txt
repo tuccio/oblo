@@ -1,6 +1,6 @@
 oblo_add_library(runtime MODULE)
 
-oblo_register_core_module_loader(runtime)
+oblo_register_core_module_loader(oblo::runtime)
 
 target_link_libraries(
     oblo_runtime

@@ -220,7 +220,7 @@ namespace oblo
         std::pmr::synchronized_pool_resource userdataPool;
     };
 
-    THREAD_API job_manager* job_manager::get()
+    OBLO_THREAD_API job_manager* job_manager::get()
     {
         return s_tlsWorkerCtx.manager;
     }
@@ -449,7 +449,7 @@ namespace oblo
         return impl->userdataBuffer;
     }
 
-    THREAD_API job_manager_config job_manager_config::make_default()
+    OBLO_THREAD_API job_manager_config job_manager_config::make_default()
     {
         return {
             .numThreads = std::thread::hardware_concurrency(),

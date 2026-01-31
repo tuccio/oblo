@@ -32,7 +32,7 @@ namespace oblo
         return m_registry;
     }
 
-    SCENE_API expected<> entity_hierarchy::load(cstring_view source, const entity_hierarchy_serialization_context& ctx)
+    OBLO_SCENE_API expected<> entity_hierarchy::load(cstring_view source, const entity_hierarchy_serialization_context& ctx)
     {
         return load(source, ctx.get_property_registry(), ctx.make_read_config());
     }

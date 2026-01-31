@@ -27,12 +27,12 @@ namespace oblo
         resource_ref<compiled_native_module> x86_64_avx2;
     } OBLO_RESOURCE();
 
-    SCRIPT_RESOURCE_API bool save(const compiled_script& script, cstring_view destination);
-    SCRIPT_RESOURCE_API bool load(compiled_script& script, cstring_view source);
+    OBLO_SCRIPT_RESOURCE_API bool save(const compiled_script& script, cstring_view destination);
+    OBLO_SCRIPT_RESOURCE_API bool load(compiled_script& script, cstring_view source);
 
-    SCRIPT_RESOURCE_API bool save(const bytecode_module& script, cstring_view destination);
-    SCRIPT_RESOURCE_API bool save(const compiled_bytecode_module& script, cstring_view destination);
-    SCRIPT_RESOURCE_API bool load(compiled_bytecode_module& script, cstring_view source);
+    OBLO_SCRIPT_RESOURCE_API bool save(const bytecode_module& script, cstring_view destination);
+    OBLO_SCRIPT_RESOURCE_API bool save(const compiled_bytecode_module& script, cstring_view destination);
+    OBLO_SCRIPT_RESOURCE_API bool load(compiled_bytecode_module& script, cstring_view source);
 
-    SCRIPT_RESOURCE_API bool load(compiled_native_module& script, cstring_view source);
+    OBLO_SCRIPT_RESOURCE_API bool load(compiled_native_module& script, cstring_view source);
 }

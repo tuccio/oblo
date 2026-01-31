@@ -1,4 +1,7 @@
-oblo_add_library(vk_compiler MODULE)
+oblo_add_library(
+    compiler MODULE
+    NAMESPACE oblo::vk
+)
 
 find_package(glslang REQUIRED)
 

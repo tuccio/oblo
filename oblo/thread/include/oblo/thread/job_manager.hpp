@@ -29,7 +29,7 @@ namespace oblo
 
     struct job_manager_config
     {
-        THREAD_API static job_manager_config make_default();
+        OBLO_THREAD_API static job_manager_config make_default();
 
         u32 numThreads;
     };
@@ -37,29 +37,29 @@ namespace oblo
     class job_manager
     {
     public:
-        THREAD_API static job_manager* get();
+        OBLO_THREAD_API static job_manager* get();
 
     public:
-        THREAD_API job_manager();
+        OBLO_THREAD_API job_manager();
 
         job_manager(const job_manager&) = delete;
         job_manager(job_manager&&) noexcept = delete;
 
-        THREAD_API ~job_manager();
+        OBLO_THREAD_API ~job_manager();
 
         job_manager& operator=(const job_manager&) = delete;
         job_manager& operator=(job_manager&&) noexcept = delete;
 
-        THREAD_API bool init(const job_manager_config& cfg = job_manager_config::make_default());
-        THREAD_API void shutdown();
+        OBLO_THREAD_API bool init(const job_manager_config& cfg = job_manager_config::make_default());
+        OBLO_THREAD_API void shutdown();
 
         /// @brief Returns the number of threads the job manager is initialized on.
-        THREAD_API u32 get_num_threads() const;
+        OBLO_THREAD_API u32 get_num_threads() const;
 
         /// @brief Returns the index of the thread that is currently running.
         /// @remarks Calling this function on a thread other than a job manager thread holds undefined behavior.
         /// @return An index in the range [0, num_threads).
-        THREAD_API u32 get_current_thread() const;
+        OBLO_THREAD_API u32 get_current_thread() const;
 
         /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
         /// and the job is waited for.
@@ -67,7 +67,7 @@ namespace oblo
         /// @param userdata Userdata for the job function call.
         /// @param cleanup Optional cleanup for the userdata.
         /// @return A handle that can be waited on.
-        [[nodiscard]] THREAD_API job_handle push_waitable(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
+        [[nodiscard]] OBLO_THREAD_API job_handle push_waitable(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
         /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
         /// and the job is waited for.
@@ -76,7 +76,7 @@ namespace oblo
         /// @param userdata Userdata for the job function call.
         /// @param cleanup Optional cleanup for the userdata.
         /// @return A handle that can be waited on.
-        [[nodiscard]] THREAD_API job_handle push_waitable_child(
+        [[nodiscard]] OBLO_THREAD_API job_handle push_waitable_child(
             job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
         /// @brief Creates a non-waitable job, that will be destroyed once the execution of the job itself and its
@@ -84,7 +84,7 @@ namespace oblo
         /// @param job The job function.
         /// @param userdata Userdata for the job function call.
         /// @param cleanup Optional cleanup for the userdata.
-        THREAD_API void push(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
+        OBLO_THREAD_API void push(job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
         /// @brief Creates a non-waitable job, that will be destroyed once the execution of the job itself and its
         /// children is completed.
@@ -92,19 +92,19 @@ namespace oblo
         /// @param job The job function.
         /// @param userdata Userdata for the job function call.
         /// @param cleanup Optional cleanup for the userdata.
-        THREAD_API void push_child(job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
+        OBLO_THREAD_API void push_child(job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup);
 
         /// @brief Waits for a job to finish, possibly picking up more jobs to complete during the wait.
         /// Jobs with a reference count (i.e. waitable jobs or jobs with manually increased reference) have to be waited
         /// exactly once per reference.
         /// @param job The job to wait for.
-        THREAD_API void wait(job_handle job);
+        OBLO_THREAD_API void wait(job_handle job);
 
         /// @brief Checks whether a job is finished, and if so waits it, but doesn't block or pick up other jobs.
         /// Jobs with a reference count (i.e. waitable jobs or jobs with manually increased reference) have to be waited
         /// exactly once per reference.
         /// @param job The job to wait for.
-        [[nodiscard]] THREAD_API bool try_wait(job_handle job);
+        [[nodiscard]] OBLO_THREAD_API bool try_wait(job_handle job);
 
         /// @brief Creates a waitable child job, that will be destroyed once the execution of its children is completed
         /// and the job is waited for.
@@ -145,13 +145,13 @@ namespace oblo
         /// @brief Explicitly increases the job ref count.
         /// @remarks The function can be used to let multiple threads wait for the same job.
         /// @param job The job to increase the reference of.
-        THREAD_API void increase_reference(job_handle job);
+        OBLO_THREAD_API void increase_reference(job_handle job);
 
         /// @brief Explicitly decreases the job ref count.
         /// @remarks The function can be used to let the system manage the lifetime of a waitable job if waiting is no
         /// longer necessary.
         /// @param job The job to decrease the reference of.
-        THREAD_API void decrease_reference(job_handle job);
+        OBLO_THREAD_API void decrease_reference(job_handle job);
 
     private:
         struct impl;
@@ -172,10 +172,10 @@ namespace oblo
         static consteval bool can_inline();
 
         template <bool IsChild>
-        THREAD_API job_handle allocate_job_impl(
+        OBLO_THREAD_API job_handle allocate_job_impl(
             job_handle parent, job_fn job, void* userdata, job_userdata_cleanup_fn cleanup, bool waitable);
 
-        THREAD_API void push_job_impl(job_handle job);
+        OBLO_THREAD_API void push_job_impl(job_handle job);
 
         template <typename F>
             requires callable_job<F>
@@ -185,10 +185,10 @@ namespace oblo
             requires callable_job<F>
         any_callable prepare_inlined_callable();
 
-        [[nodiscard]] THREAD_API void* allocate_userdata(usize size, usize alignment);
-        THREAD_API void deallocate_userdata(void* ptr, usize size, usize alignment);
+        [[nodiscard]] OBLO_THREAD_API void* allocate_userdata(usize size, usize alignment);
+        OBLO_THREAD_API void deallocate_userdata(void* ptr, usize size, usize alignment);
 
-        THREAD_API void* do_inline_buffer(job_handle h);
+        OBLO_THREAD_API void* do_inline_buffer(job_handle h);
 
         template <typename F>
             requires callable_job<F>

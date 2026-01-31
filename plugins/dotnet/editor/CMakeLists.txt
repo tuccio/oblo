@@ -1,6 +1,8 @@
-oblo_add_library(dotnet_editor MODULE)
+oblo_add_library(editor MODULE
+    NAMESPACE oblo::dotnet
+)
 
-oblo_register_editor_module(dotnet_editor)
+oblo_register_editor_module(oblo::dotnet::editor)
 
 target_link_libraries(
     oblo_dotnet_editor
@@ -10,5 +12,3 @@ target_link_libraries(
     oblo::editor::core
     oblo::editor::common
 )
-
-add_library(oblo::dotnet::editor ALIAS oblo_dotnet_editor)

@@ -17,14 +17,14 @@ namespace oblo::vk
     class shader_cache
     {
     public:
-        VK_COMPILER_API bool init(string_view dir);
+        OBLO_VK_COMPILER_API bool init(string_view dir);
 
-        VK_COMPILER_API void set_glsl_compiler(shader_compiler* glslCompiler);
-        VK_COMPILER_API shader_compiler* get_glsl_compiler() const;
+        OBLO_VK_COMPILER_API void set_glsl_compiler(shader_compiler* glslCompiler);
+        OBLO_VK_COMPILER_API shader_compiler* get_glsl_compiler() const;
 
-        VK_COMPILER_API void set_cache_enabled(bool enable);
+        OBLO_VK_COMPILER_API void set_cache_enabled(bool enable);
 
-        VK_COMPILER_API shader_compiler::result find_or_compile(frame_allocator& allocator,
+        OBLO_VK_COMPILER_API shader_compiler::result find_or_compile(frame_allocator& allocator,
             cstring_view filePath,
             shader_stage stage,
             const shader_preprocessor_options& preprocessorOptions,

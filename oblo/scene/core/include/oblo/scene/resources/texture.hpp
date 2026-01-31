@@ -16,7 +16,7 @@ namespace oblo
 
     struct texture_desc
     {
-        static SCENE_API texture_desc make_2d(u32 width, u32 height, texture_format format);
+        static OBLO_SCENE_API texture_desc make_2d(u32 width, u32 height, texture_format format);
 
         texture_format vkFormat;
         u32 width;
@@ -30,7 +30,7 @@ namespace oblo
         bool isArray;
     };
 
-    class SCENE_API texture
+    class OBLO_SCENE_API texture
     {
     public:
         texture() = default;

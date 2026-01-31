@@ -62,7 +62,7 @@ namespace oblo
         template <typename T>
         expected<T, material_error> as() const;
 
-        SCENE_API type_id get_property_type_id() const;
+        OBLO_SCENE_API type_id get_property_type_id() const;
     };
 
     template <typename T, material_type_tag Tag>
@@ -81,12 +81,12 @@ namespace oblo
 
         ~material() = default;
 
-        SCENE_API void set_property(
+        OBLO_SCENE_API void set_property(
             hashed_string_view name, material_property_type type, const material_data_storage& value);
 
-        SCENE_API const material_property* get_property(hashed_string_view name) const;
+        OBLO_SCENE_API const material_property* get_property(hashed_string_view name) const;
 
-        SCENE_API std::span<const material_property> get_properties() const;
+        OBLO_SCENE_API std::span<const material_property> get_properties() const;
 
         template <material_type_tag Tag, typename T>
         void set_property(hashed_string_view name, const T& value)
@@ -102,8 +102,8 @@ namespace oblo
             set_property<material_type_tag::none, T>(name, value);
         }
 
-        SCENE_API expected<> save(cstring_view destination) const;
-        SCENE_API expected<> load(cstring_view source);
+        OBLO_SCENE_API expected<> save(cstring_view destination) const;
+        OBLO_SCENE_API expected<> load(cstring_view source);
 
     private:
         struct string_hash

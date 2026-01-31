@@ -1,6 +1,9 @@
-oblo_add_library(script_resource MODULE)
+oblo_add_library(
+    resource MODULE
+    NAMESPACE oblo::script
+)
 
-oblo_register_core_module(script_resource)
+oblo_register_core_module(oblo::script::resource)
 
 target_link_libraries(
     oblo_script_resource
@@ -12,5 +15,3 @@ target_link_libraries(
     oblo::properties
     oblo::reflection
 )
-
-add_library(oblo::script::resource ALIAS oblo_script_resource)

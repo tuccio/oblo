@@ -10,11 +10,11 @@ namespace oblo
 
 namespace oblo::importers
 {
-    IMPORTERS_API void register_gltf_importer(asset_registry& registry);
-    IMPORTERS_API void unregister_gltf_importer(asset_registry& registry);
+    OBLO_IMPORTERS_API void register_gltf_importer(asset_registry& registry);
+    OBLO_IMPORTERS_API void unregister_gltf_importer(asset_registry& registry);
 
-    IMPORTERS_API void register_stb_image_importer(asset_registry& registry);
-    IMPORTERS_API void unregister_stb_image_importer(asset_registry& registry);
+    OBLO_IMPORTERS_API void register_stb_image_importer(asset_registry& registry);
+    OBLO_IMPORTERS_API void unregister_stb_image_importer(asset_registry& registry);
 
-    IMPORTERS_API void fetch_importers(dynamic_array<file_importer_descriptor>& outResourceTypes);
+    OBLO_IMPORTERS_API void fetch_importers(dynamic_array<file_importer_descriptor>& outResourceTypes);
 }

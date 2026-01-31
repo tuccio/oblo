@@ -1,4 +1,7 @@
-oblo_add_library(scene_editor)
+oblo_add_library(
+    editor
+    NAMESPACE oblo::scene
+)
 
 find_package(iconfontcppheaders REQUIRED)
 find_package(ImGui REQUIRED)
@@ -18,5 +21,3 @@ target_link_libraries(
     imgui::imgui
     iconfontcppheaders::iconfontcppheaders
 )
-
-add_library(oblo::scene::editor ALIAS oblo_scene_editor)

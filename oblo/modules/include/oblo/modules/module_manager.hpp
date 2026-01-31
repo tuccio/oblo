@@ -18,31 +18,31 @@ namespace oblo
     class module_manager
     {
     public:
-        MODULES_API static module_manager& get();
+        OBLO_MODULES_API static module_manager& get();
 
     public:
-        MODULES_API module_manager();
+        OBLO_MODULES_API module_manager();
         module_manager(const module_manager&) = delete;
         module_manager(module_manager&&) noexcept = delete;
 
         module_manager& operator=(const module_manager&) = delete;
         module_manager& operator=(module_manager&&) noexcept = delete;
 
-        MODULES_API ~module_manager();
+        OBLO_MODULES_API ~module_manager();
 
         template <typename T>
         T* load();
 
-        MODULES_API module_interface* load(cstring_view path);
+        OBLO_MODULES_API module_interface* load(cstring_view path);
 
         template <typename T>
         T* find() const;
 
-        MODULES_API module_interface* find(const hashed_string_view& id) const;
+        OBLO_MODULES_API module_interface* find(const hashed_string_view& id) const;
 
-        [[nodiscard]] MODULES_API bool finalize();
+        [[nodiscard]] OBLO_MODULES_API bool finalize();
 
-        MODULES_API void shutdown();
+        OBLO_MODULES_API void shutdown();
 
         template <typename T>
         std::span<T* const> find_services() const;
@@ -65,10 +65,10 @@ namespace oblo
         };
 
     private:
-        [[nodiscard]] MODULES_API module_storage* load(const hashed_string_view& id,
+        [[nodiscard]] OBLO_MODULES_API module_storage* load(const hashed_string_view& id,
             unique_ptr<module_interface> module);
 
-        MODULES_API std::span<void* const> find_services(const type_id& type) const;
+        OBLO_MODULES_API std::span<void* const> find_services(const type_id& type) const;
 
     private:
         std::unordered_map<hashed_string_view, module_storage, hash<hashed_string_view>> m_modules;

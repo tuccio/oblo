@@ -1,4 +1,7 @@
-oblo_add_library(nodes_editor)
+oblo_add_library(
+    editor
+    NAMESPACE oblo::nodes
+)
 
 find_package(iconfontcppheaders REQUIRED)
 
@@ -10,5 +13,3 @@ target_link_libraries(
     PRIVATE
     iconfontcppheaders::iconfontcppheaders
 )
-
-add_library(oblo::nodes::editor ALIAS oblo_nodes_editor)

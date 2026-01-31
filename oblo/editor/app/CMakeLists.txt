@@ -25,7 +25,7 @@ target_link_libraries(
     oblo::scene
     oblo::scene::editor
     oblo::thread
-    oblo::vk_engine
+    oblo::vk::engine
     cxxopts::cxxopts
 )
 
