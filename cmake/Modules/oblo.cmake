@@ -210,7 +210,7 @@ function(oblo_add_executable name)
     set_target_properties(${_target} PROPERTIES FOLDER ${_folder})
 
     if(MSVC)
-        set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+        set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${_target}>")
     endif(MSVC)
 endfunction(oblo_add_executable target)
 
