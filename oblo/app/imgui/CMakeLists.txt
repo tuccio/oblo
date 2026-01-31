@@ -14,4 +14,4 @@ target_link_libraries(
     imgui::backend
 )
 
-oblo_create_symlink("${CMAKE_CURRENT_SOURCE_DIR}/resources" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/imgui")
+oblo_add_data_folder(oblo::imgui::data "${CMAKE_CURRENT_SOURCE_DIR}/resources")

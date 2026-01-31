@@ -29,5 +29,8 @@ target_link_libraries(
     cxxopts::cxxopts
 )
 
-file(MAKE_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data)
-oblo_create_symlink("${CMAKE_SOURCE_DIR}/data/editor" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/data/oblo")
+oblo_add_data_folder(oblo::editor::data "${CMAKE_SOURCE_DIR}/data/editor")
+
+oblo_symlink_to_data_folder(oblo oblo::editor::data "$<TARGET_FILE_DIR:oblo>/data/oblo")
+oblo_symlink_to_data_folder(oblo oblo::imgui::data "$<TARGET_FILE_DIR:oblo>/imgui")
+oblo_symlink_to_data_folder(oblo oblo::vulkan::shaders "$<TARGET_FILE_DIR:oblo>/vulkan")
