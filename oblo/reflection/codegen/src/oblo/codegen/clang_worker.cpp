@@ -144,6 +144,13 @@ namespace oblo::gen
                 return annotation_property_result::expect_none;
             }
 
+            if (property == "UUID"_hsv)
+            {
+                r.flags.set(record_flags::uuid);
+                *outIdx = &r.attrUuid;
+                return annotation_property_result::expect_string;
+            }
+
             return annotation_property_result::expect_none;
         }
 

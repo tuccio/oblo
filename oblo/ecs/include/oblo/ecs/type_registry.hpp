@@ -2,6 +2,7 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/ecs/handles.hpp>
 
 #include <span>
@@ -29,7 +30,10 @@ namespace oblo::ecs
         tag_type register_tag(const tag_type_desc& desc);
 
         component_type find_component(const type_id& type) const;
+        component_type find_component(const uuid& uuid) const;
+
         tag_type find_tag(const type_id& type) const;
+        tag_type find_tag(const uuid& uuid) const;
 
         template <typename T>
         component_type find_component() const;
@@ -47,7 +51,8 @@ namespace oblo::ecs
         struct any_type_info;
 
     private:
-        std::unordered_map<type_id, any_type_info> m_types;
+        std::unordered_map<type_id, any_type_info> m_typesByRuntimeId;
+        std::unordered_map<uuid, any_type_info> m_typesByUuid;
         dynamic_array<component_type_desc> m_components;
         dynamic_array<tag_type_desc> m_tags;
     };

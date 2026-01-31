@@ -16,5 +16,5 @@ namespace oblo
 
         OBLO_PROPERTY(LinearColor)
         vec3 tint;
-    } OBLO_COMPONENT(ScriptAPI);
+    } OBLO_COMPONENT("713a837e-1d5b-4fe6-be65-0d607c331f26", ScriptAPI);
 }

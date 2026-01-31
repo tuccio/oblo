@@ -1,5 +1,6 @@
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
@@ -8,6 +9,7 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/log/log.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
@@ -76,6 +78,8 @@ namespace oblo::ecs_serializer
                         .parentEntityObject = entitiesArray,
                     });
 
+                char uuidBuffer[36];
+
                 while (!stack.empty())
                 {
                     const auto [entityId, parentEntityObject] = stack.back();
@@ -113,7 +117,9 @@ namespace oblo::ecs_serializer
 
                         const auto& componentTypeDesc = typeRegistry.get_component_type_desc(componentTypes[j]);
 
-                        const auto componentNode = doc.child_object(componentsObject, componentTypeDesc.type.name);
+                        const hashed_string_view typeUuid{componentTypeDesc.stableId.format_to(uuidBuffer)};
+
+                        const auto componentNode = doc.child_object(componentsObject, typeUuid);
 
                         auto* const propertyTree = propertyRegistry.try_get(componentTypeDesc.type);
 
@@ -297,20 +303,31 @@ namespace oblo::ecs_serializer
                 // Iterate a first time to gather the component types
                 for (const u32 componentObject : doc.children(componentsObject))
                 {
-                    const auto componentType = doc.get_node_name(componentObject);
-                    const auto type = type_id{.name = componentType};
+                    const auto uuidStr = doc.get_node_name(componentObject);
 
-                    const auto componentTypeId = typeRegistry.find_component(type);
+                    uuid typeUuid{};
+
+                    if (!typeUuid.parse_from(uuidStr))
+                    {
+                        log::debug("Failed to parse uuid {}", uuidStr);
+                    }
+
+                    const auto componentTypeId = typeRegistry.find_component(typeUuid);
 
                     if (componentTypeId)
                     {
                         types.components.add(componentTypeId);
                     }
-                    else if (const auto tagTypeId = typeRegistry.find_tag(type))
+                    else if (const auto tagTypeId = typeRegistry.find_tag(typeUuid))
                     {
                         types.tags.add(tagTypeId);
                     }
+                    else
+                    {
+                        log::debug("Missing component type {}", typeUuid);
+                    }
 
+                    // We might push an invalid id here, but it is handled later
                     componentTypes.push_back(componentTypeId);
                 }
 

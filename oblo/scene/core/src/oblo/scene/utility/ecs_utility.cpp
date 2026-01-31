@@ -47,24 +47,37 @@ namespace oblo::ecs_utility
                         continue;
                     }
 
-                    const auto rte = reflection.find_concept<reflection::ranged_type_erasure>(typeHandle);
+                    const std::optional id = reflection.find_concept<uuid>(typeHandle);
 
-                    if (rte)
+                    if (!id)
                     {
-                        const ecs::component_type_desc desc{
-                            .type = typeData.type,
-                            .size = typeData.size,
-                            .alignment = typeData.alignment,
-                            .create = rte->create,
-                            .destroy = rte->destroy,
-                            .move = rte->move,
-                            .moveAssign = rte->moveAssign,
-                        };
+                        log::error("Failed to register component {} because it's missing the uuid", typeData.type.name);
+                        continue;
+                    }
 
-                        if (!typeRegistry->register_component(desc))
-                        {
-                            log::error("Failed to register component {}", typeData.type.name);
-                        }
+                    const std::optional rte = reflection.find_concept<reflection::ranged_type_erasure>(typeHandle);
+
+                    if (!rte)
+                    {
+                        log::error("Failed to register component {} because it's the ranged_type_erasure concept",
+                            typeData.type.name);
+                        continue;
+                    }
+
+                    const ecs::component_type_desc desc{
+                        .type = typeData.type,
+                        .stableId = *id,
+                        .size = typeData.size,
+                        .alignment = typeData.alignment,
+                        .create = rte->create,
+                        .destroy = rte->destroy,
+                        .move = rte->move,
+                        .moveAssign = rte->moveAssign,
+                    };
+
+                    if (!typeRegistry->register_component(desc))
+                    {
+                        log::error("Failed to register component {}", typeData.type.name);
                     }
                 }
             }
@@ -97,8 +110,17 @@ namespace oblo::ecs_utility
                         continue;
                     }
 
+                    const std::optional id = reflection.find_concept<uuid>(typeHandle);
+
+                    if (!id)
+                    {
+                        log::error("Failed to register tag {} because it's missing the uuid", typeData.type.name);
+                        continue;
+                    }
+
                     const ecs::tag_type_desc desc{
                         .type = typeData.type,
+                        .stableId = *id,
                     };
 
                     if (!typeRegistry->register_tag(desc))

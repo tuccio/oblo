@@ -1,6 +1,7 @@
 #include "reflection_worker.hpp"
 
 #include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 
 namespace oblo::gen
 {
@@ -26,6 +27,7 @@ namespace oblo::gen
         m_content.append(R"(
 #include <oblo/reflection/registration/registrant.hpp>
 
+#include <oblo/core/uuid.hpp>
 #include <oblo/reflection/attributes/color.hpp>
 #include <oblo/reflection/attributes/range.hpp>
 #include <oblo/reflection/concepts/gpu_component.hpp>
@@ -210,6 +212,14 @@ namespace oblo::gen
         {
             m_content.append("classBuilder.add_tag<::oblo::reflection::transient_type_tag>();");
             new_line();
+        }
+
+        if (r.flags.contains(record_flags::uuid))
+        {
+            m_content.format("classBuilder.add_concept<::oblo::uuid>(\"{}\"_uuid);", t.stringAttributeData[r.attrUuid]);
+            new_line();
+
+            addPrettyName = true;
         }
 
         if (addPrettyName)

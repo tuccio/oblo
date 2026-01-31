@@ -50,5 +50,5 @@ namespace oblo
 
         OBLO_PROPERTY(ClampMin = 0)
         f32 shadowMeanFilterSigma;
-    } OBLO_COMPONENT(ScriptAPI);
+    } OBLO_COMPONENT("50e1c754-3ffc-4898-a1ab-c7af4b77fd2b", ScriptAPI);
 }
