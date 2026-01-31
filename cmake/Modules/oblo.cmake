@@ -174,18 +174,40 @@ function(_oblo_add_codegen_dependency target)
     endif()
 endfunction(_oblo_add_codegen_dependency)
 
+macro(_oblo_deduce_subfolder_from_namespace namespace fallback)
+    set(_target_subfolder "${fallback}")
+
+    if("${namespace}" MATCHES "^oblo::(.+)$")
+        string(REPLACE "::" "/" _target_subfolder "${CMAKE_MATCH_1}")
+    endif()
+endmacro()
+
 function(oblo_add_executable name)
+    cmake_parse_arguments(
+        OBLO_EXE
+        ""
+        "NAMESPACE"
+        ""
+        ${ARGN}
+    )
+
     set(_target "${name}")
     _oblo_find_source_files()
+
     add_executable(${_target})
+
     _oblo_add_source_files(${_target})
     _oblo_setup_include_dirs(${_target})
     _oblo_setup_source_groups()
     _oblo_configure_cxx_target(${_target})
+
     add_executable("oblo::${name}" ALIAS ${_target})
     target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
 
-    set_target_properties(${_target} PROPERTIES FOLDER ${OBLO_FOLDER_APPLICATIONS})
+    _oblo_deduce_subfolder_from_namespace("${OBLO_EXE_NAMESPACE}" "${name}")
+    set(_folder "${OBLO_FOLDER_APPLICATIONS}/${_target_subfolder}")
+
+    set_target_properties(${_target} PROPERTIES FOLDER ${_folder})
 
     if(MSVC)
         set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
@@ -206,14 +228,9 @@ function(oblo_add_library name)
     set(_target "${_oblo_target_prefix}_${name}")
     _oblo_find_source_files()
 
-    set(_folder "${OBLO_FOLDER_LIBRARIES}")
-    set(_target_subfolder "${name}")
-
-    if(OBLO_LIB_NAMESPACE MATCHES "^oblo::(.+)$")
-        string(REPLACE "::" "/" _target_subfolder "${CMAKE_MATCH_1}")
-    endif()
-
+    _oblo_deduce_subfolder_from_namespace("${OBLO_LIB_NAMESPACE}" "${name}")
     set(_folder "${OBLO_FOLDER_LIBRARIES}/${_target_subfolder}")
+
     set(_withReflection FALSE)
 
     if(_oblo_reflection_includes)
