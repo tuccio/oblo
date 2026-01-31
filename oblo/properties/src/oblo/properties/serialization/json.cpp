@@ -167,7 +167,7 @@ namespace oblo::json
 
             bool EndArray(rapidjson::SizeType)
             {
-                if (m_state != state::value_or_array_end)
+                if (m_state != state::value_or_array_end && m_state != state::object_or_array_start)
                 {
                     return failure();
                 }

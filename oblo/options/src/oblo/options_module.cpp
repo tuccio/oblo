@@ -63,7 +63,7 @@ namespace oblo
                 {
                     data_document doc;
 
-                    if (layerDesc.load(doc))
+                    if (layerDesc.load(doc, layerDesc.userdata))
                     {
                         const auto layer = m_manager.find_layer(layerDesc.layer.id);
                         m_manager.load_layer(doc, doc.get_root(), layer);

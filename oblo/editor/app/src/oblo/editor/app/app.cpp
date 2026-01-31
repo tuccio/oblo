@@ -116,7 +116,6 @@ namespace oblo::editor
         class options_layer_helper final : public options_layer_provider
         {
             static constexpr uuid layer_uuid = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid;
-            static constexpr cstring_view options_path = "oblo_options.json";
 
         public:
             void init()
@@ -144,9 +143,14 @@ namespace oblo::editor
 
                 m_options->store_layer(doc, doc.get_root(), m_layer);
 
-                if (!json::write(doc, options_path))
+                string_builder optionsDir;
+                filesystem::parent_path(m_optionsFilePath, optionsDir);
+
+                filesystem::create_directories(optionsDir.as<string_view>()).assert_value();
+
+                if (!json::write(doc, m_optionsFilePath))
                 {
-                    log::error("Failed to write editor options to {}", options_path);
+                    log::error("Failed to write editor options to {}", m_optionsFilePath);
                 }
             }
 
@@ -159,21 +163,36 @@ namespace oblo::editor
                 }
             }
 
+            void set_options_file_path(string_view optionsFilePath)
+            {
+                m_optionsFilePath = optionsFilePath;
+            }
+
+        private:
             void fetch(deque<options_layer_provider_descriptor>& out) const override
             {
                 out.push_back({
                     .layer = {.id = layer_uuid},
                     .load =
-                        [](data_document& doc)
+                        [](data_document& doc, any& userdata)
                     {
-                        if (!json::read(doc, options_path))
+                        const string* const filePath = userdata.as<string>();
+
+                        if (!filePath)
                         {
-                            log::error("Failed to read editor options from {}", options_path);
+                            OBLO_ASSERT(false);
+                            return false;
+                        }
+
+                        if (!json::read(doc, *filePath))
+                        {
+                            log::error("Failed to read editor options from {}", *filePath);
                             return false;
                         }
 
                         return true;
                     },
+                    .userdata = any{m_optionsFilePath},
                 });
             }
 
@@ -181,6 +200,7 @@ namespace oblo::editor
             options_manager* m_options{};
             h32<options_layer> m_layer{};
             u32 m_changeId{};
+            string m_optionsFilePath;
         };
 
         class editor_app_module final : public module_interface
@@ -234,10 +254,15 @@ namespace oblo::editor
                 m_editorOptions.update();
             }
 
-            void set_project(string_view projectDir, project project)
+            void configure_project(string_view projectDir, project project)
             {
                 m_projectDir = projectDir;
                 m_project = std::move(project);
+
+                string_builder projectOptionsDir;
+                projectOptionsDir.assign(m_projectDir).append_path("options").append_path("oblo.editor.json");
+
+                m_editorOptions.set_options_file_path(projectOptionsDir.view());
             }
 
             const project& get_project() const
@@ -510,6 +535,10 @@ namespace oblo::editor
 
         m_logQueue = init_log(bootTime);
 
+        log::info("Starting up oblo");
+        log::info("Application data is in {}", cfg.appDir);
+        log::info("Loading project from {}", cfg.projectPath);
+
         auto& mm = m_moduleManager;
 
         m_editorModule = mm.load<editor_app_module>();
@@ -525,7 +554,7 @@ namespace oblo::editor
             string_builder projectDir;
             filesystem::parent_path(cfg.projectPath, projectDir);
 
-            m_editorModule->set_project(projectDir.view(), std::move(*project));
+            m_editorModule->configure_project(projectDir.view(), std::move(*project));
         }
 
         for (const auto& module : m_editorModule->get_project().modules)

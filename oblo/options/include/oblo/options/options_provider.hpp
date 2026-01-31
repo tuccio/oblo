@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/any.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/modules/utility/provider_service.hpp>
 #include <oblo/options/options_manager.hpp>
 
@@ -7,10 +9,11 @@ namespace oblo
 {
     struct options_layer_provider_descriptor
     {
-        using load_fn = bool (*)(data_document& doc);
+        using load_fn = function_ref<bool(data_document& doc, any& userdata)>;
 
         options_layer_descriptor layer{};
         load_fn load{};
+        any userdata;
     };
 
     using options_layer_provider = provider_service<options_layer_provider_descriptor>;
