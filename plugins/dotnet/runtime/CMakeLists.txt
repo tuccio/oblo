@@ -21,3 +21,5 @@ target_link_libraries(
 )
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/resources/oblo.runtimeconfig.json" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dotnet/oblo.runtimeconfig.json" COPYONLY)
+
+oblo_add_data_folder(oblo::dotnet::runtime::data "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dotnet")
