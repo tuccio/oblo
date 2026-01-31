@@ -6,6 +6,6 @@ namespace oblo
 {
     struct model;
 
-    SCENE_API expected<> save_model_json(const model& m, cstring_view destination);
-    SCENE_API expected<> load_model(model& m, cstring_view source);
+    OBLO_SCENE_API expected<> save_model_json(const model& m, cstring_view destination);
+    OBLO_SCENE_API expected<> load_model(model& m, cstring_view source);
 }

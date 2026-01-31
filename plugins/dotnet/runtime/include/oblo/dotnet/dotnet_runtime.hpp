@@ -9,21 +9,21 @@ namespace oblo
     class dotnet_runtime
     {
     public:
-        DOTNET_RT_API dotnet_runtime();
+        OBLO_DOTNET_RUNTIME_API dotnet_runtime();
 
         dotnet_runtime(const dotnet_runtime&) = delete;
         dotnet_runtime(dotnet_runtime&&) noexcept = delete;
 
-        DOTNET_RT_API ~dotnet_runtime();
+        OBLO_DOTNET_RUNTIME_API ~dotnet_runtime();
 
         dotnet_runtime& operator=(const dotnet_runtime&) = delete;
         dotnet_runtime& operator=(dotnet_runtime&&) noexcept = delete;
 
-        DOTNET_RT_API expected<> init();
+        OBLO_DOTNET_RUNTIME_API expected<> init();
 
-        DOTNET_RT_API void shutdown();
+        OBLO_DOTNET_RUNTIME_API void shutdown();
 
-        DOTNET_RT_API void* load_assembly_delegate(
+        OBLO_DOTNET_RUNTIME_API void* load_assembly_delegate(
             cstring_view assemblyPath, cstring_view assemblyType, cstring_view methodName) const;
 
         template <typename T>

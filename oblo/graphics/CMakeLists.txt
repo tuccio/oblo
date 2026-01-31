@@ -5,13 +5,13 @@ target_link_libraries(
     PUBLIC
     oblo::core
     oblo::resource
-    oblo::vk_renderer
+    oblo::vk::renderer
     PRIVATE
     oblo::ecs
     oblo::log
     oblo::options
     oblo::reflection
     oblo::scene
-    oblo::vk
-    oblo::vk_engine
+    oblo::vk::core
+    oblo::vk::engine
 )

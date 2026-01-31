@@ -25,44 +25,44 @@ namespace oblo
     class entity_hierarchy
     {
     public:
-        SCENE_API entity_hierarchy();
+        OBLO_SCENE_API entity_hierarchy();
         entity_hierarchy(const entity_hierarchy&) = delete;
-        SCENE_API entity_hierarchy(entity_hierarchy&&) noexcept;
-        SCENE_API ~entity_hierarchy();
+        OBLO_SCENE_API entity_hierarchy(entity_hierarchy&&) noexcept;
+        OBLO_SCENE_API ~entity_hierarchy();
 
         entity_hierarchy& operator=(const entity_hierarchy&) = delete;
-        SCENE_API entity_hierarchy& operator=(entity_hierarchy&&) noexcept;
+        OBLO_SCENE_API entity_hierarchy& operator=(entity_hierarchy&&) noexcept;
 
-        SCENE_API expected<> init(const ecs::type_registry& typeRegistry);
+        OBLO_SCENE_API expected<> init(const ecs::type_registry& typeRegistry);
 
-        SCENE_API ecs::entity_registry& get_entity_registry();
-        SCENE_API const ecs::entity_registry& get_entity_registry() const;
+        OBLO_SCENE_API ecs::entity_registry& get_entity_registry();
+        OBLO_SCENE_API const ecs::entity_registry& get_entity_registry() const;
 
-        SCENE_API expected<> load(cstring_view source, const entity_hierarchy_serialization_context& ctx);
+        OBLO_SCENE_API expected<> load(cstring_view source, const entity_hierarchy_serialization_context& ctx);
 
-        SCENE_API expected<> load(
+        OBLO_SCENE_API expected<> load(
             cstring_view source, const property_registry& propertyRegistry, const ecs_serializer::read_config& cfg);
 
-        SCENE_API expected<> load(const data_document& doc,
+        OBLO_SCENE_API expected<> load(const data_document& doc,
             const property_registry& propertyRegistry,
             const ecs_serializer::read_config& cfg);
 
-        SCENE_API expected<> save(cstring_view source, const entity_hierarchy_serialization_context& ctx) const;
+        OBLO_SCENE_API expected<> save(cstring_view source, const entity_hierarchy_serialization_context& ctx) const;
 
-        SCENE_API expected<> save(cstring_view source,
+        OBLO_SCENE_API expected<> save(cstring_view source,
             const property_registry& propertyRegistry,
             const ecs_serializer::write_config& cfg) const;
 
-        SCENE_API expected<> save(data_document& doc,
+        OBLO_SCENE_API expected<> save(data_document& doc,
             const property_registry& propertyRegistry,
             const ecs_serializer::write_config& cfg) const;
 
-        SCENE_API expected<> copy_from(const ecs::entity_registry& other,
+        OBLO_SCENE_API expected<> copy_from(const ecs::entity_registry& other,
             const property_registry& propertyRegistry,
             const ecs_serializer::write_config& wCfg,
             const ecs_serializer::read_config& rCfg);
 
-        SCENE_API expected<> copy_to(ecs::entity_registry& other,
+        OBLO_SCENE_API expected<> copy_to(ecs::entity_registry& other,
             const property_registry& propertyRegistry,
             const ecs_serializer::write_config& wCfg,
             const ecs_serializer::read_config& rCfg) const;

@@ -4,7 +4,7 @@ namespace oblo
 {
     struct module_initializer;
 
-    class MODULES_API module_interface
+    class OBLO_MODULES_API module_interface
     {
     public:
         virtual ~module_interface() = default;

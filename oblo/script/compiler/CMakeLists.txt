@@ -1,4 +1,7 @@
-oblo_add_library(script_compiler)
+oblo_add_library(
+    compiler
+    NAMESPACE oblo::script
+)
 
 target_link_libraries(
     oblo_script_compiler
@@ -20,5 +23,3 @@ add_custom_command(
 
 target_include_directories(oblo_script_compiler PRIVATE ${outDir})
 target_sources(oblo_script_compiler PRIVATE ${generatedHeader})
-
-add_library(oblo::script::compiler ALIAS oblo_script_compiler)

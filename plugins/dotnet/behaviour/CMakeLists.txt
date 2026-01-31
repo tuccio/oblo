@@ -1,6 +1,9 @@
-oblo_add_library(dotnet_behaviour MODULE)
+oblo_add_library(
+    behaviour MODULE
+    NAMESPACE oblo::dotnet
+)
 
-oblo_register_core_module(dotnet_behaviour)
+oblo_register_core_module(oblo::dotnet::behaviour)
 
 target_link_libraries(
     oblo_dotnet_behaviour
@@ -12,5 +15,3 @@ target_link_libraries(
     oblo::reflection
     oblo::resource
 )
-
-add_library(oblo::dotnet::behaviour ALIAS oblo_dotnet_behaviour)

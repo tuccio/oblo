@@ -51,27 +51,27 @@ namespace oblo
     class mesh
     {
     public:
-        SCENE_API mesh();
+        OBLO_SCENE_API mesh();
         mesh(const mesh&) = delete;
-        SCENE_API mesh(mesh&& other) noexcept;
+        OBLO_SCENE_API mesh(mesh&& other) noexcept;
         mesh& operator=(const mesh&) = delete;
-        SCENE_API mesh& operator=(mesh&& other) noexcept;
-        SCENE_API ~mesh();
+        OBLO_SCENE_API mesh& operator=(mesh&& other) noexcept;
+        OBLO_SCENE_API ~mesh();
 
-        SCENE_API void allocate(primitive_kind primitive,
+        OBLO_SCENE_API void allocate(primitive_kind primitive,
             u32 vertexCount,
             u32 indexCount,
             u32 meshletCount,
             std::span<const mesh_attribute> attributes);
 
-        SCENE_API void clear();
+        OBLO_SCENE_API void clear();
 
-        SCENE_API void reset_meshlets(u32 numMeshlets);
+        OBLO_SCENE_API void reset_meshlets(u32 numMeshlets);
 
-        SCENE_API bool has_attribute(attribute_kind kind) const;
+        OBLO_SCENE_API bool has_attribute(attribute_kind kind) const;
 
-        SCENE_API std::span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
-        SCENE_API std::span<const std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr) const;
+        OBLO_SCENE_API std::span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
+        OBLO_SCENE_API std::span<const std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr) const;
 
         template <typename T>
         std::span<T> get_attribute(attribute_kind attribute);
@@ -79,23 +79,23 @@ namespace oblo
         template <typename T>
         std::span<const T> get_attribute(attribute_kind attribute) const;
 
-        SCENE_API data_format get_attribute_format(attribute_kind attribute) const;
+        OBLO_SCENE_API data_format get_attribute_format(attribute_kind attribute) const;
 
-        SCENE_API u32 get_attributes_count() const;
-        SCENE_API mesh_attribute get_attribute_at(u32 index) const;
+        OBLO_SCENE_API u32 get_attributes_count() const;
+        OBLO_SCENE_API mesh_attribute get_attribute_at(u32 index) const;
 
-        SCENE_API primitive_kind get_primitive_kind() const;
-        SCENE_API u32 get_vertex_count() const;
-        SCENE_API u32 get_index_count() const;
-        SCENE_API u32 get_meshlet_count() const;
-        SCENE_API u32 get_elements_count(attribute_kind attribute) const;
+        OBLO_SCENE_API primitive_kind get_primitive_kind() const;
+        OBLO_SCENE_API u32 get_vertex_count() const;
+        OBLO_SCENE_API u32 get_index_count() const;
+        OBLO_SCENE_API u32 get_meshlet_count() const;
+        OBLO_SCENE_API u32 get_elements_count(attribute_kind attribute) const;
 
-        SCENE_API std::span<meshlet> get_meshlets();
-        SCENE_API std::span<const meshlet> get_meshlets() const;
+        OBLO_SCENE_API std::span<meshlet> get_meshlets();
+        OBLO_SCENE_API std::span<const meshlet> get_meshlets() const;
 
-        SCENE_API void update_aabb();
-        SCENE_API aabb get_aabb() const;
-        SCENE_API void set_aabb(aabb aabb);
+        OBLO_SCENE_API void update_aabb();
+        OBLO_SCENE_API aabb get_aabb() const;
+        OBLO_SCENE_API void set_aabb(aabb aabb);
 
     private:
         template <typename T, typename Self>

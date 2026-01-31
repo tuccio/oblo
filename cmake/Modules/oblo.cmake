@@ -18,7 +18,7 @@ option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requirin
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
-option(OBLO_FORCE_CONAN_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
+option(OBLO_CONAN_FORCE_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
@@ -78,7 +78,7 @@ function(_oblo_add_source_files target)
     target_sources(${target} PRIVATE ${_oblo_src} ${_oblo_private_includes} ${_oblo_reflection_includes} ${_oblo_reflection_src} PUBLIC ${_oblo_public_includes})
 endfunction(_oblo_add_source_files)
 
-function(_oblo_add_test_impl name)
+function(_oblo_add_test_impl name subfolder)
     set(_test_target "${_oblo_target_prefix}_test_${name}")
 
     add_executable(${_test_target} ${_oblo_test_src})
@@ -90,7 +90,7 @@ function(_oblo_add_test_impl name)
 
     set_target_properties(
         ${_test_target} PROPERTIES
-        FOLDER ${OBLO_FOLDER_TESTS}
+        FOLDER "${OBLO_FOLDER_TESTS}/${subfolder}"
         PROJECT_LABEL "${name}_tests"
     )
 
@@ -135,12 +135,12 @@ function(_oblo_setup_include_dirs target)
 endfunction(_oblo_setup_include_dirs)
 
 macro(_oblo_setup_target_namespace namespace)
-    if(NOT DEFINED namespace OR namespace STREQUAL "")
+    if("${namespace}" STREQUAL "")
         set(_oblo_alias_prefix "oblo")
         set(_oblo_target_prefix "oblo")
     else()
-        set(_oblo_alias_prefix "oblo::${namespace}")
-        set(_oblo_target_prefix "oblo_${namespace}")
+        set(_oblo_alias_prefix "${namespace}")
+        string(REPLACE "::" "_" _oblo_target_prefix "${_oblo_alias_prefix}")
     endif()
 endmacro(_oblo_setup_target_namespace)
 
@@ -174,18 +174,40 @@ function(_oblo_add_codegen_dependency target)
     endif()
 endfunction(_oblo_add_codegen_dependency)
 
+macro(_oblo_deduce_subfolder_from_namespace namespace fallback)
+    set(_target_subfolder "${fallback}")
+
+    if("${namespace}" MATCHES "^oblo::(.+)$")
+        string(REPLACE "::" "/" _target_subfolder "${CMAKE_MATCH_1}")
+    endif()
+endmacro()
+
 function(oblo_add_executable name)
+    cmake_parse_arguments(
+        OBLO_EXE
+        ""
+        "NAMESPACE"
+        ""
+        ${ARGN}
+    )
+
     set(_target "${name}")
     _oblo_find_source_files()
+
     add_executable(${_target})
+
     _oblo_add_source_files(${_target})
     _oblo_setup_include_dirs(${_target})
     _oblo_setup_source_groups()
     _oblo_configure_cxx_target(${_target})
+
     add_executable("oblo::${name}" ALIAS ${_target})
     target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
 
-    set_target_properties(${_target} PROPERTIES FOLDER ${OBLO_FOLDER_APPLICATIONS})
+    _oblo_deduce_subfolder_from_namespace("${OBLO_EXE_NAMESPACE}" "${name}")
+    set(_folder "${OBLO_FOLDER_APPLICATIONS}/${_target_subfolder}")
+
+    set_target_properties(${_target} PROPERTIES FOLDER ${_folder})
 
     if(MSVC)
         set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
@@ -205,6 +227,9 @@ function(oblo_add_library name)
 
     set(_target "${_oblo_target_prefix}_${name}")
     _oblo_find_source_files()
+
+    _oblo_deduce_subfolder_from_namespace("${OBLO_LIB_NAMESPACE}" "${name}")
+    set(_folder "${OBLO_FOLDER_LIBRARIES}/${_target_subfolder}")
 
     set(_withReflection FALSE)
 
@@ -274,7 +299,7 @@ function(oblo_add_library name)
         _oblo_setup_include_dirs(${_target})
         _oblo_configure_cxx_target(${_target})
 
-        string(TOUPPER ${name} _upper_name)
+        string(TOUPPER ${_target} _upper_name)
         set(_api_define "${_upper_name}_API")
 
         if(OBLO_LIB_MODULE)
@@ -299,7 +324,7 @@ function(oblo_add_library name)
     endif()
 
     if(DEFINED _oblo_test_src)
-        _oblo_add_test_impl(${name})
+        _oblo_add_test_impl(${name} ${_target_subfolder})
         target_link_libraries(${_oblo_test_target} PRIVATE ${_target})
 
         if(NOT DEFINED OBLO_LIBRARY_TEST_MAIN)
@@ -312,34 +337,10 @@ function(oblo_add_library name)
 
     set_target_properties(
         ${_vs_proj_target} PROPERTIES
-        FOLDER ${OBLO_FOLDER_LIBRARIES}
+        FOLDER ${_folder}
         PROJECT_LABEL ${name}
     )
 endfunction(oblo_add_library target)
-
-function(oblo_add_test name)
-    cmake_parse_arguments(
-        OBLO_TEST
-        "MAIN"
-        "NAMESPACE"
-        ""
-        ${ARGN}
-    )
-
-    _oblo_setup_target_namespace("${OBLO_TEST_NAMESPACE}")
-
-    _oblo_find_source_files()
-
-    if(NOT DEFINED _oblo_test_src)
-        message(FATAL_ERROR "Attempting to add a test project '${name}', but no test source files were found")
-    endif()
-
-    _oblo_add_test_impl(${name})
-
-    if(NOT DEFINED OBLO_TEST_MAIN)
-        target_link_libraries(${_oblo_test_target} PRIVATE GTest::gtest_main)
-    endif()
-endfunction(oblo_add_test name)
 
 function(oblo_create_symlink source target)
     if(WIN32)
@@ -363,19 +364,14 @@ function(oblo_init_reflection)
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
 
-macro(_oblo_conan_get_last_install_hash_path varName)
-    set(${varName} "${CMAKE_BINARY_DIR}/conan/last_conan_install")
-endmacro()
-
 function(oblo_init_conan)
-    if(OBLO_FORCE_CONAN_INSTALL)
+    if(OBLO_CONAN_FORCE_INSTALL)
         message(STATUS "Conan install will not be skipped due to CMake configuration")
         return()
     endif()
 
     # Run conan install only if conanfile.py changed
     set(_conanfile "${CMAKE_SOURCE_DIR}/conanfile.py")
-    _oblo_conan_get_last_install_hash_path(_last_hashfile)
 
     if(NOT EXISTS "${_conanfile}")
         message(FATAL_ERROR "conanfile.py not found at ${_conanfile}")
@@ -383,17 +379,11 @@ function(oblo_init_conan)
 
     file(SHA256 "${_conanfile}" _conanfile_hash)
 
-    if(EXISTS "${_last_hashfile}")
-        file(READ "${_last_hashfile}" _last_hash)
-        string(STRIP "${_last_hash}" _last_hash)
-    else()
-        set(_last_hash "")
-    endif()
-
-    if("${_conanfile_hash}" STREQUAL "${_last_hash}")
+    if("${_conanfile_hash}" STREQUAL "${OBLO_CONAN_LAST_INSTALL_ID}")
         message(STATUS "Conan install skipped: no change detected")
         set_property(GLOBAL PROPERTY CONAN_INSTALL_SUCCESS TRUE)
     else()
+        message(STATUS "Conan install required: last hash was ${OBLO_CONAN_LAST_INSTALL_ID}, current is ${_conanfile_hash}")
         set_property(GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH "${_conanfile_hash}")
     endif()
 endfunction()
@@ -426,8 +416,11 @@ function(oblo_shutdown_conan)
 
     if(${_success})
         get_property(_conanfile_hash GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH)
-        _oblo_conan_get_last_install_hash_path(_last_hashfile)
-        file(WRITE "${_last_hashfile}" "${_conanfile_hash}")
+
+        if(OBLO_CONAN_PENDING_HASH)
+            set(OBLO_CONAN_LAST_INSTALL_ID "${_conanfile_hash}" CACHE STRING "The id of the last successful conan install" FORCE)
+            mark_as_advanced(OBLO_CONAN_LAST_INSTALL_ID)
+        endif()
     endif()
 endfunction()
 

@@ -1,6 +1,9 @@
-oblo_add_library(script_editor MODULE)
+oblo_add_library(
+    editor MODULE
+    NAMESPACE oblo::script
+)
 
-oblo_register_editor_module(script_editor)
+oblo_register_editor_module(oblo::script::editor)
 
 find_package(iconfontcppheaders REQUIRED)
 
@@ -13,5 +16,3 @@ target_link_libraries(
     oblo::nodes::editor
     iconfontcppheaders::iconfontcppheaders
 )
-
-add_library(oblo::script::editor ALIAS oblo_script_editor)

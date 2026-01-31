@@ -30,4 +30,4 @@ target_link_libraries(
     oblo::test::glTF::SampleModels
 )
 
-oblo_register_asset_module(importers)
+oblo_register_asset_module(oblo::importers)

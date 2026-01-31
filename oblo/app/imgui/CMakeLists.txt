@@ -8,8 +8,8 @@ target_link_libraries(
     oblo::app
     PRIVATE
     oblo::scene
-    oblo::vk_engine
-    oblo::vk_renderer
+    oblo::vk::engine
+    oblo::vk::renderer
     imgui::imgui
     imgui::backend
 )

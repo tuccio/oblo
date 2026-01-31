@@ -7,6 +7,6 @@
 
 namespace oblo::dotnet_utility
 {
-    DOTNET_ASSET_API expected<> generate_csproj(cstring_view path);
-    DOTNET_ASSET_API expected<> find_cs_files(cstring_view directory, function_ref<void(cstring_view)> cb);
+    OBLO_DOTNET_ASSET_API expected<> generate_csproj(cstring_view path);
+    OBLO_DOTNET_ASSET_API expected<> find_cs_files(cstring_view directory, function_ref<void(cstring_view)> cb);
 }

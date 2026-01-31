@@ -12,20 +12,20 @@ namespace oblo
     class runtime_registry
     {
     public:
-        RUNTIME_API runtime_registry();
+        OBLO_RUNTIME_API runtime_registry();
         runtime_registry(const runtime_registry&) = delete;
-        RUNTIME_API runtime_registry(runtime_registry&&) noexcept;
+        OBLO_RUNTIME_API runtime_registry(runtime_registry&&) noexcept;
 
-        RUNTIME_API ~runtime_registry();
+        OBLO_RUNTIME_API ~runtime_registry();
 
         runtime_registry& operator=(const runtime_registry&) = delete;
-        RUNTIME_API runtime_registry& operator=(runtime_registry&&) noexcept;
+        OBLO_RUNTIME_API runtime_registry& operator=(runtime_registry&&) noexcept;
 
-        RUNTIME_API property_registry& get_property_registry();
+        OBLO_RUNTIME_API property_registry& get_property_registry();
 
-        RUNTIME_API resource_registry& get_resource_registry();
+        OBLO_RUNTIME_API resource_registry& get_resource_registry();
 
-        RUNTIME_API void shutdown();
+        OBLO_RUNTIME_API void shutdown();
 
     private:
         explicit runtime_registry(property_registry* propertyRegistry);

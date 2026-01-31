@@ -26,7 +26,7 @@ namespace oblo
     {
         m_resourceRegistry = ctx.services->find<const resource_registry>();
 
-        constexpr hashed_string_view runtimeModule = "oblo_dotnet_rt"_hsv;
+        constexpr hashed_string_view runtimeModule = "oblo_dotnet_runtime"_hsv;
         auto* const dotnetModule = dynamic_cast<dotnet_module*>(module_manager::get().find(runtimeModule));
 
         if (dotnetModule)

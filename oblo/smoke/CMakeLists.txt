@@ -25,7 +25,7 @@ target_link_libraries(
 # We need access to shaders etc
 set_target_properties(oblo_test_smoke PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
-oblo_register_asset_module_loader(oblo_smoke)
+oblo_register_asset_module_loader(oblo::smoke)
 
 if(OBLO_WITH_DOTNET)
     target_link_libraries(

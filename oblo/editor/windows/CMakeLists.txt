@@ -1,4 +1,7 @@
-oblo_add_library(editor_windows)
+oblo_add_library(
+    windows
+    NAMESPACE oblo::editor
+)
 
 find_package(iconfontcppheaders REQUIRED)
 find_package(ImGui REQUIRED)
@@ -19,11 +22,9 @@ target_link_libraries(
     oblo::options
     oblo::properties
     oblo::scene
-    oblo::vk
-    oblo::vk_renderer
+    oblo::vk::core
+    oblo::vk::renderer
     imgui::imgui
     iconfontcppheaders::iconfontcppheaders
     imguizmo::imguizmo
 )
-
-add_library(oblo::editor::windows ALIAS oblo_editor_windows)

@@ -1,4 +1,7 @@
-oblo_add_executable(ocodegen)
+oblo_add_executable(
+    ocodegen
+    NAMESPACE oblo::reflection
+)
 
 find_package(LibClang REQUIRED)
 find_package(RapidJSON REQUIRED)

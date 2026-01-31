@@ -6,5 +6,5 @@ namespace oblo
 {
     struct resource_type_descriptor;
 
-    SCENE_API void fetch_scene_resource_types(deque<resource_type_descriptor>& outResourceTypes);
+    OBLO_SCENE_API void fetch_scene_resource_types(deque<resource_type_descriptor>& outResourceTypes);
 }

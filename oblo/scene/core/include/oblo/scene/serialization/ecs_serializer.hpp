@@ -26,13 +26,13 @@ namespace oblo
             ecs::component_and_tag_sets addTypes{};
         };
 
-        SCENE_API expected<> write(data_document& doc,
+        OBLO_SCENE_API expected<> write(data_document& doc,
             u32 docRoot,
             const ecs::entity_registry& reg,
             const property_registry& propertyRegistry,
             const write_config& cfg = {});
 
-        SCENE_API expected<> read(ecs::entity_registry& reg,
+        OBLO_SCENE_API expected<> read(ecs::entity_registry& reg,
             const data_document& doc,
             u32 docRoot,
             const property_registry& propertyRegistry,

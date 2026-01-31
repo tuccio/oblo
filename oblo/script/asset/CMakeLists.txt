@@ -1,6 +1,9 @@
-oblo_add_library(script_asset MODULE)
+oblo_add_library(
+    asset MODULE
+    NAMESPACE oblo::script
+)
 
-oblo_register_asset_module(script_asset)
+oblo_register_asset_module(oblo::script::asset)
 
 target_link_libraries(
     oblo_script_asset
@@ -16,5 +19,3 @@ target_link_libraries(
     oblo::script::compiler
     oblo::script::resource
 )
-
-add_library(oblo::script::asset ALIAS oblo_script_asset)
