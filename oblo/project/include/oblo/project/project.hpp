@@ -17,4 +17,5 @@ namespace oblo
     };
 
     expected<project> project_load(cstring_view path);
+    expected<> project_save(const project& project, cstring_view path);
 }

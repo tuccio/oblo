@@ -51,5 +51,33 @@ namespace oblo
 
         return p;
     }
-}
 
+    expected<> project_save(const project& project, cstring_view path)
+    {
+        data_document doc;
+
+        doc.init();
+        const auto root = doc.get_root();
+
+        doc.child_value(root, "name"_hsv, property_value_wrapper{project.name});
+
+        const auto dirs = doc.child_object(root, "directories"_hsv);
+
+        doc.child_value(dirs, "assets"_hsv, property_value_wrapper{project.assetsDir});
+        doc.child_value(dirs, "artifacts"_hsv, property_value_wrapper{project.artifactsDir});
+        doc.child_value(dirs, "sources"_hsv, property_value_wrapper{project.sourcesDir});
+
+        if (!project.modules.empty())
+        {
+            const auto array = doc.child_array(root, "modules"_hsv);
+
+            for (const string_view m : project.modules)
+            {
+                const auto e = doc.array_push_back(array);
+                doc.make_value(e, property_value_wrapper{m});
+            }
+        }
+
+        return json::write(doc, path);
+    }
+}

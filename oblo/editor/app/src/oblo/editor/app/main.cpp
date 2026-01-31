@@ -1,7 +1,9 @@
 #include <oblo/core/platform/core.hpp>
-#include <oblo/modules/module_manager.hpp>
 
-#include "app.hpp"
+#include <oblo/core/finally.hpp>
+#include <oblo/core/platform/core.hpp>
+#include <oblo/editor/app/app.hpp>
+#include <oblo/editor/app/launcher.hpp>
 
 namespace oblo
 {
@@ -16,14 +18,45 @@ namespace oblo
 
 int main(int argc, char* argv[])
 {
-    oblo::editor::app editorApp;
-
-    if (!editorApp.init(argc, argv))
+    struct error_code
     {
-        return 1;
+        enum values
+        {
+            ok,
+            platform_init_failed,
+            launch_cancelled,
+            editor_startup_failed,
+        };
+    };
+
+    if (!oblo::platform::init())
+    {
+        return error_code::platform_init_failed;
     }
 
-    editorApp.run();
+    const auto platformShutdown = oblo::finally([] { oblo::platform::shutdown(); });
 
-    return 0;
+    oblo::editor::run_config runConfig;
+
+    {
+        oblo::editor::launcher launcher;
+
+        if (!launcher.run(argc, argv, runConfig))
+        {
+            return error_code::launch_cancelled;
+        }
+    }
+
+    {
+        oblo::editor::app editorApp;
+
+        if (!editorApp.init(runConfig))
+        {
+            return error_code::editor_startup_failed;
+        }
+
+        editorApp.run();
+    }
+
+    return error_code::ok;
 }

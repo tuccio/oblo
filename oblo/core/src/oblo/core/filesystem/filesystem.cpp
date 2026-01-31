@@ -209,7 +209,7 @@ namespace oblo::filesystem
         return no_error;
     }
 
-    expected<bool> exists(cstring_view path)
+    expected<bool> exists(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
         std::error_code ec;
@@ -223,7 +223,7 @@ namespace oblo::filesystem
         return exists;
     }
 
-    expected<bool> remove(cstring_view path)
+    expected<bool> remove(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
         std::error_code ec;
@@ -238,7 +238,7 @@ namespace oblo::filesystem
         return r;
     }
 
-    expected<bool> remove_all(cstring_view path)
+    expected<bool> remove_all(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
         std::error_code ec;
@@ -253,7 +253,7 @@ namespace oblo::filesystem
         return r;
     }
 
-    expected<bool> rename(cstring_view from, cstring_view to)
+    expected<bool> rename(string_view from, string_view to)
     {
         std::filesystem::path f{std::u8string_view{from.u8data(), from.size()}};
         std::filesystem::path t{std::u8string_view{to.u8data(), to.size()}};
@@ -269,7 +269,7 @@ namespace oblo::filesystem
         return true;
     }
 
-    expected<bool> copy_file(cstring_view source, cstring_view destination)
+    expected<bool> copy_file(string_view source, string_view destination)
     {
         std::filesystem::path p1{std::u8string_view{source.u8data(), source.size()}};
         std::filesystem::path p2{std::u8string_view{destination.u8data(), destination.size()}};
@@ -286,7 +286,7 @@ namespace oblo::filesystem
         return r;
     }
 
-    expected<bool> create_directories(cstring_view path)
+    expected<bool> create_directories(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
         std::error_code ec;
@@ -317,7 +317,7 @@ namespace oblo::filesystem
         return no_error;
     }
 
-    expected<bool> is_directory(cstring_view path)
+    expected<bool> is_directory(string_view path)
     {
         std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
         std::error_code ec;
