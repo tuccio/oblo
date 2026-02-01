@@ -2,7 +2,7 @@
 
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/utility/debug_utils.hpp>
+#include <oblo/gpu/vulkan/utility/debug_utils.hpp>
 #include <vulkan/vulkan.h>
 
 #include <span>
@@ -10,9 +10,9 @@
 VK_DEFINE_HANDLE(VmaAllocator)
 VK_DEFINE_HANDLE(VmaAllocation)
 
-namespace oblo::vk
+namespace oblo::gpu::vk
 {
-    enum class memory_usage : u8
+    enum class allocated_memory_usage : u8
     {
         unknown = 0,
         gpu_only = 1,
@@ -24,8 +24,8 @@ namespace oblo::vk
     struct allocated_image;
     struct allocated_buffer;
 
-    struct buffer_initializer;
-    struct image_initializer;
+    struct allocated_buffer_initializer;
+    struct allocated_image_initializer;
 
     class gpu_allocator
     {
@@ -40,18 +40,18 @@ namespace oblo::vk
 
         ~gpu_allocator();
 
-        bool init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
+        VkResult init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
 
         void shutdown();
 
-        VkResult create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer);
-        VkResult create_image(const image_initializer& initializer, allocated_image* outImage);
+        VkResult create_buffer(const allocated_buffer_initializer& initializer, allocated_buffer* outBuffer);
+        VkResult create_image(const allocated_image_initializer& initializer, allocated_image* outImage);
 
         void destroy(const allocated_buffer& buffer);
         void destroy(const allocated_image& image);
 
         VmaAllocation create_memory(VkMemoryRequirements requirements,
-            memory_usage memoryUsage,
+            allocated_memory_usage memoryUsage,
             debug_label debugLabel = std::source_location::current());
 
         void destroy_memory(VmaAllocation allocation);
@@ -81,14 +81,14 @@ namespace oblo::vk
         VmaAllocation allocation;
     };
 
-    struct buffer_initializer
+    struct allocated_buffer_initializer
     {
         u32 size;
         VkBufferUsageFlags usage;
 
         // One between required flags and memory usage has to be non-zero
         VkMemoryPropertyFlags requiredFlags;
-        memory_usage memoryUsage;
+        allocated_memory_usage memoryUsage;
 
         debug_label debugLabel{std::source_location::current()};
     };
@@ -99,7 +99,7 @@ namespace oblo::vk
         VmaAllocation allocation;
     };
 
-    struct image_initializer
+    struct allocated_image_initializer
     {
         VkImageCreateFlags flags;
         VkImageType imageType;
@@ -111,7 +111,7 @@ namespace oblo::vk
         VkImageTiling tiling;
         VkImageUsageFlags usage;
         VkImageLayout initialLayout;
-        memory_usage memoryUsage;
+        allocated_memory_usage memoryUsage;
 
         debug_label debugLabel{std::source_location::current()};
     };

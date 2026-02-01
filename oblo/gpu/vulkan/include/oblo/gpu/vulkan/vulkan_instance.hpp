@@ -54,7 +54,7 @@ namespace oblo::gpu
         VkInstance m_instance{};
         VkPhysicalDevice m_physicalDevice{};
         VkDevice m_device{};
-        gpu_allocator m_allocator;
+        vk::gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
     };

@@ -1,11 +1,10 @@
-#include <oblo/vulkan/gpu_allocator.hpp>
+#include <oblo/gpu/vulkan/gpu_allocator.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/log/log.hpp>
 
 #ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4100 4127 4189 4324 4505)
+    #pragma warning(push)
+    #pragma warning(disable : 4100 4127 4189 4324 4505)
 #endif
 
 #if 0 // Can change this to enable logging from VMA, it's a little verbose though
@@ -26,16 +25,16 @@
 #include <vk_mem_alloc.h>
 
 #ifdef _MSC_VER
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
-namespace oblo::vk
+namespace oblo::gpu::vk
 {
-    static_assert(u32(memory_usage::unknown) == VMA_MEMORY_USAGE_UNKNOWN);
-    static_assert(u32(memory_usage::cpu_only) == VMA_MEMORY_USAGE_CPU_ONLY);
-    static_assert(u32(memory_usage::gpu_only) == VMA_MEMORY_USAGE_GPU_ONLY);
-    static_assert(u32(memory_usage::cpu_to_gpu) == VMA_MEMORY_USAGE_CPU_TO_GPU);
-    static_assert(u32(memory_usage::gpu_to_cpu) == VMA_MEMORY_USAGE_GPU_TO_CPU);
+    static_assert(u32(allocated_memory_usage::unknown) == VMA_MEMORY_USAGE_UNKNOWN);
+    static_assert(u32(allocated_memory_usage::cpu_only) == VMA_MEMORY_USAGE_CPU_ONLY);
+    static_assert(u32(allocated_memory_usage::gpu_only) == VMA_MEMORY_USAGE_GPU_ONLY);
+    static_assert(u32(allocated_memory_usage::cpu_to_gpu) == VMA_MEMORY_USAGE_CPU_TO_GPU);
+    static_assert(u32(allocated_memory_usage::gpu_to_cpu) == VMA_MEMORY_USAGE_GPU_TO_CPU);
 
     gpu_allocator::gpu_allocator(gpu_allocator&& other) noexcept : m_allocator{other.m_allocator}
     {
@@ -55,11 +54,11 @@ namespace oblo::vk
         shutdown();
     }
 
-    bool gpu_allocator::init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device)
+    VkResult gpu_allocator::init(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device)
     {
         if (m_allocator)
         {
-            return false;
+            return VK_ERROR_UNKNOWN;
         }
 
         const VmaAllocatorCreateInfo createInfo{
@@ -69,7 +68,7 @@ namespace oblo::vk
             .instance = instance,
         };
 
-        return vmaCreateAllocator(&createInfo, &m_allocator) == VK_SUCCESS;
+        return vmaCreateAllocator(&createInfo, &m_allocator);
     }
 
     void gpu_allocator::shutdown()
@@ -81,7 +80,7 @@ namespace oblo::vk
         }
     }
 
-    VkResult gpu_allocator::create_buffer(const buffer_initializer& initializer, allocated_buffer* outBuffer)
+    VkResult gpu_allocator::create_buffer(const allocated_buffer_initializer& initializer, allocated_buffer* outBuffer)
     {
         OBLO_ASSERT(initializer.size != 0);
 
@@ -112,7 +111,7 @@ namespace oblo::vk
         return result;
     }
 
-    VkResult gpu_allocator::create_image(const image_initializer& initializer, allocated_image* outImage)
+    VkResult gpu_allocator::create_image(const allocated_image_initializer& initializer, allocated_image* outImage)
     {
         const VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -153,7 +152,7 @@ namespace oblo::vk
     }
 
     VmaAllocation gpu_allocator::create_memory(
-        VkMemoryRequirements requirements, memory_usage memoryUsage, debug_label debugLabel)
+        VkMemoryRequirements requirements, allocated_memory_usage memoryUsage, debug_label debugLabel)
     {
         const VmaAllocationCreateInfo createInfo{
             .usage = VmaMemoryUsage(memoryUsage),

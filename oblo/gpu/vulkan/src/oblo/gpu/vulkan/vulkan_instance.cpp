@@ -328,6 +328,11 @@ namespace oblo::gpu
             vkGetDeviceQueue(m_device, q.familyIndex, 0, &q.queue);
         }
 
+        if (const VkResult r = m_allocator.init(m_instance, m_physicalDevice, m_device); r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
         return no_error;
     }
 

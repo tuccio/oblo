@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
-namespace oblo::vk::debug_utils
+namespace oblo::gpu::vk::debug_utils
 {
     struct label
     {

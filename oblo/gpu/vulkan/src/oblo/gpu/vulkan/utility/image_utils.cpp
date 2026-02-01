@@ -1,6 +1,4 @@
-#include <oblo/vulkan/utility/image_utils.hpp>
-
-#include <oblo/vulkan/error.hpp>
+#include <oblo/gpu/vulkan/utility/image_utils.hpp>
 
 namespace oblo::vk::image_utils
 {
