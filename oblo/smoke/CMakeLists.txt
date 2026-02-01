@@ -22,8 +22,8 @@ target_link_libraries(
     oblo::test::glTF::SampleModels
 )
 
-# We need access to shaders etc
-set_target_properties(oblo_test_smoke PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+# We need access to shaders, possibly .NET runtime
+set_target_properties(oblo_test_smoke PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:oblo>")
 
 oblo_register_asset_module_loader(oblo::smoke)
 

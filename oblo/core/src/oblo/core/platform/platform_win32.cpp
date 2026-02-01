@@ -159,6 +159,20 @@ namespace oblo::platform
         return SetEnvironmentVariableW(wKeyBuffer.data(), wValueBuffer.data()) == TRUE;
     }
 
+    bool get_main_executable_path(string_builder& out)
+    {
+        wchar_t buffer[MAX_PATH];
+        const DWORD res = GetModuleFileNameW(g_moduleHandle, buffer, MAX_PATH);
+
+        if (res == 0)
+        {
+            return false;
+        }
+
+        out.assign(buffer, buffer + res);
+        return true;
+    }
+
     process::process() = default;
 
     process::process(process&& other) noexcept
