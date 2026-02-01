@@ -175,8 +175,7 @@ namespace oblo::gpu
         vkDestroySurfaceKHR(m_instance, unwrap_handle<VkSurfaceKHR>(handle), nullptr);
     }
 
-    result<> vulkan_instance::create_device_and_queues(const device_descriptor& deviceDescriptor,
-        hptr<surface> presentSurface)
+    result<> vulkan_instance::finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface)
     {
         u32 physicalDevicesCount{0u};
 
@@ -339,8 +338,15 @@ namespace oblo::gpu
 
     result<h32<swapchain>> vulkan_instance::create_swapchain(const swapchain_descriptor& swapchain)
     {
-        (void) swapchain;
+
         return error::undefined;
+    }
+
+    void vulkan_instance::destroy_swapchain(h32<swapchain> handle) {}
+
+    result<h32<image>> vulkan_instance::acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore)
+    {
+        //
     }
 
     result<h32<command_buffer_pool>> vulkan_instance::create_command_buffer_pool(

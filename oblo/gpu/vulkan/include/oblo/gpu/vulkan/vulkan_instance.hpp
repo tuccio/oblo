@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 
 #include <vulkan/vulkan_core.h>
@@ -26,12 +27,14 @@ namespace oblo::gpu
         result<hptr<surface>> create_surface(hptr<native_window> nativeWindow) override;
         void destroy_surface(hptr<surface> surface) override;
 
-        result<> create_device_and_queues(const device_descriptor& deviceDescriptor,
-            hptr<surface> presentSurface) override;
+        result<> finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface) override;
 
         h32<queue> get_universal_queue() override;
 
-        result<h32<swapchain>> create_swapchain(const swapchain_descriptor& swapchain) override;
+        result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) override;
+        void destroy_swapchain(h32<swapchain> handle) override;
+
+        result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) override;
 
         result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) override;
@@ -46,6 +49,7 @@ namespace oblo::gpu
 
     private:
         struct queue_impl;
+        struct swapchain_impl;
 
     private:
         VkInstance m_instance{};
@@ -53,5 +57,6 @@ namespace oblo::gpu
         VkDevice m_device{};
         VmaAllocator m_allocator{};
         dynamic_array<queue_impl> m_queues;
+        h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
     };
 }

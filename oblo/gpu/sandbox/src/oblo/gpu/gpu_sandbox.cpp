@@ -49,7 +49,7 @@ namespace oblo
                 m_windowSurface = *surface;
             }
 
-            if (!m_gpu->create_device_and_queues(
+            if (!m_gpu->finalize_init(
                     {
                         .requireHardwareRaytracing = false,
                     },

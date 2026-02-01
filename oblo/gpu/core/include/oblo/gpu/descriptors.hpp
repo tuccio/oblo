@@ -1,7 +1,7 @@
 #pragma once
 
-#include <oblo/core/flags.hpp>
 #include <oblo/gpu/forward.hpp>
+#include <oblo/gpu/types.hpp>
 
 namespace oblo::gpu
 {
@@ -14,5 +14,11 @@ namespace oblo::gpu
     {
         const char* application;
         const char* engine;
+    };
+
+    struct swapchain_descriptor
+    {
+        image_format format;
+        u32 numImages;
     };
 }
