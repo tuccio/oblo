@@ -7,6 +7,7 @@ namespace oblo::gpu
     struct command_buffer;
     struct fence;
     struct image;
+    struct native_window;
     struct queue;
     struct semaphore;
     struct surface;
@@ -16,9 +17,9 @@ namespace oblo::gpu
     struct command_buffer_pool_descriptor;
     struct device_descriptor;
     struct image_descriptor;
+    struct instance_descriptor;
     struct queue_descriptor;
     struct queue_submit_descriptor;
-    struct surface_descriptor;
     struct swapchain_descriptor;
 
     enum class error;

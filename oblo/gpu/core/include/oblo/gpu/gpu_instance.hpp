@@ -18,19 +18,20 @@ namespace oblo::gpu
     public:
         virtual ~gpu_instance() = default;
 
-        virtual result<> init() = 0;
+        virtual result<> init(const instance_descriptor& descriptor) = 0;
         virtual void shutdown() = 0;
 
-        virtual result<h32<surface>> create_surface(const surface_descriptor& surface) = 0;
+        virtual result<hptr<surface>> create_surface(hptr<native_window> nativeWindow) = 0;
+        virtual void destroy_surface(hptr<surface> surface) = 0;
 
-        virtual result<> create_device_and_queues(const device_descriptor& deviceDesciptors,
+        virtual result<> create_device_and_queues(const device_descriptor& deviceDescriptors,
             std::span<const queue_descriptor> queueDescriptors,
             std::span<h32<queue>> outQueues) = 0;
 
         virtual result<h32<swapchain>> create_swapchain(const swapchain_descriptor& swapchain) = 0;
 
         virtual result<h32<command_buffer_pool>> create_command_buffer_pool(
-            const command_buffer_pool_descriptor& init) = 0;
+            const command_buffer_pool_descriptor& descriptor) = 0;
 
         virtual result<> fetch_command_buffers(h32<command_buffer_pool> pool,
             std::span<hptr<command_buffer>> commandBuffers) = 0;
