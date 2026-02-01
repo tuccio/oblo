@@ -1399,7 +1399,7 @@ namespace oblo
             }
             else
             {
-                string_view destination;
+                cstring_view destination;
 
                 if (importProcess.importer.is_reimport())
                 {
@@ -1416,19 +1416,23 @@ namespace oblo
 
                     filesystem::parent_path(assetIt->second.path.view(), builder);
 
-                    destination = builder.make_canonical_path().as<string_view>();
+                    destination = builder.make_canonical_path().as<cstring_view>();
                     importProcess.importer.set_asset_name(filesystem::filename(assetIt->second.path));
 
                     OBLO_ASSERT(assetIt->second.isProcessing);
                     assetIt->second.isProcessing = false;
                 }
+                else if (is_asset_path(importProcess.destination))
+                {
+                    resolve_asset_path(builder, importProcess.destination);
+                    destination = builder.as<cstring_view>();
+                }
                 else
                 {
-                    destination = importProcess.destination.as<string_view>();
+                    destination = importProcess.destination.as<cstring_view>();
                 }
 
-                const auto result =
-                    importProcess.importer.finalize(*m_impl, importProcess.destination, importProcess.assetSource);
+                const auto result = importProcess.importer.finalize(*m_impl, destination, importProcess.assetSource);
 
                 if (!result)
                 {

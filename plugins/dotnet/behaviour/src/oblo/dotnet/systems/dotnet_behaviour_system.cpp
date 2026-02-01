@@ -1,6 +1,8 @@
 #include <oblo/dotnet/systems/dotnet_behaviour_system.hpp>
 
 #include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/dotnet/components/dotnet_behaviour_component.hpp>
@@ -31,27 +33,38 @@ namespace oblo
 
         if (dotnetModule)
         {
+            string_builder mainExe;
+            string_builder managedAssembly;
+
+            if (platform::get_main_executable_path(mainExe))
+            {
+                filesystem::parent_path(mainExe.view(), managedAssembly);
+            }
+            else
+            {
+                filesystem::current_path(managedAssembly);
+            }
+
+            managedAssembly.append_path("managed").append_path("Oblo.Managed.dll");
+
             const auto& dotnetRuntime = dotnetModule->get_runtime();
 
-            m_create = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<create_system_fn>>(
-                "managed/Oblo.Managed.dll",
+            m_create = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<create_system_fn>>(managedAssembly,
                 "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
                 "Create");
 
-            m_destroy = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<destroy_system_fn>>(
-                "managed/Oblo.Managed.dll",
+            m_destroy = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<destroy_system_fn>>(managedAssembly,
                 "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
                 "Destroy");
 
-            m_update = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<update_system_fn>>(
-                "managed/Oblo.Managed.dll",
+            m_update = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<update_system_fn>>(managedAssembly,
                 "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
                 "Update");
 
-            m_registerBehaviour = dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<register_behaviour_fn>>(
-                "managed/Oblo.Managed.dll",
-                "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
-                "RegisterBehaviour");
+            m_registerBehaviour =
+                dotnetRuntime.load_assembly_delegate<std::remove_pointer_t<register_behaviour_fn>>(managedAssembly,
+                    "Oblo.Behaviour.BehaviourSystem, Oblo.Managed",
+                    "RegisterBehaviour");
 
             if (m_create && m_destroy && m_update && m_registerBehaviour)
             {

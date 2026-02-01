@@ -8,5 +8,5 @@ namespace oblo
     struct scale_component
     {
         vec3 value;
-    } OBLO_COMPONENT(ScriptAPI);
+    } OBLO_COMPONENT("3db97c8e-d984-494f-8644-026eb4bfa006", ScriptAPI);
 }

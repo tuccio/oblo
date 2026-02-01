@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/uuid.hpp>
 
 namespace oblo::ecs
 {
@@ -12,6 +13,7 @@ namespace oblo::ecs
     struct component_type_desc
     {
         type_id type;
+        uuid stableId;
         u32 size;
         u32 alignment;
         create_fn create;

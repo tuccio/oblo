@@ -16,7 +16,7 @@ namespace oblo
     struct script_behaviour_component
     {
         resource_ref<compiled_script> script{};
-    } OBLO_COMPONENT(ScriptAPI);
+    } OBLO_COMPONENT("d76fbb7c-470a-4cad-96d2-1e6bd9571726", ScriptAPI);
 
     struct script_behaviour_state_component
     {
@@ -30,9 +30,9 @@ namespace oblo
         set_global_context_fn setGlobalContext{};
         execute_fn execute{};
         bool fallbackToInterpreted{};
-    } OBLO_COMPONENT(Transient);
+    } OBLO_COMPONENT("e1cd78e6-6ec0-4e14-bbff-cdc0a8b0a50d", Transient);
 
     struct script_behaviour_update_tag
     {
-    } OBLO_TAG(Transient);
+    } OBLO_TAG("26039857-79db-4c7e-89b9-fc23b093af69", Transient);
 }

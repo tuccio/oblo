@@ -12,5 +12,5 @@ namespace oblo
         radians fovy;
         f32 near;
         f32 far;
-    } OBLO_COMPONENT(ScriptAPI);
+    } OBLO_COMPONENT("503720b5-e339-46d3-a29a-1883e9f00bca", ScriptAPI);
 }

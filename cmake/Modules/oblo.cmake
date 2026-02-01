@@ -210,7 +210,7 @@ function(oblo_add_executable name)
     set_target_properties(${_target} PROPERTIES FOLDER ${_folder})
 
     if(MSVC)
-        set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+        set_target_properties(${_target} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${_target}>")
     endif(MSVC)
 endfunction(oblo_add_executable target)
 
@@ -342,16 +342,38 @@ function(oblo_add_library name)
     )
 endfunction(oblo_add_library target)
 
-function(oblo_create_symlink source target)
+function(oblo_add_data_folder data_target data_dir)
+    add_library(${data_target} IMPORTED INTERFACE GLOBAL)
+
+    set_property(TARGET ${data_target}
+        PROPERTY OBLO_DATA_FOLDER "${data_dir}"
+    )
+endfunction()
+
+function(oblo_make_create_symlink_command var_name source target)
+    set(_dst "$<SHELL_PATH:${target}>")
+    set(_src "$<SHELL_PATH:${source}>")
+
     if(WIN32)
-        # We create a junction on Windows, to avoid admin rights issues
-        file(TO_NATIVE_PATH "${source}" _src)
-        file(TO_NATIVE_PATH "${target}" _dst)
-        execute_process(COMMAND cmd.exe /c mklink /J "${_dst}" "${_src}")
+        set(${var_name} cmd.exe /c if not exist "${_dst}" mklink /J "${_dst}" "${_src}" PARENT_SCOPE)
     else()
-        execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${source} ${target})
+        set(${var_name} ${CMAKE_COMMAND} -E create_symlink "${_src}" "${_dst}" PARENT_SCOPE)
     endif()
-endfunction(oblo_create_symlink)
+endfunction(oblo_make_create_symlink_command)
+
+function(oblo_symlink_to_data_folder target data_target destination)
+    set(_data_dir "$<TARGET_PROPERTY:${data_target},OBLO_DATA_FOLDER>")
+    oblo_make_create_symlink_command(_create_link_cmd ${_data_dir} ${destination})
+
+    add_custom_command(
+        TARGET ${target}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<PATH:GET_PARENT_PATH,${destination}>
+        COMMAND ${_create_link_cmd}
+        COMMAND_EXPAND_LISTS
+        COMMENT "Linking data folder ${data_target} to ${target}"
+    )
+endfunction()
 
 function(oblo_init_reflection)
     set(_codegen_exe_target ocodegen)
@@ -417,7 +439,7 @@ function(oblo_shutdown_conan)
     if(${_success})
         get_property(_conanfile_hash GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH)
 
-        if(OBLO_CONAN_PENDING_HASH)
+        if(_conanfile_hash)
             set(OBLO_CONAN_LAST_INSTALL_ID "${_conanfile_hash}" CACHE STRING "The id of the last successful conan install" FORCE)
             mark_as_advanced(OBLO_CONAN_LAST_INSTALL_ID)
         endif()

@@ -2,6 +2,7 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/uuid.hpp>
 
 #include <unordered_set>
 
@@ -22,6 +23,7 @@ namespace oblo::gen
         resource,
         script_api,
         transient,
+        uuid,
         enum_max,
     };
 
@@ -50,6 +52,7 @@ namespace oblo::gen
         flags<record_flags> flags;
 
         i32 attrGpuComponent{-1};
+        i32 attrUuid{-1};
     };
 
     struct target_data

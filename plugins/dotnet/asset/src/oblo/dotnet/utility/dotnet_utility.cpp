@@ -2,6 +2,7 @@
 
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/platform/core.hpp>
 
 namespace oblo::dotnet_utility
 {
@@ -9,10 +10,19 @@ namespace oblo::dotnet_utility
     {
         constexpr string_view targetFramework = "net9.0";
 
+        string_builder mainExe;
         string_builder managedHint;
 
-        filesystem::current_path(managedHint);
-        managedHint.append_path("managed/Oblo.Managed.dll");
+        if (platform::get_main_executable_path(mainExe))
+        {
+            filesystem::parent_path(mainExe.view(), managedHint);
+        }
+        else
+        {
+            filesystem::current_path(managedHint);
+        }
+
+        managedHint.append_path("managed").append_path("Oblo.Managed.dll");
 
         string_builder content;
 

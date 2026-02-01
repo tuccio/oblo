@@ -44,11 +44,22 @@ namespace oblo::ecs
 
         component_type type{u32(m_components.size())};
 
-        const auto [it, inserted] = m_types.emplace(desc.type,
-            any_type_info{
-                .id = type.value,
-                .kind = type_kind::component,
-            });
+        const any_type_info typeInfo{
+            .id = type.value,
+            .kind = type_kind::component,
+        };
+
+        if (!desc.stableId.is_nil())
+        {
+            const auto [it, inserted] = m_typesByUuid.emplace(desc.stableId, typeInfo);
+
+            if (!inserted)
+            {
+                return {};
+            }
+        }
+
+        const auto [it, inserted] = m_typesByRuntimeId.emplace(desc.type, typeInfo);
 
         if (!inserted)
         {
@@ -86,11 +97,22 @@ namespace oblo::ecs
 
         tag_type type{u32(m_tags.size())};
 
-        const auto [it, inserted] = m_types.emplace(desc.type,
-            any_type_info{
-                .id = type.value,
-                .kind = type_kind::tag,
-            });
+        const any_type_info typeInfo{
+            .id = type.value,
+            .kind = type_kind::tag,
+        };
+
+        if (!desc.stableId.is_nil())
+        {
+            const auto [it, inserted] = m_typesByUuid.emplace(desc.stableId, typeInfo);
+
+            if (!inserted)
+            {
+                return {};
+            }
+        }
+
+        const auto [it, inserted] = m_typesByRuntimeId.emplace(desc.type, typeInfo);
 
         if (!inserted)
         {
@@ -114,9 +136,21 @@ namespace oblo::ecs
 
     component_type type_registry::find_component(const type_id& type) const
     {
-        const auto it = m_types.find(type);
+        const auto it = m_typesByRuntimeId.find(type);
 
-        if (it == m_types.end() || it->second.kind != type_kind::component)
+        if (it == m_typesByRuntimeId.end() || it->second.kind != type_kind::component)
+        {
+            return {};
+        }
+
+        return {it->second.id};
+    }
+
+    component_type type_registry::find_component(const uuid& uuid) const
+    {
+        const auto it = m_typesByUuid.find(uuid);
+
+        if (it == m_typesByUuid.end() || it->second.kind != type_kind::component)
         {
             return {};
         }
@@ -126,9 +160,21 @@ namespace oblo::ecs
 
     tag_type type_registry::find_tag(const type_id& type) const
     {
-        const auto it = m_types.find(type);
+        const auto it = m_typesByRuntimeId.find(type);
 
-        if (it == m_types.end() || it->second.kind != type_kind::tag)
+        if (it == m_typesByRuntimeId.end() || it->second.kind != type_kind::tag)
+        {
+            return {};
+        }
+
+        return {it->second.id};
+    }
+
+    tag_type type_registry::find_tag(const uuid& uuid) const
+    {
+        const auto it = m_typesByUuid.find(uuid);
+
+        if (it == m_typesByUuid.end() || it->second.kind != type_kind::tag)
         {
             return {};
         }

@@ -1,14 +1,9 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/unique_ptr.hpp>
-
-#include <oblo/asset/asset_registry.hpp>
-#include <oblo/core/time/time.hpp>
-#include <oblo/editor/data/time_stats.hpp>
-#include <oblo/editor/window_manager.hpp>
-#include <oblo/runtime/runtime.hpp>
-#include <oblo/runtime/runtime_registry.hpp>
-#include <oblo/thread/job_manager.hpp>
+#include <oblo/editor/app/run_config.hpp>
 
 namespace oblo::editor
 {
@@ -24,7 +19,7 @@ namespace oblo::editor
 
         ~app();
 
-        bool init(int argc, char* argv[]);
+        expected<> init(const run_config& cfg);
 
         void shutdown();
 

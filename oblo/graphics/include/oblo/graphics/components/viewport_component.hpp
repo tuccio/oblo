@@ -64,7 +64,7 @@ namespace oblo
         h32<vk::frame_graph_subgraph> graph;
 
         picking_request picking;
-    } OBLO_COMPONENT();
+    } OBLO_COMPONENT("a856bf3e-92f1-4ece-9ea0-c97efbfb4c1f");
 
     string_view get_viewport_mode_graph_output(viewport_mode mode);
 }

@@ -9,7 +9,9 @@
 #include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/time/time.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/providers/module_repository_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
@@ -21,6 +23,7 @@
 #include <oblo/editor/services/registered_commands.hpp>
 #include <oblo/editor/services/update_dispatcher.hpp>
 #include <oblo/editor/ui/style.hpp>
+#include <oblo/editor/window_manager.hpp>
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/console_window.hpp>
 #include <oblo/editor/windows/editor_window.hpp>
@@ -44,22 +47,17 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/resource/utility/registration.hpp>
+#include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_module.hpp>
+#include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/scene_editor_module.hpp>
 #include <oblo/thread/job_manager.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
-#include <cxxopts.hpp>
-
 #include <module_loader_asset.gen.hpp>
 #include <module_loader_editor.gen.hpp>
-
-namespace oblo
-{
-    std::istream& operator>>(std::istream& is, string_builder& s);
-}
 
 namespace oblo::editor
 {
@@ -118,7 +116,6 @@ namespace oblo::editor
         class options_layer_helper final : public options_layer_provider
         {
             static constexpr uuid layer_uuid = "dc217469-e387-48cf-ad5a-7b6cd4a8b1fc"_uuid;
-            static constexpr cstring_view options_path = "oblo_options.json";
 
         public:
             void init()
@@ -146,9 +143,14 @@ namespace oblo::editor
 
                 m_options->store_layer(doc, doc.get_root(), m_layer);
 
-                if (!json::write(doc, options_path))
+                string_builder optionsDir;
+                filesystem::parent_path(m_optionsFilePath, optionsDir);
+
+                filesystem::create_directories(optionsDir.as<string_view>()).assert_value();
+
+                if (!json::write(doc, m_optionsFilePath))
                 {
-                    log::error("Failed to write editor options to {}", options_path);
+                    log::error("Failed to write editor options to {}", m_optionsFilePath);
                 }
             }
 
@@ -161,21 +163,36 @@ namespace oblo::editor
                 }
             }
 
+            void set_options_file_path(string_view optionsFilePath)
+            {
+                m_optionsFilePath = optionsFilePath;
+            }
+
+        private:
             void fetch(deque<options_layer_provider_descriptor>& out) const override
             {
                 out.push_back({
                     .layer = {.id = layer_uuid},
                     .load =
-                        [](data_document& doc)
+                        [](data_document& doc, any& userdata)
                     {
-                        if (!json::read(doc, options_path))
+                        const string* const filePath = userdata.as<string>();
+
+                        if (!filePath)
                         {
-                            log::error("Failed to read editor options from {}", options_path);
+                            OBLO_ASSERT(false);
+                            return false;
+                        }
+
+                        if (!json::read(doc, *filePath))
+                        {
+                            log::error("Failed to read editor options from {}", *filePath);
                             return false;
                         }
 
                         return true;
                     },
+                    .userdata = any{m_optionsFilePath},
                 });
             }
 
@@ -183,6 +200,7 @@ namespace oblo::editor
             options_manager* m_options{};
             h32<options_layer> m_layer{};
             u32 m_changeId{};
+            string m_optionsFilePath;
         };
 
         class editor_app_module final : public module_interface
@@ -236,7 +254,16 @@ namespace oblo::editor
                 m_editorOptions.update();
             }
 
-            expected<> parse_cli_options(int argc, char* argv[]);
+            void configure_project(string_view projectDir, project project)
+            {
+                m_projectDir = projectDir;
+                m_project = std::move(project);
+
+                string_builder projectOptionsDir;
+                projectOptionsDir.assign(m_projectDir).append_path("options").append_path("oblo.editor.json");
+
+                m_editorOptions.set_options_file_path(projectOptionsDir.view());
+            }
 
             const project& get_project() const
             {
@@ -257,6 +284,7 @@ namespace oblo::editor
 
     struct app::impl
     {
+        run_config m_runConfig;
         module_manager m_moduleManager;
         log_queue* m_logQueue{};
         job_manager m_jobManager;
@@ -270,8 +298,8 @@ namespace oblo::editor
         update_dispatcher m_updateDispatcher;
         editor_window* m_mainWindow{};
 
-        bool init(int argc, char* argv[]);
-        bool startup();
+        expected<> init(const run_config& cfg);
+        expected<> startup();
         void startup_ui();
         void update_runtime();
         void update_registries();
@@ -286,15 +314,17 @@ namespace oblo::editor
         shutdown();
     }
 
-    bool app::init(int argc, char* argv[])
+    expected<> app::init(const run_config& cfg)
     {
         m_impl = allocate_unique<impl>();
 
-        if (!m_impl->init(argc, argv))
+        const expected e = m_impl->init(cfg);
+
+        if (!e)
         {
             m_impl->shutdown();
             m_impl.reset();
-            return false;
+            return e;
         }
 
         return m_impl->startup();
@@ -336,6 +366,16 @@ namespace oblo::editor
     {
         imgui_app app;
 
+        string_builder imguiIni;
+        imguiIni.assign(m_impl->m_runConfig.appDir).append_path("ui");
+
+        if (!filesystem::create_directories(imguiIni.view()))
+        {
+            log::debug("Failed to create directories {}", imguiIni);
+        }
+
+        imguiIni.append_path("editor.imgui.ini");
+
         if (!app.init(
                 {
                     .title = "oblo",
@@ -344,7 +384,12 @@ namespace oblo::editor
                     .isMaximized = true,
                     .isBorderless = true,
                 },
-                {.configFile = "oblo.imgui.ini"}))
+                {
+                    .configFile = imguiIni.c_str(),
+                    .useMultiViewport = true,
+                    .useDocking = true,
+                    .useKeyboardNavigation = true,
+                }))
         {
             return;
         }
@@ -479,28 +524,37 @@ namespace oblo::editor
         }
     }
 
-    bool app::impl::init(int argc, char* argv[])
+    expected<> app::impl::init(const run_config& cfg)
     {
         const auto bootTime = clock::now();
 
-        if (!platform::init())
-        {
-            return false;
-        }
-
         debug_assert_hook_install();
 
+        m_runConfig = cfg;
         m_jobManager.init();
 
         m_logQueue = init_log(bootTime);
 
+        log::info("Starting up oblo");
+        log::info("Application data is in {}", cfg.appDir);
+        log::info("Loading project from {}", cfg.projectPath);
+
         auto& mm = m_moduleManager;
+
         m_editorModule = mm.load<editor_app_module>();
 
-        if (!m_editorModule->parse_cli_options(argc, argv))
         {
-            log::error("Failed to parse CLI options");
-            return false;
+            expected project = project_load(cfg.projectPath);
+
+            if (!project)
+            {
+                return "Failed to load project"_err;
+            }
+
+            string_builder projectDir;
+            filesystem::parent_path(cfg.projectPath, projectDir);
+
+            m_editorModule->configure_project(projectDir.view(), std::move(*project));
         }
 
         for (const auto& module : m_editorModule->get_project().modules)
@@ -513,10 +567,15 @@ namespace oblo::editor
 
         m_vkEngine = mm.load<vk::vulkan_engine_module>();
 
-        return mm.finalize();
+        if (!mm.finalize())
+        {
+            return "Failed to finalize module manager"_err;
+        }
+
+        return no_error;
     }
 
-    bool app::impl::startup()
+    expected<> app::impl::startup()
     {
         auto& mm = m_moduleManager;
 
@@ -557,7 +616,7 @@ namespace oblo::editor
 
         if (!m_assetRegistry.initialize(assetRepositories, artifactsDir))
         {
-            return false;
+            return "Failed to initialize asset registry"_err;
         }
 
         m_runtimeRegistry = mm.find<runtime_module>()->create_runtime_registry();
@@ -574,7 +633,7 @@ namespace oblo::editor
 
         resourceRegistry.register_provider(resourceProvider);
 
-        return true;
+        return no_error;
     }
 
     void app::impl::startup_ui()
@@ -638,8 +697,6 @@ namespace oblo::editor
         m_assetRegistry.shutdown();
         m_runtimeRegistry.shutdown();
 
-        // Shutdown modules, which may also unload shared librariies
-        platform::shutdown();
         module_manager::get().shutdown();
 
         m_jobManager.shutdown();
@@ -669,61 +726,5 @@ namespace oblo::editor
 
         m_windowManager.update();
         m_editorModule->update();
-    }
-
-    expected<> editor_app_module::parse_cli_options(int argc, char* argv[])
-    {
-        try
-        {
-            cxxopts::Options options("oblo");
-
-            options.add_options()("project", "The path to the project file", cxxopts::value<string_builder>());
-
-            auto r = options.parse(argc, argv);
-
-            if (r.count("project"))
-            {
-                const auto& projectPath = r["project"].as<string_builder>();
-
-                auto p = project_load(projectPath);
-
-                if (!p)
-                {
-                    return "Failed to create editor directory"_err;
-                }
-
-                m_project = *std::move(p);
-                filesystem::parent_path(projectPath.view(), m_projectDir);
-            }
-            else
-            {
-                m_project.name = "New Project";
-                m_project.assetsDir = "./assets";
-                m_project.artifactsDir = "./.artifacts";
-                m_project.sourcesDir = "./sources";
-                m_projectDir = "./project";
-            }
-
-            return no_error;
-        }
-        catch (...)
-        {
-            return "Editor operation failed"_err;
-        }
-    }
-}
-
-namespace oblo
-{
-    std::istream& operator>>(std::istream& is, string_builder& s)
-    {
-        for (int c = is.get(); c != EOF; c = is.get())
-        {
-            s.append(char(c));
-        }
-
-        is.clear();
-
-        return is;
     }
 }

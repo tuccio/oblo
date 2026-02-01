@@ -10,5 +10,5 @@ namespace oblo
         mat4 localToWorld;
         mat4 lastFrameLocalToWorld;
         mat4 normalMatrix;
-    } OBLO_COMPONENT(GpuComponent = "i_TransformBuffer", ScriptAPI);
+    } OBLO_COMPONENT("8b56e9f9-ece2-4b08-ba9f-a59256d97080", GpuComponent = "i_TransformBuffer", ScriptAPI);
 }

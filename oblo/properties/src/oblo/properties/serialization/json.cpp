@@ -167,7 +167,7 @@ namespace oblo::json
 
             bool EndArray(rapidjson::SizeType)
             {
-                if (m_state != state::value_or_array_end)
+                if (m_state != state::value_or_array_end && m_state != state::object_or_array_start)
                 {
                     return failure();
                 }
@@ -361,7 +361,7 @@ namespace oblo::json
             return "Serialization failed"_err;
         }
 
-        constexpr auto bufferSize{1024};
+        constexpr auto bufferSize{4096};
         char buffer[bufferSize];
 
         rapidjson::FileReadStream rs{file.get(), buffer, bufferSize};
