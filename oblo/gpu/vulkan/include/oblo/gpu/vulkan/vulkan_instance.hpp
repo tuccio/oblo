@@ -3,10 +3,9 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/vulkan/gpu_allocator.hpp>
 
 #include <vulkan/vulkan_core.h>
-
-VK_DEFINE_HANDLE(VmaAllocator)
 
 namespace oblo::gpu
 {
@@ -55,7 +54,7 @@ namespace oblo::gpu
         VkInstance m_instance{};
         VkPhysicalDevice m_physicalDevice{};
         VkDevice m_device{};
-        VmaAllocator m_allocator{};
+        gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
     };
