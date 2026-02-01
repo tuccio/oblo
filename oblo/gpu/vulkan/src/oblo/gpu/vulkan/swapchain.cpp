@@ -1,11 +1,14 @@
 #include <oblo/core/buffered_array.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
 
-#include <algorithm>
+#include <oblo/gpu/vulkan/gpu_allocator.hpp>
 
-namespace oblo::vk::detail
+#include <vulkan/vulkan_core.h>
+
+namespace oblo::gpu::vk
 {
-    bool create_impl(const vulkan_context& ctx,
+    VkResult create_swapchain(gpu_allocator& allocator,
+        VkPhysicalDevice physicalDevice,
+        VkDevice device,
         VkSurfaceKHR surface,
         u32 width,
         u32 height,
@@ -17,20 +20,17 @@ namespace oblo::vk::detail
     {
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
 
-        if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(ctx.get_physical_device(), surface, &surfaceCapabilities) !=
-            VK_SUCCESS)
+        if (const VkResult r = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
+            r != VK_SUCCESS)
         {
-            return false;
+            return r;
         }
 
         buffered_array<VkSurfaceFormatKHR, 64> surfaceFormats;
         u32 surfaceFormatsCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.get_physical_device(), surface, &surfaceFormatsCount, nullptr);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatsCount, nullptr);
         surfaceFormats.resize(surfaceFormatsCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(ctx.get_physical_device(),
-            surface,
-            &surfaceFormatsCount,
-            surfaceFormats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatsCount, surfaceFormats.data());
 
         const auto surfaceFormatIt = std::find_if(surfaceFormats.begin(),
             surfaceFormats.end(),
@@ -38,12 +38,12 @@ namespace oblo::vk::detail
 
         if (surfaceFormatIt == surfaceFormats.end())
         {
-            return false;
+            return VK_ERROR_UNKNOWN;
         }
 
         if (surfaceCapabilities.minImageCount > imageCount)
         {
-            return false;
+            return VK_ERROR_UNKNOWN;
         }
 
         // We assume the graphics and present queue are the same family here
@@ -68,21 +68,24 @@ namespace oblo::vk::detail
             .oldSwapchain = nullptr,
         };
 
-        auto& allocator = ctx.get_allocator();
         auto* const allocationCbs = allocator.get_allocation_callbacks();
         const auto debugUtilsObject = allocator.get_object_debug_utils();
 
-        if (vkCreateSwapchainKHR(ctx.get_device(), &createInfo, allocationCbs, swapchain) != VK_SUCCESS)
+        if (const VkResult r = vkCreateSwapchainKHR(device, &createInfo, allocationCbs, swapchain); r != VK_SUCCESS)
         {
-            return false;
+            return r;
         }
 
         u32 createdImageCount{imageCount};
 
-        if (vkGetSwapchainImagesKHR(ctx.get_device(), *swapchain, &createdImageCount, images) != VK_SUCCESS ||
-            createdImageCount != imageCount)
+        if (const VkResult r = vkGetSwapchainImagesKHR(device, *swapchain, &createdImageCount, images); r != VK_SUCCESS)
         {
-            return false;
+            return r;
+        }
+
+        if (createdImageCount != imageCount)
+        {
+            return VK_ERROR_UNKNOWN;
         }
 
         for (u32 i = 0; i < imageCount; ++i)
@@ -111,19 +114,21 @@ namespace oblo::vk::detail
                     },
             };
 
-            if (vkCreateImageView(ctx.get_device(), &imageViewCreateInfo, nullptr, &imageViews[i]) != VK_SUCCESS)
+            if (const VkResult r = vkCreateImageView(device, &imageViewCreateInfo, nullptr, &imageViews[i]);
+                r != VK_SUCCESS)
             {
-                return false;
+                return r;
             }
 
-            debugUtilsObject.set_object_name(ctx.get_device(), images[i], "Swapchain Image");
-            debugUtilsObject.set_object_name(ctx.get_device(), imageViews[i], "Swapchain ImageView");
+            debugUtilsObject.set_object_name(device, images[i], "Swapchain Image");
+            debugUtilsObject.set_object_name(device, imageViews[i], "Swapchain ImageView");
         }
 
-        return true;
+        return VK_SUCCESS;
     }
 
-    void destroy_impl(const vulkan_context& ctx,
+    void destroy_swapchain(gpu_allocator& allocator,
+        VkDevice device,
         VkSwapchainKHR* swapchain,
         VkImage* images,
         VkImageView* imageViews,
@@ -131,7 +136,6 @@ namespace oblo::vk::detail
     {
         if (*swapchain)
         {
-            auto& allocator = ctx.get_allocator();
             auto* const allocationCbs = allocator.get_allocation_callbacks();
 
             for (u32 i = 0; i < imageCount; ++i)
@@ -139,14 +143,14 @@ namespace oblo::vk::detail
                 auto& imageView = imageViews[i];
                 if (imageView)
                 {
-                    vkDestroyImageView(ctx.get_device(), imageView, allocationCbs);
+                    vkDestroyImageView(device, imageView, allocationCbs);
                     imageView = nullptr;
                 }
 
                 images[i] = nullptr;
             }
 
-            vkDestroySwapchainKHR(ctx.get_device(), *swapchain, allocationCbs);
+            vkDestroySwapchainKHR(device, *swapchain, allocationCbs);
             *swapchain = nullptr;
         }
     }

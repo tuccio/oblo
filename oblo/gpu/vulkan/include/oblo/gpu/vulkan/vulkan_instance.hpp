@@ -33,6 +33,9 @@ namespace oblo::gpu
         result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) override;
         void destroy_swapchain(h32<swapchain> handle) override;
 
+        result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) override;
+        void destroy_semaphore(h32<semaphore> handle) override;
+
         result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) override;
 
         result<h32<command_buffer_pool>> create_command_buffer_pool(
@@ -46,9 +49,17 @@ namespace oblo::gpu
 
         result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
 
+        result<> wait_idle() override;
+
     private:
+        struct image_impl;
         struct queue_impl;
+        struct semaphore_impl;
         struct swapchain_impl;
+
+    private:
+        h32<image> register_image(VkImage image, VkImageView view, VmaAllocation allocation);
+        void unregister_image(h32<image> image);
 
     private:
         VkInstance m_instance{};
@@ -57,5 +68,7 @@ namespace oblo::gpu
         vk::gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
+        h32_flat_pool_dense_map<image, image_impl> m_images;
+        h32_flat_pool_dense_map<semaphore, semaphore_impl> m_semaphores;
     };
 }

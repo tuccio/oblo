@@ -1,30 +1,31 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
-#include <vulkan/vulkan.h>
 
-namespace oblo::vk
+#include <vulkan/vulkan_core.h>
+
+namespace oblo::gpu::vk
 {
-    class vulkan_context;
+    class gpu_allocator;
 
-    namespace detail
-    {
-        bool create_impl(const vulkan_context& ctx,
-            VkSurfaceKHR surface,
-            u32 width,
-            u32 height,
-            VkFormat format,
-            u32 imageCount,
-            VkSwapchainKHR* swapchain,
-            VkImage* images,
-            VkImageView* imageViews);
+    VkResult create_swapchain(gpu_allocator& allocator,
+        VkPhysicalDevice physicalDevice,
+        VkDevice device,
+        VkSurfaceKHR surface,
+        u32 width,
+        u32 height,
+        VkFormat format,
+        u32 imageCount,
+        VkSwapchainKHR* swapchain,
+        VkImage* images,
+        VkImageView* imageViews);
 
-        void destroy_impl(const vulkan_context& ctx,
-            VkSwapchainKHR* swapchain,
-            VkImage* images,
-            VkImageView* imageViews,
-            u32 imageCount);
-    }
+    void destroy_swapchain(gpu_allocator& allocator,
+        VkDevice device,
+        VkSwapchainKHR* swapchain,
+        VkImage* images,
+        VkImageView* imageViews,
+        u32 imageCount);
 
     template <u32 SwapChainImageCount>
     class swapchain
@@ -32,18 +33,41 @@ namespace oblo::vk
     public:
         swapchain() = default;
         swapchain(const swapchain&) = delete;
-        swapchain(swapchain&&) noexcept = delete;
-        swapchain& operator=(const swapchain&) = delete;
-        swapchain& operator=(swapchain&&) noexcept = delete;
 
-        bool create(const vulkan_context& ctx, VkSurfaceKHR surface, u32 width, u32 height, VkFormat format)
+        swapchain(swapchain&& other) noexcept
+        {
+            m_swapchain = other.m_swapchain;
+            other.m_swapchain = nullptr;
+
+            for (u32 i = 0; i < SwapChainImageCount; ++i)
+            {
+                m_images[i] = other.m_images[i];
+                m_imageViews[i] = other.m_imageViews[i];
+                other.m_images[i] = nullptr;
+                other.m_imageViews[i] = nullptr;
+            }
+        }
+
+        swapchain& operator=(const swapchain&) = delete;
+
+        swapchain& operator=(swapchain&& other) noexcept = delete;
+
+        VkResult create(gpu_allocator& allocator,
+            VkPhysicalDevice physicalDevice,
+            VkDevice device,
+            VkSurfaceKHR surface,
+            u32 width,
+            u32 height,
+            VkFormat format)
         {
             if (m_swapchain)
             {
-                return false;
+                return VK_ERROR_UNKNOWN;
             }
 
-            return detail::create_impl(ctx,
+            return create_swapchain(allocator,
+                physicalDevice,
+                device,
                 surface,
                 width,
                 height,
@@ -54,9 +78,9 @@ namespace oblo::vk
                 m_imageViews);
         }
 
-        void destroy(const vulkan_context& ctx)
+        void destroy(gpu_allocator& allocator, VkDevice device)
         {
-            detail::destroy_impl(ctx, &m_swapchain, m_images, m_imageViews, SwapChainImageCount);
+            destroy_swapchain(allocator, device, &m_swapchain, m_images, m_imageViews, SwapChainImageCount);
         }
 
         VkSwapchainKHR get() const
@@ -83,23 +107,6 @@ namespace oblo::vk
         {
             return m_swapchain != nullptr;
         }
-
-    private:
-        friend bool detail::create_impl(const vulkan_context& ctx,
-            VkSurfaceKHR surface,
-            u32 width,
-            u32 height,
-            VkFormat format,
-            u32 imageCount,
-            VkSwapchainKHR* swapchain,
-            VkImage* images,
-            VkImageView* imageViews);
-
-        friend void detail::destroy_impl(const vulkan_context& ctx,
-            VkSwapchainKHR* swapchain,
-            VkImage* images,
-            VkImageView* imageViews,
-            u32 imageCount);
 
     private:
         VkSwapchainKHR m_swapchain{nullptr};

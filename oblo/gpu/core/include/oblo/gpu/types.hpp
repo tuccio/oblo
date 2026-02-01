@@ -2,7 +2,7 @@
 
 #include <oblo/core/types.hpp>
 
-namespace oblo::vk
+namespace oblo::gpu
 {
     enum class mesh_index_type : u8
     {

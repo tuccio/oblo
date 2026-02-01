@@ -6,6 +6,7 @@ namespace oblo::gpu
     {
         undefined,
         device_lost,
+        out_of_date,
         already_initialized,
     };
 }

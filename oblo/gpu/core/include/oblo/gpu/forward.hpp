@@ -19,6 +19,7 @@ namespace oblo::gpu
     struct image_descriptor;
     struct instance_descriptor;
     struct queue_submit_descriptor;
+    struct semaphore_descriptor;
     struct swapchain_descriptor;
 
     enum class error;

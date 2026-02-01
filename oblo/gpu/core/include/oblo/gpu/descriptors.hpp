@@ -16,9 +16,16 @@ namespace oblo::gpu
         const char* engine;
     };
 
+    struct semaphore_descriptor
+    {
+    };
+
     struct swapchain_descriptor
     {
-        image_format format;
+        hptr<surface> surface;
         u32 numImages;
+        texture_format format;
+        u32 width;
+        u32 height;
     };
 }

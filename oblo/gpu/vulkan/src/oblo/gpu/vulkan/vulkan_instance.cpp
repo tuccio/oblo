@@ -4,6 +4,8 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/gpu/descriptors.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
+#include <oblo/gpu/vulkan/swapchain.hpp>
+#include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 
 namespace oblo::gpu
 {
@@ -105,10 +107,28 @@ namespace oblo::gpu
         }
     }
 
+    struct vulkan_instance::image_impl
+    {
+        VkImage image;
+        VkImageView view;
+        VmaAllocation allocation;
+    };
+
     struct vulkan_instance::queue_impl
     {
         VkQueue queue;
         u32 familyIndex;
+    };
+
+    struct vulkan_instance::semaphore_impl
+    {
+        VkSemaphore vkSemaphore;
+    };
+
+    struct vulkan_instance::swapchain_impl
+    {
+        vk::swapchain<3u> vkSwapchain;
+        h32<image> images[3u];
     };
 
     vulkan_instance::vulkan_instance() = default;
@@ -341,17 +361,95 @@ namespace oblo::gpu
         return universal_queue_id;
     }
 
-    result<h32<swapchain>> vulkan_instance::create_swapchain(const swapchain_descriptor& swapchain)
+    result<h32<swapchain>> vulkan_instance::create_swapchain(const swapchain_descriptor& descriptor)
     {
+        auto&& [it, handle] = m_swapchains.emplace();
 
-        return error::undefined;
+        const VkResult r = it->vkSwapchain.create(m_allocator,
+            m_physicalDevice,
+            m_device,
+            unwrap_handle<VkSurfaceKHR>(descriptor.surface),
+            descriptor.width,
+            descriptor.height,
+            vk::convert_enum(descriptor.format));
+
+        if (r != VK_SUCCESS)
+        {
+            m_swapchains.erase(handle);
+            return translate_error(r);
+        }
+
+        for (u32 i = 0; i < it->vkSwapchain.get_image_count(); ++i)
+        {
+            it->images[i] = register_image(it->vkSwapchain.get_image(i), it->vkSwapchain.get_image_view(i), nullptr);
+        }
+
+        return handle;
     }
 
-    void vulkan_instance::destroy_swapchain(h32<swapchain> handle) {}
+    void vulkan_instance::destroy_swapchain(h32<swapchain> handle)
+    {
+        auto& sc = m_swapchains.at(handle);
+
+        for (u32 i = 0; i < sc.vkSwapchain.get_image_count(); ++i)
+        {
+            if (sc.images[i])
+            {
+                unregister_image(sc.images[i]);
+                sc.images[i] = {};
+            }
+        }
+
+        sc.vkSwapchain.destroy(m_allocator, m_device);
+        m_swapchains.erase(handle);
+    }
+
+    result<h32<semaphore>> vulkan_instance::create_semaphore(const semaphore_descriptor&)
+    {
+        constexpr VkSemaphoreCreateInfo semaphoreInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        };
+
+        VkSemaphore semaphore;
+        const VkResult r =
+            vkCreateSemaphore(m_device, &semaphoreInfo, m_allocator.get_allocation_callbacks(), &semaphore);
+
+        if (r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        auto&& [it, handle] = m_semaphores.emplace();
+        it->vkSemaphore = semaphore;
+        return handle;
+    }
+
+    void vulkan_instance::destroy_semaphore(h32<semaphore> handle)
+    {
+        vkDestroySemaphore(m_device, m_semaphores.at(handle).vkSemaphore, m_allocator.get_allocation_callbacks());
+        m_semaphores.erase(handle);
+    }
 
     result<h32<image>> vulkan_instance::acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore)
     {
-        //
+        auto& sc = m_swapchains.at(handle);
+        auto& sem = m_semaphores.at(waitSemaphore);
+
+        u32 imageIndex;
+
+        const VkResult acquireImageResult = vkAcquireNextImageKHR(m_device,
+            sc.vkSwapchain.get(),
+            UINT64_MAX,
+            sem.vkSemaphore,
+            VK_NULL_HANDLE,
+            &imageIndex);
+
+        if (acquireImageResult != VK_SUCCESS)
+        {
+            return translate_error(acquireImageResult);
+        }
+
+        return sc.images[imageIndex];
     }
 
     result<h32<command_buffer_pool>> vulkan_instance::create_command_buffer_pool(
@@ -385,6 +483,29 @@ namespace oblo::gpu
         (void) queue;
         (void) descriptor;
         return error::undefined;
+    }
+
+    result<> vulkan_instance::wait_idle()
+    {
+        return translate_result(vkDeviceWaitIdle(m_device));
+    }
+
+    h32<image> vulkan_instance::register_image(VkImage image, VkImageView view, VmaAllocation allocation)
+    {
+        auto&& [img, handle] = m_images.emplace();
+
+        *img = {
+            .image = image,
+            .view = view,
+            .allocation = allocation,
+        };
+
+        return handle;
+    }
+
+    void vulkan_instance::unregister_image(h32<image> image)
+    {
+        m_images.erase(image);
     }
 }
 

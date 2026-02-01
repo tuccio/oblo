@@ -101,7 +101,8 @@ namespace oblo
                         auto& removedValue = ValueStorage::operator[](pointedIndex);
                         auto& lastValue = ValueStorage::operator[](lastElementIndex);
 
-                        removedValue = std::move(lastValue);
+                        removedValue.~Value();
+                        new (&removedValue) Value{std::move(lastValue)};
                     }
                 }
 
