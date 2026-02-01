@@ -1,13 +1,16 @@
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
 #include <oblo/core/array_size.hpp>
-#include <oblo/gpu/descriptors/instance_descriptor.hpp>
+#include <oblo/core/buffered_array.hpp>
+#include <oblo/gpu/descriptors.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
 
 namespace oblo::gpu
 {
     namespace
     {
+        constexpr h32<queue> universal_queue_id{1u};
+
         constexpr VkPhysicalDeviceFeatures g_physicalDeviceFeatures{
             .multiDrawIndirect = true,
             .samplerAnisotropy = true,
@@ -102,6 +105,19 @@ namespace oblo::gpu
         }
     }
 
+    struct vulkan_instance::queue_impl
+    {
+        VkQueue queue;
+        u32 familyIndex;
+    };
+
+    vulkan_instance::vulkan_instance() = default;
+
+    vulkan_instance::~vulkan_instance()
+    {
+        shutdown();
+    }
+
     result<> vulkan_instance::init(const instance_descriptor& descriptor)
     {
         if (m_instance)
@@ -134,7 +150,17 @@ namespace oblo::gpu
 
     void vulkan_instance::shutdown()
     {
-        // TODO
+        if (m_device)
+        {
+            vkDestroyDevice(m_device, nullptr);
+            m_device = {};
+        }
+
+        if (m_instance)
+        {
+            vkDestroyInstance(m_instance, nullptr);
+            m_instance = {};
+        }
     }
 
     result<hptr<surface>> vulkan_instance::create_surface(hptr<native_window> nativeWindow)
@@ -149,14 +175,166 @@ namespace oblo::gpu
         vkDestroySurfaceKHR(m_instance, unwrap_handle<VkSurfaceKHR>(handle), nullptr);
     }
 
-    result<> vulkan_instance::create_device_and_queues(const device_descriptor& deviceDescriptors,
-        std::span<const queue_descriptor> queueDescriptors,
-        std::span<h32<queue>> outQueues)
+    result<> vulkan_instance::create_device_and_queues(const device_descriptor& deviceDescriptor,
+        hptr<surface> presentSurface)
     {
-        (void) deviceDescriptors;
-        (void) queueDescriptors;
-        (void) outQueues;
-        return error::undefined;
+        u32 physicalDevicesCount{0u};
+
+        if (const VkResult r = vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, nullptr); r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        if (physicalDevicesCount == 0u)
+        {
+            return error::undefined;
+        }
+
+        buffered_array<VkPhysicalDevice, 16> devices;
+        devices.resize(physicalDevicesCount);
+
+        if (const VkResult r = vkEnumeratePhysicalDevices(m_instance, &physicalDevicesCount, devices.data());
+            r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        // TODO: It should actually search for the best GPU and check for API version, but we pick the first
+        m_physicalDevice = devices[0];
+
+        // Now find the queues
+        constexpr float queuePriorities[] = {1.f};
+
+        u32 queueFamiliesCount{0u};
+
+        vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamiliesCount, nullptr);
+
+        buffered_array<VkQueueFamilyProperties, 32> queueProperties;
+        queueProperties.resize(queueFamiliesCount);
+
+        vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamiliesCount, queueProperties.data());
+
+        // For now we only search for a universal queue
+        constexpr VkQueueFlags requiredQueueFlags =
+            VK_QUEUE_COMPUTE_BIT | VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT;
+
+        const VkSurfaceKHR vkSurface = unwrap_handle<VkSurfaceKHR>(presentSurface);
+
+        bool queueFound = false;
+        u32 universalQueueFamilyIndex = ~0u;
+
+        for (u32 i = 0; i < queueFamiliesCount; ++i)
+        {
+            if (const auto& properties = queueProperties[i];
+                (properties.queueFlags & requiredQueueFlags) == requiredQueueFlags)
+            {
+                bool isSupported = true;
+
+                if (vkSurface)
+                {
+                    VkBool32 presentSupport;
+                    vkGetPhysicalDeviceSurfaceSupportKHR(m_physicalDevice, i, vkSurface, &presentSupport);
+
+                    isSupported = presentSupport == VK_TRUE;
+                }
+
+                if (isSupported)
+                {
+                    universalQueueFamilyIndex = i;
+                    queueFound = true;
+                    break;
+                }
+            }
+        }
+
+        if (!queueFound)
+        {
+            return error::undefined;
+        }
+
+        const VkDeviceQueueCreateInfo universalQueueInfo{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0u,
+            .queueFamilyIndex = universalQueueFamilyIndex,
+            .queueCount = 1u,
+            .pQueuePriorities = queuePriorities,
+        };
+
+        VkPhysicalDeviceFeatures2 g_physicalDeviceFeatures2{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+            .features = g_physicalDeviceFeatures,
+        };
+
+        // Now we can create rest of the vulkan objects
+        constexpr const char* requiredDeviceExtensions[] = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
+            VK_EXT_MESH_SHADER_EXTENSION_NAME,
+            VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is needed for debug printf
+            VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,    // We need this for profiling with Tracy
+            VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
+
+        };
+
+        // Ray-tracing extensions, we might want to disable them
+        constexpr const char* rayTracingExtensions[] = {
+            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            VK_KHR_RAY_QUERY_EXTENSION_NAME,
+            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+        };
+
+        constexpr auto totalExtensions = array_size(requiredDeviceExtensions) + array_size(rayTracingExtensions);
+        buffered_array<const char*, totalExtensions> deviceExtensions;
+        deviceExtensions.append(std::begin(requiredDeviceExtensions), std::end(requiredDeviceExtensions));
+
+        if (deviceDescriptor.requireHardwareRaytracing)
+        {
+            deviceExtensions.append(std::begin(rayTracingExtensions), std::end(rayTracingExtensions));
+            g_physicalDeviceFeatures2.pNext = &g_rtPipelineFeatures;
+        }
+        else
+        {
+            g_physicalDeviceFeatures2.pNext = &g_synchronizationFeatures;
+        }
+
+        const VkDeviceCreateInfo createInfo{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .pNext = &g_physicalDeviceFeatures2,
+            .queueCreateInfoCount = 1u,
+            .pQueueCreateInfos = &universalQueueInfo,
+            .enabledLayerCount = 0u,
+            .ppEnabledLayerNames = nullptr,
+            .enabledExtensionCount = deviceExtensions.size32(),
+            .ppEnabledExtensionNames = deviceExtensions.data(),
+            .pEnabledFeatures = &g_physicalDeviceFeatures,
+        };
+
+        m_queues.push_back({
+            .familyIndex = universalQueueFamilyIndex,
+        });
+
+        if (const VkResult r = vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device); r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        for (auto& q : m_queues)
+        {
+            vkGetDeviceQueue(m_device, q.familyIndex, 0, &q.queue);
+        }
+
+        return no_error;
+    }
+
+    h32<queue> vulkan_instance::get_universal_queue()
+    {
+        return universal_queue_id;
     }
 
     result<h32<swapchain>> vulkan_instance::create_swapchain(const swapchain_descriptor& swapchain)
@@ -191,8 +369,9 @@ namespace oblo::gpu
         return error::undefined;
     }
 
-    result<> vulkan_instance::submit(const queue_submit_descriptor& descriptor)
+    result<> vulkan_instance::submit(h32<queue> queue, const queue_submit_descriptor& descriptor)
     {
+        (void) queue;
         (void) descriptor;
         return error::undefined;
     }

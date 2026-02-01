@@ -18,7 +18,6 @@ namespace oblo::gpu
     struct device_descriptor;
     struct image_descriptor;
     struct instance_descriptor;
-    struct queue_descriptor;
     struct queue_submit_descriptor;
     struct swapchain_descriptor;
 

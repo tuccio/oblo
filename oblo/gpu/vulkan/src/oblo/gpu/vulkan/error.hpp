@@ -7,7 +7,7 @@
 
 namespace oblo::gpu
 {
-    inline error translate_reportable_error(VkResult result)
+    inline error translate_error(VkResult result)
     {
         switch (result)
         {
@@ -30,7 +30,7 @@ namespace oblo::gpu
             return no_error;
         }
 
-        return translate_reportable_error(result);
+        return translate_error(result);
     }
 
     template <typename V>
@@ -41,6 +41,6 @@ namespace oblo::gpu
             return value;
         }
 
-        return translate_reportable_error(result);
+        return translate_error(result);
     }
 }

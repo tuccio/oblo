@@ -24,9 +24,10 @@ namespace oblo::gpu
         virtual result<hptr<surface>> create_surface(hptr<native_window> nativeWindow) = 0;
         virtual void destroy_surface(hptr<surface> surface) = 0;
 
-        virtual result<> create_device_and_queues(const device_descriptor& deviceDescriptors,
-            std::span<const queue_descriptor> queueDescriptors,
-            std::span<h32<queue>> outQueues) = 0;
+        virtual result<> create_device_and_queues(const device_descriptor& deviceDescriptor,
+            hptr<surface> presentSurface) = 0;
+
+        virtual h32<queue> get_universal_queue() = 0;
 
         virtual result<h32<swapchain>> create_swapchain(const swapchain_descriptor& swapchain) = 0;
 
@@ -39,6 +40,6 @@ namespace oblo::gpu
         virtual result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) = 0;
         virtual result<h32<image>> create_image(const image_descriptor& descriptor) = 0;
 
-        virtual result<> submit(const queue_submit_descriptor& descriptor) = 0;
+        virtual result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) = 0;
     };
 }

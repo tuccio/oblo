@@ -2,7 +2,7 @@
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
-#include <oblo/gpu/descriptors/instance_descriptor.hpp>
+#include <oblo/gpu/descriptors.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
@@ -47,6 +47,15 @@ namespace oblo
             else
             {
                 m_windowSurface = *surface;
+            }
+
+            if (!m_gpu->create_device_and_queues(
+                    {
+                        .requireHardwareRaytracing = false,
+                    },
+                    m_windowSurface))
+            {
+                return "Failed to create GPU device"_err;
             }
 
             window_event_processor processor;
