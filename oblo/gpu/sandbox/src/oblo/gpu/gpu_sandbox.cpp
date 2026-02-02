@@ -8,7 +8,9 @@
 #include <oblo/gpu/types.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
+#include <chrono>
 #include <cstdio>
+#include <thread>
 
 namespace oblo
 {
@@ -70,6 +72,27 @@ namespace oblo
                 }
 
                 m_semaphores[i] = *sem;
+
+                const auto pool = m_gpu->create_command_buffer_pool({
+                    .queue = m_gpu->get_universal_queue(),
+                    .numCommandBuffers = 1u,
+                });
+
+                if (!pool)
+                {
+                    return "Failed to create command buffer pool"_err;
+                }
+
+                m_commandBufferPools[i] = *pool;
+
+                const auto fence = m_gpu->create_fence({.createSignaled = true});
+
+                if (!fence)
+                {
+                    return "Failed to create fence"_err;
+                }
+
+                m_fences[i] = *fence;
             }
 
             vec2u lastWindowSize{};
@@ -92,9 +115,21 @@ namespace oblo
 
                 h32<gpu::image> backBuffer{};
 
+                if (!m_gpu->wait_for_fences({&m_fences[semaphoreIndex], 1u}))
+                {
+                    return "Failed to wait for frame fence"_err;
+                }
+
+                if (!m_gpu->reset_fences({&m_fences[semaphoreIndex], 1u}))
+                {
+                    return "Failed to reset frame fence"_err;
+                }
+
+                const h32<gpu::semaphore> currentFrameSemaphore = m_semaphores[semaphoreIndex];
+
                 do
                 {
-                    const expected result = m_gpu->acquire_swapchain_image(m_swapchain, m_semaphores[semaphoreIndex]);
+                    const expected result = m_gpu->acquire_swapchain_image(m_swapchain, currentFrameSemaphore);
 
                     if (result)
                     {
@@ -108,7 +143,55 @@ namespace oblo
                     }
                 } while (true);
 
+                const h32 pool = m_commandBufferPools[semaphoreIndex];
+
+                if (!m_gpu->reset_command_buffer_pool(pool))
+                {
+                    return "Failed to reset command buffer pool"_err;
+                }
+
                 // TODO: Do something with the back buffer
+
+                hptr<gpu::command_buffer> commandBuffers[1];
+
+                if (!m_gpu->fetch_command_buffers(pool, commandBuffers))
+                {
+                    return "Failed to fetch command buffers"_err;
+                }
+
+                const handle cmd = commandBuffers[0];
+
+                if (!m_gpu->begin_command_buffer(cmd))
+                {
+                    return "Failed to begin command buffer"_err;
+                }
+
+                if (!m_gpu->end_command_buffer(cmd))
+                {
+                    return "Failed to end command buffer"_err;
+                }
+
+                if (!m_gpu->submit(m_gpu->get_universal_queue(),
+                        {
+                            .commandBuffers = commandBuffers,
+                            .waitSemaphores = {},
+                            .signalFence = m_fences[semaphoreIndex],
+                            .signalSemaphores = {&currentFrameSemaphore, 1u},
+                        }))
+                {
+                    return "Failed to submit command buffers"_err;
+                }
+
+                if (const expected r = m_gpu->present({
+                        .swapchains = {&m_swapchain, 1u},
+                        .waitSemaphores = {&currentFrameSemaphore, 1u},
+                    });
+                    !r && r.error() != gpu::error::out_of_date)
+                {
+                    return "Failed to present"_err;
+                }
+
+                semaphoreIndex = (semaphoreIndex + 1) % num_swapchain_images;
             }
 
             return no_error;
@@ -116,20 +199,44 @@ namespace oblo
 
         void shutdown()
         {
-            if (m_swapchain)
-            {
-                m_gpu->wait_idle().assert_value();
-                m_gpu->destroy_swapchain(m_swapchain);
-            }
-
-            if (m_windowSurface)
-            {
-                m_gpu->destroy_surface(m_windowSurface);
-                m_windowSurface = {};
-            }
 
             if (m_gpu)
             {
+                m_gpu->wait_idle().assert_value();
+
+                for (u32 i = 0; i < num_swapchain_images; ++i)
+                {
+                    if (m_fences[i])
+                    {
+                        m_gpu->destroy_fence(m_fences[i]);
+                        m_fences[i] = {};
+                    }
+
+                    if (m_semaphores[i])
+                    {
+                        m_gpu->destroy_semaphore(m_semaphores[i]);
+                        m_semaphores[i] = {};
+                    }
+
+                    if (m_commandBufferPools[i])
+                    {
+                        m_gpu->destroy_command_buffer_pool(m_commandBufferPools[i]);
+                        m_commandBufferPools[i] = {};
+                    }
+                }
+
+                if (m_swapchain)
+                {
+                    m_gpu->destroy_swapchain(m_swapchain);
+                    m_swapchain = {};
+                }
+
+                if (m_windowSurface)
+                {
+                    m_gpu->destroy_surface(m_windowSurface);
+                    m_windowSurface = {};
+                }
+
                 m_gpu->shutdown();
                 m_gpu.reset();
             }
@@ -165,7 +272,9 @@ namespace oblo
         unique_ptr<gpu::gpu_instance> m_gpu;
         hptr<gpu::surface> m_windowSurface{};
         h32<gpu::swapchain> m_swapchain{};
+        h32<gpu::fence> m_fences[num_swapchain_images]{};
         h32<gpu::semaphore> m_semaphores[num_swapchain_images]{};
+        h32<gpu::command_buffer_pool> m_commandBufferPools[num_swapchain_images]{};
     };
 }
 

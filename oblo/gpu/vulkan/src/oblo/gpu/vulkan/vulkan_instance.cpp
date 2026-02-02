@@ -107,6 +107,13 @@ namespace oblo::gpu
         }
     }
 
+    struct vulkan_instance::command_buffer_pool_impl
+    {
+        VkCommandPool vkCommandPool{};
+        dynamic_array<VkCommandBuffer> commandBuffers;
+        usize currentyUsedBuffers{};
+    };
+
     struct vulkan_instance::image_impl
     {
         VkImage image;
@@ -120,15 +127,11 @@ namespace oblo::gpu
         u32 familyIndex;
     };
 
-    struct vulkan_instance::semaphore_impl
-    {
-        VkSemaphore vkSemaphore;
-    };
-
     struct vulkan_instance::swapchain_impl
     {
         vk::swapchain<3u> vkSwapchain;
         h32<image> images[3u];
+        u32 acquiredImage{~0u};
     };
 
     vulkan_instance::vulkan_instance() = default;
@@ -404,6 +407,60 @@ namespace oblo::gpu
         m_swapchains.erase(handle);
     }
 
+    result<h32<fence>> vulkan_instance::create_fence(const fence_descriptor& descriptor)
+    {
+        VkFence vkFence;
+
+        const VkFenceCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .flags = descriptor.createSignaled ? VK_FENCE_CREATE_SIGNALED_BIT : VkFenceCreateFlags{},
+        };
+
+        const VkResult r = vkCreateFence(m_device, &info, m_allocator.get_allocation_callbacks(), &vkFence);
+
+        if (r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        return m_fences.emplace(vkFence).second;
+    }
+
+    void vulkan_instance::destroy_fence(h32<fence> handle)
+    {
+        vkDestroyFence(m_device, m_fences.at(handle), m_allocator.get_allocation_callbacks());
+        m_fences.erase(handle);
+    }
+
+    result<> vulkan_instance::wait_for_fences(const std::span<const h32<fence>> fences)
+    {
+        buffered_array<VkFence, 8> vkFences;
+        vkFences.reserve(fences.size());
+
+        for (const h32 h : fences)
+        {
+            vkFences.emplace_back(m_fences.at(h));
+        }
+
+        constexpr VkBool32 waitAll = VK_TRUE;
+        constexpr u64 timeout = UINT64_MAX;
+
+        return translate_result(vkWaitForFences(m_device, vkFences.size32(), vkFences.data(), waitAll, timeout));
+    }
+
+    result<> vulkan_instance::reset_fences(const std::span<const h32<fence>> fences)
+    {
+        buffered_array<VkFence, 8> vkFences;
+        vkFences.reserve(fences.size());
+
+        for (const h32 h : fences)
+        {
+            vkFences.emplace_back(m_fences.at(h));
+        }
+
+        return translate_result(vkResetFences(m_device, vkFences.size32(), vkFences.data()));
+    }
+
     result<h32<semaphore>> vulkan_instance::create_semaphore(const semaphore_descriptor&)
     {
         constexpr VkSemaphoreCreateInfo semaphoreInfo{
@@ -419,52 +476,136 @@ namespace oblo::gpu
             return translate_error(r);
         }
 
-        auto&& [it, handle] = m_semaphores.emplace();
-        it->vkSemaphore = semaphore;
+        auto&& [it, handle] = m_semaphores.emplace(semaphore);
         return handle;
     }
 
     void vulkan_instance::destroy_semaphore(h32<semaphore> handle)
     {
-        vkDestroySemaphore(m_device, m_semaphores.at(handle).vkSemaphore, m_allocator.get_allocation_callbacks());
+        vkDestroySemaphore(m_device, m_semaphores.at(handle), m_allocator.get_allocation_callbacks());
         m_semaphores.erase(handle);
     }
 
     result<h32<image>> vulkan_instance::acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore)
     {
         auto& sc = m_swapchains.at(handle);
-        auto& sem = m_semaphores.at(waitSemaphore);
+        const VkSemaphore vkSemaphore = m_semaphores.at(waitSemaphore);
 
         u32 imageIndex;
 
-        const VkResult acquireImageResult = vkAcquireNextImageKHR(m_device,
-            sc.vkSwapchain.get(),
-            UINT64_MAX,
-            sem.vkSemaphore,
-            VK_NULL_HANDLE,
-            &imageIndex);
+        const VkResult acquireImageResult =
+            vkAcquireNextImageKHR(m_device, sc.vkSwapchain.get(), UINT64_MAX, vkSemaphore, VK_NULL_HANDLE, &imageIndex);
 
         if (acquireImageResult != VK_SUCCESS)
         {
             return translate_error(acquireImageResult);
         }
 
+        sc.acquiredImage = imageIndex;
         return sc.images[imageIndex];
     }
 
     result<h32<command_buffer_pool>> vulkan_instance::create_command_buffer_pool(
         const command_buffer_pool_descriptor& descriptor)
     {
-        (void) descriptor;
-        return error::undefined;
+        const u32 queueFamilyIndex = get_queue(descriptor.queue).familyIndex;
+
+        // We may want to support VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT too at some point.
+        const VkCommandPoolCreateInfo commandPoolCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0u,
+            .queueFamilyIndex = queueFamilyIndex,
+        };
+
+        auto* const allocatorCallbacks = m_allocator.get_allocation_callbacks();
+
+        VkCommandPool commandPool{};
+
+        if (const VkResult r = vkCreateCommandPool(m_device, &commandPoolCreateInfo, allocatorCallbacks, &commandPool);
+            r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        dynamic_array<VkCommandBuffer> commandBuffers;
+
+        if (descriptor.numCommandBuffers > 0)
+        {
+            commandBuffers.resize(descriptor.numCommandBuffers);
+
+            const VkCommandBufferAllocateInfo allocateInfo{
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                .pNext = nullptr,
+                .commandPool = commandPool,
+                .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                .commandBufferCount = descriptor.numCommandBuffers,
+            };
+
+            const VkResult r = vkAllocateCommandBuffers(m_device, &allocateInfo, commandBuffers.data());
+
+            if (r != VK_SUCCESS)
+            {
+                vkDestroyCommandPool(m_device, commandPool, allocatorCallbacks);
+                return translate_error(r);
+            }
+        }
+
+        auto&& [poolIt, handle] = m_commandBufferPools.emplace();
+        poolIt->vkCommandPool = commandPool;
+        poolIt->commandBuffers = std::move(commandBuffers);
+        poolIt->currentyUsedBuffers = 0u;
+
+        return handle;
+    }
+
+    void vulkan_instance::destroy_command_buffer_pool(h32<command_buffer_pool> commandBufferPool)
+    {
+        auto& poolImpl = m_commandBufferPools.at(commandBufferPool);
+        vkDestroyCommandPool(m_device, poolImpl.vkCommandPool, m_allocator.get_allocation_callbacks());
+        m_commandBufferPools.erase(commandBufferPool);
+    }
+
+    result<> vulkan_instance::reset_command_buffer_pool(h32<command_buffer_pool> commandBufferPool)
+    {
+        auto& poolImpl = m_commandBufferPools.at(commandBufferPool);
+        return translate_result(vkResetCommandPool(m_device, poolImpl.vkCommandPool, 0u));
     }
 
     result<> vulkan_instance::fetch_command_buffers(h32<command_buffer_pool> pool,
         std::span<hptr<command_buffer>> commandBuffers)
     {
-        (void) pool;
-        (void) commandBuffers;
-        return error::undefined;
+        auto& poolImpl = m_commandBufferPools.at(pool);
+
+        const usize numRemainingBuffers = poolImpl.commandBuffers.size() - poolImpl.currentyUsedBuffers;
+
+        if (commandBuffers.size() < numRemainingBuffers)
+        {
+            return error::not_enough_command_buffers;
+        }
+
+        const auto fetchedBuffers =
+            std::span{poolImpl.commandBuffers}.subspan(poolImpl.currentyUsedBuffers, commandBuffers.size());
+
+        OBLO_ASSERT(fetchedBuffers.size_bytes() == commandBuffers.size_bytes());
+        std::memcpy(commandBuffers.data(), fetchedBuffers.data(), commandBuffers.size_bytes());
+
+        return no_error;
+    }
+
+    result<> vulkan_instance::begin_command_buffer(hptr<command_buffer> commandBuffer)
+    {
+        const VkCommandBufferBeginInfo info{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+
+        return translate_result(vkBeginCommandBuffer(unwrap_handle<VkCommandBuffer>(commandBuffer), &info));
+    }
+
+    result<> vulkan_instance::end_command_buffer(hptr<command_buffer> commandBuffer)
+    {
+        return translate_result(vkEndCommandBuffer(unwrap_handle<VkCommandBuffer>(commandBuffer)));
     }
 
     result<h32<buffer>> vulkan_instance::create_buffer(const buffer_descriptor& descriptor)
@@ -480,9 +621,98 @@ namespace oblo::gpu
 
     result<> vulkan_instance::submit(h32<queue> queue, const queue_submit_descriptor& descriptor)
     {
-        (void) queue;
-        (void) descriptor;
-        return error::undefined;
+        buffered_array<VkSemaphore, 8> waitSemaphores;
+        buffered_array<VkSemaphore, 8> signalSemaphores;
+        buffered_array<VkPipelineStageFlags, 8> waitStages;
+
+        if (!descriptor.waitSemaphores.empty())
+        {
+            // This is probably not generic enough for all use cases
+            waitStages.assign(waitSemaphores.size(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+            waitSemaphores.reserve(descriptor.waitSemaphores.size());
+
+            for (const h32 h : descriptor.waitSemaphores)
+            {
+                waitSemaphores.emplace_back(m_semaphores.at(h));
+            }
+        }
+
+        if (!descriptor.signalSemaphores.empty())
+        {
+            signalSemaphores.reserve(descriptor.signalSemaphores.size());
+
+            for (const h32 h : descriptor.signalSemaphores)
+            {
+                signalSemaphores.emplace_back(m_semaphores.at(h));
+            }
+        }
+
+        auto* const commandBuffers = reinterpret_cast<const VkCommandBuffer* const>(descriptor.commandBuffers.data());
+        const u32 commandBufferCount = u32(descriptor.commandBuffers.size());
+
+        const VkSubmitInfo submitInfo{
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .waitSemaphoreCount = waitSemaphores.size32(),
+            .pWaitSemaphores = waitSemaphores.data(),
+            .pWaitDstStageMask = waitStages.data(),
+            .commandBufferCount = commandBufferCount,
+            .pCommandBuffers = commandBuffers,
+            .signalSemaphoreCount = signalSemaphores.size32(),
+            .pSignalSemaphores = signalSemaphores.data(),
+        };
+
+        VkFence vkFence{};
+
+        if (descriptor.signalFence)
+        {
+            vkFence = m_fences.at(descriptor.signalFence);
+        }
+
+        return translate_result(vkQueueSubmit(get_queue(queue).queue, 1, &submitInfo, vkFence));
+    }
+
+    result<> vulkan_instance::present(const present_descriptor& descriptor)
+    {
+        buffered_array<VkSemaphore, 8> waitSemaphores;
+        buffered_array<VkSwapchainKHR, 8> acquiredSwapchains;
+        buffered_array<u32, 8> acquiredImageIndices;
+
+        if (!descriptor.waitSemaphores.empty())
+        {
+            waitSemaphores.reserve(descriptor.waitSemaphores.size());
+
+            for (const h32 h : descriptor.waitSemaphores)
+            {
+                waitSemaphores.emplace_back(m_semaphores.at(h));
+            }
+        }
+
+        if (!descriptor.swapchains.empty())
+        {
+            acquiredSwapchains.reserve(descriptor.swapchains.size());
+            acquiredImageIndices.reserve(descriptor.swapchains.size());
+
+            for (const h32 h : descriptor.swapchains)
+            {
+                auto& swapchainImpl = m_swapchains.at(h);
+                acquiredSwapchains.emplace_back(swapchainImpl.vkSwapchain.get());
+                acquiredImageIndices.emplace_back(swapchainImpl.acquiredImage);
+            }
+        }
+
+        const VkPresentInfoKHR presentInfo{
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .waitSemaphoreCount = waitSemaphores.size32(),
+            .pWaitSemaphores = waitSemaphores.data(),
+            .swapchainCount = acquiredSwapchains.size32(),
+            .pSwapchains = acquiredSwapchains.data(),
+            .pImageIndices = acquiredImageIndices.data(),
+            .pResults = nullptr,
+        };
+
+        return translate_result(vkQueuePresentKHR(get_queue(universal_queue_id).queue, &presentInfo));
     }
 
     result<> vulkan_instance::wait_idle()
@@ -506,6 +736,12 @@ namespace oblo::gpu
     void vulkan_instance::unregister_image(h32<image> image)
     {
         m_images.erase(image);
+    }
+
+    const vulkan_instance::queue_impl& vulkan_instance::get_queue(h32<queue> queue) const
+    {
+        OBLO_ASSERT(queue);
+        return m_queues[queue.value - 1];
     }
 }
 

@@ -52,5 +52,5 @@ namespace oblo
     using h64 = handle<Tag, u64>;
 
     template <typename Tag>
-    using hptr = handle<Tag, usize>;
+    using hptr = handle<Tag, uintptr>;
 }

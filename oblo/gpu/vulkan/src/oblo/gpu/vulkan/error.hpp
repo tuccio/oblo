@@ -15,6 +15,9 @@ namespace oblo::gpu
             OBLO_ASSERT(false);
             return error::undefined;
 
+        case VK_NOT_READY:
+            return error::not_ready;
+
         case VK_ERROR_DEVICE_LOST:
             return error::device_lost;
 

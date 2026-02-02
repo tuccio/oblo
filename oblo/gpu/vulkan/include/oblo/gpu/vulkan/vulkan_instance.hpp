@@ -33,6 +33,12 @@ namespace oblo::gpu
         result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) override;
         void destroy_swapchain(h32<swapchain> handle) override;
 
+        result<h32<fence>> create_fence(const fence_descriptor& descriptor) override;
+        void destroy_fence(h32<fence> handle) override;
+
+        result<> wait_for_fences(const std::span<const h32<fence>> fences) override;
+        result<> reset_fences(const std::span<const h32<fence>> fences) override;
+
         result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) override;
         void destroy_semaphore(h32<semaphore> handle) override;
 
@@ -41,25 +47,36 @@ namespace oblo::gpu
         result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) override;
 
+        void destroy_command_buffer_pool(h32<command_buffer_pool> commandBufferPool) override;
+
+        result<> reset_command_buffer_pool(h32<command_buffer_pool> commandBufferPool) override;
+
         result<> fetch_command_buffers(h32<command_buffer_pool> pool,
             std::span<hptr<command_buffer>> commandBuffers) override;
+
+        result<> begin_command_buffer(hptr<command_buffer> commandBuffer) override;
+        result<> end_command_buffer(hptr<command_buffer> commandBuffer) override;
 
         result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
 
         result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
 
+        result<> present(const present_descriptor& descriptor) override;
+
         result<> wait_idle() override;
 
     private:
+        struct command_buffer_pool_impl;
         struct image_impl;
         struct queue_impl;
-        struct semaphore_impl;
         struct swapchain_impl;
 
     private:
         h32<image> register_image(VkImage image, VkImageView view, VmaAllocation allocation);
         void unregister_image(h32<image> image);
+
+        const queue_impl& get_queue(h32<queue> queue) const;
 
     private:
         VkInstance m_instance{};
@@ -69,6 +86,8 @@ namespace oblo::gpu
         dynamic_array<queue_impl> m_queues;
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
         h32_flat_pool_dense_map<image, image_impl> m_images;
-        h32_flat_pool_dense_map<semaphore, semaphore_impl> m_semaphores;
+        h32_flat_pool_dense_map<semaphore, VkSemaphore> m_semaphores;
+        h32_flat_pool_dense_map<command_buffer_pool, command_buffer_pool_impl> m_commandBufferPools;
+        h32_flat_pool_dense_map<fence, VkFence> m_fences;
     };
 }
