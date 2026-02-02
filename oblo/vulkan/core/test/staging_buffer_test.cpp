@@ -3,7 +3,7 @@
 #include <oblo/core/finally.hpp>
 #include <oblo/core/random_generator.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
 
 #include <array>

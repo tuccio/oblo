@@ -3,13 +3,13 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/vulkan/gpu_allocator.hpp>
+#include <oblo/gpu/vulkan/utility/debug_utils.hpp>
 #include <oblo/vulkan/command_buffer_pool.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
 #include <oblo/vulkan/instance.hpp>
 #include <oblo/vulkan/loaded_functions.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/single_queue_engine.hpp>
-#include <oblo/vulkan/utility/debug_utils.hpp>
 
 #include <memory>
 #include <span>
@@ -82,8 +82,8 @@ namespace oblo::vk
         void destroy_deferred(VkAccelerationStructureKHR accelerationStructure, u64 submitIndex);
         void destroy_deferred(h32<texture> texture, u64 submitIndex);
 
-        debug_utils::label get_debug_utils_label() const;
-        debug_utils::object get_debug_utils_object() const;
+        gpu::vk::debug_utils::label get_debug_utils_label() const;
+        gpu::vk::debug_utils::object get_debug_utils_object() const;
 
         void begin_debug_label(VkCommandBuffer commandBuffer, const char* label) const;
         void end_debug_label(VkCommandBuffer commandBuffer) const;
@@ -118,8 +118,8 @@ namespace oblo::vk
         gpu_allocator* m_allocator{};
         resource_manager* m_resourceManager{};
 
-        debug_utils::label m_debugUtilsLabel{};
-        debug_utils::object m_debugUtilsObject{};
+        gpu::vk::debug_utils::label m_debugUtilsLabel{};
+        gpu::vk::debug_utils::object m_debugUtilsObject{};
 
         dynamic_array<frame_info> m_frameInfo;
 

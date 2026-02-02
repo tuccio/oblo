@@ -6,8 +6,7 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/math/power_of_two.hpp>
 #include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
-#include <oblo/vulkan/utility/pipeline_barrier.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 #include <numeric>
 

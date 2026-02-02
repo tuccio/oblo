@@ -2,7 +2,6 @@
 
 #include <oblo/math/vec2i.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/draw/types.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
 

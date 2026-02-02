@@ -2,8 +2,9 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/gpu/types.hpp>
 #include <oblo/vulkan/data/handles.hpp>
-#include <oblo/vulkan/draw/types.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 #include <span>
 
@@ -17,10 +18,11 @@ namespace oblo
 
 namespace oblo::vk
 {
+    using mesh_index_type = gpu::mesh_index_type;
+
     struct buffer;
     struct buffer_column_description;
 
-    class gpu_allocator;
     class resource_manager;
 
     struct mesh_attribute_description

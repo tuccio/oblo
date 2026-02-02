@@ -4,7 +4,6 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/utility/pipeline_barrier.hpp>
 
 namespace oblo::vk
 {

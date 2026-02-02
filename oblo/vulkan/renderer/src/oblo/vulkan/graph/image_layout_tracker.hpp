@@ -3,6 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -12,7 +13,6 @@ namespace oblo::vk
     struct texture;
 
     enum class pass_kind : u8;
-    enum class texture_usage : u8;
 
     class image_layout_tracker
     {

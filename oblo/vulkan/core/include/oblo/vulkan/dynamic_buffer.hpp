@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/vulkan/gpu_allocator.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 #include <vulkan/vulkan_core.h>
 

@@ -521,12 +521,12 @@ namespace oblo::vk
             handle);
     }
 
-    debug_utils::label vulkan_context::get_debug_utils_label() const
+    gpu::vk::debug_utils::label vulkan_context::get_debug_utils_label() const
     {
         return m_debugUtilsLabel;
     }
 
-    debug_utils::object vulkan_context::get_debug_utils_object() const
+    gpu::vk::debug_utils::object vulkan_context::get_debug_utils_object() const
     {
         return m_debugUtilsObject;
     }

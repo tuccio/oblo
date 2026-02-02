@@ -2,6 +2,7 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 #include <vector>
 
@@ -9,8 +10,6 @@
 
 namespace oblo::vk
 {
-    enum class memory_usage : u8;
-
     class vulkan_context;
     struct buffer;
 

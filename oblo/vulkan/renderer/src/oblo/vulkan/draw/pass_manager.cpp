@@ -1589,7 +1589,7 @@ namespace oblo::vk
 
         {
             const VkDescriptorPoolSize descriptorPoolSizes[] = {
-                {VK_DESCRIPTOR_TYPE_SAMPLER, array_size(m_impl->samplers)},
+                {VK_DESCRIPTOR_TYPE_SAMPLER, array_size32(m_impl->samplers)},
                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, textureRegistry.get_max_descriptor_count()},
             };
 
@@ -1604,7 +1604,7 @@ namespace oblo::vk
                 {
                     .binding = TexturesSamplerBinding,
                     .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-                    .descriptorCount = array_size(m_impl->samplers),
+                    .descriptorCount = array_size32(m_impl->samplers),
                     .stageFlags = VK_SHADER_STAGE_ALL,
                     .pImmutableSamplers = m_impl->samplers,
                 },
@@ -1612,7 +1612,7 @@ namespace oblo::vk
 
             const VkDescriptorSetLayoutCreateInfo layoutInfo = {
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .bindingCount = array_size(vkBindings),
+                .bindingCount = array_size32(vkBindings),
                 .pBindings = vkBindings,
             };
 
@@ -1641,7 +1641,7 @@ namespace oblo::vk
 
             const VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedInfo{
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
-                .bindingCount = array_size(bindlessFlags),
+                .bindingCount = array_size32(bindlessFlags),
                 .pBindingFlags = bindlessFlags,
             };
 
@@ -1649,7 +1649,7 @@ namespace oblo::vk
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
                 .pNext = &extendedInfo,
                 .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT,
-                .bindingCount = array_size(vkBindings),
+                .bindingCount = array_size32(vkBindings),
                 .pBindings = vkBindings,
             };
 
@@ -2136,7 +2136,7 @@ namespace oblo::vk
 
         const VkPipelineDynamicStateCreateInfo dynamicState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-            .dynamicStateCount = array_size(dynamicStates),
+            .dynamicStateCount = array_size32(dynamicStates),
             .pDynamicStates = dynamicStates,
         };
 
@@ -2714,7 +2714,7 @@ namespace oblo::vk
                 },
             };
 
-            vkUpdateDescriptorSets(m_impl->device, array_size(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
+            vkUpdateDescriptorSets(m_impl->device, array_size32(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
 
             m_impl->currentTextures2DDescriptor = texture2dDescriptorSet;
         }

@@ -2,6 +2,7 @@
 
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/vulkan/buffer_table.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 namespace oblo::vk
 {

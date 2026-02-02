@@ -8,6 +8,7 @@
 #include <oblo/core/finally.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/gpu/vulkan/swapchain.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -19,7 +20,6 @@
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/swapchain.hpp>
 #include <oblo/vulkan/templates/graph_templates.hpp>
 #include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
@@ -45,6 +45,8 @@ namespace oblo::vk
 {
     namespace
     {
+        using gpu::vk::swapchain;
+
         constexpr u32 g_SwapchainImages = 3;
         constexpr VkFormat g_SwapchainFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
@@ -141,7 +143,13 @@ namespace oblo::vk
 
             bool create_swapchain(vulkan_context& ctx, resource_manager& resourceManager)
             {
-                if (!swapchain.create(ctx, surface, width, height, g_SwapchainFormat))
+                if (swapchain.create(ctx.get_allocator(),
+                        ctx.get_physical_device(),
+                        ctx.get_device(),
+                        surface,
+                        width,
+                        height,
+                        g_SwapchainFormat) != VK_SUCCESS)
                 {
                     return false;
                 }
@@ -175,7 +183,7 @@ namespace oblo::vk
 
             void destroy_swapchain(vulkan_context& ctx, resource_manager& resourceManager)
             {
-                swapchain.destroy(ctx);
+                swapchain.destroy(ctx.get_allocator(), ctx.get_device());
 
                 for (auto& handle : swapchainTextures)
                 {
@@ -541,7 +549,7 @@ namespace oblo::vk
             return false;
         }
 
-        if (!allocator.init(instance.get(), engine.get_physical_device(), engine.get_device()))
+        if (allocator.init(instance.get(), engine.get_physical_device(), engine.get_device()) != VK_SUCCESS)
         {
             return false;
         }

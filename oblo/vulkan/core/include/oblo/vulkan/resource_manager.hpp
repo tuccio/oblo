@@ -4,15 +4,13 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 #include <vulkan/vulkan.h>
 
 namespace oblo::vk
 {
-    class gpu_allocator;
     struct buffer;
-    struct buffer_initializer;
-    struct image_initializer;
     struct texture;
 
     class resource_manager

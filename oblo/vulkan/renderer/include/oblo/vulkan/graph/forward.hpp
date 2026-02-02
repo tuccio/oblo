@@ -2,6 +2,9 @@
 
 #include <oblo/core/forward.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/forward.hpp>
+
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 namespace oblo::vk
 {
@@ -44,18 +47,15 @@ namespace oblo::vk
     struct resident_texture;
     struct retained_texture;
 
-    struct image_initializer;
-
     struct frame_graph_build_state;
     struct frame_graph_execution_state;
     struct frame_graph_pin_storage;
     struct staging_buffer_span;
 
-    enum class buffer_usage : u8;
-    enum class mesh_index_type : u8;
-    enum class pass_kind : u8;
-    enum class shader_stage : u8;
-    enum class texture_usage : u8;
+    using buffer_usage = oblo::gpu::buffer_usage;
+    using mesh_index_type = oblo::gpu::mesh_index_type;
+    using shader_stage = oblo::gpu::shader_stage;
+    using texture_usage = oblo::gpu::texture_usage;
 
     using async_download = future<dynamic_array<byte>>;
     using async_download_promise = promise<dynamic_array<byte>>;

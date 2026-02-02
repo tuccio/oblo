@@ -6,7 +6,7 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk

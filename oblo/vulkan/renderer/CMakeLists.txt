@@ -10,6 +10,7 @@ target_link_libraries(
     PUBLIC
     oblo::core
     oblo::ecs
+    oblo::gpu::vulkan
     oblo::metrics
     oblo::options
     oblo::vk::core

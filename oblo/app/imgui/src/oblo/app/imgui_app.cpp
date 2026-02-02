@@ -16,7 +16,6 @@
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/draw/binding_table.hpp>
 #include <oblo/vulkan/draw/render_pass_initializer.hpp>
-#include <oblo/vulkan/draw/types.hpp>
 #include <oblo/vulkan/graph/frame_graph.hpp>
 #include <oblo/vulkan/graph/frame_graph_registry.hpp>
 #include <oblo/vulkan/graph/frame_graph_template.hpp>

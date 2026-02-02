@@ -402,4 +402,23 @@ namespace oblo::gpu
         rasterization_order_attachment_stencil_access,
         enum_max,
     };
+
+    enum class shader_stage : u8
+    {
+        mesh,
+        task,
+        compute,
+        vertex,
+        geometry,
+        tessellation_control,
+        tessellation_evaluation,
+        fragment,
+        raygen,
+        intersection,
+        closest_hit,
+        any_hit,
+        miss,
+        callable,
+        enum_max,
+    };
 }

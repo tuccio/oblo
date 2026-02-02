@@ -2,7 +2,7 @@
 
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/draw/types.hpp>
+#include <oblo/gpu/types.hpp>
 
 #include <span>
 
@@ -12,7 +12,7 @@ namespace oblo::vk
     {
         u32 width;
         u32 height;
-        texture_format format;
+        gpu::texture_format format;
         bool isStable;
         debug_label debugLabel{std::source_location::current()};
     };

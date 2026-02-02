@@ -4,7 +4,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
 #include <span>
 

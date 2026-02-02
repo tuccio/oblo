@@ -4,6 +4,7 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/vulkan/buffer.hpp>
@@ -20,7 +21,6 @@
 #include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/resource_manager.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
-#include <oblo/vulkan/utility/image_utils.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk

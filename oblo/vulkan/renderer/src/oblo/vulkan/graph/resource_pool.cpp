@@ -3,10 +3,10 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/reflection/struct_compare.hpp>
 #include <oblo/core/reflection/struct_hash.hpp>
+#include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/vulkan/buffer.hpp>
 #include <oblo/vulkan/error.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
-#include <oblo/vulkan/utility/image_utils.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 // For the sake of pooling textures, we ignore the debug labels

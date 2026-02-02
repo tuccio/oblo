@@ -9,6 +9,7 @@ target_link_libraries(
     oblo_vk_core
     PUBLIC
     oblo::core
+    oblo::gpu::vulkan
     oblo::vk::compiler
     Vulkan::Headers
     PRIVATE

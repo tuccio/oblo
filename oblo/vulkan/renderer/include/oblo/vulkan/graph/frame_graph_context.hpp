@@ -8,7 +8,7 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/draw/types.hpp>
+#include <oblo/gpu/types.hpp>
 #include <oblo/vulkan/graph/forward.hpp>
 #include <oblo/vulkan/graph/frame_graph_resources.hpp>
 #include <oblo/vulkan/graph/pins.hpp>
@@ -311,6 +311,6 @@ namespace oblo::vk
     {
         u32 width;
         u32 height;
-        texture_format format;
+        gpu::texture_format format;
     };
 }

@@ -3,11 +3,13 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/texture_format.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 #include <oblo/vulkan/staging_buffer.hpp>
-#include <oblo/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo::vk
@@ -99,7 +101,7 @@ namespace oblo::vk
         resident_texture residentTexture;
 
         if (!dummy.allocate({
-                .vkFormat = texture_format::r8g8b8a8_unorm,
+                .vkFormat = oblo::texture_format::r8g8b8a8_unorm,
                 .width = 1,
                 .height = 1,
                 .depth = 1,

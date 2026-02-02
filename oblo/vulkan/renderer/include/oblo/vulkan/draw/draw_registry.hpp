@@ -7,7 +7,7 @@
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/vulkan/draw/mesh_database.hpp>
 #include <oblo/vulkan/dynamic_buffer.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 #include <oblo/vulkan/monotonic_gbu_buffer.hpp>
 
 #include <array>

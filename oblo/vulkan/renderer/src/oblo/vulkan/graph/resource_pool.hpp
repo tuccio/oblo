@@ -3,7 +3,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/gpu_allocator.hpp>
+#include <oblo/vulkan/gpu_temporary_aliases.hpp>
 #include <oblo/vulkan/texture.hpp>
 
 #include <unordered_map>
