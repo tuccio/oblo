@@ -57,6 +57,9 @@ namespace oblo::gpu
         result<> begin_command_buffer(hptr<command_buffer> commandBuffer) override;
         result<> end_command_buffer(hptr<command_buffer> commandBuffer) override;
 
+        result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor);
+        void destroy_shader_module(h32<shader_module> handle);
+
         result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
 
@@ -70,6 +73,7 @@ namespace oblo::gpu
         struct command_buffer_pool_impl;
         struct image_impl;
         struct queue_impl;
+        struct shader_module_impl;
         struct swapchain_impl;
 
     private:
@@ -89,5 +93,6 @@ namespace oblo::gpu
         h32_flat_pool_dense_map<semaphore, VkSemaphore> m_semaphores;
         h32_flat_pool_dense_map<command_buffer_pool, command_buffer_pool_impl> m_commandBufferPools;
         h32_flat_pool_dense_map<fence, VkFence> m_fences;
+        h32_flat_pool_dense_map<shader_module, shader_module_impl> m_shaderModules;
     };
 }

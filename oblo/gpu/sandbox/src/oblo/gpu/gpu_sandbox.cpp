@@ -110,6 +110,12 @@ namespace oblo
                 if (!m_swapchain || (windowSize.x != lastWindowSize.x || lastWindowSize.y != lastWindowSize.y))
                 {
                     recreate_swapchain(windowSize);
+
+                    if (!m_swapchain)
+                    {
+                        continue;
+                    }
+
                     lastWindowSize = windowSize;
                 }
 

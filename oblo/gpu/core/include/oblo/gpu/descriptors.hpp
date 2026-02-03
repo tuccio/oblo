@@ -45,6 +45,12 @@ namespace oblo::gpu
     {
     };
 
+    struct shader_module_descriptor
+    {
+        shader_module_format format;
+        std::span<const u8> data;
+    };
+
     struct swapchain_descriptor
     {
         hptr<surface> surface;

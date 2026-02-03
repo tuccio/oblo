@@ -12,6 +12,7 @@ namespace oblo::gpu
     struct native_window;
     struct queue;
     struct semaphore;
+    struct shader_module;
     struct surface;
     struct swapchain;
 
@@ -24,6 +25,7 @@ namespace oblo::gpu
     struct present_descriptor;
     struct queue_submit_descriptor;
     struct semaphore_descriptor;
+    struct shader_module_descriptor;
     struct swapchain_descriptor;
 
     enum class error;
@@ -34,4 +36,5 @@ namespace oblo::gpu
     enum class shader_stage : u8;
     enum class texture_format : u32;
     enum class texture_usage : u8;
+    enum class shader_module_format : u8;
 }

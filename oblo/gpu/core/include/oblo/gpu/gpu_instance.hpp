@@ -51,6 +51,9 @@ namespace oblo::gpu
         virtual result<> begin_command_buffer(hptr<command_buffer> commandBuffer) = 0;
         virtual result<> end_command_buffer(hptr<command_buffer> commandBuffer) = 0;
 
+        virtual result<h32<shader_module>> create_shader_module(const shader_module_descriptor& shaderModule) = 0;
+        virtual void destroy_shader_module(h32<shader_module> handle) = 0;
+
         virtual result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) = 0;
         virtual result<h32<image>> create_image(const image_descriptor& descriptor) = 0;
 

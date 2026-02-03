@@ -127,6 +127,12 @@ namespace oblo::gpu
         u32 familyIndex;
     };
 
+    struct vulkan_instance::shader_module_impl
+    {
+        VkShaderModule vkShaderModule;
+        dynamic_array<u32> spirv;
+    };
+
     struct vulkan_instance::swapchain_impl
     {
         vk::swapchain<3u> vkSwapchain;
@@ -606,6 +612,48 @@ namespace oblo::gpu
     result<> vulkan_instance::end_command_buffer(hptr<command_buffer> commandBuffer)
     {
         return translate_result(vkEndCommandBuffer(unwrap_handle<VkCommandBuffer>(commandBuffer)));
+    }
+
+    result<h32<shader_module>> vulkan_instance::create_shader_module(const shader_module_descriptor& descriptor)
+    {
+        if (descriptor.format != shader_module_format::spirv || descriptor.data.size_bytes() % 4 != 0)
+        {
+            return error::invalid_usage;
+        }
+
+        const usize numU32 = descriptor.data.size_bytes() / 4;
+
+        // Copy the spirv because we can use spirv-cross on it for reflection purposes
+        dynamic_array<u32> spirv;
+        spirv.resize_default(numU32);
+
+        std::memcpy(spirv.data(), descriptor.data.data(), numU32);
+
+        const VkShaderModuleCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = spirv.size_bytes(),
+            .pCode = spirv.data(),
+        };
+
+        VkShaderModule shaderModule;
+        const VkResult r = vkCreateShaderModule(m_device, &info, m_allocator.get_allocation_callbacks(), &shaderModule);
+
+        if (r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        const auto [it, handle] = m_shaderModules.emplace();
+        it->vkShaderModule = shaderModule;
+        it->spirv = std::move(spirv);
+        return handle;
+    }
+
+    void vulkan_instance::destroy_shader_module(h32<shader_module> handle)
+    {
+        shader_module_impl& impl = m_shaderModules.at(handle);
+        vkDestroyShaderModule(m_device, impl.vkShaderModule, m_allocator.get_allocation_callbacks());
+        m_shaderModules.erase(handle);
     }
 
     result<h32<buffer>> vulkan_instance::create_buffer(const buffer_descriptor& descriptor)

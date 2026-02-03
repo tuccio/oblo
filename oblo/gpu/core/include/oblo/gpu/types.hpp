@@ -421,4 +421,9 @@ namespace oblo::gpu
         callable,
         enum_max,
     };
+
+    enum class shader_module_format : u8
+    {
+        spirv,
+    };
 }
