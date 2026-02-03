@@ -65,8 +65,6 @@ namespace oblo::vk
         string_interner m_stringInterner;
         pass_manager m_passManager;
 
-        h32<buffer> m_dummy;
-
         frame_graph m_frameGraph;
 
         bool m_firstUpdate{};

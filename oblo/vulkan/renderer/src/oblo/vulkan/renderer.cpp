@@ -44,25 +44,12 @@ namespace oblo::vk
             return false;
         }
 
-        auto& resourceManager = m_vkContext->get_resource_manager();
-
-        m_dummy = resourceManager.create(gpuAllocator,
-            {
-                .size = 16u,
-                .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                .memoryUsage = memory_usage::gpu_only,
-            });
-
         m_stringInterner.init(256);
 
         m_instanceDataTypeRegistry = allocate_unique<instance_data_type_registry>();
         m_instanceDataTypeRegistry->register_from_module();
 
-        m_passManager.init(*m_vkContext,
-            m_stringInterner,
-            resourceManager.get(m_dummy),
-            m_textureRegistry,
-            *m_instanceDataTypeRegistry);
+        m_passManager.init(*m_vkContext, m_stringInterner, m_textureRegistry, *m_instanceDataTypeRegistry);
 
         m_passManager.set_raytracing_enabled(m_isRayTracingEnabled);
 
@@ -84,8 +71,6 @@ namespace oblo::vk
         m_frameGraph.shutdown(*m_vkContext);
 
         m_passManager.shutdown(*m_vkContext);
-
-        resourceManager.destroy(allocator, m_dummy);
 
         m_textureRegistry.shutdown();
         m_stagingBuffer.shutdown();

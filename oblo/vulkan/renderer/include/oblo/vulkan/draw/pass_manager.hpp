@@ -63,7 +63,6 @@ namespace oblo::vk
 
         void init(vulkan_context& vkContext,
             string_interner& interner,
-            const buffer& dummy,
             const texture_registry& textureRegistry,
             const instance_data_type_registry& instanceDataTypeRegistry);
 

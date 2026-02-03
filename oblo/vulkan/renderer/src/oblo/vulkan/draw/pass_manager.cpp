@@ -610,7 +610,6 @@ namespace oblo::vk
         descriptor_set_pool descriptorSetPool;
         descriptor_set_pool texturesDescriptorSetPool;
         const texture_registry* textureRegistry{};
-        buffer dummy{};
         VkDescriptorSetLayout samplersSetLayout{};
         VkDescriptorSetLayout textures2DSetLayout{};
 
@@ -1402,7 +1401,6 @@ namespace oblo::vk
 
     void pass_manager::init(vulkan_context& vkContext,
         string_interner& interner,
-        const buffer& dummy,
         const texture_registry& textureRegistry,
         const instance_data_type_registry& instanceDataTypeRegistry)
     {
@@ -1413,7 +1411,6 @@ namespace oblo::vk
         m_impl->vkCtx = &vkContext;
         m_impl->device = vkContext.get_device();
         m_impl->interner = &interner;
-        m_impl->dummy = dummy;
 
         m_impl->textureRegistry = &textureRegistry;
 
