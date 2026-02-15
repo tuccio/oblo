@@ -51,11 +51,21 @@ namespace oblo::gpu
         virtual result<> begin_command_buffer(hptr<command_buffer> commandBuffer) = 0;
         virtual result<> end_command_buffer(hptr<command_buffer> commandBuffer) = 0;
 
-        virtual result<h32<shader_module>> create_shader_module(const shader_module_descriptor& shaderModule) = 0;
-        virtual void destroy_shader_module(h32<shader_module> handle) = 0;
-
         virtual result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) = 0;
         virtual result<h32<image>> create_image(const image_descriptor& descriptor) = 0;
+
+        virtual result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor) = 0;
+        virtual void destroy_shader_module(h32<shader_module> handle) = 0;
+
+        virtual result<h32<render_pipeline>> create_render_pipeline(const render_pipeline_descriptor& descriptor) = 0;
+        virtual void destroy_render_pipeline(h32<render_pipeline> handle) = 0;
+
+        virtual result<> begin_render_pass(hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline) = 0;
+        virtual void end_render_pass(hptr<command_buffer> cmdBuffer) = 0;
+
+        virtual result<h32<bindless_image>> acquire_bindless(h32<image> optImage) = 0;
+        virtual result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) = 0;
+        virtual void release_bindless(h32<bindless_image> slot) = 0;
 
         virtual result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) = 0;
 

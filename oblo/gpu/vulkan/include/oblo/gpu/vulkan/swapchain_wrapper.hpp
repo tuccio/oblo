@@ -28,13 +28,13 @@ namespace oblo::gpu::vk
         u32 imageCount);
 
     template <u32 SwapChainImageCount>
-    class swapchain
+    class swapchain_wrapper
     {
     public:
-        swapchain() = default;
-        swapchain(const swapchain&) = delete;
+        swapchain_wrapper() = default;
+        swapchain_wrapper(const swapchain_wrapper&) = delete;
 
-        swapchain(swapchain&& other) noexcept
+        swapchain_wrapper(swapchain_wrapper&& other) noexcept
         {
             m_swapchain = other.m_swapchain;
             other.m_swapchain = nullptr;
@@ -48,9 +48,9 @@ namespace oblo::gpu::vk
             }
         }
 
-        swapchain& operator=(const swapchain&) = delete;
+        swapchain_wrapper& operator=(const swapchain_wrapper&) = delete;
 
-        swapchain& operator=(swapchain&& other) noexcept = delete;
+        swapchain_wrapper& operator=(swapchain_wrapper&& other) noexcept = delete;
 
         VkResult create(gpu_allocator& allocator,
             VkPhysicalDevice physicalDevice,

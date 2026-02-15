@@ -12,6 +12,9 @@ namespace oblo::vk
     struct frame_graph_impl;
     struct frame_graph_subgraph;
 
+    struct frame_graph_build_args;
+    struct frame_graph_execute_args;
+
     class frame_graph_init_context;
     class frame_graph_build_context;
     class frame_graph_execute_context;

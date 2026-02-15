@@ -24,7 +24,7 @@ namespace oblo
 
         expected<> run()
         {
-            m_gpu = allocate_unique<gpu::vulkan_instance>();
+            m_gpu = allocate_unique<gpu::vk::vulkan_instance>();
 
             if (!m_gpu->init({
                     .application = "GPU Sandbox",

@@ -65,9 +65,6 @@ namespace oblo::vk
 
     void renderer::shutdown()
     {
-        auto& allocator = m_vkContext->get_allocator();
-        auto& resourceManager = m_vkContext->get_resource_manager();
-
         m_frameGraph.shutdown(*m_vkContext);
 
         m_passManager.shutdown(*m_vkContext);
@@ -100,12 +97,24 @@ namespace oblo::vk
 
         m_passManager.begin_frame(commandBuffer);
 
-        m_frameGraph.build(*this);
+        m_frameGraph.build({
+            .vkCtx = *m_vkContext,
+            .stagingBuffer = m_stagingBuffer,
+            .passManager = m_passManager,
+            .textureRegistry = m_textureRegistry,
+            .resourceCache = m_resourceCache,
+        });
 
         // Frame graph building might update the texture descriptors, so we update them after that
         m_passManager.update_global_descriptor_sets();
 
-        m_frameGraph.execute(*this);
+        m_frameGraph.execute({
+            .vkCtx = *m_vkContext,
+            .stagingBuffer = m_stagingBuffer,
+            .stringInterner = m_stringInterner,
+            .passManager = m_passManager,
+            .textureRegistry = m_textureRegistry,
+        });
 
         m_passManager.end_frame();
         m_stagingBuffer.end_frame();

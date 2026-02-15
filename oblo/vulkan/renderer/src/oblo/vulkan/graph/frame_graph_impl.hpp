@@ -320,7 +320,7 @@ namespace oblo::vk
 
     public: // Internals for frame graph execution
         void mark_active_nodes();
-        void rebuild_runtime(renderer& renderer);
+        void rebuild_runtime(const frame_graph_build_args& args);
         void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
         void flush_downloads(vulkan_context& vkCtx);
         void finish_frame();

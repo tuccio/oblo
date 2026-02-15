@@ -544,11 +544,11 @@ namespace oblo::vk
         m_impl.reset();
     }
 
-    void frame_graph::build(renderer& renderer)
+    void frame_graph::build(const frame_graph_build_args& args)
     {
         OBLO_PROFILE_SCOPE("Frame Graph Build");
 
-        auto& vkCtx = renderer.get_vulkan_context();
+        auto& vkCtx = args.vkCtx;
 
         // Free retained textures if the user destroyed some subgraphs that owned some
         m_impl->free_pending_textures(vkCtx);
@@ -556,7 +556,7 @@ namespace oblo::vk
         m_impl->dynamicAllocator.restore_all();
 
         m_impl->mark_active_nodes();
-        m_impl->rebuild_runtime(renderer);
+        m_impl->rebuild_runtime(args);
 
         const u32 extraHiddenNodes = u32{m_impl->is_recording_metrics()};
 
@@ -567,7 +567,7 @@ namespace oblo::vk
         m_impl->passes.assign_default(1);
 
         frame_graph_build_state buildState;
-        const frame_graph_build_context buildCtx{*m_impl, buildState, renderer};
+        const frame_graph_build_context buildCtx{*m_impl, buildState, args};
 
         // Clearing these is required for certain operations that query created textures during the build process (e.g.
         // get_texture_initializer).
@@ -647,9 +647,9 @@ namespace oblo::vk
             m_impl->end_pass_build(buildState);
         }
 
-        m_impl->resourcePool.end_build(renderer.get_vulkan_context());
+        m_impl->resourcePool.end_build(args.vkCtx);
 
-        auto& textureRegistry = renderer.get_texture_registry();
+        auto& textureRegistry = args.textureRegistry;
 
         for (auto& texture : m_impl->bindlessTextures)
         {
@@ -664,11 +664,11 @@ namespace oblo::vk
         m_impl->resourceManager = {};
     }
 
-    void frame_graph::execute(renderer& renderer)
+    void frame_graph::execute(const frame_graph_execute_args& args)
     {
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
-        auto& vkContext = renderer.get_vulkan_context();
+        auto& vkContext = args.vkCtx;
         const VkCommandBuffer commandBuffer = vkContext.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
@@ -691,7 +691,7 @@ namespace oblo::vk
 
         if (!m_impl->pendingUploads.empty())
         {
-            m_impl->flush_uploads(commandBuffer, renderer.get_staging_buffer());
+            m_impl->flush_uploads(commandBuffer, args.stagingBuffer);
         }
 
         // Prepare the download buffers
@@ -711,13 +711,13 @@ namespace oblo::vk
             }
 
             // This only works as long as we submit once per frame
-            download.submitIndex = renderer.get_vulkan_context().get_submit_index();
+            download.submitIndex = vkContext.get_submit_index();
             download.stagedSpan = *staging;
             download.promise.init(get_global_allocator());
         }
 
         frame_graph_execution_state executionState{.commandBuffer = commandBuffer};
-        const frame_graph_execute_context executeCtx{*m_impl, executionState, renderer};
+        const frame_graph_execute_context executeCtx{*m_impl, executionState, args};
 
         auto& imageLayoutTracker = executionState.imageLayoutTracker;
 
@@ -831,7 +831,7 @@ namespace oblo::vk
         m_impl->barriers = {};
         m_impl->currentNode = {};
 
-        auto& textureRegistry = renderer.get_texture_registry();
+        auto& textureRegistry = args.textureRegistry;
 
         for (const auto& texture : m_impl->bindlessTextures)
         {
@@ -842,7 +842,7 @@ namespace oblo::vk
 
         m_impl->downloadStaging.end_frame();
 
-        m_impl->flush_downloads(renderer.get_vulkan_context());
+        m_impl->flush_downloads(args.vkCtx);
 
         m_impl->finish_frame();
     }
@@ -1307,9 +1307,9 @@ namespace oblo::vk
         return storage.data;
     }
 
-    void frame_graph_impl::rebuild_runtime(renderer& renderer)
+    void frame_graph_impl::rebuild_runtime(const frame_graph_build_args& args)
     {
-        const frame_graph_init_context initCtx{*this, renderer};
+        const frame_graph_init_context initCtx{*this, args};
 
         sortedNodes.clear();
         sortedNodes.reserve(nodes.size());

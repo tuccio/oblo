@@ -14,18 +14,25 @@
 namespace oblo
 {
     class async_metrics;
+    class string_interner;
 }
 
 namespace oblo::vk
 {
-    class frame_graph_template;
-
-    class renderer;
+    class pass_manager;
+    class resource_cache;
+    class texture_registry;
+    class staging_buffer;
     class vulkan_context;
+
+    class frame_graph_template;
 
     struct frame_graph_impl;
     struct frame_graph_subgraph;
     struct frame_graph_output_desc;
+
+    struct frame_graph_build_args;
+    struct frame_graph_execute_args;
 
     class frame_graph
     {
@@ -57,9 +64,9 @@ namespace oblo::vk
         bool init(vulkan_context& ctx);
         void shutdown(vulkan_context& ctx);
 
-        void build(renderer& renderer);
+        void build(const frame_graph_build_args& args);
 
-        void execute(renderer& renderer);
+        void execute(const frame_graph_execute_args& args);
 
         void write_dot(std::ostream& os) const;
 
@@ -81,6 +88,24 @@ namespace oblo::vk
 
     private:
         unique_ptr<frame_graph_impl> m_impl;
+    };
+
+    struct frame_graph_build_args
+    {
+        vulkan_context& vkCtx;
+        staging_buffer& stagingBuffer;
+        pass_manager& passManager;
+        texture_registry& textureRegistry;
+        resource_cache& resourceCache;
+    };
+
+    struct frame_graph_execute_args
+    {
+        vulkan_context& vkCtx;
+        staging_buffer& stagingBuffer;
+        const string_interner& stringInterner;
+        const pass_manager& passManager;
+        texture_registry& textureRegistry;
     };
 
     template <typename T>

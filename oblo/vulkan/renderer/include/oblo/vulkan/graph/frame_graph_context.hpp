@@ -34,8 +34,6 @@ namespace oblo
 
 namespace oblo::vk
 {
-    class renderer;
-
     struct gpu_info;
     struct texture_init_desc;
 
@@ -44,7 +42,7 @@ namespace oblo::vk
     class frame_graph_init_context
     {
     public:
-        explicit frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer);
+        explicit frame_graph_init_context(frame_graph_impl& frameGraph, const frame_graph_build_args& args);
 
         h32<compute_pass> register_compute_pass(const compute_pass_initializer& initializer) const;
         h32<render_pass> register_render_pass(const render_pass_initializer& initializer) const;
@@ -54,14 +52,14 @@ namespace oblo::vk
 
     private:
         frame_graph_impl& m_frameGraph;
-        renderer& m_renderer;
+        const frame_graph_build_args& m_args;
     };
 
     class frame_graph_build_context
     {
     public:
         explicit frame_graph_build_context(
-            frame_graph_impl& frameGraph, frame_graph_build_state& state, renderer& renderer);
+            frame_graph_impl& frameGraph, frame_graph_build_state& state, const frame_graph_build_args& args);
 
         [[nodiscard]] h32<compute_pass_instance> compute_pass(h32<compute_pass> pass,
             const compute_pipeline_initializer& initializer) const;
@@ -186,14 +184,14 @@ namespace oblo::vk
     private:
         frame_graph_impl& m_frameGraph;
         frame_graph_build_state& m_state;
-        renderer& m_renderer;
+        const frame_graph_build_args& m_args;
     };
 
     class frame_graph_execute_context
     {
     public:
         explicit frame_graph_execute_context(
-            const frame_graph_impl& frameGraph, frame_graph_execution_state& executeCtx, renderer& renderer);
+            const frame_graph_impl& frameGraph, frame_graph_execution_state& executeCtx, const frame_graph_execute_args& args);
 
         void begin_pass(h32<frame_graph_pass> handle) const;
 
@@ -299,7 +297,7 @@ namespace oblo::vk
     private:
         const frame_graph_impl& m_frameGraph;
         frame_graph_execution_state& m_state;
-        renderer& m_renderer;
+        const frame_graph_execute_args& m_args;
     };
 
     struct gpu_info

@@ -3,11 +3,12 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
-#include <oblo/gpu/vulkan/swapchain.hpp>
+#include <oblo/gpu/vulkan/swapchain_wrapper.hpp>
 #include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 
-namespace oblo::gpu
+namespace oblo::gpu::vk
 {
     namespace
     {
@@ -125,6 +126,9 @@ namespace oblo::gpu
     {
         VkQueue queue;
         u32 familyIndex;
+        u64 submitIndex;
+        descriptor_set_pool pipelineDescriptors;
+        descriptor_set_pool bindlessTexturesDescriptors;
     };
 
     struct vulkan_instance::shader_module_impl
@@ -135,7 +139,7 @@ namespace oblo::gpu
 
     struct vulkan_instance::swapchain_impl
     {
-        vk::swapchain<3u> vkSwapchain;
+        swapchain_wrapper<3u> swapchainWrapper;
         h32<image> images[3u];
         u32 acquiredImage{~0u};
     };
@@ -195,7 +199,7 @@ namespace oblo::gpu
     result<hptr<surface>> vulkan_instance::create_surface(hptr<native_window> nativeWindow)
     {
         VkSurfaceKHR vkSurface{};
-        const VkResult result = gpu::create_surface(nativeWindow, m_instance, nullptr, &vkSurface);
+        const VkResult result = gpu::vk::create_surface(nativeWindow, m_instance, nullptr, &vkSurface);
         return translate_error_or_value(result, wrap_handle<surface>(vkSurface));
     }
 
@@ -374,7 +378,7 @@ namespace oblo::gpu
     {
         auto&& [it, handle] = m_swapchains.emplace();
 
-        const VkResult r = it->vkSwapchain.create(m_allocator,
+        const VkResult r = it->swapchainWrapper.create(m_allocator,
             m_physicalDevice,
             m_device,
             unwrap_handle<VkSurfaceKHR>(descriptor.surface),
@@ -388,9 +392,10 @@ namespace oblo::gpu
             return translate_error(r);
         }
 
-        for (u32 i = 0; i < it->vkSwapchain.get_image_count(); ++i)
+        for (u32 i = 0; i < it->swapchainWrapper.get_image_count(); ++i)
         {
-            it->images[i] = register_image(it->vkSwapchain.get_image(i), it->vkSwapchain.get_image_view(i), nullptr);
+            it->images[i] =
+                register_image(it->swapchainWrapper.get_image(i), it->swapchainWrapper.get_image_view(i), nullptr);
         }
 
         return handle;
@@ -400,7 +405,7 @@ namespace oblo::gpu
     {
         auto& sc = m_swapchains.at(handle);
 
-        for (u32 i = 0; i < sc.vkSwapchain.get_image_count(); ++i)
+        for (u32 i = 0; i < sc.swapchainWrapper.get_image_count(); ++i)
         {
             if (sc.images[i])
             {
@@ -409,7 +414,7 @@ namespace oblo::gpu
             }
         }
 
-        sc.vkSwapchain.destroy(m_allocator, m_device);
+        sc.swapchainWrapper.destroy(m_allocator, m_device);
         m_swapchains.erase(handle);
     }
 
@@ -499,8 +504,12 @@ namespace oblo::gpu
 
         u32 imageIndex;
 
-        const VkResult acquireImageResult =
-            vkAcquireNextImageKHR(m_device, sc.vkSwapchain.get(), UINT64_MAX, vkSemaphore, VK_NULL_HANDLE, &imageIndex);
+        const VkResult acquireImageResult = vkAcquireNextImageKHR(m_device,
+            sc.swapchainWrapper.get(),
+            UINT64_MAX,
+            vkSemaphore,
+            VK_NULL_HANDLE,
+            &imageIndex);
 
         if (acquireImageResult != VK_SUCCESS)
         {
@@ -614,6 +623,17 @@ namespace oblo::gpu
         return translate_result(vkEndCommandBuffer(unwrap_handle<VkCommandBuffer>(commandBuffer)));
     }
 
+    result<h32<buffer>> vulkan_instance::create_buffer(const buffer_descriptor& descriptor)
+    {
+        (void) descriptor;
+        return error::undefined;
+    }
+    result<h32<image>> vulkan_instance::create_image(const image_descriptor& descriptor)
+    {
+        (void) descriptor;
+        return error::undefined;
+    }
+
     result<h32<shader_module>> vulkan_instance::create_shader_module(const shader_module_descriptor& descriptor)
     {
         if (descriptor.format != shader_module_format::spirv || descriptor.data.size_bytes() % 4 != 0)
@@ -656,15 +676,43 @@ namespace oblo::gpu
         m_shaderModules.erase(handle);
     }
 
-    result<h32<buffer>> vulkan_instance::create_buffer(const buffer_descriptor& descriptor)
+    result<h32<render_pipeline>> vulkan_instance::create_render_pipeline(const render_pipeline_descriptor& descriptor)
     {
         (void) descriptor;
         return error::undefined;
     }
-    result<h32<image>> vulkan_instance::create_image(const image_descriptor& descriptor)
+
+    void vulkan_instance::destroy_render_pipeline(h32<render_pipeline> handle)
     {
-        (void) descriptor;
+        (void) handle;
+    }
+
+    result<> vulkan_instance::begin_render_pass(hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline)
+    {
+        (void) cmdBuffer;
+        (void) pipeline;
         return error::undefined;
+    }
+
+    void vulkan_instance::end_render_pass(hptr<command_buffer> cmdBuffer)
+    {
+        (void) cmdBuffer;
+    }
+
+    result<h32<bindless_image>> vulkan_instance::acquire_bindless(h32<image> optImage)
+    {
+        (void) optImage;
+        return error::undefined;
+    }
+    result<h32<bindless_image>> vulkan_instance::replace_bindless(h32<bindless_image> slot, h32<image> optImage)
+    {
+        (void) slot;
+        (void) optImage;
+        return error::undefined;
+    }
+
+    void vulkan_instance::release_bindless(h32<bindless_image> slot) {
+        (void) slot;
     }
 
     result<> vulkan_instance::submit(h32<queue> queue, const queue_submit_descriptor& descriptor)
@@ -745,7 +793,7 @@ namespace oblo::gpu
             for (const h32 h : descriptor.swapchains)
             {
                 auto& swapchainImpl = m_swapchains.at(h);
-                acquiredSwapchains.emplace_back(swapchainImpl.vkSwapchain.get());
+                acquiredSwapchains.emplace_back(swapchainImpl.swapchainWrapper.get());
                 acquiredImageIndices.emplace_back(swapchainImpl.acquiredImage);
             }
         }
@@ -798,7 +846,7 @@ namespace oblo::gpu
 
     #include <vulkan/vulkan_win32.h>
 
-namespace oblo::gpu
+namespace oblo::gpu::vk
 {
     namespace
     {

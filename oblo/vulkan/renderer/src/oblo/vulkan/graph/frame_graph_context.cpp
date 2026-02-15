@@ -296,7 +296,7 @@ namespace oblo::vk
         }
 
         void bind_descriptor_sets(const frame_graph_impl& frameGraph,
-            renderer& renderer,
+            const frame_graph_execute_args& args,
             VkCommandBuffer commandBuffer,
             VkPipelineBindPoint bindPoint,
             [[maybe_unused]] h32<frame_graph_pass> currentPass,
@@ -304,8 +304,8 @@ namespace oblo::vk
             const image_layout_tracker& imageLayoutTracker,
             const binding_tables_span& bindingTables)
         {
-            const auto& pm = renderer.get_pass_manager();
-            const auto& interner = renderer.get_string_interner();
+            const auto& pm = args.passManager;
+            const auto& interner = args.stringInterner;
 
             pm.bind_descriptor_sets(commandBuffer,
                 bindPoint,
@@ -444,7 +444,7 @@ namespace oblo::vk
 
         if (upload)
         {
-            [[maybe_unused]] const auto res = m_renderer.get_staging_buffer().stage(initializer.data);
+            [[maybe_unused]] const auto res = m_args.stagingBuffer.stage(initializer.data);
             OBLO_ASSERT(res, "Out of space on the staging buffer, we should flush instead");
 
             stagedData = *res;
@@ -506,14 +506,14 @@ namespace oblo::vk
         const texture_resource_initializer& initializer, flags<texture_usage> usages) const
     {
         const image_initializer& imageInit = create_image_initializer(initializer, convert_texture_usage(usages));
-        const h32 storage = m_frameGraph.create_retained_texture(m_renderer.get_vulkan_context(), imageInit);
+        const h32 storage = m_frameGraph.create_retained_texture(m_args.vkCtx, imageInit);
         return h32<retained_texture>{storage.value};
     }
 
     void frame_graph_build_context::destroy_retained_texture(h32<retained_texture> handle) const
     {
         const h32 storageHandle = as_storage_handle(handle);
-        m_frameGraph.destroy_retained_texture(m_renderer.get_vulkan_context(), storageHandle);
+        m_frameGraph.destroy_retained_texture(m_args.vkCtx, storageHandle);
     }
 
     resource<texture> frame_graph_build_context::get_resource(h32<retained_texture> texture) const
@@ -550,7 +550,7 @@ namespace oblo::vk
         m_frameGraph.add_resource_transition(texture, usage);
         add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
 
-        const auto bindlessHandle = m_renderer.get_texture_registry().acquire();
+        const auto bindlessHandle = m_args.textureRegistry.acquire();
         m_frameGraph.bindlessTextures.emplace_back(bindlessHandle, texture, usage);
 
         return bindlessHandle;
@@ -558,7 +558,7 @@ namespace oblo::vk
 
     h32<resident_texture> frame_graph_build_context::load_resource(const resource_ptr<oblo::texture>& texture) const
     {
-        return m_renderer.get_resource_cache().get_or_add(texture);
+        return m_args.resourceCache.get_or_add(texture);
     }
 
     void frame_graph_build_context::acquire(resource<buffer> buffer, buffer_usage usage) const
@@ -682,12 +682,12 @@ namespace oblo::vk
 
     staging_buffer_span frame_graph_build_context::stage_upload(std::span<const byte> data) const
     {
-        return m_renderer.get_staging_buffer().stage(data).value();
+        return m_args.stagingBuffer.stage(data).value();
     }
 
     staging_buffer_span frame_graph_build_context::stage_upload_image(std::span<const byte> data, u32 texelSize) const
     {
-        return m_renderer.get_staging_buffer().stage_image(data, texelSize).value();
+        return m_args.stagingBuffer.stage_image(data, texelSize).value();
     }
 
     u32 frame_graph_build_context::get_current_frames_count() const
@@ -697,7 +697,7 @@ namespace oblo::vk
 
     frame_graph_build_context::frame_graph_build_context(frame_graph_impl& frameGraph,
         frame_graph_build_state& state,
-        renderer& renderer) : m_frameGraph{frameGraph}, m_state{state}, m_renderer{renderer}
+        const frame_graph_build_args& args) : m_frameGraph{frameGraph}, m_state{state}, m_args{args}
     {
     }
 
@@ -705,7 +705,7 @@ namespace oblo::vk
         const compute_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::compute);
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
         m_frameGraph.passes[h.value].computePipeline = pm.get_or_create_pipeline(pass, initializer);
 
         return h32<compute_pass_instance>{h.value};
@@ -715,7 +715,7 @@ namespace oblo::vk
         const render_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::graphics);
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
         m_frameGraph.passes[h.value].renderPipeline = pm.get_or_create_pipeline(pass, initializer);
 
         return h32<render_pass_instance>{h.value};
@@ -725,7 +725,7 @@ namespace oblo::vk
         const raytracing_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::raytracing);
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
         m_frameGraph.passes[h.value].raytracingPipeline = pm.get_or_create_pipeline(pass, initializer);
 
         return h32<raytracing_pass_instance>{h.value};
@@ -770,7 +770,7 @@ namespace oblo::vk
 
     frame_graph_execute_context::frame_graph_execute_context(const frame_graph_impl& frameGraph,
         frame_graph_execution_state& executeCtx,
-        renderer& renderer) : m_frameGraph{frameGraph}, m_state{executeCtx}, m_renderer{renderer}
+        const frame_graph_execute_args& args) : m_frameGraph{frameGraph}, m_state{executeCtx}, m_args{args}
     {
     }
 
@@ -787,7 +787,7 @@ namespace oblo::vk
         const auto passHandle = h32<frame_graph_pass>{handle.value};
         m_frameGraph.begin_pass_execution(passHandle, m_state);
 
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
 
         const auto pipeline = m_frameGraph.passes[handle.value].computePipeline;
         const auto computeCtx = pm.begin_compute_pass(m_state.commandBuffer, pipeline);
@@ -831,7 +831,7 @@ namespace oblo::vk
         const auto passHandle = h32<frame_graph_pass>{handle.value};
         m_frameGraph.begin_pass_execution(passHandle, m_state);
 
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
 
         buffered_array<VkRenderingAttachmentInfo, 2> colorAttachments;
 
@@ -906,7 +906,7 @@ namespace oblo::vk
         const auto passHandle = h32<frame_graph_pass>{handle.value};
         m_frameGraph.begin_pass_execution(passHandle, m_state);
 
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
 
         const auto pipeline = m_frameGraph.passes[handle.value].raytracingPipeline;
         const auto rtCtx = pm.begin_raytracing_pass(m_state.commandBuffer, pipeline);
@@ -953,7 +953,7 @@ namespace oblo::vk
 
     void frame_graph_execute_context::end_pass() const
     {
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
 
         switch (m_state.passKind)
         {
@@ -1001,7 +1001,7 @@ namespace oblo::vk
         }
 
         vk::bind_descriptor_sets(m_frameGraph,
-            m_renderer,
+            m_args,
             m_state.commandBuffer,
             bindPoint,
             m_state.currentPass,
@@ -1069,7 +1069,7 @@ namespace oblo::vk
     {
         OBLO_ASSERT(m_state.currentPass && m_frameGraph.passes[m_state.currentPass.value].kind == pass_kind::transfer);
 
-        auto& stagingBuffer = m_renderer.get_staging_buffer();
+        auto& stagingBuffer = m_args.stagingBuffer;
         const auto stagedData = stagingBuffer.stage(data);
 
         if (!stagedData)
@@ -1085,7 +1085,7 @@ namespace oblo::vk
     void frame_graph_execute_context::upload(
         resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset) const
     {
-        auto& stagingBuffer = m_renderer.get_staging_buffer();
+        auto& stagingBuffer = m_args.stagingBuffer;
         const auto b = access(h);
 
         // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
@@ -1094,7 +1094,7 @@ namespace oblo::vk
 
     void frame_graph_execute_context::upload(resource<texture> h, const staging_buffer_span& data) const
     {
-        auto& stagingBuffer = m_renderer.get_staging_buffer();
+        auto& stagingBuffer = m_args.stagingBuffer;
         const auto t = access(h);
 
         VkBufferImageCopy fullCopy[2]{};
@@ -1170,7 +1170,7 @@ namespace oblo::vk
             .buffer = b.buffer,
         };
 
-        return vkGetBufferDeviceAddress(m_renderer.get_vulkan_context().get_device(), &info) + b.offset;
+        return vkGetBufferDeviceAddress(m_args.vkCtx.get_device(), &info) + b.offset;
     }
 
     const gpu_info& frame_graph_execute_context::get_gpu_info() const
@@ -1203,7 +1203,7 @@ namespace oblo::vk
     void frame_graph_execute_context::push_constants(
         flags<shader_stage> stages, u32 offset, std::span<const byte> bytes) const
     {
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
 
         VkShaderStageFlags vkShaderFlags{};
 
@@ -1224,7 +1224,7 @@ namespace oblo::vk
     void frame_graph_execute_context::trace_rays(u32 x, u32 y, u32 z) const
     {
         OBLO_ASSERT(m_state.passKind == pass_kind::raytracing);
-        auto& pm = m_renderer.get_pass_manager();
+        auto& pm = m_args.passManager;
         pm.trace_rays(m_state.rtCtx, x, y, z);
     }
 
@@ -1244,7 +1244,7 @@ namespace oblo::vk
         const auto& drawCountVkBuf = access(drawCallCountBuffer);
 
         const auto vkCmdDrawMeshTasksIndirectCount =
-            m_renderer.get_vulkan_context().get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
+            m_args.vkCtx.get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
 
         vkCmdDrawMeshTasksIndirectCount(m_state.commandBuffer,
             drawCallVkBuf.buffer,
@@ -1327,25 +1327,25 @@ namespace oblo::vk
         return m_frameGraph.emptyEvents.contains(type);
     }
 
-    frame_graph_init_context::frame_graph_init_context(frame_graph_impl& frameGraph, renderer& renderer) :
-        m_frameGraph{frameGraph}, m_renderer{renderer}
+    frame_graph_init_context::frame_graph_init_context(frame_graph_impl& frameGraph,
+        const frame_graph_build_args& args) : m_frameGraph{frameGraph}, m_args{args}
     {
     }
 
     h32<compute_pass> frame_graph_init_context::register_compute_pass(const compute_pass_initializer& initializer) const
     {
-        return m_renderer.get_pass_manager().register_compute_pass(initializer);
+        return m_args.passManager.register_compute_pass(initializer);
     }
 
     h32<render_pass> frame_graph_init_context::register_render_pass(const render_pass_initializer& initializer) const
     {
-        return m_renderer.get_pass_manager().register_render_pass(initializer);
+        return m_args.passManager.register_render_pass(initializer);
     }
 
     h32<raytracing_pass> frame_graph_init_context::register_raytracing_pass(
         const raytracing_pass_initializer& initializer) const
     {
-        return m_renderer.get_pass_manager().register_raytracing_pass(initializer);
+        return m_args.passManager.register_raytracing_pass(initializer);
     }
 
     const gpu_info& frame_graph_init_context::get_gpu_info() const

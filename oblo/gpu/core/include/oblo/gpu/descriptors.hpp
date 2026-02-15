@@ -1,7 +1,12 @@
 #pragma once
 
+#include <oblo/core/flags.hpp>
+#include <oblo/math/vec2i.hpp>
+#include <oblo/math/vec2u.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/types.hpp>
+
+#include <optional>
 
 namespace oblo::gpu
 {
@@ -39,6 +44,117 @@ namespace oblo::gpu
         std::span<const h32<semaphore>> waitSemaphores;
         h32<fence> signalFence;
         std::span<const h32<semaphore>> signalSemaphores;
+    };
+
+    struct render_pipeline_stage
+    {
+        shader_stage stage;
+        h32<shader_module> shaderModule;
+    };
+
+    struct color_blend_attachment_state
+    {
+        bool enable = false;
+        blend_factor srcColorBlendFactor;
+        blend_factor dstColorBlendFactor;
+        blend_op colorBlendOp;
+        blend_factor srcAlphaBlendFactor;
+        blend_factor dstAlphaBlendFactor;
+        blend_op alphaBlendOp;
+        flags<color_component> colorWriteMask =
+            color_component::r | color_component::g | color_component::b | color_component::a;
+    };
+
+    struct render_pass_targets
+    {
+        std::span<const texture_format> colorAttachmentFormats;
+        texture_format depthFormat{texture_format::undefined};
+        texture_format stencilFormat{texture_format::undefined};
+        std::span<const color_blend_attachment_state> blendStates;
+    };
+
+    struct stencil_op_state
+    {
+        stencil_op failOp;
+        stencil_op passOp;
+        stencil_op depthFailOp;
+        compare_op compareOp;
+        u32 compareMask;
+        u32 writeMask;
+        u32 reference;
+    };
+
+    struct depth_stencil_state
+    {
+        flags<pipeline_depth_stencil_state_create> flags;
+        bool depthTestEnable;
+        bool depthWriteEnable;
+        compare_op depthCompareOp;
+        bool depthBoundsTestEnable;
+        bool stencilTestEnable;
+        stencil_op_state front;
+        stencil_op_state back;
+        f32 minDepthBounds;
+        f32 maxDepthBounds;
+    };
+
+    struct rasterization_state
+    {
+        flags<pipeline_depth_stencil_state_create> flags;
+        bool depthClampEnable;
+        bool rasterizerDiscardEnable;
+        polygon_mode polygonMode;
+        oblo::flags<cull_mode> cullMode;
+        front_face frontFace;
+        bool depthBiasEnable;
+        f32 depthBiasConstantFactor;
+        f32 depthBiasClamp;
+        f32 depthBiasSlopeFactor;
+        f32 lineWidth;
+    };
+
+    struct render_pipeline_descriptor
+    {
+        std::span<const render_pipeline_stage> stages;
+        render_pass_targets renderTargets;
+        depth_stencil_state depthStencilState;
+        rasterization_state rasterizationState;
+        primitive_topology primitiveTopology{primitive_topology::triangle_list};
+    };
+
+    union clear_color_value {
+        f32 f32[4];
+        i32 i32[4];
+        u32 u32[4];
+    };
+
+    struct clear_depth_stencil_value
+    {
+        f32 depth;
+        u32 stencil;
+    };
+
+    union clear_value {
+        clear_color_value color;
+        clear_depth_stencil_value depthStencil;
+    };
+
+    struct render_attachment
+    {
+        h32<image> image;
+        attachment_load_op loadOp;
+        attachment_store_op storeOp;
+        clear_value clearValue;
+    };
+
+    struct render_pass_descriptor
+    {
+        vec2i renderOffset;
+        vec2u renderResolution;
+
+        std::span<const render_attachment> colorAttachments;
+        std::optional<render_attachment> depthAttachment;
+        std::optional<render_attachment> stencilAttachment;
     };
 
     struct semaphore_descriptor

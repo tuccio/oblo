@@ -676,6 +676,7 @@ namespace oblo::vk
 #ifdef TRACY_ENABLE
             if (enableProfilingThisFrame)
             {
+                // TODO (#82): This should be preallocated to be usable in multi-threaded execution
                 scope = frameAllocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
                 new (scope) tracy::VkCtxScope{tracyCtx, pipeline.tracyLocation.get(), commandBuffer, true};
             }
@@ -685,7 +686,7 @@ namespace oblo::vk
             return scope;
         }
 
-        void end_pass(VkCommandBuffer commandBuffer, void* ctx)
+        void end_pass(VkCommandBuffer commandBuffer, void* ctx) const
         {
             vkCtx->end_debug_label(commandBuffer);
 
@@ -2785,7 +2786,7 @@ namespace oblo::vk
         return renderPassContext;
     }
 
-    void pass_manager::end_render_pass(const render_pass_context& context)
+    void pass_manager::end_render_pass(const render_pass_context& context) const
     {
         vkCmdEndRendering(context.commandBuffer);
         m_impl->end_pass(context.commandBuffer, context.internalCtx);
@@ -2836,7 +2837,7 @@ namespace oblo::vk
         return computePassContext;
     }
 
-    void pass_manager::end_compute_pass(const compute_pass_context& context)
+    void pass_manager::end_compute_pass(const compute_pass_context& context) const
     {
         m_impl->end_pass(context.commandBuffer, context.internalCtx);
     }
@@ -2886,7 +2887,7 @@ namespace oblo::vk
         return rtPipelineContext;
     }
 
-    void pass_manager::end_raytracing_pass(const raytracing_pass_context& context)
+    void pass_manager::end_raytracing_pass(const raytracing_pass_context& context) const
     {
         m_impl->end_pass(context.commandBuffer, context.internalCtx);
     }

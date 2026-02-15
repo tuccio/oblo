@@ -91,17 +91,17 @@ namespace oblo::vk
         [[nodiscard]] expected<render_pass_context> begin_render_pass(
             VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
 
-        void end_render_pass(const render_pass_context& context);
+        void end_render_pass(const render_pass_context& context) const;
 
         expected<compute_pass_context> begin_compute_pass(VkCommandBuffer commandBuffer,
             h32<compute_pipeline> pipeline) const;
 
-        void end_compute_pass(const compute_pass_context& context);
+        void end_compute_pass(const compute_pass_context& context) const;
 
         expected<raytracing_pass_context> begin_raytracing_pass(VkCommandBuffer commandBuffer,
             h32<raytracing_pipeline> pipeline) const;
 
-        void end_raytracing_pass(const raytracing_pass_context& context);
+        void end_raytracing_pass(const raytracing_pass_context& context) const;
 
         u32 get_subgroup_size() const;
 

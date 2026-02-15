@@ -7,7 +7,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-namespace oblo::gpu
+namespace oblo::gpu::vk
 {
     class vulkan_instance final : public gpu_instance
     {
@@ -57,11 +57,21 @@ namespace oblo::gpu
         result<> begin_command_buffer(hptr<command_buffer> commandBuffer) override;
         result<> end_command_buffer(hptr<command_buffer> commandBuffer) override;
 
+        result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
+        result<h32<image>> create_image(const image_descriptor& descriptor) override;
+
         result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor);
         void destroy_shader_module(h32<shader_module> handle);
 
-        result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
-        result<h32<image>> create_image(const image_descriptor& descriptor) override;
+        result<h32<render_pipeline>> create_render_pipeline(const render_pipeline_descriptor& descriptor) override;
+        void destroy_render_pipeline(h32<render_pipeline> handle) override;
+
+        result<> begin_render_pass(hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline) override;
+        void end_render_pass(hptr<command_buffer> cmdBuffer) override;
+
+        result<h32<bindless_image>> acquire_bindless(h32<image> optImage) override;
+        result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) override;
+        void release_bindless(h32<bindless_image> slot) override;
 
         result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
 

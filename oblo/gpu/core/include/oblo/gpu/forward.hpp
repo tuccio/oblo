@@ -4,6 +4,7 @@
 
 namespace oblo::gpu
 {
+    struct bindless_image;
     struct buffer;
     struct command_buffer_pool;
     struct command_buffer;
@@ -11,6 +12,8 @@ namespace oblo::gpu
     struct image;
     struct native_window;
     struct queue;
+    struct render_pass;
+    struct render_pipeline;
     struct semaphore;
     struct shader_module;
     struct surface;
@@ -25,6 +28,8 @@ namespace oblo::gpu
     struct present_descriptor;
     struct queue_submit_descriptor;
     struct semaphore_descriptor;
+    struct render_pass_descriptor;
+    struct render_pipeline_descriptor;
     struct shader_module_descriptor;
     struct swapchain_descriptor;
 

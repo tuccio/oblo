@@ -8,7 +8,7 @@
 #include <oblo/core/finally.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
-#include <oblo/gpu/vulkan/swapchain.hpp>
+#include <oblo/gpu/vulkan/swapchain_wrapper.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -45,7 +45,8 @@ namespace oblo::vk
 {
     namespace
     {
-        using gpu::vk::swapchain;
+        template <u32 N>
+        using swapchain = gpu::vk::swapchain_wrapper<N>;
 
         constexpr u32 g_SwapchainImages = 3;
         constexpr VkFormat g_SwapchainFormat = VK_FORMAT_B8G8R8A8_UNORM;
