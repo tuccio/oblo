@@ -33,6 +33,8 @@ namespace oblo::gpu
     struct shader_module_descriptor;
     struct swapchain_descriptor;
 
+    class gpu_instance;
+
     enum class error;
 
     enum class buffer_usage : u8;

@@ -472,10 +472,26 @@ namespace oblo::gpu::vk
         return translate_result(vkResetFences(m_device, vkFences.size32(), vkFences.data()));
     }
 
-    result<h32<semaphore>> vulkan_instance::create_semaphore(const semaphore_descriptor&)
+    result<h32<semaphore>> vulkan_instance::create_semaphore(const semaphore_descriptor& descriptor)
     {
-        constexpr VkSemaphoreCreateInfo semaphoreInfo{
+        void* pNext{};
+        VkSemaphoreTypeCreateInfo timelineTypeCreateInfo;
+
+        if (descriptor.timeline)
+        {
+            timelineTypeCreateInfo = {
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+                .pNext = pNext,
+                .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+                .initialValue = descriptor.timelineInitialValue,
+            };
+
+            pNext = &timelineTypeCreateInfo;
+        }
+
+        const VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = pNext,
         };
 
         VkSemaphore semaphore;
@@ -497,10 +513,16 @@ namespace oblo::gpu::vk
         m_semaphores.erase(handle);
     }
 
-    result<h32<image>> vulkan_instance::acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore)
+    result<u64> vulkan_instance::read_timeline_semaphore(h32<semaphore> handle)
+    {
+        u64 value;
+        return translate_error_or_value(vkGetSemaphoreCounterValue(m_device, m_semaphores.at(handle), &value), value);
+    }
+
+    result<h32<image>> vulkan_instance::acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> semaphore)
     {
         auto& sc = m_swapchains.at(handle);
-        const VkSemaphore vkSemaphore = m_semaphores.at(waitSemaphore);
+        const VkSemaphore vkSemaphore = semaphore ? m_semaphores.at(semaphore) : VK_NULL_HANDLE;
 
         u32 imageIndex;
 
@@ -711,7 +733,8 @@ namespace oblo::gpu::vk
         return error::undefined;
     }
 
-    void vulkan_instance::release_bindless(h32<bindless_image> slot) {
+    void vulkan_instance::release_bindless(h32<bindless_image> slot)
+    {
         (void) slot;
     }
 

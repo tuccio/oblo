@@ -5,6 +5,6 @@ oblo_add_library(
 
 target_link_libraries(
     oblo_gpu_core
-    INTERFACE
+    PUBLIC
     oblo::core
 )

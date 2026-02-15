@@ -1,3 +1,4 @@
+#include "gpu_queue_context.hpp"
 #include <oblo/vulkan/vulkan_context.hpp>
 
 #include <oblo/core/buffered_array.hpp>

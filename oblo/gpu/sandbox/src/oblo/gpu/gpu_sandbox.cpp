@@ -5,6 +5,7 @@
 #include <oblo/gpu/descriptors.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
@@ -34,6 +35,8 @@ namespace oblo
                 return "Failed to initialize GPU instance"_err;
             }
 
+            constexpr u32 maxSubmissions = 8u;
+
             if (!m_window.create({
                     .title = "GPU Sandbox",
                     .style = window_style::app,
@@ -62,6 +65,13 @@ namespace oblo
                 return "Failed to create GPU device"_err;
             }
 
+            m_mainQueueCtx = allocate_unique<gpu::gpu_queue_context>();
+
+            if (!m_mainQueueCtx->init(*m_gpu, m_gpu->get_universal_queue(), maxSubmissions))
+            {
+                return "Failed to initalize queue context"_err;
+            }
+
             for (u32 i = 0; i < num_swapchain_images; ++i)
             {
                 const auto sem = m_gpu->create_semaphore({});
@@ -84,15 +94,6 @@ namespace oblo
                 }
 
                 m_commandBufferPools[i] = *pool;
-
-                const auto fence = m_gpu->create_fence({.createSignaled = true});
-
-                if (!fence)
-                {
-                    return "Failed to create fence"_err;
-                }
-
-                m_fences[i] = *fence;
             }
 
             vec2u lastWindowSize{};
@@ -121,14 +122,9 @@ namespace oblo
 
                 h32<gpu::image> backBuffer{};
 
-                if (!m_gpu->wait_for_fences({&m_fences[semaphoreIndex], 1u}))
+                if (!m_mainQueueCtx->submit_begin())
                 {
-                    return "Failed to wait for frame fence"_err;
-                }
-
-                if (!m_gpu->reset_fences({&m_fences[semaphoreIndex], 1u}))
-                {
-                    return "Failed to reset frame fence"_err;
+                    return "Failed to initialize queue submission"_err;
                 }
 
                 const h32<gpu::semaphore> currentFrameSemaphore = m_semaphores[semaphoreIndex];
@@ -177,13 +173,7 @@ namespace oblo
                     return "Failed to end command buffer"_err;
                 }
 
-                if (!m_gpu->submit(m_gpu->get_universal_queue(),
-                        {
-                            .commandBuffers = commandBuffers,
-                            .waitSemaphores = {},
-                            .signalFence = m_fences[semaphoreIndex],
-                            .signalSemaphores = {&currentFrameSemaphore, 1u},
-                        }))
+                if (!m_mainQueueCtx->submit_end(commandBuffers, {}, {&currentFrameSemaphore, 1u}))
                 {
                     return "Failed to submit command buffers"_err;
                 }
@@ -205,19 +195,12 @@ namespace oblo
 
         void shutdown()
         {
-
-            if (m_gpu)
+            if (m_gpu && m_mainQueueCtx)
             {
                 m_gpu->wait_idle().assert_value();
 
                 for (u32 i = 0; i < num_swapchain_images; ++i)
                 {
-                    if (m_fences[i])
-                    {
-                        m_gpu->destroy_fence(m_fences[i]);
-                        m_fences[i] = {};
-                    }
-
                     if (m_semaphores[i])
                     {
                         m_gpu->destroy_semaphore(m_semaphores[i]);
@@ -242,6 +225,9 @@ namespace oblo
                     m_gpu->destroy_surface(m_windowSurface);
                     m_windowSurface = {};
                 }
+
+                m_mainQueueCtx->shutdown();
+                m_mainQueueCtx.reset();
 
                 m_gpu->shutdown();
                 m_gpu.reset();
@@ -276,9 +262,9 @@ namespace oblo
     private:
         graphics_window m_window;
         unique_ptr<gpu::gpu_instance> m_gpu;
+        unique_ptr<gpu::gpu_queue_context> m_mainQueueCtx;
         hptr<gpu::surface> m_windowSurface{};
         h32<gpu::swapchain> m_swapchain{};
-        h32<gpu::fence> m_fences[num_swapchain_images]{};
         h32<gpu::semaphore> m_semaphores[num_swapchain_images]{};
         h32<gpu::command_buffer_pool> m_commandBufferPools[num_swapchain_images]{};
     };

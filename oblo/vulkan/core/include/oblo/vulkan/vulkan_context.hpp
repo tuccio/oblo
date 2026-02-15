@@ -1,3 +1,4 @@
+#include "gpu_queue_context.hpp"
 #pragma once
 
 #include <oblo/core/deque.hpp>

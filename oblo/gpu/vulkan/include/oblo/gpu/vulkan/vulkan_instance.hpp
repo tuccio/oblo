@@ -41,6 +41,7 @@ namespace oblo::gpu::vk
 
         result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) override;
         void destroy_semaphore(h32<semaphore> handle) override;
+        result<u64> read_timeline_semaphore(h32<semaphore> handle) override;
 
         result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) override;
 

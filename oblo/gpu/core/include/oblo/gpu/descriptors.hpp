@@ -1,10 +1,10 @@
 #pragma once
 
 #include <oblo/core/flags.hpp>
-#include <oblo/math/vec2i.hpp>
-#include <oblo/math/vec2u.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/types.hpp>
+#include <oblo/math/vec2i.hpp>
+#include <oblo/math/vec2u.hpp>
 
 #include <optional>
 
@@ -159,6 +159,8 @@ namespace oblo::gpu
 
     struct semaphore_descriptor
     {
+        bool timeline;
+        u64 timelineInitialValue;
     };
 
     struct shader_module_descriptor

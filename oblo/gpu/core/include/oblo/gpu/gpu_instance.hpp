@@ -35,6 +35,7 @@ namespace oblo::gpu
 
         virtual result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) = 0;
         virtual void destroy_semaphore(h32<semaphore> handle) = 0;
+        virtual result<u64> read_timeline_semaphore(h32<semaphore> handle) = 0;
 
         virtual result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) = 0;
 
