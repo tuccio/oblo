@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/error.hpp>
@@ -43,6 +44,7 @@ namespace oblo::gpu
         void destroy_deferred(h32<semaphore> h, u64 submitIndex);
 
     private:
+        struct disposable_object;
         struct submit_info;
 
     private:
@@ -51,6 +53,8 @@ namespace oblo::gpu
     private:
         gpu_instance* m_gpu{};
         dynamic_array<submit_info> m_submitInfo;
+
+        deque<disposable_object> m_objectsToDispose;
 
         // We want the submit index to start from more than 0, which is the starting value of the semaphore
         u64 m_submitIndex{1};

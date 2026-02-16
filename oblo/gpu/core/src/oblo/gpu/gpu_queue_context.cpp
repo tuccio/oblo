@@ -7,10 +7,26 @@
 
 namespace oblo::gpu
 {
+    namespace
+    {
+        template <typename T, auto Fn>
+        void dispose_impl(gpu_instance& gpu, const void* object)
+        {
+            (gpu.*Fn)(*reinterpret_cast<const T*>(object));
+        }
+    }
+
     struct gpu_queue_context::submit_info
     {
         u64 submitIndex{};
         h32<fence> fence{};
+    };
+
+    struct gpu_queue_context::disposable_object
+    {
+        u64 submitIndex;
+        void (*cb)(gpu_instance& gpu, const void* object);
+        alignas(void*) byte buffer[sizeof(void*)];
     };
 
     gpu_queue_context::gpu_queue_context() = default;
@@ -165,9 +181,36 @@ namespace oblo::gpu
         return no_error;
     }
 
+    void gpu_queue_context::destroy_deferred(h32<fence> h, u64 submitIndex)
+    {
+        auto& o = m_objectsToDispose.emplace_back(submitIndex);
+        new (o.buffer) h32<fence>{h};
+        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_fence>;
+    }
+
+    void gpu_queue_context::destroy_deferred(h32<semaphore> h, u64 submitIndex)
+    {
+        auto& o = m_objectsToDispose.emplace_back(submitIndex);
+        new (o.buffer) h32<semaphore>{h};
+
+        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_semaphore>;
+    }
+
     void gpu_queue_context::destroy_resources_until(u64 lastCompletedSubmit)
     {
-        // TODO
-        (void) lastCompletedSubmit;
+        while (!m_objectsToDispose.empty())
+        {
+            const auto& o = m_objectsToDispose.front();
+            OBLO_ASSERT(o.cb);
+
+            if (o.submitIndex > lastCompletedSubmit)
+            {
+                break;
+            }
+
+            o.cb(*m_gpu, o.buffer);
+
+            m_objectsToDispose.pop_front();
+        }
     }
 }
