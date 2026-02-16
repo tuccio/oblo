@@ -1111,7 +1111,7 @@ namespace oblo::vk
                     .bufferOffset = segment.begin,
                     .imageSubresource =
                         {
-                            .aspectMask = image_utils::deduce_aspect_mask(t.initializer.format),
+                            .aspectMask = gpu::vk::image_utils::deduce_aspect_mask(t.initializer.format),
                             .mipLevel = levelIndex,
                             .baseArrayLayer = 0,
                             .layerCount = 1,

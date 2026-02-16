@@ -358,6 +358,13 @@ namespace oblo::gpu
         astc_12x12_srgb_block = 184,
     };
 
+    enum class image_type : u8
+    {
+        plain_2d,
+        plain_3d,
+        cubemap,
+    };
+
     /// @brief Primitive topology, enumerator values match VkPrimitiveTopology.
     enum class primitive_topology : u8
     {
@@ -422,8 +429,22 @@ namespace oblo::gpu
         enum_max,
     };
 
+    enum class samples_count : u8
+    {
+        one,
+    };
+
     enum class shader_module_format : u8
     {
         spirv,
+    };
+
+    enum class memory_usage : u8
+    {
+        unknown = 0,
+        gpu_only = 1,
+        cpu_only = 2,
+        cpu_to_gpu = 3,
+        gpu_to_cpu = 4,
     };
 }

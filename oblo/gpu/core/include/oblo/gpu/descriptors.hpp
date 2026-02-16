@@ -1,12 +1,14 @@
 #pragma once
 
 #include <oblo/core/flags.hpp>
+#include <oblo/core/handle.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/math/vec2i.hpp>
 #include <oblo/math/vec2u.hpp>
 
 #include <optional>
+#include <span>
 
 namespace oblo::gpu
 {
@@ -14,6 +16,14 @@ namespace oblo::gpu
     {
         h32<queue> queue;
         u32 numCommandBuffers;
+    };
+
+    struct buffer_descriptor
+    {
+        u32 size;
+        memory_usage memoryUsage;
+
+        flags<buffer_usage> usages;
     };
 
     struct device_descriptor
@@ -24,6 +34,20 @@ namespace oblo::gpu
     struct fence_descriptor
     {
         bool createSignaled;
+    };
+
+    struct image_descriptor
+    {
+        texture_format format;
+        u32 width;
+        u32 height;
+        u32 depth;
+        u32 mipLevels;
+        u32 arrayLayers;
+        image_type type;
+        samples_count samples;
+        memory_usage memoryUsage;
+        flags<texture_usage> usages;
     };
 
     struct instance_descriptor

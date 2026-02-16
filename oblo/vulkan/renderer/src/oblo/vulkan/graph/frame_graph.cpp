@@ -1184,7 +1184,7 @@ namespace oblo::vk
             return {};
         }
 
-        const expected view = image_utils::create_image_view_2d(ctx.get_device(),
+        const expected view = gpu::vk::image_utils::create_image_view_2d(ctx.get_device(),
             outImage.image,
             initializer.format,
             gpuAllocator.get_allocation_callbacks());

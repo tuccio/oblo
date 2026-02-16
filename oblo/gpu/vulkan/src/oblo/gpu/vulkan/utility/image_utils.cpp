@@ -1,6 +1,9 @@
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 
-namespace oblo::vk::image_utils
+#include <oblo/gpu/error.hpp>
+#include <oblo/gpu/vulkan/error.hpp>
+
+namespace oblo::gpu::vk::image_utils
 {
     VkImageAspectFlags deduce_aspect_mask(VkFormat format)
     {
@@ -26,15 +29,18 @@ namespace oblo::vk::image_utils
         }
     }
 
-    expected<VkImageView> create_image_view_2d(
-        VkDevice device, VkImage image, VkFormat format, const VkAllocationCallbacks* allocationCbs)
+    result<VkImageView> create_image_view(VkDevice device,
+        VkImage image,
+        VkImageViewType imageType,
+        VkFormat format,
+        const VkAllocationCallbacks* allocationCbs)
     {
         VkImageView imageView;
 
         const VkImageViewCreateInfo imageViewInit{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .image = image,
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .viewType = imageType,
             .format = format,
             .subresourceRange =
                 {
@@ -46,9 +52,11 @@ namespace oblo::vk::image_utils
                 },
         };
 
-        if (vkCreateImageView(device, &imageViewInit, allocationCbs, &imageView) != VK_SUCCESS)
+        const VkResult r = vkCreateImageView(device, &imageViewInit, allocationCbs, &imageView);
+
+        if (r != VK_SUCCESS)
         {
-            return "Failed call to vkCreateImageView"_err;
+            return translate_error(r);
         }
 
         return imageView;

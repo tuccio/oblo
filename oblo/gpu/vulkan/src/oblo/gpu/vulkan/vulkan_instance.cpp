@@ -7,6 +7,7 @@
 #include <oblo/gpu/vulkan/error.hpp>
 #include <oblo/gpu/vulkan/swapchain_wrapper.hpp>
 #include <oblo/gpu/vulkan/utility/convert_enum.hpp>
+#include <oblo/gpu/vulkan/utility/image_utils.hpp>
 
 namespace oblo::gpu::vk
 {
@@ -108,6 +109,10 @@ namespace oblo::gpu::vk
         }
     }
 
+    struct vulkan_instance::buffer_impl : vk::allocated_buffer
+    {
+    };
+
     struct vulkan_instance::command_buffer_pool_impl
     {
         VkCommandPool vkCommandPool{};
@@ -115,11 +120,9 @@ namespace oblo::gpu::vk
         usize currentyUsedBuffers{};
     };
 
-    struct vulkan_instance::image_impl
+    struct vulkan_instance::image_impl : vk::allocated_image
     {
-        VkImage image;
         VkImageView view;
-        VmaAllocation allocation;
     };
 
     struct vulkan_instance::queue_impl
@@ -647,13 +650,95 @@ namespace oblo::gpu::vk
 
     result<h32<buffer>> vulkan_instance::create_buffer(const buffer_descriptor& descriptor)
     {
-        (void) descriptor;
-        return error::undefined;
+        vk::allocated_buffer allocatedBuffer;
+
+        const VkResult r = m_allocator.create_buffer(
+            {
+                .size = descriptor.size,
+                .usage = vk::convert_enum_flags(descriptor.usages),
+                .memoryUsage = vk::allocated_memory_usage(descriptor.memoryUsage),
+            },
+            &allocatedBuffer);
+
+        if (r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        const auto [it, h] = m_buffers.emplace(allocatedBuffer);
+        return h;
     }
+
+    void vulkan_instance::destroy_buffer(h32<buffer> bufferHandle)
+    {
+        const auto& buffer = m_buffers.at(bufferHandle);
+
+        if (buffer.buffer || buffer.allocation)
+        {
+            m_allocator.destroy(buffer);
+        }
+
+        m_buffers.erase(bufferHandle);
+    }
+
     result<h32<image>> vulkan_instance::create_image(const image_descriptor& descriptor)
     {
-        (void) descriptor;
-        return error::undefined;
+        vk::allocated_image allocatedImage;
+
+        const VkFormat vkFormat = vk::convert_enum(descriptor.format);
+
+        const VkResult r = m_allocator.create_image(
+            {
+                .flags = 0u,
+                .imageType = vk::convert_image_type(descriptor.type),
+                .format = vkFormat,
+                .extent = {descriptor.width, descriptor.height, descriptor.depth},
+                .mipLevels = descriptor.mipLevels,
+                .arrayLayers = descriptor.arrayLayers,
+                .samples = vk::convert_enum(descriptor.samples),
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = vk::convert_enum_flags(descriptor.usages),
+                .memoryUsage = vk::allocated_memory_usage(descriptor.memoryUsage),
+            },
+            &allocatedImage);
+
+        if (r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        const auto [it, h] = m_images.emplace(allocatedImage);
+
+        const expected view = image_utils::create_image_view(m_device,
+            allocatedImage.image,
+            vk::convert_image_view_type(descriptor.type),
+            vkFormat,
+            m_allocator.get_allocation_callbacks());
+
+        if (!view)
+        {
+            destroy_image(h);
+            return view.error();
+        }
+
+        return h;
+    }
+
+    void vulkan_instance::destroy_image(h32<image> imageHandle)
+    {
+        const auto& image = m_images.at(imageHandle);
+
+        if (image.view)
+        {
+            vkDestroyImageView(m_device, image.view, m_allocator.get_allocation_callbacks());
+        }
+
+        if (image.image || image.allocation)
+        {
+            m_allocator.destroy(image);
+        }
+
+        m_images.erase(imageHandle);
     }
 
     result<h32<shader_module>> vulkan_instance::create_shader_module(const shader_module_descriptor& descriptor)
@@ -844,9 +929,11 @@ namespace oblo::gpu::vk
         auto&& [img, handle] = m_images.emplace();
 
         *img = {
-            .image = image,
-            .view = view,
-            .allocation = allocation,
+            {
+                .image = image,
+                .allocation = allocation,
+            },
+            view,
         };
 
         return handle;
@@ -882,7 +969,7 @@ namespace oblo::gpu::vk
 
             const VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{
                 .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-                .hinstance = GetModuleHandle(nullptr),
+                .hinstance = GetModuleHandleA(nullptr),
                 .hwnd = hwnd,
             };
 

@@ -59,7 +59,10 @@ namespace oblo::gpu::vk
         result<> end_command_buffer(hptr<command_buffer> commandBuffer) override;
 
         result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
+        void destroy_buffer(h32<buffer> bufferHandle) override;
+
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
+        void destroy_image(h32<image> imageHandle) override;
 
         result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor);
         void destroy_shader_module(h32<shader_module> handle);
@@ -81,6 +84,7 @@ namespace oblo::gpu::vk
         result<> wait_idle() override;
 
     private:
+        struct buffer_impl;
         struct command_buffer_pool_impl;
         struct image_impl;
         struct queue_impl;
@@ -100,6 +104,7 @@ namespace oblo::gpu::vk
         vk::gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
+        h32_flat_pool_dense_map<buffer, buffer_impl> m_buffers;
         h32_flat_pool_dense_map<image, image_impl> m_images;
         h32_flat_pool_dense_map<semaphore, VkSemaphore> m_semaphores;
         h32_flat_pool_dense_map<command_buffer_pool, command_buffer_pool_impl> m_commandBufferPools;

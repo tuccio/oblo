@@ -431,7 +431,7 @@ namespace oblo::vk
             OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, m_allocation, offset));
             offset += textureResource.size + textureResource.size % newRequirements.alignment;
 
-            const expected imageView = image_utils::create_image_view_2d(device,
+            const expected imageView = gpu::vk::image_utils::create_image_view_2d(device,
                 textureResource.image,
                 textureResource.initializer.format,
                 allocationCbs);
@@ -506,7 +506,7 @@ namespace oblo::vk
 
             auto device = ctx.get_device();
 
-            const expected imageView = image_utils::create_image_view_2d(device,
+            const expected imageView = gpu::vk::image_utils::create_image_view_2d(device,
                 it->second.allocatedImage.image,
                 resource.initializer.format,
                 allocator.get_allocation_callbacks());
