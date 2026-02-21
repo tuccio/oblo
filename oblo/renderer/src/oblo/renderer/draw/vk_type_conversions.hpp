@@ -3,7 +3,6 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/gpu/types.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
 
 #include <vulkan/vulkan_core.h>
 

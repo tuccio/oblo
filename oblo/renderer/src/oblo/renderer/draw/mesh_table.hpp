@@ -76,6 +76,11 @@ namespace oblo
 
         gpu::buffer_range index_buffer() const;
         h32<gpu::buffer> meshlet_buffer() const;
+        h32<gpu::buffer> vertex_buffer() const;
+        h32<gpu::buffer> mesh_data_buffer() const;
+
+        std::span<const buffer_table_subrange> vertex_attribute_buffer_subranges() const;
+        std::span<const buffer_table_subrange> mesh_data_buffer_subranges() const;
 
         u32 vertex_count() const;
         u32 index_count() const;

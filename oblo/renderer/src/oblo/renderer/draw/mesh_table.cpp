@@ -403,6 +403,26 @@ namespace oblo
         return m_meshletsBuffer;
     }
 
+    h32<gpu::buffer> mesh_table::vertex_buffer() const
+    {
+        return m_vertexBuffer;
+    }
+
+    h32<gpu::buffer> mesh_table::mesh_data_buffer() const
+    {
+        return m_meshDataBuffer;
+    }
+
+    std::span<const buffer_table_subrange> mesh_table::vertex_attribute_buffer_subranges() const
+    {
+        return m_vertexTable.buffer_subranges();
+    }
+
+    std::span<const buffer_table_subrange> mesh_table::mesh_data_buffer_subranges() const
+    {
+        return m_meshDataTable.buffer_subranges();
+    }
+
     i32 mesh_table::find_vertex_attribute(h32<buffer_table_name> name) const
     {
         return m_vertexTable.find(name);

@@ -57,6 +57,8 @@ namespace oblo::gpu
         virtual result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) = 0;
         virtual void destroy_buffer(h32<buffer> bufferHandle) = 0;
 
+        virtual h64<device_address> get_device_address(h32<buffer> bufferHandle) = 0;
+
         virtual result<h32<image>> create_image(const image_descriptor& descriptor) = 0;
         virtual void destroy_image(h32<image> imageHandle) = 0;
 
@@ -99,4 +101,11 @@ namespace oblo::gpu
             h32<image> dst,
             std::span<const buffer_image_copy_descriptor> copies) = 0;
     };
+
+    /// @brief To be used to offset device address, to keep track where we make the assumptions on how to offset GPU
+    /// addresses.
+    inline h64<device_address> offset_device_address(h64<device_address> address, u64 offset)
+    {
+        return {address.value + offset};
+    }
 }

@@ -729,6 +729,17 @@ namespace oblo::gpu::vk
         m_buffers.erase(bufferHandle);
     }
 
+    h64<device_address> vulkan_instance::get_device_address(h32<buffer> bufferHandle)
+    {
+        const VkBufferDeviceAddressInfo info{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = m_buffers.at(bufferHandle).buffer,
+        };
+
+        const VkDeviceAddress address = vkGetBufferDeviceAddress(m_device, &info);
+        return {address};
+    }
+
     result<h32<image>> vulkan_instance::create_image(const image_descriptor& descriptor)
     {
         vk::allocated_image allocatedImage;

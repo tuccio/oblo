@@ -63,6 +63,8 @@ namespace oblo::gpu::vk
         result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
         void destroy_buffer(h32<buffer> bufferHandle) override;
 
+        h64<device_address> get_device_address(h32<buffer> bufferHandle) override;
+
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
         void destroy_image(h32<image> imageHandle) override;
 

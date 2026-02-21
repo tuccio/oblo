@@ -4,13 +4,11 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
+#include <oblo/core/suballocation/buffer_table.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/log/log.hpp>
-#include <oblo/renderer/buffer.hpp>
 #include <oblo/renderer/draw/mesh_table.hpp>
-#include <oblo/renderer/draw/vk_type_conversions.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
-#include <oblo/renderer/resource_manager.hpp>
 
 #include <array>
 #include <memory>
@@ -19,7 +17,7 @@ namespace oblo
 {
     namespace
     {
-        constexpr u64 make_table_id(u32 meshAttributesMask, mesh_index_type indexType)
+        constexpr u64 make_table_id(u32 meshAttributesMask, gpu::mesh_index_type indexType)
         {
             return u64{meshAttributesMask} | (u64(indexType) << 32);
         }
@@ -41,9 +39,9 @@ namespace oblo
             return {tableId, mesh_table_entry_id{meshId}};
         }
 
-        std::span<const buffer_column_description> attributes_to_buffer_columns(u32 meshAttributesMask,
-            std::span<const buffer_column_description> attributeDescs,
-            std::span<buffer_column_description> columns)
+        std::span<const buffer_table_column_description> attributes_to_buffer_columns(u32 meshAttributesMask,
+            std::span<const buffer_table_column_description> attributeDescs,
+            std::span<buffer_table_column_description> columns)
         {
             u32 n = 0;
 
@@ -61,9 +59,9 @@ namespace oblo
             return columns.subspan(0, n);
         }
 
-        std::span<const h32<string>> attributes_to_names(std::span<const u32> attributeIds,
-            std::span<const buffer_column_description> attributeDescs,
-            std::span<h32<string>> columns)
+        std::span<const h32<buffer_table_name>> attributes_to_names(std::span<const u32> attributeIds,
+            std::span<const buffer_table_column_description> attributeDescs,
+            std::span<h32<buffer_table_name>> columns)
         {
             usize n = 0;
 
@@ -76,8 +74,10 @@ namespace oblo
             return columns.subspan(0, n);
         }
 
-        u8 get_index_byte_size(mesh_index_type indexType)
+        u8 get_index_byte_size(gpu::mesh_index_type indexType)
         {
+            using gpu::mesh_index_type;
+
             switch (indexType)
             {
             case mesh_index_type::none:
@@ -92,13 +92,21 @@ namespace oblo
                 unreachable();
             }
         }
+
+        // TODO: For now we simply allow a set number of tables using the same index buffer
+        constexpr u32 MaxTables{4};
+
+        u64 calculate_table_index_buffer_size(gpu::mesh_index_type indexType, u64 tableIndexCount)
+        {
+            return get_index_byte_size(indexType) * tableIndexCount;
+        }
     }
 
     struct mesh_database::table
     {
         u64 id;
         u32 globalIndexOffset;
-        mesh_index_type indexType;
+        gpu::mesh_index_type indexType;
         std::unique_ptr<mesh_table> meshes;
     };
 
@@ -118,8 +126,7 @@ namespace oblo
             return false;
         }
 
-        m_allocator = &initializer.allocator;
-        m_resourceManager = &initializer.resourceManager;
+        m_gpu = &initializer.gpu;
 
         m_vertexBufferUsage = initializer.vertexBufferUsage;
         m_indexBufferUsage = initializer.indexBufferUsage;
@@ -131,10 +138,11 @@ namespace oblo
 
         m_attributes = {};
 
-        const std::span meshDataColumns{start_lifetime_as<buffer_column_description>(initializer.meshData.data()),
+        const std::span meshDataColumns{start_lifetime_as<buffer_table_column_description>(initializer.meshData.data()),
             initializer.meshData.size()};
 
-        const std::span attributesColumns{start_lifetime_as<buffer_column_description>(initializer.attributes.data()),
+        const std::span attributesColumns{
+            start_lifetime_as<buffer_table_column_description>(initializer.attributes.data()),
             initializer.attributes.size()};
 
         m_attributes.assign(attributesColumns.begin(), attributesColumns.end());
@@ -147,7 +155,7 @@ namespace oblo
     {
         for (auto& table : m_tables)
         {
-            table.meshes->shutdown(*m_allocator, *m_resourceManager);
+            table.meshes->shutdown(*m_gpu);
         }
 
         m_tables.clear();
@@ -156,14 +164,14 @@ namespace oblo
         {
             if (bufferPools.handle)
             {
-                m_resourceManager->destroy(*m_allocator, bufferPools.handle);
+                m_gpu->destroy_buffer(bufferPools.handle);
                 bufferPools = {};
             }
         }
     }
 
     mesh_handle mesh_database::create_mesh(
-        u32 meshAttributesMask, mesh_index_type indexType, u32 vertexCount, u32 indexCount, u32 meshletCount)
+        u32 meshAttributesMask, gpu::mesh_index_type indexType, u32 vertexCount, u32 indexCount, u32 meshletCount)
     {
         if (vertexCount > m_tableVertexCount || indexCount > m_tableIndexCount || meshletCount > m_tableMeshCount)
         {
@@ -181,24 +189,23 @@ namespace oblo
             newTable.indexType = indexType;
             newTable.meshes = std::make_unique<mesh_table>();
 
-            std::array<buffer_column_description, MaxAttributes> columnsBuffer;
+            std::array<buffer_table_column_description, MaxAttributes> columnsBuffer;
             const std::span columns = attributes_to_buffer_columns(meshAttributesMask, m_attributes, columnsBuffer);
 
             u32 indexByteSize{};
-            buffer indexBuffer{};
+            gpu::buffer_range indexBuffer{};
 
-            if (indexType != mesh_index_type::none)
+            if (indexType != gpu::mesh_index_type::none)
             {
                 indexByteSize = get_index_byte_size(indexType);
                 indexBuffer = allocate_index_buffer(indexType);
 
-                newTable.globalIndexOffset = indexBuffer.offset / indexByteSize;
+                newTable.globalIndexOffset = narrow_cast<u32>(indexBuffer.offset / indexByteSize);
             }
 
-            const auto success = newTable.meshes->init(columns,
+            const auto success = newTable.meshes->init(*m_gpu,
+                columns,
                 m_meshData,
-                *m_allocator,
-                *m_resourceManager,
                 m_vertexBufferUsage,
                 m_meshBufferUsage,
                 indexByteSize,
@@ -243,19 +250,18 @@ namespace oblo
 
     bool mesh_database::fetch_buffers(mesh_handle mesh,
         std::span<const u32> vertexAttributes,
-        std::span<buffer> vertexBuffers,
-        buffer* indexBuffer,
-        std::span<const h32<string>> meshBufferNames,
-        std::span<buffer> meshBuffers,
-        buffer* meshletsBuffer) const
+        std::span<gpu::buffer_range> vertexBuffers,
+        gpu::buffer_range* indexBuffer,
+        std::span<const h32<buffer_table_name>> meshBufferNames,
+        std::span<gpu::buffer_range> meshBuffers,
+        gpu::buffer_range* meshletsBuffer) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
 
-        std::array<h32<string>, MaxAttributes> namesBuffer;
+        std::array<h32<buffer_table_name>, MaxAttributes> namesBuffer;
         const std::span vertexAttributeNames = attributes_to_names(vertexAttributes, m_attributes, namesBuffer);
 
-        return m_tables[tableId].meshes->fetch_buffers(*m_resourceManager,
-            mesh_table_entry_id{meshId},
+        return m_tables[tableId].meshes->fetch_buffers(mesh_table_entry_id{meshId},
             vertexAttributeNames,
             vertexBuffers,
             indexBuffer,
@@ -264,31 +270,26 @@ namespace oblo
             meshletsBuffer);
     }
 
-    mesh_index_type mesh_database::get_index_type(mesh_handle mesh) const
+    gpu::mesh_index_type mesh_database::get_index_type(mesh_handle mesh) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
-
-        const auto indexType = m_tables[tableId].meshes->get_index_type();
-
-        return convert_to_oblo(indexType);
+        return m_tables[tableId].meshes->get_index_type();
     }
 
-    buffer mesh_database::get_index_buffer(mesh_index_type meshIndexType) const
+    gpu::buffer_range mesh_database::get_index_buffer(gpu::mesh_index_type meshIndexType) const
     {
-        if (meshIndexType == mesh_index_type::none)
+        if (meshIndexType == gpu::mesh_index_type::none)
         {
             return {};
         }
 
-        buffer indexBuffer{};
         auto& pool = m_indexBuffers[u32(meshIndexType) - 1];
 
-        if (pool.handle)
-        {
-            indexBuffer = m_resourceManager->get(pool.handle);
-        }
-
-        return indexBuffer;
+        return gpu::buffer_range{
+            .buffer = pool.handle,
+            .offset = 0u,
+            .size = pool.handle ? calculate_table_index_buffer_size(meshIndexType, m_tableIndexCount) * MaxTables : 0,
+        };
     }
 
     u32 mesh_database::get_table_index(mesh_handle mesh) const
@@ -323,10 +324,10 @@ namespace oblo
 
         struct mesh_table_gpu
         {
-            u64 vertexDataAddress;
-            u64 indexDataAddress;
-            u64 meshDataAddress;
-            u64 meshletDataAddress;
+            h64<gpu::device_address> vertexDataAddress;
+            h64<gpu::device_address> indexDataAddress;
+            h64<gpu::device_address> meshDataAddress;
+            h64<gpu::device_address> meshletDataAddress;
             u32 mask;
             u32 indexType;
             u32 attributeOffsets[MaxAttributes];
@@ -347,64 +348,36 @@ namespace oblo
                 .indexType = u32(t.indexType),
             };
 
-            if (t.indexType != mesh_index_type::none)
+            if (t.indexType != gpu::mesh_index_type::none)
             {
-                const auto indexBufferHandle = t.meshes->index_buffer();
-                const auto buffer = m_resourceManager->get(indexBufferHandle);
-
-                const VkBufferDeviceAddressInfo info{
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                    .buffer = buffer.buffer,
-                };
-
-                gpuTable.indexDataAddress = vkGetBufferDeviceAddress(m_allocator->get_device(), &info) + buffer.offset;
+                const gpu::buffer_range indexBuffer = t.meshes->index_buffer();
+                const h64 bufferAddress = m_gpu->get_device_address(indexBuffer.buffer);
+                gpuTable.indexDataAddress = gpu::offset_device_address(bufferAddress, indexBuffer.offset);
             }
 
-            if (const auto meshlet = t.meshes->meshlet_buffer())
+            if (const h32 meshlet = t.meshes->meshlet_buffer())
             {
-                const auto buffer = m_resourceManager->get(meshlet);
-
-                const VkBufferDeviceAddressInfo info{
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                    .buffer = buffer.buffer,
-                };
-
-                gpuTable.meshletDataAddress =
-                    vkGetBufferDeviceAddress(m_allocator->get_device(), &info) + buffer.offset;
+                gpuTable.meshletDataAddress = m_gpu->get_device_address(meshlet);
             }
 
-            if (const auto buffers = t.meshes->vertex_attribute_buffers(); !buffers.empty())
+            if (const auto buffers = t.meshes->vertex_attribute_buffer_subranges(); !buffers.empty())
             {
-                const VkBufferDeviceAddressInfo info{
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                    .buffer = m_resourceManager->get(buffers[0]).buffer,
-                };
-
-                gpuTable.vertexDataAddress = vkGetBufferDeviceAddress(m_allocator->get_device(), &info);
+                gpuTable.vertexDataAddress = m_gpu->get_device_address(t.meshes->vertex_buffer());
                 gpuTable.mask = get_mesh_attribute_mask_from_id(t.id);
 
                 for (u32 v = 0; v < buffers.size(); ++v)
                 {
-                    const auto buffer = m_resourceManager->get(buffers[v]);
-                    gpuTable.attributeOffsets[v] = buffer.offset;
-                    OBLO_ASSERT(buffer.buffer == info.buffer);
+                    gpuTable.attributeOffsets[v] = narrow_cast<u32>(buffers[v].begin);
                 }
             }
 
-            if (const auto buffers = t.meshes->mesh_buffers(); !buffers.empty())
+            if (const auto buffers = t.meshes->mesh_data_buffer_subranges(); !buffers.empty())
             {
-                const VkBufferDeviceAddressInfo info{
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-                    .buffer = m_resourceManager->get(buffers[0]).buffer,
-                };
-
-                gpuTable.meshDataAddress = vkGetBufferDeviceAddress(m_allocator->get_device(), &info);
+                gpuTable.meshDataAddress = m_gpu->get_device_address(t.meshes->mesh_data_buffer());
 
                 for (u32 v = 0; v < buffers.size(); ++v)
                 {
-                    const auto buffer = m_resourceManager->get(buffers[v]);
-                    gpuTable.meshDataOffsets[v] = buffer.offset;
-                    OBLO_ASSERT(buffer.buffer == info.buffer);
+                    gpuTable.meshDataOffsets[v] = narrow_cast<u32>(buffers[v].begin);
                 }
             }
         }
@@ -412,27 +385,28 @@ namespace oblo
         return std::as_bytes(gpuTables);
     }
 
-    buffer mesh_database::allocate_index_buffer(mesh_index_type indexType)
+    gpu::buffer_range mesh_database::allocate_index_buffer(gpu::mesh_index_type indexType)
     {
-        OBLO_ASSERT(indexType != mesh_index_type::none);
+        OBLO_ASSERT(indexType != gpu::mesh_index_type::none);
         auto& pool = m_indexBuffers[u32(indexType) - 1];
 
         if (!pool.handle)
         {
-            const u32 indexByteSize = get_index_byte_size(indexType);
+            const u64 tableByteSize = calculate_table_index_buffer_size(indexType, m_tableIndexCount);
 
-            // TODO: For now we simply allow a set number of tables using the same index buffer
-            constexpr u32 MaxTables{4};
+            const expected newBuffer = m_gpu->create_buffer({
+                .size = tableByteSize * MaxTables,
+                .memoryFlags = gpu::memory_usage::gpu_only,
+                .usages = m_indexBufferUsage,
+            });
 
-            const u32 tableByteSize = indexByteSize * m_tableIndexCount;
+            if (!newBuffer)
+            {
+                newBuffer.assert_value();
+                return {};
+            }
 
-            pool.handle = m_resourceManager->create(*m_allocator,
-                buffer_initializer{
-                    .size = tableByteSize * MaxTables,
-                    .usage = m_indexBufferUsage,
-                    .memoryUsage = memory_usage::gpu_only,
-                });
-
+            pool.handle = *newBuffer;
             pool.freeList.reserve(MaxTables);
 
             for (u32 i = 0; i < MaxTables; ++i)
@@ -446,8 +420,6 @@ namespace oblo
         const auto range = pool.freeList.back();
         pool.freeList.pop_back();
 
-        const auto b = m_resourceManager->get(pool.handle);
-
-        return {.buffer = b.buffer, .offset = b.offset + range.begin, .size = range.size};
+        return {.buffer = pool.handle, .offset = range.begin, .size = range.size};
     }
 }

@@ -47,7 +47,7 @@ namespace oblo
         constexpr u32 MaxMeshletsPerBatch{1u << 20};
 
         constexpr u32 MaxAttributesCount{u32(attribute_kind::enum_max)};
-        using buffer_columns = std::array<buffer_column_description, MaxAttributesCount>;
+        using buffer_columns = std::array<buffer_table_column_description, MaxAttributesCount>;
 
         enum class vertex_attributes : u8
         {

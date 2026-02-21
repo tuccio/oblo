@@ -10,6 +10,7 @@ namespace oblo::gpu
     struct buffer_range;
     struct command_buffer_pool;
     struct command_buffer;
+    struct device_address;
     struct fence;
     struct image;
     struct native_window;
