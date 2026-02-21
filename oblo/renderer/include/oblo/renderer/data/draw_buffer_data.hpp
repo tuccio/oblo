@@ -1,7 +1,7 @@
 #pragma once
 
-#include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/draw/draw_registry.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 namespace oblo
 {

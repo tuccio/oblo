@@ -1,9 +1,9 @@
 #pragma once
 
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
-#include <oblo/vulkan/draw/pass_manager.hpp>
-#include <oblo/vulkan/draw/resource_cache.hpp>
-#include <oblo/vulkan/draw/texture_registry.hpp>
+#include <oblo/renderer/draw/pass_manager.hpp>
+#include <oblo/renderer/draw/resource_cache.hpp>
+#include <oblo/renderer/draw/texture_registry.hpp>
 
 namespace oblo
 {

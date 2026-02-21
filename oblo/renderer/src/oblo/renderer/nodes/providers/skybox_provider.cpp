@@ -1,8 +1,8 @@
-#include <oblo/vulkan/nodes/providers/skybox_provider.hpp>
+#include <oblo/renderer/nodes/providers/skybox_provider.hpp>
 
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/scene/resources/texture.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
 
 namespace oblo
 {

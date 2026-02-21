@@ -1,4 +1,4 @@
-#include <oblo/vulkan/nodes/surfels/surfel_management.hpp>
+#include <oblo/renderer/nodes/surfels/surfel_management.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/random_generator.hpp>
@@ -7,14 +7,14 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec4.hpp>
-#include <oblo/vulkan/data/camera_buffer.hpp>
-#include <oblo/vulkan/data/metrics.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
-#include <oblo/vulkan/events/gi_reset_event.hpp>
-#include <oblo/vulkan/graph/frame_graph_template.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/renderer/data/camera_buffer.hpp>
+#include <oblo/renderer/data/metrics.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/compute_pass_initializer.hpp>
+#include <oblo/renderer/draw/raytracing_pass_initializer.hpp>
+#include <oblo/renderer/events/gi_reset_event.hpp>
+#include <oblo/renderer/graph/frame_graph_template.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
 
 namespace oblo
 {

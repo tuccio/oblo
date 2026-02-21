@@ -1,11 +1,11 @@
-#include <oblo/vulkan/nodes/postprocess/tone_mapping_node.hpp>
+#include <oblo/renderer/nodes/postprocess/tone_mapping_node.hpp>
 
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/texture.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/compute_pass_initializer.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/texture.hpp>
 
 namespace oblo
 {

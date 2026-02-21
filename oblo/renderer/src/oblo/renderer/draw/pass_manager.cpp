@@ -1,4 +1,4 @@
-#include <oblo/vulkan/draw/pass_manager.hpp>
+#include <oblo/renderer/draw/pass_manager.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
@@ -19,25 +19,25 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/compiler/compiler_module.hpp>
-#include <oblo/vulkan/compiler/shader_cache.hpp>
-#include <oblo/vulkan/draw/bindable_object.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/draw/descriptor_set_pool.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/draw/global_shader_options.hpp>
-#include <oblo/vulkan/draw/instance_data_type_registry.hpp>
-#include <oblo/vulkan/draw/mesh_table.hpp>
-#include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
-#include <oblo/vulkan/draw/render_pass_initializer.hpp>
-#include <oblo/vulkan/draw/shader_stage_utils.hpp>
-#include <oblo/vulkan/draw/texture_registry.hpp>
-#include <oblo/vulkan/draw/vk_type_conversions.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
-#include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/compiler/compiler_module.hpp>
+#include <oblo/renderer/compiler/shader_cache.hpp>
+#include <oblo/renderer/draw/bindable_object.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/compute_pass_initializer.hpp>
+#include <oblo/renderer/draw/descriptor_set_pool.hpp>
+#include <oblo/renderer/draw/draw_registry.hpp>
+#include <oblo/renderer/draw/global_shader_options.hpp>
+#include <oblo/renderer/draw/instance_data_type_registry.hpp>
+#include <oblo/renderer/draw/mesh_table.hpp>
+#include <oblo/renderer/draw/raytracing_pass_initializer.hpp>
+#include <oblo/renderer/draw/render_pass_initializer.hpp>
+#include <oblo/renderer/draw/shader_stage_utils.hpp>
+#include <oblo/renderer/draw/texture_registry.hpp>
+#include <oblo/renderer/draw/vk_type_conversions.hpp>
+#include <oblo/renderer/resource_manager.hpp>
+#include <oblo/renderer/texture.hpp>
+#include <oblo/renderer/vulkan_context.hpp>
 
 #include <spirv_cross/spirv_cross.hpp>
 

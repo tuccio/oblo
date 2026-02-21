@@ -3,8 +3,8 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/types.hpp>
-#include <oblo/vulkan/data/handles.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/data/handles.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
 
 #include <span>
 

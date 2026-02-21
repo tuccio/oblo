@@ -1,11 +1,11 @@
 #pragma once
 
-#include <oblo/vulkan/data/copy_texture_info.hpp>
-#include <oblo/vulkan/graph/frame_graph_context.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
-#include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/utility/pipeline_barrier.hpp>
+#include <oblo/renderer/data/copy_texture_info.hpp>
+#include <oblo/renderer/graph/frame_graph_context.hpp>
+#include <oblo/renderer/graph/pins.hpp>
+#include <oblo/renderer/resource_manager.hpp>
+#include <oblo/renderer/texture.hpp>
+#include <oblo/renderer/utility/pipeline_barrier.hpp>
 
 namespace oblo
 {

@@ -1,15 +1,15 @@
-#include <oblo/vulkan/nodes/visibility/visibility_pass.hpp>
+#include <oblo/renderer/nodes/visibility/visibility_pass.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/data/draw_buffer_data.hpp>
-#include <oblo/vulkan/data/picking_configuration.hpp>
-#include <oblo/vulkan/draw/render_pass_initializer.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/graph/render_pass.hpp>
-#include <oblo/vulkan/loaded_functions.hpp>
-#include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
-#include <oblo/vulkan/utility.hpp>
+#include <oblo/renderer/data/draw_buffer_data.hpp>
+#include <oblo/renderer/data/picking_configuration.hpp>
+#include <oblo/renderer/draw/render_pass_initializer.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/graph/render_pass.hpp>
+#include <oblo/renderer/loaded_functions.hpp>
+#include <oblo/renderer/nodes/drawing/frustum_culling.hpp>
+#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {

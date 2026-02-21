@@ -9,9 +9,9 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/types.hpp>
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/frame_graph_resources.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/frame_graph_resources.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 #include <span>
 

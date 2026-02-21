@@ -1,8 +1,8 @@
 #pragma once
 
-#include <oblo/vulkan/data/render_world.hpp>
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/data/render_world.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 namespace oblo
 {

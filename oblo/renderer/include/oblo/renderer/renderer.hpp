@@ -4,10 +4,10 @@
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
-#include <oblo/vulkan/draw/pass_manager.hpp>
-#include <oblo/vulkan/draw/resource_cache.hpp>
-#include <oblo/vulkan/draw/texture_registry.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/renderer/draw/pass_manager.hpp>
+#include <oblo/renderer/draw/resource_cache.hpp>
+#include <oblo/renderer/draw/texture_registry.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
 
 namespace oblo
 {
@@ -87,12 +87,12 @@ namespace oblo
         return m_stagingBuffer;
     }
 
-    inline frame_graph& vk::renderer::get_frame_graph()
+    inline frame_graph& renderer::get_frame_graph()
     {
         return m_frameGraph;
     }
 
-    inline bool vk::renderer::is_ray_tracing_enabled() const
+    inline bool renderer::is_ray_tracing_enabled() const
     {
         return m_isRayTracingEnabled;
     }

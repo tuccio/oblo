@@ -4,9 +4,9 @@
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/core/type_id.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/texture.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/graph/pins.hpp>
+#include <oblo/renderer/texture.hpp>
 
 namespace oblo
 {

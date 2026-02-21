@@ -1,8 +1,8 @@
 #pragma once
 
-#include <oblo/vulkan/data/light_visibility_event.hpp>
-#include <oblo/vulkan/data/raytraced_shadow_config.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/data/light_visibility_event.hpp>
+#include <oblo/renderer/data/raytraced_shadow_config.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 namespace oblo
 {

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/texture.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/texture.hpp>
 
 namespace oblo
 {

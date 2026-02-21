@@ -1,4 +1,4 @@
-#include <oblo/vulkan/draw/instance_data_type_registry.hpp>
+#include <oblo/renderer/draw/instance_data_type_registry.hpp>
 
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/modules/module_manager.hpp>

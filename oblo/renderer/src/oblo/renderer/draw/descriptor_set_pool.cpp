@@ -1,13 +1,13 @@
-#include <oblo/vulkan/draw/descriptor_set_pool.hpp>
+#include <oblo/renderer/draw/descriptor_set_pool.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/handle_hash.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/struct_apply.hpp>
-#include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/renderer/error.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/vulkan_context.hpp>
 
 namespace oblo
 {

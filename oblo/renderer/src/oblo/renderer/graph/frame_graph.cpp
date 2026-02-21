@@ -1,4 +1,4 @@
-#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
@@ -14,11 +14,11 @@
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/metrics/async_metrics.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/graph/frame_graph_context.hpp>
-#include <oblo/vulkan/graph/frame_graph_impl.hpp>
-#include <oblo/vulkan/graph/frame_graph_template.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/renderer_platform.hpp>
+#include <oblo/renderer/graph/frame_graph_context.hpp>
+#include <oblo/renderer/graph/frame_graph_impl.hpp>
+#include <oblo/renderer/graph/frame_graph_template.hpp>
+#include <oblo/renderer/renderer.hpp>
+#include <oblo/renderer/renderer_platform.hpp>
 
 namespace oblo
 {

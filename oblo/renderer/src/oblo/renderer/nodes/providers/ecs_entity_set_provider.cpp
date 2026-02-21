@@ -4,9 +4,9 @@
 #include <oblo/core/iterator/deque_chunk_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
-#include <oblo/vulkan/data/components.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/nodes/providers/ecs_entity_set_provider.hpp>
+#include <oblo/renderer/data/components.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/nodes/providers/ecs_entity_set_provider.hpp>
 
 namespace oblo
 {

@@ -1,11 +1,11 @@
-#include <oblo/vulkan/draw/resource_cache.hpp>
+#include <oblo/renderer/draw/resource_cache.hpp>
 
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/vulkan/draw/texture_registry.hpp>
+#include <oblo/renderer/draw/texture_registry.hpp>
 
 namespace oblo
 {

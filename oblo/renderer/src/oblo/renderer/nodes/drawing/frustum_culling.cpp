@@ -1,11 +1,11 @@
-#include <oblo/vulkan/nodes/drawing/frustum_culling.hpp>
+#include <oblo/renderer/nodes/drawing/frustum_culling.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
-#include <oblo/vulkan/data/draw_buffer_data.hpp>
-#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/renderer/data/draw_buffer_data.hpp>
+#include <oblo/renderer/draw/compute_pass_initializer.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
 
 namespace oblo
 {

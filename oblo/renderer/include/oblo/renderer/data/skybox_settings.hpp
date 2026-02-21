@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/math/vec3.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 namespace oblo
 {

@@ -1,16 +1,16 @@
-#include <oblo/vulkan/nodes/visibility/visibility_lighting.hpp>
+#include <oblo/renderer/nodes/visibility/visibility_lighting.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/data/draw_buffer_data.hpp>
-#include <oblo/vulkan/data/light_visibility_event.hpp>
-#include <oblo/vulkan/data/picking_configuration.hpp>
-#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/utility.hpp>
+#include <oblo/renderer/data/draw_buffer_data.hpp>
+#include <oblo/renderer/data/light_visibility_event.hpp>
+#include <oblo/renderer/data/picking_configuration.hpp>
+#include <oblo/renderer/draw/compute_pass_initializer.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {

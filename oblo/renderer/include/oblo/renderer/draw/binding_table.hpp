@@ -4,8 +4,8 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/pair.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 #include <initializer_list>
 #include <span>

@@ -1,17 +1,17 @@
-#include <oblo/vulkan/nodes/shadows/raytraced_shadows.hpp>
+#include <oblo/renderer/nodes/shadows/raytraced_shadows.hpp>
 
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/data/draw_buffer_data.hpp>
-#include <oblo/vulkan/data/picking_configuration.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/loaded_functions.hpp>
-#include <oblo/vulkan/utility.hpp>
+#include <oblo/renderer/data/draw_buffer_data.hpp>
+#include <oblo/renderer/data/picking_configuration.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/raytracing_pass_initializer.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/loaded_functions.hpp>
+#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {

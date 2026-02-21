@@ -1,5 +1,5 @@
 #pragma once
 
-#include <oblo/vulkan/data/components.hpp>
-#include <oblo/vulkan/data/metrics.hpp>
-#include <oblo/vulkan/data/tags_internal.hpp>
+#include <oblo/renderer/data/components.hpp>
+#include <oblo/renderer/data/metrics.hpp>
+#include <oblo/renderer/data/tags_internal.hpp>

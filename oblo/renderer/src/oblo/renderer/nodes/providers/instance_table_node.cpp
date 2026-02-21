@@ -1,9 +1,9 @@
-#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
+#include <oblo/renderer/nodes/providers/instance_table_node.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/draw/draw_registry.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
 
 namespace oblo
 {

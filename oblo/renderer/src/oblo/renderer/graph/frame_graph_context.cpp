@@ -1,4 +1,4 @@
-#include <oblo/vulkan/graph/frame_graph_context.hpp>
+#include <oblo/renderer/graph/frame_graph_context.hpp>
 
 #include <oblo/core/flags.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
@@ -7,21 +7,21 @@
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/data/async_download.hpp>
-#include <oblo/vulkan/draw/bindable_object.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/descriptor_set_pool.hpp>
-#include <oblo/vulkan/draw/shader_stage_utils.hpp>
-#include <oblo/vulkan/draw/vk_type_conversions.hpp>
-#include <oblo/vulkan/graph/frame_graph_impl.hpp>
-#include <oblo/vulkan/graph/render_pass.hpp>
-#include <oblo/vulkan/graph/resource_pool.hpp>
-#include <oblo/vulkan/graph/types_internal.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
-#include <oblo/vulkan/staging_buffer.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/data/async_download.hpp>
+#include <oblo/renderer/draw/bindable_object.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/descriptor_set_pool.hpp>
+#include <oblo/renderer/draw/shader_stage_utils.hpp>
+#include <oblo/renderer/draw/vk_type_conversions.hpp>
+#include <oblo/renderer/graph/frame_graph_impl.hpp>
+#include <oblo/renderer/graph/render_pass.hpp>
+#include <oblo/renderer/graph/resource_pool.hpp>
+#include <oblo/renderer/graph/types_internal.hpp>
+#include <oblo/renderer/renderer.hpp>
+#include <oblo/renderer/resource_manager.hpp>
+#include <oblo/renderer/staging_buffer.hpp>
+#include <oblo/renderer/vulkan_context.hpp>
 
 namespace oblo
 {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/unreachable.hpp>
-#include <oblo/vulkan/compiler/shader_stage.hpp>
+#include <oblo/renderer/compiler/shader_stage.hpp>
 
 #include <vulkan/vulkan.h>
 

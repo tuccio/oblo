@@ -2,9 +2,9 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
-#include <oblo/vulkan/texture.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/texture.hpp>
 
 #include <unordered_map>
 

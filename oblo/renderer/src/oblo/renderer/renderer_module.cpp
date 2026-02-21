@@ -1,4 +1,4 @@
-#include <oblo/vulkan/renderer_module.hpp>
+#include <oblo/renderer/renderer_module.hpp>
 
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/types.hpp>
@@ -9,8 +9,8 @@
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
-#include <oblo/vulkan/compiler/compiler_module.hpp>
-#include <oblo/vulkan/draw/global_shader_options.hpp>
+#include <oblo/renderer/compiler/compiler_module.hpp>
+#include <oblo/renderer/draw/global_shader_options.hpp>
 
 namespace oblo::ecs
 {

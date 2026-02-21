@@ -2,8 +2,8 @@
 
 #include <oblo/math/vec2i.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 #include <optional>
 #include <span>

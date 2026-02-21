@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/math/vec2.hpp>
-#include <oblo/vulkan/buffer.hpp>
+#include <oblo/renderer/buffer.hpp>
 
 #include <vulkan/vulkan_core.h>
 

@@ -1,4 +1,4 @@
-#include <oblo/vulkan/draw/mesh_database.hpp>
+#include <oblo/renderer/draw/mesh_database.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/buffered_array.hpp>
@@ -6,11 +6,11 @@
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/log/log.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/draw/mesh_table.hpp>
-#include <oblo/vulkan/draw/vk_type_conversions.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/draw/mesh_table.hpp>
+#include <oblo/renderer/draw/vk_type_conversions.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/resource_manager.hpp>
 
 #include <array>
 #include <memory>

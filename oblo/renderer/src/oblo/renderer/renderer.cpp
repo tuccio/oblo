@@ -1,4 +1,4 @@
-#include <oblo/vulkan/renderer.hpp>
+#include <oblo/renderer/renderer.hpp>
 
 #include <oblo/core/string/string.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
@@ -6,10 +6,10 @@
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/draw/descriptor_set_pool.hpp>
-#include <oblo/vulkan/draw/instance_data_type_registry.hpp>
-#include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/renderer_platform.hpp>
+#include <oblo/renderer/draw/descriptor_set_pool.hpp>
+#include <oblo/renderer/draw/instance_data_type_registry.hpp>
+#include <oblo/renderer/renderer_module.hpp>
+#include <oblo/renderer/renderer_platform.hpp>
 
 namespace oblo
 {

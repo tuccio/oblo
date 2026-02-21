@@ -1,9 +1,9 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/data/raytraced_shadow_config.hpp>
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/data/raytraced_shadow_config.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 namespace oblo
 {

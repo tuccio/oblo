@@ -1,9 +1,9 @@
-#include <oblo/vulkan/draw/mesh_table.hpp>
+#include <oblo/renderer/draw/mesh_table.hpp>
 
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
-#include <oblo/vulkan/resource_manager.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/error.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/resource_manager.hpp>
 
 namespace oblo
 {

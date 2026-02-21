@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/core/string/string_view.hpp>
-#include <oblo/vulkan/graph/frame_graph_template.hpp>
+#include <oblo/renderer/graph/frame_graph_template.hpp>
 
 namespace oblo::main_view
 {

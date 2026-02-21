@@ -1,4 +1,4 @@
-#include <oblo/vulkan/graph/frame_graph_registry.hpp>
+#include <oblo/renderer/graph/frame_graph_registry.hpp>
 
 namespace oblo
 {

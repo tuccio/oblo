@@ -1,10 +1,10 @@
-#include <oblo/vulkan/nodes/ao/rtao.hpp>
+#include <oblo/renderer/nodes/ao/rtao.hpp>
 
 #include <oblo/core/random_generator.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/raytracing_pass_initializer.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/raytracing_pass_initializer.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
 
 namespace oblo
 {

@@ -4,9 +4,9 @@
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/vulkan/graph/frame_graph_registry.hpp>
-#include <oblo/vulkan/graph/frame_graph_vertex_kind.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/graph/frame_graph_registry.hpp>
+#include <oblo/renderer/graph/frame_graph_vertex_kind.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 #include <functional>
 

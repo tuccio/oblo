@@ -1,10 +1,10 @@
-#include <oblo/vulkan/graph/image_layout_tracker.hpp>
+#include <oblo/renderer/graph/image_layout_tracker.hpp>
 
 #include <oblo/core/unreachable.hpp>
 #include <oblo/gpu/types.hpp>
-#include <oblo/vulkan/graph/frame_graph_context.hpp>
-#include <oblo/vulkan/graph/types_internal.hpp>
-#include <oblo/vulkan/texture.hpp>
+#include <oblo/renderer/graph/frame_graph_context.hpp>
+#include <oblo/renderer/graph/types_internal.hpp>
+#include <oblo/renderer/texture.hpp>
 
 namespace oblo
 {

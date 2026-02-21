@@ -1,4 +1,4 @@
-#include <oblo/vulkan/data/blur_configs.hpp>
+#include <oblo/renderer/data/blur_configs.hpp>
 
 #include <oblo/math/constants.hpp>
 

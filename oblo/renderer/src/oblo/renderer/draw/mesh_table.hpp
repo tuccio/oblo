@@ -1,8 +1,8 @@
 #pragma once
 
 #include <oblo/core/handle_flat_pool_map.hpp>
-#include <oblo/vulkan/buffer_table.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/buffer_table.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
 
 namespace oblo
 {

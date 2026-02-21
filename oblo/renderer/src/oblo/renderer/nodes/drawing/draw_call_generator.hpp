@@ -1,10 +1,10 @@
 #pragma once
 
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
-#include <oblo/vulkan/nodes/providers/render_world_provider.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/pins.hpp>
+#include <oblo/renderer/nodes/providers/instance_table_node.hpp>
+#include <oblo/renderer/nodes/providers/render_world_provider.hpp>
 
 namespace oblo
 {

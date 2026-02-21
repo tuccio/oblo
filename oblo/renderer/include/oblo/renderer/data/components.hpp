@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/reflection/codegen/annotations.hpp>
-#include <oblo/vulkan/data/handles.hpp>
+#include <oblo/renderer/data/handles.hpp>
 
 namespace oblo
 {

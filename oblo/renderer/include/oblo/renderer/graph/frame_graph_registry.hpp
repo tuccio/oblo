@@ -2,7 +2,7 @@
 
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
-#include <oblo/vulkan/graph/frame_graph_node_desc.hpp>
+#include <oblo/renderer/graph/frame_graph_node_desc.hpp>
 
 #include <unordered_map>
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <oblo/vulkan/data/light_data.hpp>
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/data/light_data.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 #include <span>
 

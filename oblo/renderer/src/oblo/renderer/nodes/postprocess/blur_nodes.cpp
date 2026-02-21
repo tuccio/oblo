@@ -1,6 +1,6 @@
-#include <oblo/vulkan/nodes/postprocess/blur_nodes.hpp>
+#include <oblo/renderer/nodes/postprocess/blur_nodes.hpp>
 
-#include <oblo/vulkan/nodes/postprocess/separable_blur_impl.hpp>
+#include <oblo/renderer/nodes/postprocess/separable_blur_impl.hpp>
 
 namespace oblo
 {

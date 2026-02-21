@@ -1,4 +1,4 @@
-#include <oblo/vulkan/draw/texture_registry.hpp>
+#include <oblo/renderer/draw/texture_registry.hpp>
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
@@ -8,9 +8,9 @@
 #include <oblo/log/log.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/texture_format.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
-#include <oblo/vulkan/staging_buffer.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/renderer/gpu_temporary_aliases.hpp>
+#include <oblo/renderer/staging_buffer.hpp>
+#include <oblo/renderer/vulkan_context.hpp>
 
 namespace oblo
 {

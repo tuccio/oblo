@@ -1,12 +1,12 @@
-#include <oblo/vulkan/nodes/surfels/surfel_debug.hpp>
+#include <oblo/renderer/nodes/surfels/surfel_debug.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/math/constants.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/compute_pass_initializer.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/utility.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/compute_pass_initializer.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {

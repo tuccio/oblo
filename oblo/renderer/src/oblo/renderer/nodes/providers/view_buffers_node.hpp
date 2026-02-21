@@ -2,14 +2,14 @@
 
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/data/camera_buffer.hpp>
-#include <oblo/vulkan/data/copy_texture_info.hpp>
-#include <oblo/vulkan/data/time_buffer.hpp>
-#include <oblo/vulkan/graph/frame_graph_context.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/nodes/providers/instance_table_node.hpp>
+#include <oblo/renderer/buffer.hpp>
+#include <oblo/renderer/data/camera_buffer.hpp>
+#include <oblo/renderer/data/copy_texture_info.hpp>
+#include <oblo/renderer/data/time_buffer.hpp>
+#include <oblo/renderer/graph/frame_graph_context.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/graph/pins.hpp>
+#include <oblo/renderer/nodes/providers/instance_table_node.hpp>
 
 namespace oblo
 {

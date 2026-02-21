@@ -4,8 +4,8 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
-#include <oblo/vulkan/graph/forward.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
+#include <oblo/renderer/graph/forward.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 #include <span>
 
