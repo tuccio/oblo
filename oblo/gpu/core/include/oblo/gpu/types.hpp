@@ -447,4 +447,17 @@ namespace oblo::gpu
         cpu_to_gpu = 3,
         gpu_to_cpu = 4,
     };
+
+    enum class memory_requirement : u8
+    {
+        host_visible,
+        enum_max,
+    };
+
+    enum class image_aspect : u8
+    {
+        color,
+        depth,
+        enum_max,
+    };
 }

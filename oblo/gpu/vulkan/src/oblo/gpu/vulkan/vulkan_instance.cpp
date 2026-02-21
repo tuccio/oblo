@@ -2,6 +2,7 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/overload.hpp>
 #include <oblo/gpu/descriptors.hpp>
 #include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
@@ -237,6 +238,18 @@ namespace oblo::gpu::vk
         // TODO: It should actually search for the best GPU and check for API version, but we pick the first
         m_physicalDevice = devices[0];
 
+        // Cache the properties so users can query them on demand
+        m_subgroupProperties = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES,
+        };
+
+        m_physicalDeviceProperties = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+            .pNext = &m_subgroupProperties,
+        };
+
+        vkGetPhysicalDeviceProperties2(m_physicalDevice, &m_physicalDeviceProperties);
+
         // Now find the queues
         constexpr float queuePriorities[] = {1.f};
 
@@ -375,6 +388,17 @@ namespace oblo::gpu::vk
     h32<queue> vulkan_instance::get_universal_queue()
     {
         return universal_queue_id;
+    }
+
+    device_info vulkan_instance::get_device_info()
+    {
+        const auto& limits = m_physicalDeviceProperties.properties.limits;
+
+        return {
+            .waveSize = m_subgroupProperties.subgroupSize,
+            .optimalBufferCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment,
+            .optimalBufferCopyRowPitchAlignment = limits.optimalBufferCopyRowPitchAlignment,
+        };
     }
 
     result<h32<swapchain>> vulkan_instance::create_swapchain(const swapchain_descriptor& descriptor)
@@ -652,13 +676,35 @@ namespace oblo::gpu::vk
     {
         vk::allocated_buffer allocatedBuffer;
 
-        const VkResult r = m_allocator.create_buffer(
+        vk::allocated_buffer_initializer initializer{
+            .size = descriptor.size,
+            .usage = vk::convert_enum_flags(descriptor.usages),
+        };
+
+        descriptor.memoryFlags.visit(overload{
+            [&initializer](memory_usage usage) -> void { initializer.memoryUsage = vk::allocated_memory_usage(usage); },
+            [&initializer](flags<memory_requirement> requirements) -> void
             {
-                .size = descriptor.size,
-                .usage = vk::convert_enum_flags(descriptor.usages),
-                .memoryUsage = vk::allocated_memory_usage(descriptor.memoryUsage),
+                VkMemoryPropertyFlags flags{};
+
+                for (const memory_requirement r : flags_range{requirements})
+                {
+                    switch (r)
+                    {
+                    case memory_requirement::host_visible:
+                        flags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+                        break;
+
+                    default:
+                        unreachable();
+                    }
+                }
+
+                initializer.requiredFlags = flags;
             },
-            &allocatedBuffer);
+        });
+
+        const VkResult r = m_allocator.create_buffer(initializer, &allocatedBuffer);
 
         if (r != VK_SUCCESS)
         {
@@ -922,6 +968,89 @@ namespace oblo::gpu::vk
     result<> vulkan_instance::wait_idle()
     {
         return translate_result(vkDeviceWaitIdle(m_device));
+    }
+
+    result<void*> vulkan_instance::memory_map(h32<buffer> buffer)
+    {
+        const VmaAllocation allocation = m_buffers.at(buffer).allocation;
+
+        void* ptr{};
+        return translate_error_or_value(m_allocator.map(allocation, &ptr), ptr);
+    }
+
+    result<> vulkan_instance::memory_unmap(h32<buffer> buffer)
+    {
+        const VmaAllocation allocation = m_buffers.at(buffer).allocation;
+        m_allocator.unmap(allocation);
+        return no_error;
+    }
+
+    result<> vulkan_instance::memory_invalidate(std::span<const h32<buffer>> buffers)
+    {
+        buffered_array<VmaAllocation, 8> allocations;
+        allocations.reserve(buffers.size());
+
+        for (const h32 b : buffers)
+        {
+            const VmaAllocation allocation = m_buffers.at(b).allocation;
+            allocations.emplace_back(allocation);
+        }
+
+        return translate_result(m_allocator.invalidate_mapped_memory_ranges(allocations));
+    }
+
+    void vulkan_instance::cmd_copy_buffer(
+        hptr<command_buffer> cmd, h32<buffer> src, h32<buffer> dst, std::span<const buffer_copy_descriptor> copies)
+    {
+        const VkCommandBuffer vkCmd = unwrap_handle<VkCommandBuffer>(cmd);
+
+        buffered_array<VkBufferCopy, 8> regions;
+        regions.reserve(copies.size());
+
+        for (const auto& copy : copies)
+        {
+            regions.push_back({
+                .srcOffset = copy.srcOffset,
+                .dstOffset = copy.dstOffset,
+                .size = copy.size,
+            });
+        }
+
+        vkCmdCopyBuffer(vkCmd, m_buffers.at(src).buffer, m_buffers.at(dst).buffer, regions.size32(), regions.data());
+    }
+
+    void vulkan_instance::cmd_copy_buffer_to_image(
+        hptr<command_buffer> cmd, h32<buffer> src, h32<image> dst, std::span<const buffer_image_copy_descriptor> copies)
+    {
+        const VkCommandBuffer vkCmd = unwrap_handle<VkCommandBuffer>(cmd);
+
+        buffered_array<VkBufferImageCopy, 8> regions;
+        regions.reserve(copies.size());
+
+        for (const auto& copy : copies)
+        {
+            regions.push_back({
+                .bufferOffset = copy.bufferOffset,
+                .bufferRowLength = copy.bufferRowLength,
+                .bufferImageHeight = copy.bufferImageHeight,
+                .imageSubresource =
+                    {
+                        .aspectMask = convert_enum_flags(copy.imageSubresource.aspectMask),
+                        .mipLevel = copy.imageSubresource.mipLevel,
+                        .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
+                        .layerCount = copy.imageSubresource.layerCount,
+                    },
+                .imageOffset = std::bit_cast<VkOffset3D>(copy.imageOffset),
+                .imageExtent = std::bit_cast<VkExtent3D>(copy.imageExtent),
+            });
+        }
+
+        vkCmdCopyBufferToImage(vkCmd,
+            m_buffers.at(src).buffer,
+            m_images.at(dst).image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            regions.size32(),
+            regions.data());
     }
 
     h32<image> vulkan_instance::register_image(VkImage image, VkImageView view, VmaAllocation allocation)

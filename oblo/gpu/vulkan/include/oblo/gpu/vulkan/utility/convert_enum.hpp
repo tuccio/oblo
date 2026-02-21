@@ -91,21 +91,9 @@ namespace oblo::gpu::vk
         };
     }
 
-    inline VkImageUsageFlags convert_enum_flags(flags<texture_usage> usages)
-    {
-        VkImageUsageFlags r{};
-
-        for (const texture_usage usage : flags_range{usages})
-        {
-            r |= convert_enum(usage);
-        }
-
-        return r;
-    }
-
     inline VkBufferUsageFlagBits convert_enum(buffer_usage usage)
     {
-        OBLO_ASSERT(usage != buffer_usage::enum_max);
+        OBLO_ASSERT(usage < buffer_usage::enum_max);
 
         switch (usage)
         {
@@ -131,15 +119,51 @@ namespace oblo::gpu::vk
         }
     }
 
+    inline VkImageAspectFlagBits convert_enum(image_aspect usage)
+    {
+        OBLO_ASSERT(usage < image_aspect::enum_max);
+
+        switch (usage)
+        {
+        case image_aspect::color:
+            return VK_IMAGE_ASPECT_COLOR_BIT;
+
+        case image_aspect::depth:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        default:
+            unreachable();
+        }
+    }
+
+    namespace detail
+    {
+        template <typename R, typename T>
+        OBLO_FORCEINLINE R convert_enum_flags_impl(flags<T> usages)
+        {
+            R r{};
+
+            for (const T usage : flags_range{usages})
+            {
+                r |= convert_enum(usage);
+            }
+
+            return r;
+        }
+    }
+
+    inline VkImageUsageFlags convert_enum_flags(flags<texture_usage> usages)
+    {
+        return detail::convert_enum_flags_impl<VkImageUsageFlags>(usages);
+    }
+
     inline VkBufferUsageFlags convert_enum_flags(flags<buffer_usage> usages)
     {
-        VkBufferUsageFlags r{};
+        return detail::convert_enum_flags_impl<VkBufferUsageFlags>(usages);
+    }
 
-        for (const buffer_usage usage : flags_range{usages})
-        {
-            r |= convert_enum(usage);
-        }
-
-        return r;
+    inline VkImageAspectFlags convert_enum_flags(flags<image_aspect> aspectMask)
+    {
+        return detail::convert_enum_flags_impl<VkImageAspectFlags>(aspectMask);
     }
 }

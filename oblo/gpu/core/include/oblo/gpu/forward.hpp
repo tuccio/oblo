@@ -6,6 +6,7 @@ namespace oblo::gpu
 {
     struct bindless_image;
     struct buffer;
+    struct buffer_image_copy_descriptor;
     struct command_buffer_pool;
     struct command_buffer;
     struct fence;
@@ -20,6 +21,8 @@ namespace oblo::gpu
     struct swapchain;
 
     struct buffer_descriptor;
+    struct buffer_copy_descriptor;
+    struct buffer_image_copy_descriptor;
     struct command_buffer_pool_descriptor;
     struct device_descriptor;
     struct fence_descriptor;
@@ -32,6 +35,9 @@ namespace oblo::gpu
     struct render_pipeline_descriptor;
     struct shader_module_descriptor;
     struct swapchain_descriptor;
+
+    struct device_info;
+    struct device_limits;
 
     class gpu_instance;
 

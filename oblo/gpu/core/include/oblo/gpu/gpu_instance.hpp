@@ -22,6 +22,8 @@ namespace oblo::gpu
 
         virtual result<> finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface) = 0;
 
+        virtual device_info get_device_info() = 0;
+
         virtual h32<queue> get_universal_queue() = 0;
 
         virtual result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) = 0;
@@ -76,5 +78,25 @@ namespace oblo::gpu
         virtual result<> present(const present_descriptor& descriptor) = 0;
 
         virtual result<> wait_idle() = 0;
+
+        // Memory mapping
+
+        virtual result<void*> memory_map(h32<buffer> buffer) = 0;
+
+        virtual result<> memory_unmap(h32<buffer> buffer) = 0;
+
+        virtual result<> memory_invalidate(std::span<const h32<buffer>> buffers) = 0;
+
+        // Transfer commands
+
+        virtual void cmd_copy_buffer(hptr<command_buffer> cmd,
+            h32<buffer> src,
+            h32<buffer> dst,
+            std::span<const buffer_copy_descriptor> copies) = 0;
+
+        virtual void cmd_copy_buffer_to_image(hptr<command_buffer> cmd,
+            h32<buffer> src,
+            h32<image> dst,
+            std::span<const buffer_image_copy_descriptor> copies) = 0;
     };
 }

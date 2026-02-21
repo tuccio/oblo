@@ -30,6 +30,8 @@ namespace oblo::gpu::vk
 
         h32<queue> get_universal_queue() override;
 
+        device_info get_device_info() override;
+
         result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) override;
         void destroy_swapchain(h32<swapchain> handle) override;
 
@@ -83,6 +85,26 @@ namespace oblo::gpu::vk
 
         result<> wait_idle() override;
 
+        // Memory mapping
+
+        result<void*> memory_map(h32<buffer> buffer) override;
+
+        result<> memory_unmap(h32<buffer> buffer) override;
+
+        result<> memory_invalidate(std::span<const h32<buffer>> buffers) override;
+
+        // Transfer commands
+
+        void cmd_copy_buffer(hptr<command_buffer> cmd,
+            h32<buffer> src,
+            h32<buffer> dst,
+            std::span<const buffer_copy_descriptor> copies) override;
+
+        void cmd_copy_buffer_to_image(hptr<command_buffer> cmd,
+            h32<buffer> src,
+            h32<image> dst,
+            std::span<const buffer_image_copy_descriptor> copies) override;
+
     private:
         struct buffer_impl;
         struct command_buffer_pool_impl;
@@ -103,6 +125,7 @@ namespace oblo::gpu::vk
         VkDevice m_device{};
         vk::gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
+
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
         h32_flat_pool_dense_map<buffer, buffer_impl> m_buffers;
         h32_flat_pool_dense_map<image, image_impl> m_images;
@@ -110,5 +133,8 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<command_buffer_pool, command_buffer_pool_impl> m_commandBufferPools;
         h32_flat_pool_dense_map<fence, VkFence> m_fences;
         h32_flat_pool_dense_map<shader_module, shader_module_impl> m_shaderModules;
+
+        VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
+        VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};
     };
 }

@@ -83,7 +83,7 @@ namespace oblo::gpu::vk
 
     struct allocated_buffer_initializer
     {
-        u32 size;
+        u64 size;
         VkBufferUsageFlags usage;
 
         // One between required flags and memory usage has to be non-zero

@@ -2,10 +2,13 @@
 
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/variant.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/math/vec2i.hpp>
 #include <oblo/math/vec2u.hpp>
+#include <oblo/math/vec3i.hpp>
+#include <oblo/math/vec3u.hpp>
 
 #include <optional>
 #include <span>
@@ -18,10 +21,36 @@ namespace oblo::gpu
         u32 numCommandBuffers;
     };
 
+    struct buffer_copy_descriptor
+    {
+        u64 srcOffset;
+        u64 dstOffset;
+        u64 size;
+    };
+
+    struct image_subresource_descriptor
+    {
+        flags<image_aspect> aspectMask;
+        u32 mipLevel;
+        u32 baseArrayLayer;
+        u32 layerCount;
+    };
+
+    struct buffer_image_copy_descriptor
+    {
+        u64 bufferOffset;
+        u32 bufferRowLength;
+        u32 bufferImageHeight;
+        image_subresource_descriptor imageSubresource;
+        vec3i imageOffset;
+        vec3u imageExtent;
+    };
+
     struct buffer_descriptor
     {
-        u32 size;
-        memory_usage memoryUsage;
+        u64 size;
+
+        variant<memory_usage, flags<memory_requirement>> memoryFlags;
 
         flags<buffer_usage> usages;
     };
@@ -200,5 +229,12 @@ namespace oblo::gpu
         texture_format format;
         u32 width;
         u32 height;
+    };
+
+    struct device_info
+    {
+        u32 waveSize;
+        u64 optimalBufferCopyOffsetAlignment;
+        u64 optimalBufferCopyRowPitchAlignment;
     };
 }
