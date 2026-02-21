@@ -40,6 +40,7 @@ namespace oblo::gpu
     struct device_limits;
 
     class gpu_instance;
+    class gpu_queue_context;
 
     enum class error;
 

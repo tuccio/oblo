@@ -4,7 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-namespace oblo::vk
+namespace oblo
 {
     void add_pipeline_barrier_cmd(VkCommandBuffer commandBuffer,
         VkImageLayout oldLayout,

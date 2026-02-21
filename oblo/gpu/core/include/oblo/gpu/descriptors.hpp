@@ -233,7 +233,7 @@ namespace oblo::gpu
 
     struct device_info
     {
-        u32 waveSize;
+        u32 subgroupSize;
         u64 optimalBufferCopyOffsetAlignment;
         u64 optimalBufferCopyRowPitchAlignment;
     };

@@ -397,7 +397,7 @@ namespace oblo::gpu::vk
         const auto& limits = m_physicalDeviceProperties.properties.limits;
 
         return {
-            .waveSize = m_subgroupProperties.subgroupSize,
+            .subgroupSize = m_subgroupProperties.subgroupSize,
             .optimalBufferCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment,
             .optimalBufferCopyRowPitchAlignment = limits.optimalBufferCopyRowPitchAlignment,
         };

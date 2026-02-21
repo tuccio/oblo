@@ -14,7 +14,7 @@ target_link_libraries(
     PRIVATE
     oblo::app
     oblo::log
+    oblo::renderer
     oblo::vk::core
-    oblo::vk::renderer
     Vulkan::Headers
 )
