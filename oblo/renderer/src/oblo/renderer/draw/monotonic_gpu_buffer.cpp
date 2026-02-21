@@ -1,15 +1,15 @@
-#include <oblo/vulkan/monotonic_gbu_buffer.hpp>
+#include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
 
 #include <oblo/core/utility.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/structs.hpp>
 
-namespace oblo::vk
+namespace oblo
 {
-    struct monotonic_gpu_buffer::buffer_info : allocated_buffer
+    struct monotonic_gpu_buffer::buffer_info
     {
+        h32<gpu::buffer> handle{};
     };
 
     monotonic_gpu_buffer::monotonic_gpu_buffer() = default;
@@ -19,7 +19,8 @@ namespace oblo::vk
 
     monotonic_gpu_buffer::~monotonic_gpu_buffer() = default;
 
-    void monotonic_gpu_buffer::init(VkBufferUsageFlags usage, memory_usage memoryUsage, u8 alignment, u32 chunkSize)
+    void monotonic_gpu_buffer::init(
+        flags<gpu::buffer_usage> usage, gpu::memory_usage memoryUsage, u8 alignment, u32 chunkSize)
     {
         m_usage = usage;
         m_chunkSize = chunkSize;
@@ -29,18 +30,19 @@ namespace oblo::vk
         m_alignment = alignment;
     }
 
-    void monotonic_gpu_buffer::shutdown(vulkan_context& ctx)
+    void monotonic_gpu_buffer::shutdown(gpu::gpu_queue_context& ctx)
     {
         const u64 submitIndex = ctx.get_submit_index();
 
         for (auto& buffer : m_buffers)
         {
-            ctx.destroy_deferred(buffer.buffer, submitIndex);
-            ctx.destroy_deferred(buffer.allocation, submitIndex);
+            ctx.destroy_deferred(buffer.handle, submitIndex);
         }
+
+        m_buffers.clear();
     }
 
-    buffer monotonic_gpu_buffer::allocate(vulkan_context& ctx, u32 size)
+    expected<gpu::buffer_range> monotonic_gpu_buffer::allocate(gpu::gpu_instance& gpu, u32 size)
     {
         if (size == 0)
         {
@@ -57,37 +59,33 @@ namespace oblo::vk
 
             if (m_currentIndex == m_buffers.size())
             {
-                auto& allocator = ctx.get_allocator();
-                allocated_buffer newBuffer;
+                const expected newBuffer = gpu.create_buffer({
+                    .size = m_chunkSize,
+                    .memoryFlags = m_memoryUsage,
+                    .usages = m_usage,
+                });
 
-                OBLO_VK_PANIC(allocator.create_buffer(
-                    {
-                        .size = m_chunkSize,
-                        .usage = m_usage,
-                        .memoryUsage = m_memoryUsage,
-                    },
-                    &newBuffer));
+                if (!newBuffer)
+                {
+                    return "Failed to allocate GPU buffer"_err;
+                }
 
-                m_buffers.emplace_back(newBuffer);
+                m_buffers.emplace_back(*newBuffer);
             }
 
             m_spaceInCurrentChunk = m_chunkSize;
         }
-
-        buffer res;
 
         const auto offset = m_chunkSize - m_spaceInCurrentChunk;
         OBLO_ASSERT(offset % m_alignment == 0);
 
         m_spaceInCurrentChunk -= alignedSize;
 
-        res = {
-            .buffer = m_buffers[m_currentIndex].buffer,
+        return gpu::buffer_range{
+            .buffer = m_buffers[m_currentIndex].handle,
             .offset = offset,
             .size = size,
         };
-
-        return res;
     }
 
     void monotonic_gpu_buffer::restore_all()

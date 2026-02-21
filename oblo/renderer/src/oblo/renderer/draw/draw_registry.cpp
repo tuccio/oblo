@@ -22,7 +22,6 @@
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/renderer/buffer.hpp>
 #include <oblo/renderer/data/components.hpp>
 #include <oblo/renderer/data/gpu_aabb.hpp>
 #include <oblo/renderer/data/tags_internal.hpp>

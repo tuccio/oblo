@@ -23,10 +23,7 @@ namespace oblo
 
     template <typename>
     struct resource_ref;
-}
 
-namespace oblo
-{
     class instance_data_type_registry;
     class staging_buffer;
     class vulkan_context;

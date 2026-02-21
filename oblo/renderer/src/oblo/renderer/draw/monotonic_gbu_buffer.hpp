@@ -1,12 +1,13 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/vulkan/gpu_temporary_aliases.hpp>
+#include <oblo/gpu/error.hpp>
+#include <oblo/gpu/forward.hpp>
+#include <oblo/gpu/types.hpp>
 
-#include <vulkan/vulkan_core.h>
-
-namespace oblo::vk
+namespace oblo
 {
     class monotonic_gpu_buffer
     {
@@ -20,10 +21,10 @@ namespace oblo::vk
 
         ~monotonic_gpu_buffer();
 
-        void init(VkBufferUsageFlags usage, memory_usage memoryUsage, u8 alignment, u32 chunkSize);
-        void shutdown(vulkan_context& ctx);
+        void init(flags<gpu::buffer_usage> usage, gpu::memory_usage memoryUsage, u8 alignment, u32 chunkSize);
+        void shutdown(gpu::gpu_queue_context& ctx);
 
-        buffer allocate(vulkan_context& ctx, u32 size);
+        expected<gpu::buffer_range> allocate(gpu::gpu_instance& gpu, u32 size);
 
         void restore_all();
 
@@ -34,9 +35,9 @@ namespace oblo::vk
         dynamic_array<buffer_info> m_buffers;
         u32 m_currentIndex{};
         u32 m_spaceInCurrentChunk{};
-        VkBufferUsageFlags m_usage{};
         u32 m_chunkSize{};
+        flags<gpu::buffer_usage> m_usage{};
         u8 m_alignment{};
-        memory_usage m_memoryUsage{};
+        gpu::memory_usage m_memoryUsage{};
     };
 }

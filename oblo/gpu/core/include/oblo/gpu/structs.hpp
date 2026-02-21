@@ -47,10 +47,14 @@ namespace oblo::gpu
         vec3u imageExtent;
     };
 
+    struct memory_properties : variant<memory_usage, flags<memory_requirement>>
+    {
+    };
+
     struct buffer_descriptor
     {
         u64 size;
-        variant<memory_usage, flags<memory_requirement>> memoryFlags;
+        memory_properties memoryProperties;
         flags<buffer_usage> usages;
         debug_label debugLabel;
     };

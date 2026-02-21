@@ -40,6 +40,7 @@ namespace oblo::gpu
 
     struct device_info;
     struct device_limits;
+    struct memory_properties;
 
     class gpu_instance;
     class gpu_queue_context;

@@ -1,33 +1,33 @@
 #include <oblo/vulkan/dynamic_buffer.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/gpu_queue_context.hpp>
 
-namespace oblo::vk
+namespace oblo
 {
     dynamic_buffer::~dynamic_buffer()
     {
-        OBLO_ASSERT(m_buffer.buffer == nullptr, "Shutdown should be explicit");
+        OBLO_ASSERT(!m_buffer, "Shutdown should be explicit");
     }
 
-    void dynamic_buffer::init(vulkan_context& ctx, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags)
+    void dynamic_buffer::init(
+        gpu::gpu_queue_context& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties)
     {
         m_ctx = &ctx;
         m_buffer = {};
         m_capacity = {};
         m_usedBytes = {};
         m_usage = usage;
-        m_memoryPropertyFlags = memoryPropertyFlags;
+        m_memoryProperties = memoryProperties;
     }
 
     void dynamic_buffer::shutdown()
     {
-        if (m_buffer.buffer)
+        if (m_buffer)
         {
-            m_ctx->destroy_immediate(m_buffer.buffer);
-            m_ctx->destroy_immediate(m_buffer.allocation);
+            const auto submitIndex = m_ctx->get_submit_index();
+            m_ctx->destroy_deferred(m_buffer, submitIndex);
 
             m_buffer = {};
             m_capacity = {};
@@ -44,12 +44,11 @@ namespace oblo::vk
 
     void dynamic_buffer::clear_and_shrink()
     {
-        if (m_buffer.buffer)
+        if (m_buffer)
         {
             const auto submitIndex = m_ctx->get_submit_index();
 
-            m_ctx->destroy_deferred(m_buffer.buffer, submitIndex);
-            m_ctx->destroy_deferred(m_buffer.allocation, submitIndex);
+            m_ctx->destroy_deferred(m_buffer, submitIndex);
 
             m_buffer = {};
             m_capacity = {};
@@ -57,7 +56,7 @@ namespace oblo::vk
         }
     }
 
-    void dynamic_buffer::resize(VkCommandBuffer cmd, u32 size)
+    void dynamic_buffer::resize(hptr<gpu::command_buffer> cmd, u32 size)
     {
         reserve_impl(cmd, size);
         m_usedBytes = size;
@@ -69,60 +68,61 @@ namespace oblo::vk
         m_usedBytes = size;
     }
 
-    void dynamic_buffer::reserve_impl(VkCommandBuffer cmd, u32 size)
+    bool dynamic_buffer::reserve_impl(hptr<gpu::command_buffer> cmd, u32 size)
     {
         if (size <= m_capacity)
         {
-            return;
+            return true;
         }
 
-        const auto oldBuffer = m_buffer;
+        const h32 oldBuffer = m_buffer;
 
-        allocated_buffer newBuffer{};
+        auto& gpu = m_ctx->get_instance();
 
-        auto& allocator = m_ctx->get_allocator();
+        const expected newBuffer = gpu.create_buffer({
+            .size = size,
+            .memoryProperties = m_memoryProperties,
+            .usages = m_usage,
+        });
 
-        OBLO_VK_PANIC(allocator.create_buffer(
-            {
-                .size = size,
-                .usage = m_usage,
-                .requiredFlags = m_memoryPropertyFlags,
-            },
-            &newBuffer));
+        if (!newBuffer)
+        {
+            return false;
+        }
 
         if (cmd && m_usedBytes > 0)
         {
-            const VkBufferCopy region{.size = m_usedBytes};
-            vkCmdCopyBuffer(cmd, oldBuffer.buffer, newBuffer.buffer, 1, &region);
+            const gpu::buffer_copy_descriptor region{.size = m_usedBytes};
+            gpu.cmd_copy_buffer(cmd, oldBuffer, *newBuffer, {&region, 1});
         }
 
-        if (oldBuffer.buffer)
+        if (oldBuffer)
         {
-            m_ctx->destroy_deferred(oldBuffer.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(oldBuffer, m_ctx->get_submit_index());
         }
 
-        if (oldBuffer.allocation)
-        {
-            m_ctx->destroy_deferred(oldBuffer.allocation, m_ctx->get_submit_index());
-        }
-
-        m_buffer = newBuffer;
+        m_buffer = *newBuffer;
         m_capacity = size;
+
+        return true;
     }
 
-    void dynamic_buffer::reserve(VkCommandBuffer cmd, u32 size)
+    void dynamic_buffer::reserve(hptr<gpu::command_buffer> cmd, u32 size)
     {
         reserve_impl(cmd, size);
     }
 
     void dynamic_buffer::reserve_discard(u32 size)
     {
-        reserve_impl(nullptr, size);
+        reserve_impl({}, size);
     }
 
-    buffer dynamic_buffer::get_buffer() const
+    gpu::buffer_range dynamic_buffer::get_buffer() const
     {
-        return {.buffer = m_buffer.buffer, .size = m_usedBytes, .allocation = m_buffer.allocation};
+        return {
+            .buffer = m_buffer,
+            .size = m_usedBytes,
+        };
     }
 
     u32 dynamic_buffer::get_capacity() const
