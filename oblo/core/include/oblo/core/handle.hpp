@@ -19,6 +19,12 @@ namespace oblo
 
         constexpr auto operator<=>(const handle&) const = default;
 
+        template <typename NewTag>
+        constexpr handle<NewTag, Value> rebind() const noexcept
+        {
+            return {value};
+        }
+
         Value value;
     };
 
