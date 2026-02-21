@@ -4,7 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/core/utility.hpp>
-#include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/math/power_of_two.hpp>
 

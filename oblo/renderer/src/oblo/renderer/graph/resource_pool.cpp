@@ -3,11 +3,12 @@
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/reflection/struct_compare.hpp>
 #include <oblo/core/reflection/struct_hash.hpp>
+#include <oblo/core/string/debug_label.hpp>
+#include <oblo/gpu/structs.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
-#include <oblo/renderer/buffer.hpp>
-#include <oblo/renderer/error.hpp>
-#include <oblo/renderer/monotonic_gbu_buffer.hpp>
-#include <oblo/renderer/vulkan_context.hpp>
+#include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
 // For the sake of pooling textures, we ignore the debug labels
 template <>
@@ -37,7 +38,7 @@ namespace oblo
 
     struct resource_pool::texture_resource
     {
-        image_initializer initializer;
+        gpu::image_descriptor initializer;
         lifetime_range range;
         VkImage image;
         VkImageView imageView;
@@ -65,7 +66,8 @@ namespace oblo
 
     struct resource_pool::stable_texture
     {
-        allocated_image allocatedImage;
+        h32<gpu::image> allocatedImage;
+        VkImage image;
         VkImageView imageView;
         u32 creationTime;
         u32 lastUsedTime;
@@ -73,7 +75,7 @@ namespace oblo
 
     struct resource_pool::stable_buffer
     {
-        allocated_buffer allocatedBuffer;
+        h32<gpu::buffer> allocatedBuffer;
         u32 creationTime;
         u32 lastUsedTime;
 
@@ -87,10 +89,18 @@ namespace oblo
 
     resource_pool::~resource_pool() = default;
 
-    bool resource_pool::init(vulkan_context& ctx)
+    bool resource_pool::init(gpu::gpu_queue_context& ctx)
     {
-        auto& engine = ctx.get_engine();
-        const auto physicalDevice = engine.get_physical_device();
+        gpu::gpu_instance& gpu = ctx.get_instance();
+
+        auto* const vk = dynamic_cast<gpu::vk::vulkan_instance*>(&gpu);
+
+        if (!vk)
+        {
+            return false;
+        }
+
+        const VkPhysicalDevice physicalDevice = vk->get_physical_device();
 
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(physicalDevice, &properties);
@@ -134,7 +144,7 @@ namespace oblo
         return true;
     }
 
-    void resource_pool::shutdown(vulkan_context& ctx)
+    void resource_pool::shutdown(gpu::gpu_queue_context& ctx)
     {
         m_lastFrameAllocation = m_allocation;
         std::swap(m_lastFrameTransientTextures, m_textureResources);
@@ -166,7 +176,7 @@ namespace oblo
         m_bufferResources.clear();
     }
 
-    void resource_pool::end_build(vulkan_context& ctx)
+    void resource_pool::end_build(gpu::gpu_queue_context& ctx)
     {
         // TODO: Here we should check if we can reuse the allocation from last frame, instead for now we
         // simply free the objects from last frame
@@ -180,7 +190,7 @@ namespace oblo
     }
 
     h32<transient_texture_resource> resource_pool::add_transient_texture(
-        const image_initializer& initializer, lifetime_range range, h32<stable_texture_resource> stableId)
+        const gpu::image_descriptor& initializer, lifetime_range range, h32<stable_texture_resource> stableId)
     {
         const auto id = u32(m_textureResources.size());
 
@@ -280,7 +290,7 @@ namespace oblo
         return resource.framesAlive;
     }
 
-    const image_initializer& resource_pool::get_initializer(h32<transient_texture_resource> id) const
+    const gpu::image_descriptor& resource_pool::get_initializer(h32<transient_texture_resource> id) const
     {
         OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
@@ -327,7 +337,7 @@ namespace oblo
         stableBuffer.previousAccessKind = accessKind;
     }
 
-    void resource_pool::free_last_frame_resources(vulkan_context& ctx)
+    void resource_pool::free_last_frame_resources(gpu::gpu_queue_context& ctx)
     {
         const auto submitIndex = ctx.get_submit_index() - 1;
 
@@ -351,7 +361,7 @@ namespace oblo
         m_lastFrameTransientTextures.clear();
     }
 
-    void resource_pool::create_textures(vulkan_context& ctx)
+    void resource_pool::create_textures(gpu::vk::vulkan_instance& ctx)
     {
         VkDevice device{ctx.get_device()};
 
@@ -447,7 +457,7 @@ namespace oblo
         }
     }
 
-    void resource_pool::create_buffers(vulkan_context& ctx)
+    void resource_pool::create_buffers(gpu::vk::vulkan_instance& ctx)
     {
         for (auto& buffer : m_bufferResources)
         {
@@ -493,23 +503,18 @@ namespace oblo
         return struct_hash<std::hash>(key);
     }
 
-    void resource_pool::acquire_from_pool(vulkan_context& ctx, texture_resource& resource)
+    void resource_pool::acquire_from_pool(gpu::vk::vulkan_instance& ctx, texture_resource& resource)
     {
         OBLO_ASSERT(resource.stableId);
+
         const auto [it, isNew] =
             m_stableTextures.try_emplace(stable_texture_key{resource.stableId, resource.initializer});
 
         if (isNew)
         {
-            auto& allocator = ctx.get_allocator();
-            OBLO_VK_PANIC(allocator.create_image(resource.initializer, &it->second.allocatedImage));
+            const expected newImage = ctx.create_image(resource.initializer);
+            newImage.assert_value();
 
-            auto device = ctx.get_device();
-
-            const expected imageView = gpu::vk::image_utils::create_image_view_2d(device,
-                it->second.allocatedImage.image,
-                resource.initializer.format,
-                allocator.get_allocation_callbacks());
 
             it->second.imageView = imageView.assert_value_or(nullptr);
             it->second.creationTime = m_frame;
@@ -527,7 +532,7 @@ namespace oblo
         it->second.lastUsedTime = m_frame;
     }
 
-    void resource_pool::acquire_from_pool(vulkan_context& ctx, buffer_resource& resource)
+    void resource_pool::acquire_from_pool(gpu::vk::vulkan_instance& ctx, buffer_resource& resource)
     {
         OBLO_ASSERT(resource.stableId);
         const auto [it, isNew] = m_stableBuffers.try_emplace(stable_buffer_key{
@@ -558,7 +563,7 @@ namespace oblo
         it->second.lastUsedTime = m_frame;
     }
 
-    void resource_pool::free_stable_textures(vulkan_context& ctx, u32 unusedFor)
+    void resource_pool::free_stable_textures(gpu::gpu_queue_context& ctx, u32 unusedFor)
     {
         for (auto it = m_stableTextures.begin(); it != m_stableTextures.end();)
         {
@@ -581,7 +586,7 @@ namespace oblo
         }
     }
 
-    void resource_pool::free_stable_buffers(vulkan_context& ctx, u32 unusedFor)
+    void resource_pool::free_stable_buffers(gpu::gpu_queue_context& ctx, u32 unusedFor)
     {
         for (auto it = m_stableBuffers.begin(); it != m_stableBuffers.end();)
         {

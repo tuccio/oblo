@@ -1,10 +1,9 @@
-#include "vulkan_instance.hpp"
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/overload.hpp>
-#include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
 #include <oblo/gpu/vulkan/swapchain_wrapper.hpp>
@@ -1054,6 +1053,26 @@ namespace oblo::gpu::vk
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             regions.size32(),
             regions.data());
+    }
+
+    VkPhysicalDevice vulkan_instance::get_physical_device() const
+    {
+        return m_physicalDevice;
+    }
+
+    VkDevice vulkan_instance::get_device() const
+    {
+        return m_device;
+    }
+
+    gpu_allocator& vulkan_instance::get_allocator()
+    {
+        return m_allocator;
+    }
+
+    VkQueue vulkan_instance::unwrap_queue(h32<queue> queue) const
+    {
+        return get_queue(queue).queue;
     }
 
     VkImage vulkan_instance::unwrap_image(h32<image> handle) const

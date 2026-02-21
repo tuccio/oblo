@@ -1,7 +1,7 @@
 #include <oblo/gpu/gpu_queue_context.hpp>
 
 #include <oblo/core/buffered_array.hpp>
-#include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/trace/profile.hpp>
 

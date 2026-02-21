@@ -2,7 +2,7 @@
 
 #include <oblo/core/finally.hpp>
 #include <oblo/core/random_generator.hpp>
-#include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 

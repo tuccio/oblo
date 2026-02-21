@@ -7,6 +7,7 @@ namespace oblo::gpu
     struct bindless_image;
     struct buffer;
     struct buffer_image_copy_descriptor;
+    struct buffer_range;
     struct command_buffer_pool;
     struct command_buffer;
     struct fence;

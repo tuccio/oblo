@@ -106,6 +106,11 @@ namespace oblo::gpu::vk
             std::span<const buffer_image_copy_descriptor> copies) override;
 
         // Vulkan specific
+        VkPhysicalDevice get_physical_device() const;
+        VkDevice get_device() const;
+        gpu_allocator& get_allocator();
+
+        VkQueue unwrap_queue(h32<queue> queue) const;
         VkImage unwrap_image(h32<image> handle) const;
         VkImageView unwrap_image_view(h32<image> handle) const;
         VkCommandBuffer unwrap_command_buffer(hptr<command_buffer> handle) const;
@@ -128,7 +133,7 @@ namespace oblo::gpu::vk
         VkInstance m_instance{};
         VkPhysicalDevice m_physicalDevice{};
         VkDevice m_device{};
-        vk::gpu_allocator m_allocator;
+        gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
 
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;

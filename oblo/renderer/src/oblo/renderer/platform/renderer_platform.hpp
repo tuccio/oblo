@@ -22,4 +22,17 @@ namespace oblo
     struct frame_graph_execute_args : renderer_platform
     {
     };
+
+    struct frame_graph_texture
+    {
+        VkImage image;
+        VkImageView view;
+    };
+
+    struct frame_graph_buffer
+    {
+        VkBuffer buffer;
+        VkDeviceSize offset;
+        VkDeviceSize size;
+    };
 }

@@ -4,7 +4,6 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/renderer/data/handles.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
 
 #include <span>
 
@@ -12,22 +11,21 @@
 
 namespace oblo
 {
-    class frame_allocator;
-    class string;
-}
+    namespace gpu::vk
+    {
+        class gpu_allocator;
+    }
 
-namespace oblo
-{
+    class frame_allocator;
+    class buffer_table_name;
+
     using mesh_index_type = gpu::mesh_index_type;
 
-    struct buffer;
     struct buffer_column_description;
-
-    class resource_manager;
 
     struct mesh_attribute_description
     {
-        h32<string> name;
+        h32<buffer_table_name> name;
         u32 elementSize;
     };
 
@@ -97,8 +95,7 @@ namespace oblo
         buffer allocate_index_buffer(mesh_index_type indexType);
 
     private:
-        gpu_allocator* m_allocator{};
-        resource_manager* m_resourceManager{};
+        gpu::vk::gpu_allocator* m_allocator{};
         u32 m_tableVertexCount{};
         u32 m_tableIndexCount{};
         u32 m_tableMeshCount{};
@@ -114,8 +111,7 @@ namespace oblo
 
     struct mesh_database::initializer
     {
-        gpu_allocator& allocator;
-        resource_manager& resourceManager;
+        gpu::vk::gpu_allocator& allocator;
         std::span<const mesh_attribute_description> attributes;
         std::span<const mesh_attribute_description> meshData;
         VkBufferUsageFlags vertexBufferUsage;

@@ -3,7 +3,7 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/finally.hpp>
-#include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/gpu/types.hpp>

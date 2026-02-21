@@ -28,7 +28,6 @@ namespace oblo
     class texture_registry;
     class vulkan_context;
     struct base_pipeline;
-    struct buffer;
     struct bindable_object;
     struct compute_pass;
     struct compute_pass_initializer;

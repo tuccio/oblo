@@ -1,13 +1,12 @@
 #pragma once
 
 #include <oblo/core/handle_flat_pool_map.hpp>
-#include <oblo/renderer/buffer_table.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
+#include <oblo/core/suballocation/buffer_table.hpp>
+#include <oblo/gpu/forward.hpp>
+#include <oblo/gpu/structs.hpp>
 
 namespace oblo
 {
-    struct buffer;
-
     struct mesh_table_entry
     {
         u32 vertexCount;
@@ -47,53 +46,44 @@ namespace oblo
         mesh_table& operator=(mesh_table&&) noexcept = delete;
         ~mesh_table() = default;
 
-        [[nodiscard]] bool init(std::span<const buffer_column_description> vertexAttributes,
-            std::span<const buffer_column_description> meshAttributes,
-            gpu_allocator& allocator,
-            resource_manager& resourceManager,
-            VkBufferUsageFlags bufferUsage,
-            VkBufferUsageFlags meshBufferUsage,
+        [[nodiscard]] bool init(gpu::gpu_instance& gpu,
+            std::span<const buffer_table_column_description> vertexAttributes,
+            std::span<const buffer_table_column_description> meshAttributes,
+            flags<gpu::buffer_usage> bufferUsage,
+            flags<gpu::buffer_usage> meshBufferUsage,
             u32 indexByteSize,
             u32 numVertices,
             u32 numIndices,
             u32 numMeshes,
             u32 numMeshlets,
-            const buffer& indexBuffer);
+            const gpu::buffer_range& indexBuffer);
 
-        void shutdown(gpu_allocator& allocator, resource_manager& resourceManager);
+        void shutdown(gpu::gpu_instance& ctx);
 
-        bool fetch_buffers(const resource_manager& resourceManager,
-            mesh_table_entry_id mesh,
-            std::span<const h32<string>> vertexBufferNames,
-            std::span<buffer> vertexBuffers,
-            buffer* indexBuffer,
-            std::span<const h32<string>> meshDataNames,
-            std::span<buffer> meshDataBuffers,
-            buffer* meshletBuffer) const;
+        bool fetch_buffers(mesh_table_entry_id mesh,
+            std::span<const h32<buffer_table_name>> vertexBufferNames,
+            std::span<gpu::buffer_range> vertexBuffers,
+            gpu::buffer_range* indexBuffer,
+            std::span<const h32<buffer_table_name>> meshDataNames,
+            std::span<gpu::buffer_range> meshDataBuffers,
+            gpu::buffer_range* meshletBuffer) const;
 
-        void fetch_buffers(const resource_manager& resourceManager,
-            std::span<const h32<string>> names,
-            std::span<buffer> vertexBuffers,
-            buffer* indexBuffer) const;
+        void fetch_buffers(std::span<const h32<buffer_table_name>> names,
+            std::span<gpu::buffer_range> vertexBuffers,
+            gpu::buffer_range* indexBuffer) const;
 
         bool allocate_meshes(std::span<const mesh_table_entry> meshes, std::span<mesh_table_entry_id> outHandles);
 
-        std::span<const h32<string>> vertex_attribute_names() const;
-        std::span<const h32<buffer>> vertex_attribute_buffers() const;
-        std::span<const u32> vertex_attribute_element_sizes() const;
-
-        std::span<const h32<buffer>> mesh_buffers() const;
-
-        h32<buffer> index_buffer() const;
-        h32<buffer> meshlet_buffer() const;
+        gpu::buffer_range index_buffer() const;
+        h32<gpu::buffer> meshlet_buffer() const;
 
         u32 vertex_count() const;
         u32 index_count() const;
         u32 meshes_count() const;
 
-        i32 find_vertex_attribute(h32<string> name) const;
+        i32 find_vertex_attribute(h32<buffer_table_name> name) const;
 
-        VkIndexType get_index_type() const;
+        gpu::mesh_index_type get_index_type() const;
 
         buffer_range get_mesh_range(mesh_table_entry_id mesh) const;
 
@@ -111,10 +101,10 @@ namespace oblo
         u32 m_firstFreeMeshlet{0u};
         u32 m_totalIndices{0u};
         u32 m_indexByteSize{0u};
-        h32<buffer> m_indexBuffer{};
-        h32<buffer> m_vertexBuffer{};
-        h32<buffer> m_meshDataBuffer{};
-        h32<buffer> m_meshletsBuffer{};
-        VkIndexType m_indexType{VK_INDEX_TYPE_MAX_ENUM};
+        gpu::buffer_range m_indexBuffer{};
+        h32<gpu::buffer> m_vertexBuffer{};
+        h32<gpu::buffer> m_meshDataBuffer{};
+        h32<gpu::buffer> m_meshletsBuffer{};
+        gpu::mesh_index_type m_indexType{gpu::mesh_index_type::none};
     };
 }

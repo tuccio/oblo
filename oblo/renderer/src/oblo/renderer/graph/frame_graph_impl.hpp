@@ -9,6 +9,7 @@
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/renderer/data/async_download.hpp>
 #include <oblo/renderer/draw/pass_manager.hpp>
 #include <oblo/renderer/graph/frame_graph_node_desc.hpp>
@@ -17,8 +18,6 @@
 #include <oblo/renderer/graph/image_layout_tracker.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 #include <oblo/renderer/graph/resource_pool.hpp>
-#include <oblo/renderer/resource_manager.hpp>
-#include <oblo/renderer/staging_buffer.hpp>
 
 #include <iosfwd>
 #include <memory_resource>

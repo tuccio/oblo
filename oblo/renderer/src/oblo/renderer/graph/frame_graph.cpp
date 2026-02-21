@@ -11,14 +11,17 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/gpu/structs.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/metrics/async_metrics.hpp>
-#include <oblo/trace/profile.hpp>
 #include <oblo/renderer/graph/frame_graph_context.hpp>
 #include <oblo/renderer/graph/frame_graph_impl.hpp>
 #include <oblo/renderer/graph/frame_graph_template.hpp>
 #include <oblo/renderer/renderer.hpp>
 #include <oblo/renderer/renderer_platform.hpp>
+#include <oblo/trace/profile.hpp>
 
 namespace oblo
 {
@@ -497,17 +500,16 @@ namespace oblo
         m_impl = allocate_unique<frame_graph_impl>();
         m_impl->rng.seed(42);
 
-        const auto subgroupProperties = ctx.get_physical_device_subgroup_properties();
-        m_impl->gpuInfo.subgroupSize =.subgroupSize;
+        gpu::gpu_instance& gpu = ctx.get_instance();
 
-        VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(ctx.get_physical_device(), &properties);
+        const gpu::device_info deviceInfo = gpu.get_device_info();
+        m_impl->gpuInfo.subgroupSize = deviceInfo.subgroupSize;
 
         return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx),
                m_impl->downloadStaging.init(ctx, g_downloadStagingSize);
     }
 
-    void frame_graph::shutdown(vulkan_context& ctx)
+    void frame_graph::shutdown(gpu::gpu_queue_context& ctx)
     {
         for (const auto& node : m_impl->nodes.values())
         {
@@ -1683,7 +1685,7 @@ namespace oblo
         }
     }
 
-    void frame_graph_impl::free_pending_textures(vulkan_context& ctx)
+    void frame_graph_impl::free_pending_textures(gpu::gpu_queue_context& ctx)
     {
         for (const auto& t : pendingTexturesToFree)
         {

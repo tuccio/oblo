@@ -15,11 +15,6 @@
 namespace oblo
 {
     class async_metrics;
-    class string_interner;
-}
-
-namespace oblo
-{
     class frame_graph_template;
 
     struct frame_graph_impl;

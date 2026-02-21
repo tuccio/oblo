@@ -7,7 +7,7 @@
 
 namespace oblo
 {
-    template <typename T>
+    template <typename T, bool MayCancel = false>
     class [[nodiscard]] final_act
     {
     public:
@@ -18,17 +18,38 @@ namespace oblo
 
         ~final_act()
         {
+            if constexpr (MayCancel)
+            {
+                if (m_cancelled)
+                {
+                    return;
+                }
+            }
+
             m_finally();
+        }
+
+        void cancel()
+            requires(MayCancel)
+        {
+            m_cancelled = true;
         }
 
     private:
         T m_finally;
+        bool m_cancelled{};
     };
 
     template <typename T>
     final_act<T> finally(T&& f)
     {
         return final_act<T>{std::forward<T>(f)};
+    }
+
+    template <typename T>
+    final_act<T, true> finally_if_not_cancelled(T&& f)
+    {
+        return final_act<T, true>{std::forward<T>(f)};
     }
 
     class final_act_queue

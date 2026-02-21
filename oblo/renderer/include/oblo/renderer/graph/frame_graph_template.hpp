@@ -65,12 +65,12 @@ namespace oblo
         void make_input(vertex_handle pin, string_view name);
 
         template <typename R, typename Node>
-        void make_input(vertex_handle node, R(Node::*pin), string_view name);
+        void make_input(vertex_handle node, R(Node::* pin), string_view name);
 
         void make_output(vertex_handle pin, string_view name);
 
         template <typename R, typename Node>
-        void make_output(vertex_handle node, R(Node::*pin), string_view name);
+        void make_output(vertex_handle node, R(Node::* pin), string_view name);
 
         vertex_handle add_node(const uuid& id, const frame_graph_node_desc& desc);
 
@@ -80,13 +80,15 @@ namespace oblo
         bool connect(vertex_handle srcPin, vertex_handle dstPin);
 
         template <typename T, typename NodeFrom, typename NodeTo>
-        bool connect(vertex_handle src, resource<T>(NodeFrom::*from), vertex_handle dst, resource<T>(NodeTo::*to));
+        bool connect(
+            vertex_handle src, pin::resource<T>(NodeFrom::* from), vertex_handle dst, pin::resource<T>(NodeTo::* to));
 
         template <typename T, typename NodeFrom, typename NodeTo>
-        bool connect(vertex_handle src, data<T>(NodeFrom::*from), vertex_handle dst, data<T>(NodeTo::*to));
+        bool connect(vertex_handle src, pin::data<T>(NodeFrom::* from), vertex_handle dst, pin::data<T>(NodeTo::* to));
 
         template <typename T, typename NodeFrom, typename NodeTo>
-        bool connect(vertex_handle src, data_sink<T>(NodeFrom::*from), vertex_handle dst, data_sink<T>(NodeTo::*to));
+        bool connect(
+            vertex_handle src, pin::data_sink<T>(NodeFrom::* from), vertex_handle dst, pin::data_sink<T>(NodeTo::* to));
 
         const topology& get_graph() const;
 
@@ -96,16 +98,16 @@ namespace oblo
         string_view get_name(vertex_handle inputOrOutput) const;
 
         template <typename R, typename Node, std::convertible_to<R> U>
-        void bind(vertex_handle node, R(Node::*pin), U&& value);
+        void bind(vertex_handle node, R(Node::* pin), U&& value);
 
         template <typename R, typename Node, std::convertible_to<R> U>
-        void bind(vertex_handle node, data<R>(Node::*pin), U&& value);
+        void bind(vertex_handle node, pin::data<R>(Node::* pin), U&& value);
 
     private:
         vertex_handle find_pin(vertex_handle node, u32 offset) const;
 
         template <typename R, typename Node>
-        static u32 calculate_offset(R(Node::*m));
+        static u32 calculate_offset(R(Node::* m));
 
         static u32 calculate_offset(const u8* base, const u8* member);
 
@@ -117,7 +119,7 @@ namespace oblo
     };
 
     template <typename R, typename Node>
-    void frame_graph_template::make_input(vertex_handle node, R(Node::*pin), string_view name)
+    void frame_graph_template::make_input(vertex_handle node, R(Node::* pin), string_view name)
     {
         // TODO: Could maybe somehow check that the template types match
         const auto pinVertex = find_pin(node, calculate_offset(pin));
@@ -125,7 +127,7 @@ namespace oblo
     }
 
     template <typename R, typename Node>
-    void frame_graph_template::make_output(vertex_handle node, R(Node::*pin), string_view name)
+    void frame_graph_template::make_output(vertex_handle node, R(Node::* pin), string_view name)
     {
         // TODO: Could maybe somehow check that the template types match
         const auto pinVertex = find_pin(node, calculate_offset(pin));
@@ -152,7 +154,7 @@ namespace oblo
 
     template <typename T, typename NodeFrom, typename NodeTo>
     bool frame_graph_template::connect(
-        vertex_handle src, resource<T>(NodeFrom::*from), vertex_handle dst, resource<T>(NodeTo::*to))
+        vertex_handle src, pin::resource<T>(NodeFrom::* from), vertex_handle dst, pin::resource<T>(NodeTo::* to))
     {
         const auto srcPin = find_pin(src, calculate_offset(from));
         const auto dstPin = find_pin(dst, calculate_offset(to));
@@ -161,7 +163,7 @@ namespace oblo
 
     template <typename T, typename NodeFrom, typename NodeTo>
     bool frame_graph_template::connect(
-        vertex_handle src, data<T>(NodeFrom::*from), vertex_handle dst, data<T>(NodeTo::*to))
+        vertex_handle src, pin::data<T>(NodeFrom::* from), vertex_handle dst, pin::data<T>(NodeTo::* to))
     {
         const auto srcPin = find_pin(src, calculate_offset(from));
         const auto dstPin = find_pin(dst, calculate_offset(to));
@@ -170,7 +172,7 @@ namespace oblo
 
     template <typename T, typename NodeFrom, typename NodeTo>
     bool frame_graph_template::connect(
-        vertex_handle src, data_sink<T>(NodeFrom::*from), vertex_handle dst, data_sink<T>(NodeTo::*to))
+        vertex_handle src, pin::data_sink<T>(NodeFrom::* from), vertex_handle dst, pin::data_sink<T>(NodeTo::* to))
     {
         const auto srcPin = find_pin(src, calculate_offset(from));
         const auto dstPin = find_pin(dst, calculate_offset(to));
@@ -178,7 +180,7 @@ namespace oblo
     }
 
     template <typename R, typename Node>
-    u32 frame_graph_template::calculate_offset(R(Node::*m))
+    u32 frame_graph_template::calculate_offset(R(Node::* m))
     {
         alignas(Node) u8 buffer[sizeof(Node)];
         R* const ptr = &(reinterpret_cast<Node*>(buffer)->*m);
@@ -191,7 +193,7 @@ namespace oblo
     }
 
     template <typename R, typename Node, std::convertible_to<R> U>
-    inline void frame_graph_template::bind(vertex_handle node, R(Node::*pin), U&& value)
+    inline void frame_graph_template::bind(vertex_handle node, R(Node::* pin), U&& value)
     {
         OBLO_ASSERT(m_graph[node].kind == frame_graph_vertex_kind::node);
         m_graph[node].bindings.emplace_back(
@@ -199,7 +201,7 @@ namespace oblo
     }
 
     template <typename R, typename Node, std::convertible_to<R> U>
-    inline void frame_graph_template::bind(vertex_handle node, data<R>(Node::*pin), U&& value)
+    inline void frame_graph_template::bind(vertex_handle node, pin::data<R>(Node::* pin), U&& value)
     {
         OBLO_ASSERT(m_graph[node].kind == frame_graph_vertex_kind::node);
         const auto srcPin = find_pin(node, calculate_offset(pin));

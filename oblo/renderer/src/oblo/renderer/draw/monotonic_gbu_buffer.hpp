@@ -4,15 +4,10 @@
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/gpu_temporary_aliases.hpp>
 
-#include <vector>
-
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 namespace oblo::vk
 {
-    class vulkan_context;
-    struct buffer;
-
     class monotonic_gpu_buffer
     {
     public:

@@ -4,15 +4,12 @@
 #include <oblo/core/graph/topological_sort.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/vulkan/buffer.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/graph/frame_graph_context.hpp>
-#include <oblo/vulkan/graph/frame_graph_registry.hpp>
-#include <oblo/vulkan/graph/frame_graph_template.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/vulkan_engine_module.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
+#include <oblo/renderer/graph/frame_graph_context.hpp>
+#include <oblo/renderer/graph/frame_graph_registry.hpp>
+#include <oblo/renderer/graph/frame_graph_template.hpp>
+#include <oblo/renderer/graph/pins.hpp>
+#include <oblo/renderer/renderer.hpp>
 
 #include <gtest/gtest.h>
 
@@ -27,9 +24,9 @@ namespace oblo::vk::test
 
         struct fgt_gbuffer_pass
         {
-            data<fgt_cpu_data> inCpuData;
-            resource<texture> outGBuffer;
-            resource<texture> outDepth;
+            pin::data<fgt_cpu_data> inCpuData;
+            pin::texture outGBuffer;
+            pin::texture outDepth;
 
             void build(const frame_graph_build_context& ctx)
             {
@@ -46,11 +43,11 @@ namespace oblo::vk::test
 
         struct fgt_lighting_pass
         {
-            data<fgt_cpu_data> inCpuData;
-            data<u32> inShadowMapAtlasId;
-            resource<texture> inShadowMap;
-            resource<texture> inGBuffer;
-            resource<texture> outLit;
+            pin::data<fgt_cpu_data> inCpuData;
+            pin::data<u32> inShadowMapAtlasId;
+            pin::texture inShadowMap;
+            pin::texture inGBuffer;
+            pin::texture outLit;
 
             void build(const frame_graph_build_context& ctx)
             {
@@ -70,9 +67,9 @@ namespace oblo::vk::test
 
         struct fgt_shadow_pass
         {
-            data<fgt_cpu_data> inCpuData;
-            resource<texture> outShadowMap;
-            data<u32> outShadowMapAtlasId;
+            pin::data<fgt_cpu_data> inCpuData;
+            pin::texture outShadowMap;
+            pin::data<u32> outShadowMapAtlasId;
 
             void build(const frame_graph_build_context& ctx)
             {

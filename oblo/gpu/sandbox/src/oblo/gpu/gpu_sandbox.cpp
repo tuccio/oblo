@@ -2,7 +2,7 @@
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
-#include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/gpu_queue_context.hpp>

@@ -50,10 +50,9 @@ namespace oblo::gpu
     struct buffer_descriptor
     {
         u64 size;
-
         variant<memory_usage, flags<memory_requirement>> memoryFlags;
-
         flags<buffer_usage> usages;
+        debug_label debugLabel;
     };
 
     struct device_descriptor
@@ -238,5 +237,12 @@ namespace oblo::gpu
         u32 subgroupSize;
         u64 optimalBufferCopyOffsetAlignment;
         u64 optimalBufferCopyRowPitchAlignment;
+    };
+
+    struct buffer_range
+    {
+        h32<buffer> buffer;
+        u64 offset;
+        u64 size;
     };
 }

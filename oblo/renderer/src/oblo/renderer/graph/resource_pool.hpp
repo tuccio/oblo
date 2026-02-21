@@ -2,9 +2,9 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/renderer/buffer.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
-#include <oblo/renderer/texture.hpp>
+#include <oblo/gpu/forward.hpp>
+#include <oblo/gpu/vulkan/gpu_allocator.hpp>
+#include <oblo/renderer/platform/renderer_platform.hpp>
 
 #include <unordered_map>
 
@@ -35,14 +35,14 @@ namespace oblo
         resource_pool& operator=(const resource_pool&) = delete;
         resource_pool& operator=(resource_pool&&) noexcept = delete;
 
-        bool init(vulkan_context& ctx);
-        void shutdown(vulkan_context& ctx);
+        bool init(gpu::gpu_queue_context& ctx);
+        void shutdown(gpu::gpu_queue_context& ctx);
 
         void begin_build();
-        void end_build(vulkan_context& ctx);
+        void end_build(gpu::gpu_queue_context& ctx);
 
         h32<transient_texture_resource> add_transient_texture(
-            const image_initializer& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
+            const gpu::image_descriptor& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
 
         h32<transient_texture_resource> add_external_texture(const texture& texture);
 
@@ -52,15 +52,15 @@ namespace oblo
         void add_transient_texture_usage(h32<transient_texture_resource> transientTexture, VkImageUsageFlags usage);
         void add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer, VkBufferUsageFlags usage);
 
-        texture get_transient_texture(h32<transient_texture_resource> id) const;
-        buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
+        frame_graph_texture get_transient_texture(h32<transient_texture_resource> id) const;
+        frame_graph_buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
 
         bool is_stable(h32<transient_buffer_resource> id) const;
 
         u32 get_frames_alive_count(h32<transient_texture_resource> id) const;
         u32 get_frames_alive_count(h32<transient_buffer_resource> id) const;
 
-        const image_initializer& get_initializer(h32<transient_texture_resource> id) const;
+        const gpu::image_descriptor& get_initializer(h32<transient_texture_resource> id) const;
 
         void fetch_buffer_tracking(h32<transient_buffer_resource> id,
             VkPipelineStageFlags2* stages,
@@ -79,22 +79,22 @@ namespace oblo
         struct buffer_pool;
 
     private:
-        void free_last_frame_resources(vulkan_context& ctx);
+        void free_last_frame_resources(gpu::gpu_queue_context& ctx);
 
-        void create_textures(vulkan_context& ctx);
-        void create_buffers(vulkan_context& ctx);
+        void create_textures(gpu::vk::vulkan_instance& ctx);
+        void create_buffers(gpu::vk::vulkan_instance& ctx);
 
-        void acquire_from_pool(vulkan_context& ctx, texture_resource& resource);
-        void acquire_from_pool(vulkan_context& ctx, buffer_resource& resource);
+        void acquire_from_pool(gpu::vk::vulkan_instance& ctx, texture_resource& resource);
+        void acquire_from_pool(gpu::vk::vulkan_instance& ctx, buffer_resource& resource);
 
-        void free_stable_textures(vulkan_context& ctx, u32 unusedFor);
-        void free_stable_buffers(vulkan_context& ctx, u32 unusedFor);
+        void free_stable_textures(gpu::gpu_queue_context& ctx, u32 unusedFor);
+        void free_stable_buffers(gpu::gpu_queue_context& ctx, u32 unusedFor);
 
     private:
         struct stable_texture_key
         {
             h32<stable_texture_resource> stableId;
-            image_initializer initializer;
+            gpu::image_descriptor initializer;
 
             bool operator==(const stable_texture_key& rhs) const;
         };

@@ -41,10 +41,6 @@ namespace oblo
     class binding_table;
     struct bindable_object;
 
-    struct acceleration_structure;
-    struct buffer;
-    struct texture;
-
     struct resident_texture;
     struct retained_texture;
 

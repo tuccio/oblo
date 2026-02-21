@@ -25,32 +25,32 @@ namespace oblo
         bindable_resource_kind kind;
 
         union {
-            resource<buffer> buffer;
-            resource<texture> texture;
-            resource<acceleration_structure> accelerationStructure;
+            pin::buffer buffer;
+            pin::texture texture;
+            pin::acceleration_structure accelerationStructure;
         };
     };
 
     class binding_table
     {
     public:
-        void bind(hashed_string_view name, resource<buffer> r)
+        void bind(hashed_string_view name, pin::buffer r)
         {
             m_kv.emplace_back(name, bindable_resource{.kind = bindable_resource_kind::buffer, .buffer = r});
         }
 
-        void bind(hashed_string_view name, resource<texture> r)
+        void bind(hashed_string_view name, pin::texture r)
         {
             m_kv.emplace_back(name, bindable_resource{.kind = bindable_resource_kind::texture, .texture = r});
         }
 
-        void bind(hashed_string_view name, resource<acceleration_structure> r)
+        void bind(hashed_string_view name, pin::acceleration_structure r)
         {
             m_kv.emplace_back(name,
                 bindable_resource{.kind = bindable_resource_kind::acceleration_structure, .accelerationStructure = r});
         }
 
-        void bind_buffers(std::initializer_list<pair<hashed_string_view, resource<buffer>>> list)
+        void bind_buffers(std::initializer_list<pair<hashed_string_view, pin::buffer>> list)
         {
             for (const auto& [k, v] : list)
             {
@@ -58,7 +58,7 @@ namespace oblo
             }
         }
 
-        void bind_textures(std::initializer_list<pair<hashed_string_view, resource<texture>>> list)
+        void bind_textures(std::initializer_list<pair<hashed_string_view, pin::texture>> list)
         {
             for (const auto& [k, v] : list)
             {
