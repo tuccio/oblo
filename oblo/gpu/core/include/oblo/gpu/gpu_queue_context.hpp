@@ -41,6 +41,7 @@ namespace oblo::gpu
         void destroy_deferred(h32<buffer> h, u64 submitIndex);
         void destroy_deferred(h32<fence> h, u64 submitIndex);
         void destroy_deferred(h32<image> h, u64 submitIndex);
+        void destroy_deferred(h32<image_pool> h, u64 submitIndex);
         void destroy_deferred(h32<semaphore> h, u64 submitIndex);
 
     private:

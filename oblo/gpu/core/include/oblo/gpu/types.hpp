@@ -35,6 +35,7 @@ namespace oblo::gpu
         indirect,
         transfer_source,
         transfer_destination,
+        device_address,
         enum_max,
     };
 

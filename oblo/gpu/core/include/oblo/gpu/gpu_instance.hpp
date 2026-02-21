@@ -62,6 +62,11 @@ namespace oblo::gpu
         virtual result<h32<image>> create_image(const image_descriptor& descriptor) = 0;
         virtual void destroy_image(h32<image> imageHandle) = 0;
 
+        virtual result<h32<image_pool>> create_image_pool(std::span<const image_descriptor> descriptors,
+            std::span<h32<image>> images) = 0;
+
+        virtual void destroy_image_pool(h32<image_pool> imagePoolHandle) = 0;
+
         virtual result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor) = 0;
         virtual void destroy_shader_module(h32<shader_module> handle) = 0;
 

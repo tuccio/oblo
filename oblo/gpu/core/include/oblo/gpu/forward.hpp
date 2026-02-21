@@ -13,6 +13,7 @@ namespace oblo::gpu
     struct device_address;
     struct fence;
     struct image;
+    struct image_pool;
     struct native_window;
     struct queue;
     struct render_pass;

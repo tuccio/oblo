@@ -4,11 +4,13 @@
 #include <oblo/core/reflection/struct_compare.hpp>
 #include <oblo/core/reflection/struct_hash.hpp>
 #include <oblo/core/string/debug_label.hpp>
-#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/structs.hpp>
+#include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
+#include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
 
 // For the sake of pooling textures, we ignore the debug labels
 template <>
@@ -38,11 +40,10 @@ namespace oblo
 
     struct resource_pool::texture_resource
     {
-        gpu::image_descriptor initializer;
+        gpu::image_descriptor descriptor;
         lifetime_range range;
         VkImage image;
         VkImageView imageView;
-        VkDeviceSize size;
         h32<stable_texture_resource> stableId;
         u32 framesAlive;
         bool isExternal;
@@ -50,10 +51,11 @@ namespace oblo
 
     struct resource_pool::buffer_resource
     {
-        u32 size;
-        VkBufferUsageFlags usage;
-        VkBuffer buffer;
-        u32 offset;
+        u64 offset;
+        u64 size;
+        VkBuffer vkBuffer;
+        flags<gpu::buffer_usage> usage;
+        h32<gpu::buffer> buffer;
         h32<stable_buffer_resource> stableId;
         u32 framesAlive;
     };
@@ -61,7 +63,7 @@ namespace oblo
     struct resource_pool::buffer_pool
     {
         monotonic_gpu_buffer buffer;
-        VkBufferUsageFlags usage;
+        flags<gpu::buffer_usage> usage;
     };
 
     struct resource_pool::stable_texture
@@ -109,24 +111,23 @@ namespace oblo
 
         struct buffer_pool_desc
         {
-            VkBufferUsageFlags flags;
+            flags<gpu::buffer_usage> flags;
             u8 alignment;
         };
 
         const buffer_pool_desc descs[] = {
             {
-                .flags = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                .flags = gpu::buffer_usage::transfer_destination | gpu::buffer_usage::uniform,
                 .alignment = narrow_cast<u8>(properties.limits.minUniformBufferOffsetAlignment),
             },
             {
-                .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                    VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                .flags = gpu::buffer_usage::transfer_source | gpu::buffer_usage::transfer_destination |
+                    gpu::buffer_usage::index | gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
                 .alignment = narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
             },
             {
-                .flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                .flags = gpu::buffer_usage::transfer_source | gpu::buffer_usage::transfer_destination |
+                    gpu::buffer_usage::storage | gpu::buffer_usage::indirect,
                 .alignment = narrow_cast<u8>(
                     properties.limits.minStorageBufferOffsetAlignment), // TODO: Is there a min indirect alignment?
             },
@@ -138,7 +139,7 @@ namespace oblo
         {
             auto& pool = m_bufferPools.emplace_back();
             pool.usage = desc.flags;
-            pool.buffer.init(desc.flags, memory_usage::gpu_only, desc.alignment, bufferChunkSize);
+            pool.buffer.init(desc.flags, gpu::memory_usage::gpu_only, desc.alignment, bufferChunkSize);
         }
 
         return true;
@@ -146,8 +147,7 @@ namespace oblo
 
     void resource_pool::shutdown(gpu::gpu_queue_context& ctx)
     {
-        m_lastFrameAllocation = m_allocation;
-        std::swap(m_lastFrameTransientTextures, m_textureResources);
+        m_lastFramePool = m_currentFramePool;
         free_last_frame_resources(ctx);
         free_stable_textures(ctx, 0);
         free_stable_buffers(ctx, 0);
@@ -162,11 +162,10 @@ namespace oblo
     {
         ++m_frame;
 
-        std::swap(m_lastFrameTransientTextures, m_textureResources);
         m_textureResources.clear();
 
-        m_lastFrameAllocation = m_allocation;
-        m_allocation = nullptr;
+        m_lastFramePool = m_currentFramePool;
+        m_currentFramePool = {};
 
         for (auto& pool : m_bufferPools)
         {
@@ -182,20 +181,22 @@ namespace oblo
         // simply free the objects from last frame
         free_last_frame_resources(ctx);
 
-        create_textures(ctx);
-        create_buffers(ctx);
+        auto& vk = static_cast<gpu::vk::vulkan_instance&>(ctx.get_instance());
+
+        create_textures(vk);
+        create_buffers(vk);
 
         free_stable_textures(ctx, FramesBeforeDeletingStableResources);
         free_stable_buffers(ctx, FramesBeforeDeletingStableResources);
     }
 
     h32<transient_texture_resource> resource_pool::add_transient_texture(
-        const gpu::image_descriptor& initializer, lifetime_range range, h32<stable_texture_resource> stableId)
+        const gpu::image_descriptor& descriptor, lifetime_range range, h32<stable_texture_resource> stableId)
     {
         const auto id = u32(m_textureResources.size());
 
         m_textureResources.push_back({
-            .initializer = initializer,
+            .descriptor = descriptor,
             .range = range,
             .stableId = stableId,
         });
@@ -203,12 +204,12 @@ namespace oblo
         return h32<transient_texture_resource>{id + 1};
     }
 
-    h32<transient_texture_resource> resource_pool::add_external_texture(const texture& texture)
+    h32<transient_texture_resource> resource_pool::add_external_texture(const frame_graph_texture& texture)
     {
         const auto id = u32(m_textureResources.size());
 
         m_textureResources.push_back({
-            .initializer = texture.initializer,
+            .descriptor = texture.descriptor,
             .image = texture.image,
             .imageView = texture.view,
             .isExternal = true,
@@ -218,7 +219,7 @@ namespace oblo
     }
 
     h32<transient_buffer_resource> resource_pool::add_transient_buffer(
-        u32 size, VkBufferUsageFlags usage, h32<stable_buffer_resource> stableId)
+        u32 size, flags<gpu::buffer_usage> usage, h32<stable_buffer_resource> stableId)
     {
         const auto id = u32(m_bufferResources.size());
 
@@ -232,20 +233,20 @@ namespace oblo
     }
 
     void resource_pool::add_transient_texture_usage(h32<transient_texture_resource> transientTexture,
-        VkImageUsageFlags usage)
+        gpu::texture_usage usage)
     {
         OBLO_ASSERT(transientTexture);
-        m_textureResources[transientTexture.value - 1].initializer.usage |= usage;
+        m_textureResources[transientTexture.value - 1].descriptor.usages |= usage;
     }
 
     void resource_pool::add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer,
-        VkBufferUsageFlags usage)
+        gpu::buffer_usage usage)
     {
         OBLO_ASSERT(transientBuffer);
         m_bufferResources[transientBuffer.value - 1].usage |= usage;
     }
 
-    texture resource_pool::get_transient_texture(h32<transient_texture_resource> id) const
+    frame_graph_texture resource_pool::get_transient_texture(h32<transient_texture_resource> id) const
     {
         OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
@@ -253,17 +254,17 @@ namespace oblo
         return {
             .image = resource.image,
             .view = resource.imageView,
-            .initializer = resource.initializer,
+            .descriptor = resource.descriptor,
         };
     }
 
-    buffer resource_pool::get_transient_buffer(h32<transient_buffer_resource> id) const
+    frame_graph_buffer resource_pool::get_transient_buffer(h32<transient_buffer_resource> id) const
     {
         OBLO_ASSERT(id);
         auto& resource = m_bufferResources[id.value - 1];
 
         return {
-            .buffer = resource.buffer,
+            .buffer = resource.vkBuffer,
             .offset = resource.offset,
             .size = resource.size,
         };
@@ -294,7 +295,7 @@ namespace oblo
     {
         OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
-        return resource.initializer;
+        return resource.descriptor;
     }
 
     void resource_pool::fetch_buffer_tracking(h32<transient_buffer_resource> id,
@@ -339,43 +340,26 @@ namespace oblo
 
     void resource_pool::free_last_frame_resources(gpu::gpu_queue_context& ctx)
     {
-        const auto submitIndex = ctx.get_submit_index() - 1;
-
-        for (const auto& resource : m_lastFrameTransientTextures)
+        if (m_lastFramePool)
         {
-            if (resource.stableId || resource.isExternal)
-            {
-                continue;
-            }
+            const auto submitIndex = ctx.get_submit_index() - 1;
 
-            ctx.destroy_deferred(resource.image, submitIndex);
-            ctx.destroy_deferred(resource.imageView, submitIndex);
+            ctx.destroy_deferred(m_lastFramePool, submitIndex);
+            m_lastFramePool = {};
         }
-
-        if (m_lastFrameAllocation)
-        {
-            ctx.destroy_deferred(m_lastFrameAllocation, submitIndex);
-            m_lastFrameAllocation = {};
-        }
-
-        m_lastFrameTransientTextures.clear();
     }
 
-    void resource_pool::create_textures(gpu::vk::vulkan_instance& ctx)
+    void resource_pool::create_textures(gpu::vk::vulkan_instance& gpu)
     {
-        VkDevice device{ctx.get_device()};
-
-        auto& allocator = ctx.get_allocator();
-        auto* const allocationCbs = allocator.get_allocation_callbacks();
-
-        VkMemoryRequirements newRequirements{.memoryTypeBits = ~u32{}};
+        dynamic_array<gpu::image_descriptor> descriptors;
+        descriptors.reserve(m_textureResources.size());
 
         // For now we just allocate all textures
         for (auto& textureResource : m_textureResources)
         {
             if (textureResource.stableId)
             {
-                acquire_from_pool(ctx, textureResource);
+                acquire_from_pool(gpu, textureResource);
                 continue;
             }
 
@@ -384,76 +368,30 @@ namespace oblo
                 continue;
             }
 
-            const auto& initializer = textureResource.initializer;
-            OBLO_ASSERT(initializer.memoryUsage == memory_usage::gpu_only);
-
-            const VkImageCreateInfo imageCreateInfo{
-                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-                .flags = initializer.flags,
-                .imageType = initializer.imageType,
-                .format = initializer.format,
-                .extent = initializer.extent,
-                .mipLevels = initializer.mipLevels,
-                .arrayLayers = initializer.arrayLayers,
-                .samples = initializer.samples,
-                .tiling = initializer.tiling,
-                .usage = initializer.usage,
-                .initialLayout = initializer.initialLayout,
-            };
-
-            OBLO_VK_PANIC(vkCreateImage(device, &imageCreateInfo, allocationCbs, &textureResource.image));
-
-            VkMemoryRequirements requirements;
-            vkGetImageMemoryRequirements(device, textureResource.image, &requirements);
-
-            textureResource.size = requirements.size;
-
-            newRequirements.alignment = max(newRequirements.alignment, requirements.alignment);
-            newRequirements.size += requirements.size; // TODO: Actually alias memory
-            newRequirements.memoryTypeBits &= requirements.memoryTypeBits;
+            descriptors.emplace_back(textureResource.descriptor);
         }
 
-        // We should maybe constrain memory type bits to use something that uses the bigger heap?
-        // https://stackoverflow.com/questions/73243399/vma-how-to-tell-the-library-to-use-the-bigger-of-2-heaps
-        OBLO_ASSERT(newRequirements.memoryTypeBits != 0);
+        dynamic_array<h32<gpu::image>> images;
+        descriptors.resize_default(descriptors.size());
 
-        if (newRequirements.size == 0)
+        const expected pool = gpu.create_image_pool(descriptors, images);
+
+        if (!pool)
         {
-            // Nothing to do?
             return;
         }
 
-        // Add space for alignment
-        newRequirements.size += (newRequirements.alignment - 1) * m_textureResources.size();
-
-        m_allocation = allocator.create_memory(newRequirements, memory_usage::gpu_only);
-
-        const auto debugUtils = ctx.get_debug_utils_object();
-
-        VkDeviceSize offset{0};
-        for (auto& textureResource : m_textureResources)
+        for (usize i = 0; i < m_textureResources.size(); ++i)
         {
+            auto& textureResource = m_textureResources[i];
+
             if (textureResource.stableId || textureResource.isExternal)
             {
                 continue;
             }
 
-            OBLO_VK_PANIC(allocator.bind_image_memory(textureResource.image, m_allocation, offset));
-            offset += textureResource.size + textureResource.size % newRequirements.alignment;
-
-            const expected imageView = gpu::vk::image_utils::create_image_view_2d(device,
-                textureResource.image,
-                textureResource.initializer.format,
-                allocationCbs);
-
-            textureResource.imageView = imageView.assert_value_or(nullptr);
-
-            if (!textureResource.initializer.debugLabel.empty())
-            {
-                debugUtils.set_object_name(device,
-                    textureResource.imageView,
-                    textureResource.initializer.debugLabel.get());
-            }
+            textureResource.image = gpu.unwrap_image(images[i]);
+            textureResource.imageView = gpu.unwrap_image_view(images[i]);
         }
     }
 
@@ -471,7 +409,7 @@ namespace oblo
 
             for (auto& pool : m_bufferPools)
             {
-                if ((buffer.usage & pool.usage) == buffer.usage)
+                if (pool.usage.contains_all(buffer.usage))
                 {
                     poolBuffer = &pool.buffer;
                     break;
@@ -482,15 +420,19 @@ namespace oblo
 
             const auto r = poolBuffer->allocate(ctx, buffer.size);
 
-            buffer.buffer = r.buffer;
-            buffer.offset = r.offset;
-            buffer.size = r.size;
+            if (r)
+            {
+                buffer.buffer = r->buffer;
+                buffer.offset = r->offset;
+                buffer.size = r->size;
+                buffer.vkBuffer = ctx.unwrap_buffer(r->buffer);
+            }
         }
     }
 
     bool resource_pool::stable_texture_key::operator==(const stable_texture_key& rhs) const
     {
-        return stableId == rhs.stableId && struct_compare<equal_to>(initializer, rhs.initializer);
+        return stableId == rhs.stableId && struct_compare<equal_to>(descriptor, rhs.descriptor);
     }
 
     usize resource_pool::stable_texture_key_hash::operator()(const stable_texture_key& key) const
@@ -508,24 +450,20 @@ namespace oblo
         OBLO_ASSERT(resource.stableId);
 
         const auto [it, isNew] =
-            m_stableTextures.try_emplace(stable_texture_key{resource.stableId, resource.initializer});
+            m_stableTextures.try_emplace(stable_texture_key{resource.stableId, resource.descriptor});
 
         if (isNew)
         {
-            const expected newImage = ctx.create_image(resource.initializer);
+            const expected newImage = ctx.create_image(resource.descriptor);
             newImage.assert_value();
 
-
-            it->second.imageView = imageView.assert_value_or(nullptr);
+            it->second.allocatedImage = *newImage;
+            it->second.image = ctx.unwrap_image(*newImage);
+            it->second.imageView = ctx.unwrap_image_view(*newImage);
             it->second.creationTime = m_frame;
-
-            if (!resource.initializer.debugLabel.empty() && imageView)
-            {
-                ctx.get_debug_utils_object().set_object_name(device, *imageView, resource.initializer.debugLabel.get());
-            }
         }
 
-        resource.image = it->second.allocatedImage.image;
+        resource.image = it->second.image;
         resource.imageView = it->second.imageView;
         resource.framesAlive = m_frame - it->second.creationTime;
 
@@ -543,21 +481,19 @@ namespace oblo
 
         if (isNew)
         {
-            auto& allocator = ctx.get_allocator();
+            const expected newBuffer = ctx.create_buffer({
+                .size = resource.size,
+                .memoryProperties = gpu::memory_usage::gpu_only,
+                .usages = resource.usage,
+            });
 
-            OBLO_VK_PANIC(allocator.create_buffer(
-                {
-                    .size = resource.size,
-                    .usage = resource.usage,
-                    .memoryUsage = memory_usage::gpu_only,
-                },
-                &it->second.allocatedBuffer));
-
+            it->second.allocatedBuffer = *newBuffer;
             it->second.creationTime = m_frame;
         }
 
-        resource.buffer = it->second.allocatedBuffer.buffer;
+        resource.buffer = it->second.allocatedBuffer;
         resource.offset = 0;
+        resource.vkBuffer = ctx.unwrap_buffer(resource.buffer);
         resource.framesAlive = m_frame - it->second.creationTime;
 
         it->second.lastUsedTime = m_frame;
@@ -576,10 +512,7 @@ namespace oblo
             else
             {
                 const auto submitIndex = ctx.get_submit_index();
-
-                ctx.destroy_deferred(it->second.imageView, submitIndex);
-                ctx.destroy_deferred(it->second.allocatedImage.image, submitIndex);
-                ctx.destroy_deferred(it->second.allocatedImage.allocation, submitIndex);
+                ctx.destroy_deferred(it->second.allocatedImage, submitIndex);
 
                 it = m_stableTextures.erase(it);
             }
@@ -599,8 +532,7 @@ namespace oblo
             else
             {
                 const auto submitIndex = ctx.get_submit_index();
-                ctx.destroy_deferred(it->second.allocatedBuffer.buffer, submitIndex);
-                ctx.destroy_deferred(it->second.allocatedBuffer.allocation, submitIndex);
+                ctx.destroy_deferred(it->second.allocatedBuffer, submitIndex);
                 it = m_stableBuffers.erase(it);
             }
         }

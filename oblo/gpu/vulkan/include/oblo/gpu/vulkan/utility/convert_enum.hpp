@@ -118,6 +118,9 @@ namespace oblo::gpu::vk
         case buffer_usage::transfer_destination:
             return VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
+        case buffer_usage::device_address:
+            return VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
         default:
             unreachable();
         }

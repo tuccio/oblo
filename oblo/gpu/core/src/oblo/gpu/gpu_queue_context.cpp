@@ -1,8 +1,8 @@
 #include <oblo/gpu/gpu_queue_context.hpp>
 
 #include <oblo/core/buffered_array.hpp>
-#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/trace/profile.hpp>
 
 namespace oblo::gpu
@@ -181,11 +181,32 @@ namespace oblo::gpu
         return no_error;
     }
 
+    void gpu_queue_context::destroy_deferred(h32<buffer> h, u64 submitIndex)
+    {
+        auto& o = m_objectsToDispose.emplace_back(submitIndex);
+        new (o.buffer) h32<buffer>{h};
+        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_buffer>;
+    }
+
     void gpu_queue_context::destroy_deferred(h32<fence> h, u64 submitIndex)
     {
         auto& o = m_objectsToDispose.emplace_back(submitIndex);
         new (o.buffer) h32<fence>{h};
         o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_fence>;
+    }
+
+    void gpu_queue_context::destroy_deferred(h32<image> h, u64 submitIndex)
+    {
+        auto& o = m_objectsToDispose.emplace_back(submitIndex);
+        new (o.buffer) h32<image>{h};
+        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_image>;
+    }
+
+    void gpu_queue_context::destroy_deferred(h32<image_pool> h, u64 submitIndex)
+    {
+        auto& o = m_objectsToDispose.emplace_back(submitIndex);
+        new (o.buffer) h32<image_pool>{h};
+        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_image_pool>;
     }
 
     void gpu_queue_context::destroy_deferred(h32<semaphore> h, u64 submitIndex)

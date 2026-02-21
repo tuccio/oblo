@@ -20,7 +20,7 @@ namespace oblo
     monotonic_gpu_buffer::~monotonic_gpu_buffer() = default;
 
     void monotonic_gpu_buffer::init(
-        flags<gpu::buffer_usage> usage, gpu::memory_usage memoryUsage, u8 alignment, u32 chunkSize)
+        flags<gpu::buffer_usage> usage, gpu::memory_usage memoryUsage, u8 alignment, u64 chunkSize)
     {
         m_usage = usage;
         m_chunkSize = chunkSize;
@@ -42,14 +42,14 @@ namespace oblo
         m_buffers.clear();
     }
 
-    expected<gpu::buffer_range> monotonic_gpu_buffer::allocate(gpu::gpu_instance& gpu, u32 size)
+    expected<gpu::buffer_range> monotonic_gpu_buffer::allocate(gpu::gpu_instance& gpu, u64 size)
     {
         if (size == 0)
         {
             size = m_alignment;
         }
 
-        const auto alignedSize = round_up_multiple<u32>(size, m_alignment);
+        const auto alignedSize = round_up_multiple<u64>(size, m_alignment);
 
         OBLO_ASSERT(alignedSize <= m_chunkSize);
 
@@ -61,7 +61,7 @@ namespace oblo
             {
                 const expected newBuffer = gpu.create_buffer({
                     .size = m_chunkSize,
-                    .memoryFlags = m_memoryUsage,
+                    .memoryProperties = m_memoryUsage,
                     .usages = m_usage,
                 });
 

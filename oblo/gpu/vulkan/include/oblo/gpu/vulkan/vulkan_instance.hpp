@@ -69,6 +69,11 @@ namespace oblo::gpu::vk
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
         void destroy_image(h32<image> imageHandle) override;
 
+        result<h32<image_pool>> create_image_pool(std::span<const image_descriptor> descriptors,
+            std::span<h32<image>> images) override;
+
+        void destroy_image_pool(h32<image_pool> imagePoolHandle) override;
+
         result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor);
         void destroy_shader_module(h32<shader_module> handle);
 
@@ -113,15 +118,19 @@ namespace oblo::gpu::vk
         VkDevice get_device() const;
         gpu_allocator& get_allocator();
 
-        VkQueue unwrap_queue(h32<queue> queue) const;
+        VkBuffer unwrap_buffer(h32<buffer> handle) const;
+        VkCommandBuffer unwrap_command_buffer(hptr<command_buffer> handle) const;
         VkImage unwrap_image(h32<image> handle) const;
         VkImageView unwrap_image_view(h32<image> handle) const;
-        VkCommandBuffer unwrap_command_buffer(hptr<command_buffer> handle) const;
+        VkQueue unwrap_queue(h32<queue> queue) const;
+
+        debug_utils::object get_debug_utils_object() const;
 
     private:
         struct buffer_impl;
         struct command_buffer_pool_impl;
         struct image_impl;
+        struct image_pool_impl;
         struct queue_impl;
         struct shader_module_impl;
         struct swapchain_impl;
@@ -145,6 +154,7 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
         h32_flat_pool_dense_map<buffer, buffer_impl> m_buffers;
         h32_flat_pool_dense_map<image, image_impl> m_images;
+        h32_flat_pool_dense_map<image_pool, image_pool_impl> m_imagePools;
         h32_flat_pool_dense_map<semaphore, VkSemaphore> m_semaphores;
         h32_flat_pool_dense_map<command_buffer_pool, command_buffer_pool_impl> m_commandBufferPools;
         h32_flat_pool_dense_map<fence, VkFence> m_fences;

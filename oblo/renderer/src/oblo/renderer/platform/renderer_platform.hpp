@@ -27,6 +27,7 @@ namespace oblo
     {
         VkImage image;
         VkImageView view;
+        gpu::image_descriptor descriptor;
     };
 
     struct frame_graph_buffer

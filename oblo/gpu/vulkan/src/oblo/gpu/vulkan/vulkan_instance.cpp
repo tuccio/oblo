@@ -144,6 +144,12 @@ namespace oblo::gpu::vk
         VkImageView view;
     };
 
+    struct vulkan_instance::image_pool_impl
+    {
+        VmaAllocation allocation;
+        dynamic_array<h32<image>> images;
+    };
+
     struct vulkan_instance::queue_impl
     {
         VkQueue queue;
@@ -711,7 +717,7 @@ namespace oblo::gpu::vk
             .debugLabel = descriptor.debugLabel,
         };
 
-        descriptor.memoryFlags.visit(overload{
+        descriptor.memoryProperties.visit(overload{
             [&initializer](memory_usage usage) -> void { initializer.memoryUsage = vk::allocated_memory_usage(usage); },
             [&initializer](flags<memory_requirement> requirements) -> void
             {
@@ -835,6 +841,158 @@ namespace oblo::gpu::vk
         }
 
         m_images.erase(imageHandle);
+    }
+
+    result<h32<image_pool>> vulkan_instance::create_image_pool(std::span<const image_descriptor> descriptors,
+        std::span<h32<image>> images)
+    {
+        if (descriptors.size() != images.size() || descriptors.empty())
+        {
+            return error::invalid_usage;
+        }
+
+        VkMemoryRequirements newRequirements{.memoryTypeBits = ~u32{}};
+
+        const auto allocationCbs = m_allocator.get_allocation_callbacks();
+
+        struct pooled_image_info
+        {
+            VkImage image;
+            VkDeviceSize size;
+        };
+
+        buffered_array<pooled_image_info, 64> pooledTextures;
+        pooledTextures.resize_default(descriptors.size());
+
+        VmaAllocation allocation{};
+
+        const auto cleanup = [&](usize count)
+        {
+            for (usize i = 0; i < count; ++i)
+            {
+                vkDestroyImage(m_device, pooledTextures[i].image, allocationCbs);
+            }
+
+            if (allocation)
+            {
+                m_allocator.destroy_memory(allocation);
+            }
+        };
+
+        for (usize descriptorIdx = 0; descriptorIdx < descriptors.size(); ++descriptorIdx)
+        {
+            const image_descriptor& descriptor = descriptors[descriptorIdx];
+            OBLO_ASSERT(descriptor.memoryUsage == gpu::memory_usage::gpu_only);
+
+            const VkImageCreateInfo imageCreateInfo{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .flags = 0u,
+                .imageType = convert_image_type(descriptor.type),
+                .format = convert_enum(descriptor.format),
+                .extent = {descriptor.width, descriptor.height, descriptor.depth},
+                .mipLevels = descriptor.mipLevels,
+                .arrayLayers = descriptor.arrayLayers,
+                .samples = convert_enum(descriptor.samples),
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = convert_enum_flags(descriptor.usages),
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+
+            VkImage image{};
+            const VkResult result = vkCreateImage(m_device, &imageCreateInfo, allocationCbs, &image);
+
+            if (result != VK_SUCCESS)
+            {
+                cleanup(descriptorIdx);
+
+                return translate_error(result);
+            }
+
+            VkMemoryRequirements requirements;
+            vkGetImageMemoryRequirements(m_device, image, &requirements);
+
+            pooledTextures[descriptorIdx] = {
+                .image = image,
+                .size = requirements.size,
+            };
+
+            newRequirements.alignment = max(newRequirements.alignment, requirements.alignment);
+            newRequirements.size += requirements.size;
+            newRequirements.memoryTypeBits &= requirements.memoryTypeBits;
+        }
+
+        // We should maybe constrain memory type bits to use something that uses the bigger heap?
+        // https://stackoverflow.com/questions/73243399/vma-how-to-tell-the-library-to-use-the-bigger-of-2-heaps
+        OBLO_ASSERT(newRequirements.memoryTypeBits != 0);
+
+        if (newRequirements.size == 0)
+        {
+            // Nothing to do?
+            return error::invalid_usage;
+        }
+
+        // Add space for alignment
+        newRequirements.size += (newRequirements.alignment - 1) * descriptors.size();
+
+        allocation =
+            m_allocator.create_memory(newRequirements, gpu::vk::allocated_memory_usage::gpu_only, "gpu::image_pool");
+
+        VkDeviceSize offset{0};
+
+        for (usize descriptorIdx = 0; descriptorIdx < descriptors.size(); ++descriptorIdx)
+        {
+            const pooled_image_info& t = pooledTextures[descriptorIdx];
+            const VkResult result = m_allocator.bind_image_memory(t.image, allocation, offset);
+
+            if (result != VK_SUCCESS)
+            {
+                cleanup(descriptors.size());
+                return translate_error(result);
+            }
+
+            offset += t.size + t.size % newRequirements.alignment;
+
+            const auto& descriptor = descriptors[descriptorIdx];
+
+            const expected imageView = gpu::vk::image_utils::create_image_view_2d(m_device,
+                t.image,
+                convert_enum(descriptor.format),
+                allocationCbs);
+
+            if (!imageView)
+            {
+                cleanup(descriptors.size());
+
+                return imageView.error();
+            }
+
+            label_vulkan_object(*imageView, descriptor.debugLabel);
+
+            const auto [it, handle] = m_images.emplace();
+            it->image = t.image;
+            it->view = *imageView;
+
+            images[descriptorIdx] = handle;
+        }
+
+        const auto [it, handle] = m_imagePools.emplace();
+        it->allocation = allocation;
+        it->images.assign(images.begin(), images.end());
+
+        return handle;
+    }
+
+    void vulkan_instance::destroy_image_pool(h32<image_pool> imagePoolHandle)
+    {
+        const image_pool_impl& pool = m_imagePools.at(imagePoolHandle);
+
+        for (const h32 image : pool.images)
+        {
+            destroy_image(image);
+        }
+
+        m_allocator.destroy_memory(pool.allocation);
+        m_imagePools.erase(imagePoolHandle);
     }
 
     result<h32<shader_module>> vulkan_instance::create_shader_module(const shader_module_descriptor& descriptor)
@@ -1118,9 +1276,14 @@ namespace oblo::gpu::vk
         return m_allocator;
     }
 
-    VkQueue vulkan_instance::unwrap_queue(h32<queue> queue) const
+    VkBuffer vulkan_instance::unwrap_buffer(h32<buffer> handle) const
     {
-        return get_queue(queue).queue;
+        return m_buffers.at(handle).buffer;
+    }
+
+    VkCommandBuffer vulkan_instance::unwrap_command_buffer(hptr<command_buffer> handle) const
+    {
+        return unwrap_handle<VkCommandBuffer>(handle);
     }
 
     VkImage vulkan_instance::unwrap_image(h32<image> handle) const
@@ -1133,9 +1296,9 @@ namespace oblo::gpu::vk
         return m_images.at(handle).view;
     }
 
-    VkCommandBuffer vulkan_instance::unwrap_command_buffer(hptr<command_buffer> handle) const
+    VkQueue vulkan_instance::unwrap_queue(h32<queue> queue) const
     {
-        return unwrap_handle<VkCommandBuffer>(handle);
+        return get_queue(queue).queue;
     }
 
     h32<image> vulkan_instance::register_image(VkImage image, VkImageView view, VmaAllocation allocation)

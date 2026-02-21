@@ -21,10 +21,10 @@ namespace oblo
 
         ~monotonic_gpu_buffer();
 
-        void init(flags<gpu::buffer_usage> usage, gpu::memory_usage memoryUsage, u8 alignment, u32 chunkSize);
+        void init(flags<gpu::buffer_usage> usage, gpu::memory_usage memoryUsage, u8 alignment, u64 chunkSize);
         void shutdown(gpu::gpu_queue_context& ctx);
 
-        expected<gpu::buffer_range> allocate(gpu::gpu_instance& gpu, u32 size);
+        expected<gpu::buffer_range> allocate(gpu::gpu_instance& gpu, u64 size);
 
         void restore_all();
 
@@ -34,10 +34,10 @@ namespace oblo
     private:
         dynamic_array<buffer_info> m_buffers;
         u32 m_currentIndex{};
-        u32 m_spaceInCurrentChunk{};
-        u32 m_chunkSize{};
         flags<gpu::buffer_usage> m_usage{};
-        u8 m_alignment{};
         gpu::memory_usage m_memoryUsage{};
+        u8 m_alignment{};
+        u64 m_spaceInCurrentChunk{};
+        u64 m_chunkSize{};
     };
 }
