@@ -3,56 +3,58 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/gpu/descriptors.hpp>
+#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
+#include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/texture_format.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
-#include <oblo/renderer/staging_buffer.hpp>
-#include <oblo/renderer/vulkan_context.hpp>
 
 namespace oblo
 {
     namespace
     {
-        VkImageType deduce_image_type(const texture_desc& desc)
+        expected<gpu::image_type> deduce_image_type(const texture_desc& desc)
         {
             switch (desc.dimensions)
             {
             case 1:
-                return VK_IMAGE_TYPE_1D;
+                return gpu::image_type::plain_1d;
 
             case 2:
-                return VK_IMAGE_TYPE_2D;
+                return gpu::image_type::plain_2d;
 
             case 3:
-                return VK_IMAGE_TYPE_3D;
+                return gpu::image_type::plain_3d;
 
             default:
-                return VK_IMAGE_TYPE_MAX_ENUM;
+                return "Unhandled image type"_err;
             }
         }
 
         struct upload_level
         {
-            using segment = std::decay_t<decltype(staging_buffer_span{}.segments[0])>;
+            using segment = std::decay_t<decltype(gpu::staging_buffer_span{}.segments[0])>;
             segment data;
         };
     }
 
     struct resident_texture
     {
-        // The image is only needs to be set if the texture is owned,
-        // we only care about the image view otherwise
-        allocated_image image;
+        // Only set if the image is owned.
+        h32<gpu::image> handle;
+
+        VkImage image;
         VkImageView imageView;
     };
 
     struct texture_registry::pending_texture_upload
     {
-        VkImage image;
-        VkFormat format;
+        h32<gpu::image> handle;
+        gpu::texture_format format;
         u32 width;
         u32 height;
         dynamic_array<upload_level> levels;
@@ -62,7 +64,8 @@ namespace oblo
 
     texture_registry::~texture_registry() = default;
 
-    bool texture_registry::init(vulkan_context& vkCtx, staging_buffer& staging)
+    bool texture_registry::init(
+        gpu::vk::vulkan_instance& vkCtx, gpu::gpu_queue_context& queueCtx, gpu::staging_buffer& staging)
     {
         const u32 maxDescriptorCount = get_max_descriptor_count();
 
@@ -70,6 +73,7 @@ namespace oblo
         m_textures.reserve(maxDescriptorCount);
 
         m_vkCtx = &vkCtx;
+        m_queueCtx = &queueCtx;
         m_staging = &staging;
 
         return true;
@@ -77,19 +81,17 @@ namespace oblo
 
     void texture_registry::shutdown()
     {
-        const auto submitIndex = m_vkCtx->get_submit_index();
+        const auto submitIndex = m_queueCtx->get_submit_index();
 
         for (const auto& t : m_textures)
         {
-            if (!t.image.allocation)
+            if (!t.handle)
             {
                 // The dummy will be present multiple times here, but only one occurrence is owning the allocation
                 continue;
             }
 
-            m_vkCtx->destroy_deferred(t.image.image, submitIndex);
-            m_vkCtx->destroy_deferred(t.image.allocation, submitIndex);
-            m_vkCtx->destroy_deferred(t.imageView, submitIndex);
+            m_queueCtx->destroy_deferred(t.handle, submitIndex);
         }
     }
 
@@ -136,16 +138,11 @@ namespace oblo
         resident_texture texture = m_textures[0];
 
         // We give out a non-owning reference, to make sure it's not double-deleted
-        texture.image.allocation = nullptr;
+        texture.handle = {};
 
         set_texture(res, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         return res;
-    }
-
-    void texture_registry::set_texture(h32<resident_texture> h, VkImageView imageView, VkImageLayout layout)
-    {
-        set_texture(h, resident_texture{.imageView = imageView}, layout);
     }
 
     bool texture_registry::set_texture(
@@ -214,17 +211,15 @@ namespace oblo
 
         auto& t = m_textures[index];
 
-        if (t.image.allocation)
+        if (t.handle)
         {
-            const auto submitIndex = m_vkCtx->get_submit_index();
-            m_vkCtx->destroy_deferred(t.image.allocation, submitIndex);
-            m_vkCtx->destroy_deferred(t.image.image, submitIndex);
-            m_vkCtx->destroy_deferred(t.imageView, submitIndex);
+            const auto submitIndex = m_queueCtx->get_submit_index();
+            m_queueCtx->destroy_deferred(t.handle, submitIndex);
         }
 
         // Reset to the dummy
         t = m_textures[0];
-        t.image = {};
+        t.handle = {};
 
         m_imageInfo[index] = m_imageInfo[0];
 
@@ -241,9 +236,9 @@ namespace oblo
         return 2048;
     }
 
-    void texture_registry::flush_uploads(VkCommandBuffer commandBuffer)
+    void texture_registry::flush_uploads(hptr<gpu::command_buffer> commandBuffer)
     {
-        buffered_array<VkBufferImageCopy, 16> copies;
+        buffered_array<gpu::buffer_image_copy_descriptor, 16> copies;
 
         constexpr auto initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         constexpr auto finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -259,18 +254,18 @@ namespace oblo
                 const auto& level = upload.levels[levelIndex];
                 const auto& segment = level.data;
 
-                copies.push_back(VkBufferImageCopy{
+                copies.push_back(gpu::buffer_image_copy_descriptor{
                     .bufferOffset = segment.begin,
                     .imageSubresource =
                         {
-                            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                            .aspectMask = gpu::image_aspect::color,
                             .mipLevel = levelIndex,
                             .baseArrayLayer = 0,
                             .layerCount = 1,
                         },
-                    .imageOffset = VkOffset3D{},
+                    .imageOffset = {},
                     .imageExtent =
-                        VkExtent3D{
+                        {
                             upload.width >> levelIndex,
                             upload.height >> levelIndex,
                             1,
@@ -289,20 +284,23 @@ namespace oblo
                 .layerCount = 1,
             };
 
-            add_pipeline_barrier_cmd(commandBuffer,
+            const VkImage vkImage = m_vkCtx->unwrap_image(upload.handle);
+            const VkCommandBuffer vkCmdBuffer = m_vkCtx->unwrap_command_buffer(commandBuffer);
+
+            gpu::vk::add_pipeline_barrier_cmd(vkCmdBuffer,
                 initialImageLayout,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                upload.image,
-                upload.format,
+                vkImage,
+                VkFormat(upload.format),
                 pipelineRange);
 
-            m_staging->upload(commandBuffer, upload.image, copies);
+            m_staging->upload(commandBuffer, upload.handle, copies);
 
-            add_pipeline_barrier_cmd(commandBuffer,
+            gpu::vk::add_pipeline_barrier_cmd(vkCmdBuffer,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 finalImageLayout,
-                upload.image,
-                upload.format,
+                vkImage,
+                VkFormat(upload.format),
                 pipelineRange);
         }
 
@@ -311,102 +309,53 @@ namespace oblo
 
     bool texture_registry::create(const texture_resource& texture, resident_texture& out, const debug_label& debugName)
     {
-        bool success = false;
-
         out = resident_texture{};
-
-        auto& allocator = m_vkCtx->get_allocator();
-
-        const auto cleanup = finally(
-            [&success, &out, &allocator]
-            {
-                if (success)
-                {
-                    return;
-                }
-
-                if (out.image.allocation)
-                {
-                    allocator.destroy(out.image);
-                    out.image = {};
-                }
-
-                if (out.imageView)
-                {
-                    vkDestroyImageView(allocator.get_device(), out.imageView, allocator.get_allocation_callbacks());
-                    out.imageView = {};
-                }
-            });
 
         const auto desc = texture.get_description();
 
         const auto imageType = deduce_image_type(desc);
 
         // We only support 2d textures for now
-        if (imageType != VK_IMAGE_TYPE_2D)
+        if (!imageType || *imageType != gpu::image_type::plain_2d)
         {
-            return success;
+            return false;
         }
 
-        const auto srcFormat = VkFormat(desc.vkFormat);
-        auto format = srcFormat;
+        const gpu::texture_format srcFormat = gpu::texture_format(desc.vkFormat);
 
-        const image_initializer initializer{
-            .imageType = imageType,
-            .format = format,
-            .extent = {desc.width, desc.height, desc.depth},
+        const gpu::image_descriptor descriptor{
+            .format = srcFormat,
+            .width = desc.width,
+            .height = desc.height,
+            .depth = desc.depth,
             .mipLevels = desc.numLevels,
-            .arrayLayers = desc.numLayers,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .memoryUsage = memory_usage::gpu_only,
+            .type = *imageType,
+            .samples = gpu::samples_count::one,
+            .usages = gpu::texture_usage::shader_read | gpu::texture_usage::transfer_destination,
             .debugLabel = debugName,
         };
 
-        if (allocator.create_image(initializer, &out.image) != VK_SUCCESS)
+        const expected image = m_vkCtx->create_image(descriptor);
+
+        if (!image)
         {
-            return success;
+            return false;
         }
-
-        const VkImageViewCreateInfo imageViewInit{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = out.image.image,
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = format,
-            .subresourceRange =
-                {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = desc.numLevels,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
-        };
-
-        VkImageView newImageView;
-
-        const auto imageViewRes = vkCreateImageView(allocator.get_device(),
-            &imageViewInit,
-            allocator.get_allocation_callbacks(),
-            &newImageView);
-
-        if (imageViewRes != VK_SUCCESS)
-        {
-            return success;
-        }
-
-        out.imageView = newImageView;
 
         auto& textureUpload = m_pendingUploads.push_back({
-            .image = out.image.image,
-            .format = format,
+            .handle = out.handle,
+            .format = srcFormat,
             .width = desc.width,
             .height = desc.height,
         });
 
         textureUpload.levels.reserve(desc.numLevels);
+
+        const auto cleanupAfterFailure = [this, &image]
+        {
+            m_pendingUploads.pop_back();
+            m_vkCtx->destroy_image(*image);
+        };
 
         const u32 texelSize = texture.get_element_size();
 
@@ -417,8 +366,8 @@ namespace oblo
 
             if (!staged)
             {
-                m_pendingUploads.pop_back();
-                return success;
+                cleanupAfterFailure();
+                return false;
             }
 
             textureUpload.levels.push_back({
@@ -426,8 +375,6 @@ namespace oblo
             });
         }
 
-        // This is so that the cleanup functor doesn't do anything
-        success = true;
-        return success;
+        return true;
     }
 }

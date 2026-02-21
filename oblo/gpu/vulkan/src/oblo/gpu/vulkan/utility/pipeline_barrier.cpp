@@ -5,7 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-namespace oblo::vk
+namespace oblo::gpu::vk
 {
     namespace
     {

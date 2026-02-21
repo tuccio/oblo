@@ -105,6 +105,11 @@ namespace oblo::gpu::vk
             h32<image> dst,
             std::span<const buffer_image_copy_descriptor> copies) override;
 
+        // Vulkan specific
+        VkImage unwrap_image(h32<image> handle) const;
+        VkImageView unwrap_image_view(h32<image> handle) const;
+        VkCommandBuffer unwrap_command_buffer(hptr<command_buffer> handle) const;
+
     private:
         struct buffer_impl;
         struct command_buffer_pool_impl;

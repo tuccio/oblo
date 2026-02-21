@@ -1,3 +1,4 @@
+#include "vulkan_instance.hpp"
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
 #include <oblo/core/array_size.hpp>
@@ -1053,6 +1054,21 @@ namespace oblo::gpu::vk
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             regions.size32(),
             regions.data());
+    }
+
+    VkImage vulkan_instance::unwrap_image(h32<image> handle) const
+    {
+        return m_images.at(handle).image;
+    }
+
+    VkImageView vulkan_instance::unwrap_image_view(h32<image> handle) const
+    {
+        return m_images.at(handle).view;
+    }
+
+    VkCommandBuffer vulkan_instance::unwrap_command_buffer(hptr<command_buffer> handle) const
+    {
+        return unwrap_handle<VkCommandBuffer>(handle);
     }
 
     h32<image> vulkan_instance::register_image(VkImage image, VkImageView view, VmaAllocation allocation)

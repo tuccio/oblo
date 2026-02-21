@@ -359,6 +359,7 @@ namespace oblo::gpu
 
     enum class image_type : u8
     {
+        plain_1d,
         plain_2d,
         plain_3d,
         cubemap,

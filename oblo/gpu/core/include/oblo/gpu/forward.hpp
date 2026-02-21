@@ -41,6 +41,7 @@ namespace oblo::gpu
 
     class gpu_instance;
     class gpu_queue_context;
+    class staging_buffer;
 
     enum class error;
 

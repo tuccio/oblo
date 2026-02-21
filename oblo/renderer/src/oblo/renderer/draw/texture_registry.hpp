@@ -4,20 +4,20 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_pool.hpp>
 #include <oblo/core/string/debug_label.hpp>
+#include <oblo/gpu/forward.hpp>
 
 #include <span>
 
 #include <vulkan/vulkan_core.h>
 
-namespace oblo
+namespace oblo::gpu::vk
 {
-    class texture;
+    class vulkan_instance;
 }
 
 namespace oblo
 {
-    class staging_buffer;
-    class vulkan_context;
+    class texture;
     struct resident_texture;
 
     using texture_resource = oblo::texture;
@@ -33,13 +33,12 @@ namespace oblo
         texture_registry& operator=(const texture_registry&) = delete;
         texture_registry& operator=(texture_registry&&) noexcept = delete;
 
-        bool init(vulkan_context& vkCtx, staging_buffer& staging);
+        bool init(gpu::vk::vulkan_instance& vkCtx, gpu::gpu_queue_context& queueCtx, gpu::staging_buffer& staging);
         void shutdown();
 
         void on_first_frame();
 
         h32<resident_texture> acquire();
-        void set_texture(h32<resident_texture> h, VkImageView imageView, VkImageLayout layout);
         bool set_texture(h32<resident_texture> h, const texture_resource& texture, const debug_label& debugName);
 
         h32<resident_texture> add(const texture_resource& texture, const debug_label& debugName);
@@ -49,7 +48,7 @@ namespace oblo
 
         u32 get_max_descriptor_count() const;
 
-        void flush_uploads(VkCommandBuffer commandBuffer);
+        void flush_uploads(hptr<gpu::command_buffer> commandBuffer);
 
     private:
         struct pending_texture_upload;
@@ -59,8 +58,9 @@ namespace oblo
         void set_texture(h32<resident_texture> h, const resident_texture& residentTexture, VkImageLayout layout);
 
     private:
-        vulkan_context* m_vkCtx{};
-        staging_buffer* m_staging{};
+        gpu::vk::vulkan_instance* m_vkCtx{};
+        gpu::gpu_queue_context* m_queueCtx{};
+        gpu::staging_buffer* m_staging{};
         handle_pool<u32, 4> m_handlePool;
 
         dynamic_array<VkDescriptorImageInfo> m_imageInfo;
