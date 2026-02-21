@@ -29,7 +29,7 @@ namespace oblo
 
     struct render_attachment
     {
-        resource<texture> texture;
+        pin::texture texture;
         attachment_load_op loadOp;
         attachment_store_op storeOp;
         clear_value clearValue;

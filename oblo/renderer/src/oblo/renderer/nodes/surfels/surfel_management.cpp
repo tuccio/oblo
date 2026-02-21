@@ -215,7 +215,7 @@ namespace oblo
         const auto inputSelector = outputSelector;
         outputSelector = 1 - outputSelector;
 
-        const resource<buffer> lightingDataBuffers[] = {
+        const pin::buffer lightingDataBuffers[] = {
             outSurfelsLightingData0,
             outSurfelsLightingData1,
         };
@@ -732,7 +732,7 @@ namespace oblo
     {
         h32<compute_pass_instance> id;
         u32 inputSurfels;
-        resource<buffer> outputBuffer;
+        pin::buffer outputBuffer;
     };
 
     void surfel_accumulate_raycount::build(const frame_graph_build_context& ctx)

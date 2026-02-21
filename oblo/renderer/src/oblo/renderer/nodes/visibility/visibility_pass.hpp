@@ -15,24 +15,24 @@ namespace oblo
     {
         data<vec2u> inResolution;
         data<std::span<draw_buffer_data>> inDrawData;
-        data<std::span<resource<buffer>>> inDrawCallBuffer;
+        data<std::span<pin::buffer>> inDrawCallBuffer;
 
-        resource<buffer> inCameraBuffer;
-        resource<buffer> inMeshDatabase;
+        pin::buffer inCameraBuffer;
+        pin::buffer inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> outVisibilityBuffer;
-        resource<texture> outLastFrameDepthBuffer;
-        resource<texture> outDepthBuffer;
+        pin::texture outVisibilityBuffer;
+        pin::texture outLastFrameDepthBuffer;
+        pin::texture outDepthBuffer;
 
         h32<render_pass> renderPass;
         h32<render_pass_instance> passInstance;
         h32<transfer_pass_instance> copyPassInstance;
 
-        resource<texture> depthBuffer0;
-        resource<texture> depthBuffer1;
+        pin::texture depthBuffer0;
+        pin::texture depthBuffer1;
         u8 outputIndex{0};
 
         void init(const frame_graph_init_context& ctx);

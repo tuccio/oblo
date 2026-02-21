@@ -9,14 +9,14 @@ namespace oblo
 {
     struct shadow_temporal
     {
-        resource<texture> inShadow;
-        resource<texture> inShadowMean;
-        resource<texture> inHistory;
+        pin::texture inShadow;
+        pin::texture inShadowMean;
+        pin::texture inHistory;
 
-        resource<texture> outFiltered;
+        pin::texture outFiltered;
 
-        resource<texture> inDisocclusionMask;
-        resource<texture> inMotionVectors;
+        pin::texture inDisocclusionMask;
+        pin::texture inMotionVectors;
 
         h32<compute_pass> temporalPass;
         h32<compute_pass_instance> temporalPassInstance;

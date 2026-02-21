@@ -8,7 +8,7 @@ namespace oblo
 {
     struct light_visibility_event
     {
-        resource<texture> resource;
+        pin::texture resource;
         u32 lightIndex;
     };
 }

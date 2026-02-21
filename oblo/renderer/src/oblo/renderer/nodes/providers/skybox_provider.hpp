@@ -19,7 +19,7 @@ namespace oblo
         data<resource_ptr<oblo::texture>> inSkyboxResource;
         data<skybox_settings> inSkyboxSettings;
 
-        resource<buffer> outSkyboxSettingsBuffer;
+        pin::buffer outSkyboxSettingsBuffer;
 
         void build(const frame_graph_build_context& ctx);
     };

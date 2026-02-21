@@ -1,7 +1,6 @@
 #include <oblo/renderer/nodes/providers/instance_table_node.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
-#include <oblo/renderer/buffer.hpp>
 #include <oblo/renderer/draw/draw_registry.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
 
@@ -26,10 +25,10 @@ namespace oblo
 
         ctx.create(outMeshDatabase,
             {
-                .size = u32(meshDatabaseData.size()),
+                .size = meshDatabaseData.size(),
                 .data = meshDatabaseData,
             },
-            buffer_usage::storage_upload);
+            buffer_usage::storage | buffer_usage::transfer_destination);
 
         const std::span drawCalls = drawRegistry.get_draw_calls();
         const auto numTables = drawCalls.size();
@@ -55,7 +54,7 @@ namespace oblo
         for (usize drawIndex = 0; drawIndex < drawCalls.size(); ++drawIndex)
         {
             const auto& srcInstanceBuffer = drawCalls[drawIndex].instanceBuffers;
-            auto bufferResources = allocate_n_span<resource<buffer>>(frameAllocator, srcInstanceBuffer.count);
+            auto bufferResources = allocate_n_span<pin::buffer>(frameAllocator, srcInstanceBuffer.count);
 
             for (u32 i = 0; i < srcInstanceBuffer.count; ++i)
             {
@@ -109,7 +108,7 @@ namespace oblo
     }
 
     void acquire_instance_tables(const frame_graph_build_context& ctx,
-        resource<buffer> instanceTables,
+        pin::buffer instanceTables,
         data<instance_data_table_buffers_span> instanceBuffers,
         buffer_usage usage)
     {

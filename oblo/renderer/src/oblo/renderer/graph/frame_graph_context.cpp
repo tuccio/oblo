@@ -7,7 +7,6 @@
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec2u.hpp>
-#include <oblo/renderer/buffer.hpp>
 #include <oblo/renderer/data/async_download.hpp>
 #include <oblo/renderer/draw/bindable_object.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
@@ -210,7 +209,7 @@ namespace oblo
         }
 
         void add_texture_usages(
-            resource_pool& resourcePool, frame_graph_impl& frameGraph, resource<texture> texture, texture_usage usage)
+            resource_pool& resourcePool, frame_graph_impl& frameGraph, pin::texture texture, texture_usage usage)
         {
             switch (usage)
             {
@@ -386,7 +385,7 @@ namespace oblo
     }
 
     void frame_graph_build_context::create(
-        resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const
+        pin::texture texture, const texture_resource_initializer& initializer, texture_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -413,7 +412,7 @@ namespace oblo
     }
 
     void frame_graph_build_context::create(
-        resource<buffer> buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const
+        pin::buffer buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -469,7 +468,7 @@ namespace oblo
     }
 
     void frame_graph_build_context::create(
-        resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const
+        pin::buffer buffer, const staging_buffer_span& stagedData, buffer_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -516,12 +515,12 @@ namespace oblo
         m_frameGraph.destroy_retained_texture(m_args.vkCtx, storageHandle);
     }
 
-    resource<texture> frame_graph_build_context::get_resource(h32<retained_texture> texture) const
+    pin::texture frame_graph_build_context::get_resource(h32<retained_texture> texture) const
     {
         return {texture.value};
     }
 
-    void frame_graph_build_context::register_texture(resource<texture> resource, h32<texture> externalTexture) const
+    void frame_graph_build_context::register_texture(pin::texture resource, h32<texture> externalTexture) const
     {
         const auto& texture = m_frameGraph.resourceManager->get(externalTexture);
         const auto poolIndex = m_frameGraph.resourcePool.add_external_texture(texture);
@@ -534,7 +533,7 @@ namespace oblo
         m_frameGraph.globalTLAS = accelerationStructure;
     }
 
-    void frame_graph_build_context::acquire(resource<texture> texture, texture_usage usage) const
+    void frame_graph_build_context::acquire(pin::texture texture, texture_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -542,7 +541,7 @@ namespace oblo
         add_texture_usages(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
     }
 
-    h32<resident_texture> frame_graph_build_context::acquire_bindless(resource<texture> texture,
+    h32<resident_texture> frame_graph_build_context::acquire_bindless(pin::texture texture,
         texture_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
@@ -561,7 +560,7 @@ namespace oblo
         return m_args.resourceCache.get_or_add(texture);
     }
 
-    void frame_graph_build_context::acquire(resource<buffer> buffer, buffer_usage usage) const
+    void frame_graph_build_context::acquire(pin::buffer buffer, buffer_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -581,7 +580,7 @@ namespace oblo
         }
     }
 
-    void frame_graph_build_context::reroute(resource<buffer> source, resource<buffer> destination) const
+    void frame_graph_build_context::reroute(pin::buffer source, pin::buffer destination) const
     {
         // Source is a node that should end its path here
         // Destination is a node with no incoming edges, owned by the current node
@@ -594,7 +593,7 @@ namespace oblo
         m_frameGraph.reroute(srcStorageHandle, dstStorageHandle);
     }
 
-    void frame_graph_build_context::reroute(resource<texture> source, resource<texture> destination) const
+    void frame_graph_build_context::reroute(pin::texture source, pin::texture destination) const
     {
         // Source is a node that should end its path here
         // Destination is a node with no incoming edges, owned by the current node
@@ -607,52 +606,52 @@ namespace oblo
         m_frameGraph.reroute(srcStorageHandle, dstStorageHandle);
     }
 
-    bool frame_graph_build_context::is_active_output(resource<texture> t) const
+    bool frame_graph_build_context::is_active_output(pin::texture t) const
     {
         const auto storageHandle = as_storage_handle(t);
         auto& storage = m_frameGraph.pinStorage.at(storageHandle);
         return storage.hasPathToOutput;
     }
 
-    bool frame_graph_build_context::has_source(resource<buffer> buffer) const
+    bool frame_graph_build_context::has_source(pin::buffer buffer) const
     {
         auto* const owner = m_frameGraph.get_owner_node(buffer);
         return m_frameGraph.currentNode != owner;
     }
 
-    bool frame_graph_build_context::has_source(resource<texture> texture) const
+    bool frame_graph_build_context::has_source(pin::texture texture) const
     {
         auto* const owner = m_frameGraph.get_owner_node(texture);
         return m_frameGraph.currentNode != owner;
     }
 
-    resource<buffer> frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,
+    pin::buffer frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,
         buffer_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
-        const resource<buffer> resource{pinHandle.value};
+        const pin::buffer resource{pinHandle.value};
         create(resource, initializer, usage);
 
         return resource;
     }
 
-    resource<buffer> frame_graph_build_context::create_dynamic_buffer(const staging_buffer_span& stagedData,
+    pin::buffer frame_graph_build_context::create_dynamic_buffer(const staging_buffer_span& stagedData,
         buffer_usage usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
         const auto pinHandle = m_frameGraph.allocate_dynamic_resource_pin();
 
-        const resource<buffer> resource{pinHandle.value};
+        const pin::buffer resource{pinHandle.value};
         create(resource, stagedData, usage);
 
         return resource;
     }
 
-    expected<texture_init_desc> frame_graph_build_context::get_current_initializer(resource<texture> texture) const
+    expected<texture_init_desc> frame_graph_build_context::get_current_initializer(pin::texture texture) const
     {
         const auto h = m_frameGraph.find_pool_index(texture);
 
@@ -763,7 +762,7 @@ namespace oblo
         return m_frameGraph.emptyEvents.contains(type);
     }
 
-    void frame_graph_build_context::register_metrics_buffer(const type_id& type, resource<buffer> b) const
+    void frame_graph_build_context::register_metrics_buffer(const type_id& type, pin::buffer b) const
     {
         m_frameGraph.add_metrics_download(type, b);
     }
@@ -1011,7 +1010,7 @@ namespace oblo
     }
 
     void frame_graph_execute_context::bind_index_buffer(
-        resource<buffer> buffer, u32 bufferOffset, mesh_index_type indexType) const
+        pin::buffer buffer, u32 bufferOffset, mesh_index_type indexType) const
     {
         const auto vkIndexType = convert_to_vk(indexType);
 
@@ -1019,12 +1018,12 @@ namespace oblo
         vkCmdBindIndexBuffer(m_state.commandBuffer, b.buffer, b.offset + bufferOffset, vkIndexType);
     }
 
-    texture frame_graph_execute_context::access(resource<texture> h) const
+    texture frame_graph_execute_context::access(pin::texture h) const
     {
         return vk::access_storage(m_frameGraph, h);
     }
 
-    buffer frame_graph_execute_context::access(resource<buffer> h) const
+    buffer frame_graph_execute_context::access(pin::buffer h) const
     {
         return vk::access_storage(m_frameGraph, h);
     }
@@ -1034,26 +1033,26 @@ namespace oblo
         return g_globalTLAS;
     }
 
-    bool frame_graph_execute_context::has_source(resource<buffer> buffer) const
+    bool frame_graph_execute_context::has_source(pin::buffer buffer) const
     {
         auto* const owner = m_frameGraph.get_owner_node(buffer);
         return m_frameGraph.currentNode != owner;
     }
 
-    bool frame_graph_execute_context::has_source(resource<texture> texture) const
+    bool frame_graph_execute_context::has_source(pin::texture texture) const
     {
         auto* const owner = m_frameGraph.get_owner_node(texture);
         return m_frameGraph.currentNode != owner;
     }
 
-    u32 frame_graph_execute_context::get_frames_alive_count(resource<texture> texture) const
+    u32 frame_graph_execute_context::get_frames_alive_count(pin::texture texture) const
     {
         const auto h = m_frameGraph.find_pool_index(texture);
         OBLO_ASSERT(h);
         return m_frameGraph.resourcePool.get_frames_alive_count(h);
     }
 
-    u32 frame_graph_execute_context::get_frames_alive_count(resource<buffer> buffer) const
+    u32 frame_graph_execute_context::get_frames_alive_count(pin::buffer buffer) const
     {
         const auto h = m_frameGraph.find_pool_index(buffer);
         OBLO_ASSERT(h);
@@ -1065,7 +1064,7 @@ namespace oblo
         return m_frameGraph.frameCounter;
     }
 
-    void frame_graph_execute_context::upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset) const
+    void frame_graph_execute_context::upload(pin::buffer h, std::span<const byte> data, u32 bufferOffset) const
     {
         OBLO_ASSERT(m_state.currentPass && m_frameGraph.passes[m_state.currentPass.value].kind == pass_kind::transfer);
 
@@ -1083,7 +1082,7 @@ namespace oblo
     }
 
     void frame_graph_execute_context::upload(
-        resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset) const
+        pin::buffer h, const staging_buffer_span& data, u32 bufferOffset) const
     {
         auto& stagingBuffer = m_args.stagingBuffer;
         const auto b = access(h);
@@ -1092,7 +1091,7 @@ namespace oblo
         stagingBuffer.upload(m_state.commandBuffer, data, b.buffer, b.offset + bufferOffset);
     }
 
-    void frame_graph_execute_context::upload(resource<texture> h, const staging_buffer_span& data) const
+    void frame_graph_execute_context::upload(pin::texture h, const staging_buffer_span& data) const
     {
         auto& stagingBuffer = m_args.stagingBuffer;
         const auto t = access(h);
@@ -1131,7 +1130,7 @@ namespace oblo
         }
     }
 
-    async_download frame_graph_execute_context::download(resource<buffer> h) const
+    async_download frame_graph_execute_context::download(pin::buffer h) const
     {
         OBLO_ASSERT(h);
         OBLO_ASSERT(m_state.currentPass);
@@ -1161,7 +1160,7 @@ namespace oblo
         return async_download{};
     }
 
-    u64 frame_graph_execute_context::get_device_address(resource<buffer> buffer) const
+    u64 frame_graph_execute_context::get_device_address(pin::buffer buffer) const
     {
         const auto& b = access(buffer);
 
@@ -1234,9 +1233,9 @@ namespace oblo
         vkCmdDrawIndexed(m_state.commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
-    void frame_graph_execute_context::draw_mesh_tasks_indirect_count(resource<buffer> drawCallBuffer,
+    void frame_graph_execute_context::draw_mesh_tasks_indirect_count(pin::buffer drawCallBuffer,
         u32 drawCallBufferOffset,
-        resource<buffer> drawCallCountBuffer,
+        pin::buffer drawCallCountBuffer,
         u32 drawCallCountBufferOffset,
         u32 maxDrawCount) const
     {
@@ -1255,7 +1254,7 @@ namespace oblo
             sizeof(VkDrawMeshTasksIndirectCommandEXT));
     }
 
-    void frame_graph_execute_context::blit_color(resource<texture> srcTexture, resource<texture> dstTexture) const
+    void frame_graph_execute_context::blit_color(pin::texture srcTexture, pin::texture dstTexture) const
     {
         const texture src = access(srcTexture);
         const texture dst = access(dstTexture);
@@ -1306,7 +1305,7 @@ namespace oblo
             VK_FILTER_LINEAR);
     }
 
-    vec2u frame_graph_execute_context::get_resolution(resource<texture> h) const
+    vec2u frame_graph_execute_context::get_resolution(pin::texture h) const
     {
         const auto extent = access(h).initializer.extent;
         return {extent.width, extent.height};

@@ -8,21 +8,21 @@ namespace oblo
 {
     struct rtao
     {
-        resource<buffer> inCameraBuffer;
+        pin::buffer inCameraBuffer;
 
-        resource<texture> inVisibilityBuffer;
-        resource<texture> inOutHistory;
-        resource<texture> inOutHistorySamplesCount;
-        resource<texture> outRTAmbientOcclusion;
+        pin::texture inVisibilityBuffer;
+        pin::texture inOutHistory;
+        pin::texture inOutHistorySamplesCount;
+        pin::texture outRTAmbientOcclusion;
 
-        resource<texture> inDisocclusionMask;
-        resource<texture> inMotionVectors;
+        pin::texture inDisocclusionMask;
+        pin::texture inMotionVectors;
 
         h32<raytracing_pass> rtPass;
         h32<raytracing_pass_instance> rtPassInstance;
 
-        resource<buffer> inMeshDatabase;
-        resource<buffer> inInstanceTables;
+        pin::buffer inMeshDatabase;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         data<f32> inBias;

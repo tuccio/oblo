@@ -17,11 +17,11 @@ namespace oblo
     {
         data<picking_configuration> inPickingConfiguration;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> inVisibilityBuffer;
-        resource<buffer> outPickingId;
+        pin::texture inVisibilityBuffer;
+        pin::buffer outPickingId;
 
         data<bool> outDummyOut;
         data<async_download> outPickingResult;

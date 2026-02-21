@@ -64,7 +64,7 @@ namespace oblo
 
     namespace detail
     {
-        inline void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const resource<texture>* pin)
+        inline void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const pin::texture* pin)
         {
             const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
@@ -76,7 +76,7 @@ namespace oblo
             });
         }
 
-        inline void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const resource<buffer>* pin)
+        inline void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const pin::buffer* pin)
         {
             const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 

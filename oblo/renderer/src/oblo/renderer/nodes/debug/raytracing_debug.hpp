@@ -11,21 +11,21 @@ namespace oblo
     {
         data<vec2u> inResolution;
 
-        resource<buffer> inCameraBuffer;
+        pin::buffer inCameraBuffer;
 
-        resource<buffer> inLightBuffer;
-        resource<buffer> inLightConfig;
+        pin::buffer inLightBuffer;
+        pin::buffer inLightConfig;
 
-        resource<buffer> inSkyboxSettingsBuffer;
+        pin::buffer inSkyboxSettingsBuffer;
 
-        resource<texture> outShadedImage;
+        pin::texture outShadedImage;
 
         h32<raytracing_pass> rtDebugPass;
         h32<raytracing_pass_instance> rtDebugPassInstance;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         void init(const frame_graph_init_context& context);

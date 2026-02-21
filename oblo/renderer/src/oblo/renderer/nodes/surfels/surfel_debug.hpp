@@ -24,21 +24,21 @@ namespace oblo
 
         data<mode> inMode;
 
-        resource<buffer> inCameraBuffer;
+        pin::buffer inCameraBuffer;
 
-        resource<texture> inImage;
-        resource<texture> outDebugImage;
+        pin::texture inImage;
+        pin::texture outDebugImage;
 
-        resource<buffer> inSurfelsData;
-        resource<buffer> inSurfelsSpawnData;
-        resource<buffer> inSurfelsGrid;
-        resource<buffer> inSurfelsGridData;
-        resource<buffer> inSurfelsLightingData;
-        resource<buffer> inSurfelsLightEstimatorData;
+        pin::buffer inSurfelsData;
+        pin::buffer inSurfelsSpawnData;
+        pin::buffer inSurfelsGrid;
+        pin::buffer inSurfelsGridData;
+        pin::buffer inSurfelsLightingData;
+        pin::buffer inSurfelsLightEstimatorData;
 
-        resource<texture> inVisibilityBuffer;
-        resource<buffer> inMeshDatabase;
-        resource<buffer> inInstanceTables;
+        pin::texture inVisibilityBuffer;
+        pin::buffer inMeshDatabase;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         h32<compute_pass> debugPass;

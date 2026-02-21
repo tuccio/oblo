@@ -11,8 +11,8 @@ namespace oblo
     struct light_provider
     {
         data<std::span<const light_data>> inOutLights;
-        resource<buffer> outLightData;
-        resource<buffer> outLightConfig;
+        pin::buffer outLightData;
+        pin::buffer outLightConfig;
 
         void build(const frame_graph_build_context& ctx)
         {

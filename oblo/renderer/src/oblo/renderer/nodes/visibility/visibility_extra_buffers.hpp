@@ -17,23 +17,23 @@ namespace oblo
             enum_max,
         };
 
-        resource<buffer> inCameraBuffer;
+        pin::buffer inCameraBuffer;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> inVisibilityBuffer;
+        pin::texture inVisibilityBuffer;
 
-        resource<texture> inCurrentDepth;
-        resource<texture> inLastFrameDepth;
+        pin::texture inCurrentDepth;
+        pin::texture inLastFrameDepth;
 
         h32<compute_pass> extraBuffersPass;
         h32<compute_pass_instance> extraBuffersPassInstance;
 
-        resource<texture> outMotionVectors;
-        resource<texture> outDisocclusionMask;
+        pin::texture outMotionVectors;
+        pin::texture outDisocclusionMask;
 
         flags<enabled_buffers> enabledBuffers{};
 

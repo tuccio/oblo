@@ -625,7 +625,7 @@ namespace oblo::swapchain_graph
     struct swapchain_image_acquire
     {
         data<h32<texture>> inSwapchainImageTexture;
-        resource<texture> outSwapchainImageResource;
+        pin::texture outSwapchainImageResource;
 
         void build(const frame_graph_build_context& ctx)
         {
@@ -639,8 +639,8 @@ namespace oblo::swapchain_graph
         h32<transfer_pass_instance> blitPass;
         h32<empty_pass_instance> emptyPass;
 
-        resource<texture> inRenderedImage;
-        resource<texture> inSwapchainImage;
+        pin::texture inRenderedImage;
+        pin::texture inSwapchainImage;
 
         void build(const frame_graph_build_context& ctx)
         {

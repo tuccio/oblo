@@ -18,9 +18,9 @@ namespace oblo
 
         data<std::span<draw_buffer_data>> outDrawBufferData;
 
-        resource<buffer> inMeshDatabase;
-        resource<buffer> inCameraBuffer;
-        resource<buffer> inInstanceTables;
+        pin::buffer inMeshDatabase;
+        pin::buffer inCameraBuffer;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
         data<render_world> inRenderWorld;
 

@@ -7,8 +7,8 @@ namespace oblo
 {
     struct tone_mapping_node
     {
-        resource<texture> inHDR;
-        resource<texture> outLDR;
+        pin::texture inHDR;
+        pin::texture outLDR;
 
         h32<compute_pass> toneMappingPass;
         h32<compute_pass_instance> toneMappingPassInstance;

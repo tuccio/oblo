@@ -14,23 +14,23 @@ namespace oblo
     /// @brief Creates the buffers necessary for surfels GI.
     struct surfel_initializer
     {
-        resource<buffer> outSurfelsStack;
-        resource<buffer> outSurfelsSpawnData;
-        resource<buffer> outSurfelsData;
+        pin::buffer outSurfelsStack;
+        pin::buffer outSurfelsSpawnData;
+        pin::buffer outSurfelsData;
 
-        resource<buffer> outSurfelsGrid;
-        resource<buffer> outSurfelsGridData;
+        pin::buffer outSurfelsGrid;
+        pin::buffer outSurfelsGridData;
 
         // Two buffers we ping pong during the ray-tracing update
-        resource<buffer> outSurfelsLightingData0;
-        resource<buffer> outSurfelsLightingData1;
-        resource<buffer> outSurfelsLightEstimatorData;
-        resource<buffer> outSurfelsLastUsage;
+        pin::buffer outSurfelsLightingData0;
+        pin::buffer outSurfelsLightingData1;
+        pin::buffer outSurfelsLightEstimatorData;
+        pin::buffer outSurfelsLastUsage;
 
-        resource<buffer> outLastFrameSurfelsLightingData;
-        resource<buffer> outSurfelsLightingData;
+        pin::buffer outLastFrameSurfelsLightingData;
+        pin::buffer outSurfelsLightingData;
 
-        resource<buffer> outSurfelsMetrics;
+        pin::buffer outSurfelsMetrics;
 
         data<u32> inMaxSurfels;
         data<aabb> inGridBounds;
@@ -52,7 +52,7 @@ namespace oblo
 
     struct surfel_tiling_data
     {
-        resource<buffer> buffer;
+        pin::buffer buffer;
         u32 elements;
     };
 
@@ -63,22 +63,22 @@ namespace oblo
         data_sink<surfel_tiling_data> outTileCoverageSink;
         data_sink<vec3> outCameraPositionSink;
 
-        resource<buffer> outFullTileCoverage;
+        pin::buffer outFullTileCoverage;
 
-        resource<buffer> inSurfelsGrid;
-        resource<buffer> inSurfelsGridData;
-        resource<buffer> inSurfelsData;
-        resource<buffer> inSurfelsSpawnData; // This is not used, it's just here to forward it to debug views
-        resource<buffer> inLastFrameSurfelsLightingData;
+        pin::buffer inSurfelsGrid;
+        pin::buffer inSurfelsGridData;
+        pin::buffer inSurfelsData;
+        pin::buffer inSurfelsSpawnData; // This is not used, it's just here to forward it to debug views
+        pin::buffer inLastFrameSurfelsLightingData;
 
         data<camera_buffer> inCameraData;
-        resource<buffer> inCameraBuffer;
-        resource<texture> inVisibilityBuffer;
+        pin::buffer inCameraBuffer;
+        pin::texture inVisibilityBuffer;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
         h32<compute_pass> tilingPass;
         h32<compute_pass_instance> tilingPassInstance;
@@ -97,14 +97,14 @@ namespace oblo
     {
         data_sink<surfel_tiling_data> inTileCoverageSink;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<buffer> inOutSurfelsStack;
-        resource<buffer> inOutSurfelsSpawnData;
-        resource<buffer> inOutSurfelsData;
-        resource<buffer> inOutSurfelsLastUsage;
-        resource<buffer> inOutLastFrameSurfelsLightingData;
+        pin::buffer inOutSurfelsStack;
+        pin::buffer inOutSurfelsSpawnData;
+        pin::buffer inOutSurfelsData;
+        pin::buffer inOutSurfelsLastUsage;
+        pin::buffer inOutLastFrameSurfelsLightingData;
 
         h32<compute_pass> spawnPass;
         h32<compute_pass_instance> spawnPassInstance;
@@ -121,23 +121,23 @@ namespace oblo
     /// @brief Fills the grid from the currently alive surfels, updates surfels that moved, and frees unused one.
     struct surfel_update
     {
-        resource<buffer> inSurfelsMetrics;
+        pin::buffer inSurfelsMetrics;
 
-        resource<buffer> inOutSurfelsSpawnData;
-        resource<buffer> inOutSurfelsStack;
-        resource<buffer> inOutSurfelsGrid;
-        resource<buffer> inOutSurfelsGridData;
-        resource<buffer> inOutSurfelsLastUsage;
-        resource<buffer> outGridFillBuffer;
+        pin::buffer inOutSurfelsSpawnData;
+        pin::buffer inOutSurfelsStack;
+        pin::buffer inOutSurfelsGrid;
+        pin::buffer inOutSurfelsGridData;
+        pin::buffer inOutSurfelsLastUsage;
+        pin::buffer outGridFillBuffer;
 
-        resource<buffer> inOutSurfelsData;
-        resource<buffer> inSurfelsLightEstimatorData;
+        pin::buffer inOutSurfelsData;
+        pin::buffer inSurfelsLightEstimatorData;
 
-        resource<buffer> inMeshDatabase;
-        resource<buffer> inInstanceTables;
+        pin::buffer inMeshDatabase;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<buffer> inEntitySetBuffer;
+        pin::buffer inEntitySetBuffer;
 
         data<aabb> inGridBounds;
         data<f32> inGridCellSize;
@@ -169,9 +169,9 @@ namespace oblo
     {
         data<u32> inMaxSurfels;
 
-        data<resource<buffer>> outTotalRayCount;
+        data<pin::buffer> outTotalRayCount;
 
-        resource<buffer> inSurfelsData;
+        pin::buffer inSurfelsData;
 
         h32<compute_pass> reducePass;
 
@@ -194,28 +194,28 @@ namespace oblo
         data<u32> inMaxSurfels;
         data<f32> inGIMultiplier;
 
-        resource<buffer> inSurfelsMetrics;
+        pin::buffer inSurfelsMetrics;
 
-        resource<buffer> inOutSurfelsGrid;
-        resource<buffer> inOutSurfelsData;
-        resource<buffer> inOutSurfelsGridData;
-        resource<buffer> inOutSurfelsLastUsage;
+        pin::buffer inOutSurfelsGrid;
+        pin::buffer inOutSurfelsData;
+        pin::buffer inOutSurfelsGridData;
+        pin::buffer inOutSurfelsLastUsage;
 
-        resource<buffer> inOutSurfelsLightEstimatorData;
+        pin::buffer inOutSurfelsLightEstimatorData;
 
-        resource<buffer> inLastFrameSurfelsLightingData;
-        resource<buffer> inOutSurfelsLightingData;
+        pin::buffer inLastFrameSurfelsLightingData;
+        pin::buffer inOutSurfelsLightingData;
 
-        resource<buffer> inLightBuffer;
-        resource<buffer> inLightConfig;
+        pin::buffer inLightBuffer;
+        pin::buffer inLightConfig;
 
-        data<resource<buffer>> inTotalRayCount;
+        data<pin::buffer> inTotalRayCount;
 
-        resource<buffer> inSkyboxSettingsBuffer;
+        pin::buffer inSkyboxSettingsBuffer;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         h32<raytracing_pass> rtPass;

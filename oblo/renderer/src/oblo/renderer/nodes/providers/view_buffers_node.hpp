@@ -18,11 +18,11 @@ namespace oblo
         data<vec2u> inResolution;
         data<camera_buffer> inCameraData;
         data<time_buffer> inTimeData;
-        resource<buffer> inMeshDatabase;
-        resource<buffer> outCameraBuffer;
-        resource<buffer> outTimeBuffer;
+        pin::buffer inMeshDatabase;
+        pin::buffer outCameraBuffer;
+        pin::buffer outTimeBuffer;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
         data_sink<camera_buffer> outCameraDataSink;

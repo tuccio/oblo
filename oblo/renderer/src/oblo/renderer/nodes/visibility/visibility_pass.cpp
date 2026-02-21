@@ -74,7 +74,7 @@ namespace oblo
             const u8 writeDepthIndex = outputIndex;
             const u8 readDepthIndex = 1 - outputIndex;
 
-            const resource<texture> depthBuffers[] = {
+            const pin::texture depthBuffers[] = {
                 depthBuffer0,
                 depthBuffer1,
             };

@@ -22,31 +22,31 @@ namespace oblo
 
         data_sink<light_visibility_event> inShadowSink;
 
-        resource<buffer> inCameraBuffer;
-        resource<buffer> inSkyboxSettingsBuffer;
+        pin::buffer inCameraBuffer;
+        pin::buffer inSkyboxSettingsBuffer;
 
-        resource<buffer> inLightBuffer;
-        resource<buffer> inLightConfig;
+        pin::buffer inLightBuffer;
+        pin::buffer inLightConfig;
 
-        resource<buffer> inSurfelsGrid;
-        resource<buffer> inSurfelsGridData;
-        resource<buffer> inSurfelsData;
-        resource<buffer> inSurfelsLightingData;
-        resource<buffer> inOutSurfelsLastUsage;
+        pin::buffer inSurfelsGrid;
+        pin::buffer inSurfelsGridData;
+        pin::buffer inSurfelsData;
+        pin::buffer inSurfelsLightingData;
+        pin::buffer inOutSurfelsLastUsage;
 
         // We might not use it for now, but we still forward it to debug views
-        resource<buffer> inSurfelsLightEstimatorData;
+        pin::buffer inSurfelsLightEstimatorData;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> inVisibilityBuffer;
-        resource<texture> inAmbientOcclusion;
-        resource<texture> outShadedImage;
+        pin::texture inVisibilityBuffer;
+        pin::texture inAmbientOcclusion;
+        pin::texture outShadedImage;
 
-        resource<buffer> outShadowMaps;
+        pin::buffer outShadowMaps;
 
         h32<compute_pass> lightingPass;
         h32<compute_pass_instance> lightingPassInstance;
@@ -65,15 +65,15 @@ namespace oblo
         data<vec2u> inResolution;
         data<visibility_debug_mode> inDebugMode;
 
-        resource<buffer> inCameraBuffer;
+        pin::buffer inCameraBuffer;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> inVisibilityBuffer;
-        resource<texture> outShadedImage;
+        pin::texture inVisibilityBuffer;
+        pin::texture outShadedImage;
 
         h32<compute_pass> debugPass;
         h32<compute_pass_instance> debugPassInstance;

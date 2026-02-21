@@ -18,12 +18,12 @@ namespace oblo
         data<std::span<draw_buffer_data>> inDrawBufferData;
         data<render_world> inRenderWorld;
 
-        data<std::span<resource<buffer>>> outDrawCallBuffer;
+        data<std::span<pin::buffer>> outDrawCallBuffer;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
         void init(const frame_graph_init_context& context);
 

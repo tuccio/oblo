@@ -20,8 +20,8 @@ namespace oblo
 
     struct frustum_culling_data
     {
-        resource<buffer> configBuffer;
-        resource<buffer> srcDrawCommands;
+        pin::buffer configBuffer;
+        pin::buffer srcDrawCommands;
     };
 
     void frustum_culling::init(const frame_graph_init_context& ctx)

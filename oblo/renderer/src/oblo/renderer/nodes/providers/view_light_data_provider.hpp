@@ -11,12 +11,12 @@ namespace oblo
     struct view_light_data_provider
     {
         data<std::span<const light_data>> inLights;
-        resource<buffer> inSkyboxSettingsBuffer;
+        pin::buffer inSkyboxSettingsBuffer;
 
-        resource<buffer> inLightBuffer;
-        resource<buffer> inLightConfig;
+        pin::buffer inLightBuffer;
+        pin::buffer inLightConfig;
 
-        resource<buffer> inSurfelsGrid;
-        resource<buffer> inSurfelsData;
+        pin::buffer inSurfelsGrid;
+        pin::buffer inSurfelsData;
     };
 }

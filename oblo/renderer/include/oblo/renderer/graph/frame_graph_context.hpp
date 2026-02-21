@@ -30,10 +30,7 @@ namespace oblo
     struct flags;
 
     struct vec2u;
-}
 
-namespace oblo
-{
     struct gpu_info;
     struct texture_init_desc;
 
@@ -74,51 +71,50 @@ namespace oblo
 
         h32<empty_pass_instance> empty_pass() const;
 
-        void create(
-            resource<texture> texture, const texture_resource_initializer& initializer, texture_usage usage) const;
+        void create(pin::texture texture, const texture_resource_initializer& initializer, texture_usage usage) const;
 
-        void create(resource<buffer> buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const;
+        void create(pin::buffer buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const;
 
-        void create(resource<buffer> buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
+        void create(pin::buffer buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
 
         h32<retained_texture> create_retained_texture(const texture_resource_initializer& initializer,
             flags<texture_usage> usages) const;
 
         void destroy_retained_texture(h32<retained_texture> handle) const;
 
-        resource<texture> get_resource(h32<retained_texture> texture) const;
+        pin::texture get_resource(h32<retained_texture> texture) const;
 
-        void register_texture(resource<texture> resource, h32<texture> externalTexture) const;
+        void register_texture(pin::texture resource, h32<texture> externalTexture) const;
 
         // Temporary solution until the acceleration structure is a proper resource.
         void register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const;
 
-        void acquire(resource<texture> texture, texture_usage usage) const;
+        void acquire(pin::texture texture, texture_usage usage) const;
 
-        h32<resident_texture> acquire_bindless(resource<texture> texture, texture_usage usage) const;
+        h32<resident_texture> acquire_bindless(pin::texture texture, texture_usage usage) const;
 
         h32<resident_texture> load_resource(const resource_ptr<oblo::texture>& texture) const;
 
-        void acquire(resource<buffer> buffer, buffer_usage usage) const;
+        void acquire(pin::buffer buffer, buffer_usage usage) const;
 
-        void reroute(resource<buffer> source, resource<buffer> destination) const;
-        void reroute(resource<texture> source, resource<texture> destination) const;
+        void reroute(pin::buffer source, pin::buffer destination) const;
+        void reroute(pin::texture source, pin::texture destination) const;
 
         /// @brief Determines whether the pin contributes to a frame graph output.
         /// @remarks Nodes might decide to skip some computation if certain nodes don't contribute to any frame graph
         /// output.
-        bool is_active_output(resource<texture> texture) const;
+        bool is_active_output(pin::texture texture) const;
 
         /// @brief Determines whether the pin has an incoming edge.
-        bool has_source(resource<buffer> buffer) const;
+        bool has_source(pin::buffer buffer) const;
 
         /// @brief Determines whether the pin has an incoming edge.
-        bool has_source(resource<texture> texture) const;
+        bool has_source(pin::texture texture) const;
 
-        [[nodiscard]] resource<buffer> create_dynamic_buffer(const buffer_resource_initializer& initializer,
+        [[nodiscard]] pin::buffer create_dynamic_buffer(const buffer_resource_initializer& initializer,
             buffer_usage usage) const;
 
-        [[nodiscard]] resource<buffer> create_dynamic_buffer(const staging_buffer_span& stagedData,
+        [[nodiscard]] pin::buffer create_dynamic_buffer(const staging_buffer_span& stagedData,
             buffer_usage usage) const;
 
         template <typename T>
@@ -147,7 +143,7 @@ namespace oblo
             a->push_back(value);
         }
 
-        expected<texture_init_desc> get_current_initializer(resource<texture> texture) const;
+        expected<texture_init_desc> get_current_initializer(pin::texture texture) const;
 
         frame_allocator& get_frame_allocator() const;
 
@@ -169,7 +165,7 @@ namespace oblo
         bool is_recording_metrics() const;
 
         template <typename T>
-        void register_metrics_buffer(resource<buffer> b) const
+        void register_metrics_buffer(pin::buffer b) const
         {
             register_metrics_buffer(get_type_id<T>(), b);
         }
@@ -179,7 +175,7 @@ namespace oblo
 
         bool has_event_impl(const type_id& type) const;
 
-        void register_metrics_buffer(const type_id& type, resource<buffer> b) const;
+        void register_metrics_buffer(const type_id& type, pin::buffer b) const;
 
     private:
         frame_graph_impl& m_frameGraph;
@@ -190,8 +186,9 @@ namespace oblo
     class frame_graph_execute_context
     {
     public:
-        explicit frame_graph_execute_context(
-            const frame_graph_impl& frameGraph, frame_graph_execution_state& executeCtx, const frame_graph_execute_args& args);
+        explicit frame_graph_execute_context(const frame_graph_impl& frameGraph,
+            frame_graph_execution_state& executeCtx,
+            const frame_graph_execute_args& args);
 
         void begin_pass(h32<frame_graph_pass> handle) const;
 
@@ -209,7 +206,7 @@ namespace oblo
 
         void bind_descriptor_sets(binding_tables_span bindingTables) const;
 
-        void bind_index_buffer(resource<buffer> buffer, u32 bufferOffset, mesh_index_type indexType) const;
+        void bind_index_buffer(pin::buffer buffer, u32 bufferOffset, mesh_index_type indexType) const;
 
         template <typename T>
         T& access(data<T> data) const
@@ -226,36 +223,36 @@ namespace oblo
         resource<acceleration_structure> get_global_tlas() const;
 
         /// @brief Determines whether the pin has an incoming edge.
-        bool has_source(resource<buffer> buffer) const;
+        bool has_source(pin::buffer buffer) const;
 
         /// @brief Determines whether the pin has an incoming edge.
-        bool has_source(resource<texture> texture) const;
+        bool has_source(pin::texture texture) const;
 
         /// @brief Queries the number of frames a stable texture has been alive for.
         /// On the first frame of usage the function will return 0.
         /// For transient textures it will always return 0.
         /// @param texture A valid texture resource.
-        u32 get_frames_alive_count(resource<texture> texture) const;
+        u32 get_frames_alive_count(pin::texture texture) const;
 
         /// @brief Queries the number of frames a stable buffer has been alive for.
         /// On the first frame of usage the function will return 0.
         /// For transient buffers it will always return 0.
         /// @param buffer A valid buffer resource.
-        u32 get_frames_alive_count(resource<buffer> buffer) const;
+        u32 get_frames_alive_count(pin::buffer buffer) const;
 
         u32 get_current_frames_count() const;
 
         // TODO: This should probably be deprecated, it would be hard to make this thread-safe, staging should happen
         // when building instead.
-        void upload(resource<buffer> h, std::span<const byte> data, u32 bufferOffset = 0) const;
+        void upload(pin::buffer h, std::span<const byte> data, u32 bufferOffset = 0) const;
 
-        void upload(resource<buffer> h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
+        void upload(pin::buffer h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
 
-        void upload(resource<texture> h, const staging_buffer_span& data) const;
+        void upload(pin::texture h, const staging_buffer_span& data) const;
 
-        async_download download(resource<buffer> h) const;
+        async_download download(pin::buffer h) const;
 
-        u64 get_device_address(resource<buffer> buffer) const;
+        u64 get_device_address(pin::buffer buffer) const;
 
         template <typename T>
         bool has_event() const
@@ -274,23 +271,23 @@ namespace oblo
 
         void draw_indexed(u32 indexCount, u32 instanceCount, u32 firstIndex, u32 vertexOffset, u32 firstInstance) const;
 
-        void draw_mesh_tasks_indirect_count(resource<buffer> drawCallBuffer,
+        void draw_mesh_tasks_indirect_count(pin::buffer drawCallBuffer,
             u32 drawCallBufferOffset,
-            resource<buffer> drawCallCountBuffer,
+            pin::buffer drawCallCountBuffer,
             u32 drawCallCountBufferOffset,
             u32 maxDrawCount) const;
 
-        void blit_color(resource<texture> srcTexture, resource<texture> dstTexture) const;
+        void blit_color(pin::texture srcTexture, pin::texture dstTexture) const;
 
-        vec2u get_resolution(resource<texture> h) const;
+        vec2u get_resolution(pin::texture h) const;
 
         bool is_recording_metrics() const;
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
-        buffer access(resource<buffer> h) const;
-        texture access(resource<texture> h) const;
+        buffer access(pin::buffer h) const;
+        texture access(pin::texture h) const;
 
         bool has_event_impl(const type_id& type) const;
 

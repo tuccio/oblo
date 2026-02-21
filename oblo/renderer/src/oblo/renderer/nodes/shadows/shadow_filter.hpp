@@ -10,18 +10,18 @@ namespace oblo
 {
     struct shadow_filter
     {
-        resource<texture> inSource;
+        pin::texture inSource;
 
-        resource<buffer> inCameraBuffer;
+        pin::buffer inCameraBuffer;
 
-        resource<buffer> inMeshDatabase;
+        pin::buffer inMeshDatabase;
 
-        resource<buffer> inInstanceTables;
+        pin::buffer inInstanceTables;
         data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        resource<texture> inVisibilityBuffer;
+        pin::texture inVisibilityBuffer;
 
-        resource<texture> outFiltered;
+        pin::texture outFiltered;
 
         data<raytraced_shadow_config> inConfig;
 

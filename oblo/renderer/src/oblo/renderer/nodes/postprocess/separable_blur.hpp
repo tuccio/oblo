@@ -22,9 +22,9 @@ namespace oblo
     {
         static constexpr u32 groupSize = 64;
 
-        resource<texture> inSource;
-        resource<texture> inOutIntermediate;
-        resource<texture> outBlurred;
+        pin::texture inSource;
+        pin::texture inOutIntermediate;
+        pin::texture outBlurred;
 
         data<Config> inConfig;
 

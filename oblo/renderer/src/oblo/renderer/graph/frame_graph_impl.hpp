@@ -191,7 +191,7 @@ namespace oblo
     struct frame_graph_bindless_texture
     {
         h32<resident_texture> resident;
-        resource<texture> texture;
+        pin::texture texture;
         texture_usage usage;
     };
 
@@ -244,7 +244,7 @@ namespace oblo
     struct frame_graph_metrics
     {
         type_id type;
-        resource<buffer> buffer;
+        pin::buffer buffer;
     };
 
     struct frame_graph_retained_texture_desc
@@ -329,30 +329,30 @@ namespace oblo
     public: // API for contexts
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
-        void add_transient_resource(resource<texture> handle, h32<transient_texture_resource> transientTexture);
-        void add_resource_transition(resource<texture> handle, texture_usage usage);
+        void add_transient_resource(pin::texture handle, h32<transient_texture_resource> transientTexture);
+        void add_resource_transition(pin::texture handle, texture_usage usage);
 
-        h32<transient_texture_resource> find_pool_index(resource<texture> handle) const;
-        h32<transient_buffer_resource> find_pool_index(resource<buffer> handle) const;
+        h32<transient_texture_resource> find_pool_index(pin::texture handle) const;
+        h32<transient_buffer_resource> find_pool_index(pin::buffer handle) const;
 
         void add_transient_buffer(
-            resource<buffer> handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload);
+            pin::buffer handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload);
 
-        void set_buffer_access(resource<buffer> handle,
+        void set_buffer_access(pin::buffer handle,
             VkPipelineStageFlags2 pipelineStage,
             VkAccessFlags2 access,
             buffer_access_kind,
             bool uploadedTo);
 
-        void add_download(resource<buffer> handle);
+        void add_download(pin::buffer handle);
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 
         h32<frame_graph_pin_storage> create_retained_texture(vulkan_context& ctx, const image_initializer& initializer);
         void destroy_retained_texture(vulkan_context& ctx, h32<frame_graph_pin_storage> handle);
 
-        const frame_graph_node* get_owner_node(resource<buffer> buffer) const;
-        const frame_graph_node* get_owner_node(resource<texture> texture) const;
+        const frame_graph_node* get_owner_node(pin::buffer buffer) const;
+        const frame_graph_node* get_owner_node(pin::texture texture) const;
 
         void reroute(h32<frame_graph_pin_storage> oldRoute, h32<frame_graph_pin_storage> newRoute);
 
@@ -361,7 +361,7 @@ namespace oblo
 
         void begin_pass_execution(h32<frame_graph_pass> pass, frame_graph_execution_state& state) const;
 
-        void add_metrics_download(const type_id& typeId, resource<buffer> b);
+        void add_metrics_download(const type_id& typeId, pin::buffer b);
         bool is_recording_metrics() const;
 
     public: // Utility

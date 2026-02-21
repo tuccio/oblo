@@ -14,7 +14,7 @@ namespace oblo
         data<copy_texture_info> inTarget;
         h32<transfer_pass_instance> copyPassInstance;
 
-        resource<texture> inSource;
+        pin::texture inSource;
 
         void build(const frame_graph_build_context& ctx)
         {

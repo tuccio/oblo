@@ -9,7 +9,7 @@ namespace oblo
     struct ecs_entity_set_provider
     {
         data<render_world> inRenderWorld;
-        resource<buffer> outEntitySet;
+        pin::buffer outEntitySet;
         h32<transfer_pass_instance> uploadPass;
 
         std::span<const staging_buffer_span> stagedData;

@@ -41,7 +41,7 @@ namespace oblo
             return;
         }
 
-        drawCallBuffer = allocate_n_span<resource<buffer>>(ctx.get_frame_allocator(), drawBufferData.size());
+        drawCallBuffer = allocate_n_span<pin::buffer>(ctx.get_frame_allocator(), drawBufferData.size());
 
         for (usize i = 0; i < drawBufferData.size(); ++i)
         {

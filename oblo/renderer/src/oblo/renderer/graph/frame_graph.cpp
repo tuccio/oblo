@@ -940,7 +940,7 @@ namespace oblo
         state.currentPass = passId;
     }
 
-    void frame_graph_impl::add_metrics_download(const type_id& typeId, resource<buffer> b)
+    void frame_graph_impl::add_metrics_download(const type_id& typeId, pin::buffer b)
     {
         pendingMetrics.emplace_back(typeId, b);
     }
@@ -1096,7 +1096,7 @@ namespace oblo
         return m_impl->emptyEvents.contains(type);
     }
 
-    void frame_graph_impl::add_transient_resource(resource<texture> handle,
+    void frame_graph_impl::add_transient_resource(pin::texture handle,
         h32<transient_texture_resource> transientTexture)
     {
         const auto storage = to_storage_handle(handle);
@@ -1104,26 +1104,26 @@ namespace oblo
         pinStorage.at(storage).transientTexture = transientTexture;
     }
 
-    void frame_graph_impl::add_resource_transition(resource<texture> handle, texture_usage usage)
+    void frame_graph_impl::add_resource_transition(pin::texture handle, texture_usage usage)
     {
         const auto storage = to_storage_handle(handle);
         textureTransitions.emplace_back(storage, usage);
     }
 
-    h32<transient_texture_resource> frame_graph_impl::find_pool_index(resource<texture> handle) const
+    h32<transient_texture_resource> frame_graph_impl::find_pool_index(pin::texture handle) const
     {
         const auto storage = to_storage_handle(handle);
         return pinStorage.at(storage).transientTexture;
     }
 
-    h32<transient_buffer_resource> frame_graph_impl::find_pool_index(resource<buffer> handle) const
+    h32<transient_buffer_resource> frame_graph_impl::find_pool_index(pin::buffer handle) const
     {
         const auto storage = to_storage_handle(handle);
         return pinStorage.at(storage).transientBuffer;
     }
 
     void frame_graph_impl::add_transient_buffer(
-        resource<buffer> handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload)
+        pin::buffer handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload)
     {
         const auto storage = to_storage_handle(handle);
         transientBuffers.emplace_back(storage, transientBuffer);
@@ -1135,7 +1135,7 @@ namespace oblo
         }
     }
 
-    void frame_graph_impl::set_buffer_access(resource<buffer> handle,
+    void frame_graph_impl::set_buffer_access(pin::buffer handle,
         VkPipelineStageFlags2 pipelineStage,
         VkAccessFlags2 access,
         buffer_access_kind accessKind,
@@ -1155,7 +1155,7 @@ namespace oblo
         });
     }
 
-    void frame_graph_impl::add_download(resource<buffer> handle)
+    void frame_graph_impl::add_download(pin::buffer handle)
     {
         auto& bufferDownload = bufferDownloads.emplace_back();
         bufferDownload.pinStorage = to_storage_handle(handle);
@@ -1271,7 +1271,7 @@ namespace oblo
         }
     }
 
-    const frame_graph_node* frame_graph_impl::get_owner_node(resource<buffer> buffer) const
+    const frame_graph_node* frame_graph_impl::get_owner_node(pin::buffer buffer) const
     {
         const auto storage = to_storage_handle(buffer);
         const auto owner = pinStorage.at(storage).owner;
@@ -1280,7 +1280,7 @@ namespace oblo
         return &nodes.at(nodeHandle);
     }
 
-    const frame_graph_node* frame_graph_impl::get_owner_node(resource<texture> texture) const
+    const frame_graph_node* frame_graph_impl::get_owner_node(pin::texture texture) const
     {
         const auto storage = to_storage_handle(texture);
         const auto owner = pinStorage.at(storage).owner;

@@ -7,8 +7,8 @@ namespace oblo
 {
     struct draw_buffer_data
     {
-        resource<buffer> drawCallCountBuffer;
-        resource<buffer> preCullingIdMap;
+        pin::buffer drawCallCountBuffer;
+        pin::buffer preCullingIdMap;
         batch_draw_data sourceData;
     };
 }

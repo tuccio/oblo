@@ -13,11 +13,11 @@ namespace oblo
         data<vec2u> inResolution;
         data<raytraced_shadow_config> inConfig;
 
-        resource<buffer> inCameraBuffer;
-        resource<buffer> inLightBuffer;
+        pin::buffer inCameraBuffer;
+        pin::buffer inLightBuffer;
 
-        resource<texture> inDepthBuffer;
-        resource<texture> outShadow;
+        pin::texture inDepthBuffer;
+        pin::texture outShadow;
 
         h32<raytracing_pass> shadowPass;
         h32<raytracing_pass_instance> shadowPassInstance;

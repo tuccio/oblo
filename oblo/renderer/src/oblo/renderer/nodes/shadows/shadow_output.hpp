@@ -10,7 +10,7 @@ namespace oblo
     {
         data<raytraced_shadow_config> inConfig;
 
-        resource<texture> outShadow;
+        pin::texture outShadow;
         data_sink<light_visibility_event> outShadowSink;
 
         void build(const frame_graph_build_context& builder);
