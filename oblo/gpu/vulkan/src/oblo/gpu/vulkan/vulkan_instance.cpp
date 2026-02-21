@@ -187,6 +187,8 @@ namespace oblo::gpu::vk
 
     void vulkan_instance::shutdown()
     {
+        m_allocator.shutdown();
+
         if (m_device)
         {
             vkDestroyDevice(m_device, nullptr);
@@ -643,7 +645,7 @@ namespace oblo::gpu::vk
 
         const usize numRemainingBuffers = poolImpl.commandBuffers.size() - poolImpl.currentyUsedBuffers;
 
-        if (commandBuffers.size() < numRemainingBuffers)
+        if (numRemainingBuffers < commandBuffers.size())
         {
             return error::not_enough_command_buffers;
         }

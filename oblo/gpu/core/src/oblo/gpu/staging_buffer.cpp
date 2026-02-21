@@ -16,7 +16,7 @@ namespace oblo::gpu
     {
         constexpr u32 InvalidTimelineId{0u};
 
-        staging_buffer_span make_subspan(const staging_buffer_span& destination, u32 offset)
+        staging_buffer_span make_subspan(const staging_buffer_span& destination, u64 offset)
         {
             staging_buffer_span subspan = destination;
             subspan.segments[0].begin += offset;
@@ -52,8 +52,8 @@ namespace oblo::gpu
 
         const buffer_descriptor desc{
             .size = size,
-            .memoryFlags = memory_requirement::host_visible,
-            .usages = buffer_usage::storage_upload | buffer_usage::download,
+            .memoryFlags = flags{memory_requirement::host_visible},
+            .usages = buffer_usage::transfer_source | buffer_usage::transfer_destination | buffer_usage::storage,
         };
 
         const expected buffer = gpu.create_buffer(desc);
@@ -91,7 +91,7 @@ namespace oblo::gpu
         {
             if (m_impl.memoryMap)
             {
-                m_impl.gpu->memory_unmap(m_impl.buffer);
+                m_impl.gpu->memory_unmap(m_impl.buffer).assert_value();
             }
 
             m_impl.gpu->destroy_buffer(m_impl.buffer);
@@ -120,8 +120,8 @@ namespace oblo::gpu
             OBLO_ASSERT(m_impl.ring.used_count() ==
                 std::accumulate(m_impl.submittedUploads.begin(),
                     m_impl.submittedUploads.end(),
-                    0u,
-                    [](u32 v, const auto& upload) { return upload.size + v; }))
+                    u64{},
+                    [](u64 v, const auto& upload) { return upload.size + v; }))
         }
 
         m_impl.pendingBytes = 0;
@@ -155,7 +155,7 @@ namespace oblo::gpu
         return staging_buffer_span{segmentedSpan};
     }
 
-    expected<staging_buffer_span> staging_buffer::stage_allocate_contiguous_aligned(u64 size, u32 alignment)
+    expected<staging_buffer_span> staging_buffer::stage_allocate_contiguous_aligned(u64 size, u64 alignment)
     {
         const auto available = m_impl.ring.available_count();
 
@@ -190,13 +190,13 @@ namespace oblo::gpu
 
     expected<staging_buffer_span> staging_buffer::stage(std::span<const byte> source)
     {
-        const u32 srcSize = narrow_cast<u32>(source.size());
+        const usize srcSize = source.size();
 
         const auto segmentedSpan = stage_allocate(srcSize);
 
         if (segmentedSpan)
         {
-            u32 segmentOffset{0u};
+            u64 segmentOffset{0u};
 
             for (const auto& segment : segmentedSpan->segments)
             {
@@ -218,7 +218,7 @@ namespace oblo::gpu
     expected<staging_buffer_span> staging_buffer::stage_image(std::span<const byte> source, u32 texelSize)
     {
         auto* const srcPtr = source.data();
-        const auto srcSize = narrow_cast<u32>(source.size());
+        const usize srcSize = source.size();
 
         const u32 alignment = max(m_impl.optimalBufferCopyOffsetAlignment, texelSize);
 
@@ -238,16 +238,16 @@ namespace oblo::gpu
         return result;
     }
 
-    void staging_buffer::copy_to(staging_buffer_span destination, u32 offset, std::span<const byte> source)
+    void staging_buffer::copy_to(staging_buffer_span destination, u64 offset, std::span<const byte> source)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(destination, offset);
 
         // Finally try to copy
-        u32 remaining = u32(source.size());
+        u64 remaining = u32(source.size());
         auto* sourcePtr = source.data();
 
-        for (u32 segmentIndex = 0; segmentIndex < 2 && remaining > 0; ++segmentIndex)
+        for (u64 segmentIndex = 0; segmentIndex < 2 && remaining > 0; ++segmentIndex)
         {
             const auto& segment = subspan.segments[segmentIndex];
 
@@ -265,16 +265,16 @@ namespace oblo::gpu
         OBLO_ASSERT(remaining == 0);
     }
 
-    void staging_buffer::copy_from(std::span<byte> dst, staging_buffer_span source, u32 offset)
+    void staging_buffer::copy_from(std::span<byte> dst, staging_buffer_span source, u64 offset)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(source, offset);
 
         // Finally try to copy
-        u32 remaining = u32(dst.size());
+        u64 remaining = dst.size();
         auto* dstPtr = dst.data();
 
-        for (u32 segmentIndex = 0; segmentIndex < 2 && remaining > 0; ++segmentIndex)
+        for (u64 segmentIndex = 0; segmentIndex < 2 && remaining > 0; ++segmentIndex)
         {
             const auto& segment = subspan.segments[segmentIndex];
 
@@ -301,7 +301,7 @@ namespace oblo::gpu
         buffer_copy_descriptor copyRegions[2];
         u32 regionsCount{0u};
 
-        u32 segmentOffset{0u};
+        u64 segmentOffset{0u};
 
         for (const auto& segment : source.segments)
         {
@@ -332,7 +332,7 @@ namespace oblo::gpu
     }
 
     void staging_buffer::download(
-        hptr<command_buffer> commandBuffer, h32<buffer> buffer, u32 bufferOffset, staging_buffer_span destination) const
+        hptr<command_buffer> commandBuffer, h32<buffer> buffer, u64 bufferOffset, staging_buffer_span destination) const
     {
         OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
         OBLO_ASSERT(calculate_size(destination) > 0);
@@ -340,7 +340,7 @@ namespace oblo::gpu
         buffer_copy_descriptor copyRegions[2];
         u32 regionsCount{0u};
 
-        u32 segmentOffset{0u};
+        u64 segmentOffset{0u};
 
         for (const auto& segment : destination.segments)
         {
@@ -383,7 +383,7 @@ namespace oblo::gpu
         }
     }
 
-    u32 calculate_size(const staging_buffer_span& span)
+    u64 calculate_size(const staging_buffer_span& span)
     {
         return (span.segments[0].end - span.segments[0].begin) + (span.segments[1].end - span.segments[1].begin);
     }

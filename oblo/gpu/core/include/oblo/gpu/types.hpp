@@ -28,14 +28,13 @@ namespace oblo::gpu
 
     enum class buffer_usage : u8
     {
-        storage_read,
-        storage_write,
-        /// @brief This means the buffer is not actually used on GPU in this node, just uploaded on.
-        storage_upload,
+        storage,
         uniform,
-        indirect,
-        download,
+        vertex,
         index,
+        indirect,
+        transfer_source,
+        transfer_destination,
         enum_max,
     };
 

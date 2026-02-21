@@ -12,7 +12,7 @@
 
 namespace oblo::gpu
 {
-    struct staging_buffer_span : ring_buffer_tracker<u32>::segmented_span
+    struct staging_buffer_span : ring_buffer_tracker<u64>::segmented_span
     {
     };
 
@@ -42,8 +42,8 @@ namespace oblo::gpu
 
         expected<staging_buffer_span> stage_image(std::span<const byte> source, u32 texelSize);
 
-        void copy_to(staging_buffer_span destination, u32 destinationOffset, std::span<const byte> source);
-        void copy_from(std::span<byte> destination, staging_buffer_span source, u32 sourceOffset);
+        void copy_to(staging_buffer_span destination, u64 destinationOffset, std::span<const byte> source);
+        void copy_from(std::span<byte> destination, staging_buffer_span source, u64 sourceOffset);
 
         void upload(
             hptr<command_buffer> commandBuffer, staging_buffer_span source, h32<buffer> buffer, u64 bufferOffset) const;
@@ -53,13 +53,13 @@ namespace oblo::gpu
             std::span<const buffer_image_copy_descriptor> copies) const;
 
         void download(
-            hptr<command_buffer> commandBuffer, h32<buffer> buffer, u32 bufferOffset, staging_buffer_span source) const;
+            hptr<command_buffer> commandBuffer, h32<buffer> buffer, u64 bufferOffset, staging_buffer_span source) const;
 
         result<> invalidate_memory_ranges();
 
     private:
         expected<staging_buffer_span> stage_allocate_internal(u64 size);
-        expected<staging_buffer_span> stage_allocate_contiguous_aligned(u64 size, u32 alignment);
+        expected<staging_buffer_span> stage_allocate_contiguous_aligned(u64 size, u64 alignment);
 
         void free_submissions(u64 timelineId);
 
@@ -73,8 +73,8 @@ namespace oblo::gpu
         struct impl
         {
             gpu_instance* gpu;
-            ring_buffer_tracker<u32> ring;
-            u32 pendingBytes;
+            ring_buffer_tracker<u64> ring;
+            u64 pendingBytes;
             u32 optimalBufferCopyOffsetAlignment;
             h32<buffer> buffer;
             byte* memoryMap;
@@ -86,5 +86,5 @@ namespace oblo::gpu
         impl m_impl{};
     };
 
-    u32 calculate_size(const staging_buffer_span& span);
+    u64 calculate_size(const staging_buffer_span& span);
 }

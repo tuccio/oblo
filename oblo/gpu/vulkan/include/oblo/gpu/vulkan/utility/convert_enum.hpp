@@ -97,22 +97,26 @@ namespace oblo::gpu::vk
 
         switch (usage)
         {
-        case buffer_usage::storage_read:
-        case buffer_usage::storage_write:
-        case buffer_usage::storage_upload:
+        case buffer_usage::storage:
             return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-        case buffer_usage::indirect:
-            return VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 
         case buffer_usage::uniform:
             return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-        case buffer_usage::download:
-            return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        case buffer_usage::vertex:
+            return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
         case buffer_usage::index:
             return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+        case buffer_usage::indirect:
+            return VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+
+        case buffer_usage::transfer_source:
+            return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+        case buffer_usage::transfer_destination:
+            return VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
         default:
             unreachable();

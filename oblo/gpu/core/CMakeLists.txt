@@ -7,4 +7,5 @@ target_link_libraries(
     oblo_gpu_core
     PUBLIC
     oblo::core
+    oblo::gpu::vulkan
 )
