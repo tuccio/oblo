@@ -10,6 +10,9 @@
 #include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 
+#define OBLO_VK_LOAD_FN(name) PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
+#define OBLO_VK_LOAD_FN_ASSIGN(loader, name) (loader.name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name)))
+
 namespace oblo::gpu::vk
 {
     namespace
@@ -110,6 +113,21 @@ namespace oblo::gpu::vk
         }
     }
 
+    template <typename T>
+    void vulkan_instance::label_vulkan_object(T obj, const debug_label& label)
+    {
+        if (label.empty())
+        {
+#ifndef NDEBUG
+            m_labelHelper.set_object_name(m_device, obj, "Unnamed object");
+#endif
+
+            return;
+        }
+
+        m_labelHelper.set_object_name(m_device, obj, label.get());
+    }
+
     struct vulkan_instance::buffer_impl : vk::allocated_buffer
     {
     };
@@ -182,7 +200,16 @@ namespace oblo::gpu::vk
             .ppEnabledExtensionNames = g_instanceExtensions,
         };
 
-        return translate_result(vkCreateInstance(&instanceInfo, nullptr, &m_instance));
+        const VkResult instanceResult = vkCreateInstance(&instanceInfo, nullptr, &m_instance);
+
+        if (instanceResult != VK_SUCCESS)
+        {
+            translate_error(instanceResult);
+        }
+
+        OBLO_VK_LOAD_FN_ASSIGN(m_labelHelper, vkSetDebugUtilsObjectNameEXT);
+
+        return no_error;
     }
 
     void vulkan_instance::shutdown()
@@ -681,6 +708,7 @@ namespace oblo::gpu::vk
         vk::allocated_buffer_initializer initializer{
             .size = descriptor.size,
             .usage = vk::convert_enum_flags(descriptor.usages),
+            .debugLabel = descriptor.debugLabel,
         };
 
         descriptor.memoryFlags.visit(overload{
@@ -712,6 +740,8 @@ namespace oblo::gpu::vk
         {
             return translate_error(r);
         }
+
+        label_vulkan_object(allocatedBuffer.buffer, descriptor.debugLabel);
 
         const auto [it, h] = m_buffers.emplace(allocatedBuffer);
         return h;
@@ -758,6 +788,7 @@ namespace oblo::gpu::vk
                 .tiling = VK_IMAGE_TILING_OPTIMAL,
                 .usage = vk::convert_enum_flags(descriptor.usages),
                 .memoryUsage = vk::allocated_memory_usage(descriptor.memoryUsage),
+                .debugLabel = descriptor.debugLabel,
             },
             &allocatedImage);
 
@@ -765,6 +796,8 @@ namespace oblo::gpu::vk
         {
             return translate_error(r);
         }
+
+        label_vulkan_object(allocatedImage.image, descriptor.debugLabel);
 
         const auto [it, h] = m_images.emplace(allocatedImage);
 
@@ -779,6 +812,10 @@ namespace oblo::gpu::vk
             destroy_image(h);
             return view.error();
         }
+
+        it->view = *view;
+
+        label_vulkan_object(*view, descriptor.debugLabel);
 
         return h;
     }

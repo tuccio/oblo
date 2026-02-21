@@ -4,6 +4,7 @@
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
+#include <oblo/gpu/vulkan/utility/debug_utils.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -131,6 +132,9 @@ namespace oblo::gpu::vk
 
         const queue_impl& get_queue(h32<queue> queue) const;
 
+        template <typename T>
+        void label_vulkan_object(T obj, const debug_label& label);
+
     private:
         VkInstance m_instance{};
         VkPhysicalDevice m_physicalDevice{};
@@ -148,5 +152,7 @@ namespace oblo::gpu::vk
 
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};
+
+        debug_utils::object m_labelHelper{};
     };
 }
