@@ -2,6 +2,7 @@
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/finally.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
@@ -10,6 +11,7 @@
 #include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
+#include <oblo/gpu/vulkan/utility/vk_type_conversions.hpp>
 
 #define OBLO_VK_LOAD_FN(name) PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 #define OBLO_VK_LOAD_FN_ASSIGN(loader, name) (loader.name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name)))
@@ -177,6 +179,36 @@ namespace oblo::gpu::vk
         swapchain_wrapper<3u> swapchainWrapper;
         h32<image> images[3u];
         u32 acquiredImage{~0u};
+    };
+
+    // Pipelines
+
+    namespace
+    {
+        struct pipeline_base
+        {
+            VkPipeline pipeline;
+            VkPipelineLayout pipelineLayout;
+        };
+
+        void destroy_pipeline_base(const pipeline_base& p, VkDevice device, const VkAllocationCallbacks* allocationCbs)
+        {
+            if (p.pipelineLayout)
+            {
+                vkDestroyPipelineLayout(device, p.pipelineLayout, allocationCbs);
+            }
+
+            if (p.pipeline)
+            {
+                vkDestroyPipeline(device, p.pipeline, allocationCbs);
+            }
+        }
+    }
+
+    struct vulkan_instance::render_pipeline_impl final : pipeline_base
+    {
+        VkPipeline pipeline;
+        VkPipelineLayout pipelineLayout;
     };
 
     vulkan_instance::vulkan_instance() = default;
@@ -1113,21 +1145,225 @@ namespace oblo::gpu::vk
         m_samplers.erase(handle);
     }
 
-    result<h32<render_pipeline>> vulkan_instance::create_render_pipeline(const render_pipeline_descriptor& descriptor)
+    result<h32<render_pipeline>> vulkan_instance::create_render_pipeline(const render_pipeline_descriptor& desc)
     {
-        (void) descriptor;
-        return error::undefined;
+        const auto [newPipeline, handle] = m_renderPipelines.emplace();
+
+        auto cleanup = finally_if_not_cancelled([this, handle] { destroy_render_pipeline(handle); });
+
+        buffered_array<VkPipelineShaderStageCreateInfo, 4> stageCreateInfo;
+
+        for (const auto& stage : desc.stages)
+        {
+            const VkPipelineShaderStageCreateInfo info{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = convert_enum(stage.stage),
+                .module = unwrap_shader_module(stage.shaderModule),
+                .pName = stage.entryFunction ? stage.entryFunction : "main",
+            };
+
+            stageCreateInfo.emplace_back(info);
+        }
+
+        static_assert(sizeof(VkFormat) == sizeof(image_format), "We rely on this when reinterpret casting");
+
+        const u32 numAttachments = u32(desc.renderTargets.colorAttachmentFormats.size());
+
+        const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .colorAttachmentCount = numAttachments,
+            .pColorAttachmentFormats =
+                reinterpret_cast<const VkFormat*>(desc.renderTargets.colorAttachmentFormats.data()),
+            .depthAttachmentFormat = convert_to_vk(desc.renderTargets.depthFormat),
+            .stencilAttachmentFormat = convert_to_vk(desc.renderTargets.stencilFormat),
+        };
+
+        const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology = convert_to_vk(desc.primitiveTopology),
+            .primitiveRestartEnable = VK_FALSE,
+        };
+
+        buffered_array<VkVertexInputBindingDescription, 4> vertexInputBindingDescs;
+        vertexInputBindingDescs.reserve(desc.vertexInputBindings.size());
+
+        for (auto& binding : desc.vertexInputBindings)
+        {
+            vertexInputBindingDescs.push_back({
+                .binding = binding.binding,
+                .stride = binding.stride,
+                .inputRate = convert_enum(binding.inputRate),
+            });
+        }
+
+        buffered_array<VkVertexInputAttributeDescription, 4> vertexInputAttributes;
+        vertexInputBindingDescs.reserve(desc.vertexInputAttributes.size());
+
+        for (const auto& attribute : desc.vertexInputAttributes)
+        {
+            vertexInputAttributes.push_back({
+                .location = attribute.location,
+                .binding = attribute.binding,
+                .format = convert_enum(attribute.format),
+            });
+        }
+
+        const VkPipelineVertexInputStateCreateInfo vertexBufferInputInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = vertexInputBindingDescs.size32(),
+            .pVertexBindingDescriptions = vertexInputBindingDescs.data(),
+            .vertexAttributeDescriptionCount = vertexInputAttributes.size32(),
+            .pVertexAttributeDescriptions = vertexInputAttributes.data(),
+        };
+
+        constexpr VkPipelineViewportStateCreateInfo viewportState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .viewportCount = 1,
+            .scissorCount = 1,
+        };
+
+        const VkPipelineRasterizationStateCreateInfo rasterizer{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .flags = convert_to_vk(desc.rasterizationState.flags),
+            .depthClampEnable = desc.rasterizationState.depthClampEnable,
+            .rasterizerDiscardEnable = desc.rasterizationState.rasterizerDiscardEnable,
+            .polygonMode = convert_to_vk(desc.rasterizationState.polygonMode),
+            .cullMode = convert_to_vk(desc.rasterizationState.cullMode),
+            .frontFace = convert_to_vk(desc.rasterizationState.frontFace),
+            .depthBiasEnable = desc.rasterizationState.depthBiasEnable,
+            .depthBiasConstantFactor = desc.rasterizationState.depthBiasConstantFactor,
+            .depthBiasClamp = desc.rasterizationState.depthBiasClamp,
+            .depthBiasSlopeFactor = desc.rasterizationState.depthBiasSlopeFactor,
+            .lineWidth = desc.rasterizationState.lineWidth,
+
+        };
+
+        const VkPipelineMultisampleStateCreateInfo multisampling{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+            .minSampleShading = 1.f,
+        };
+
+        buffered_array<VkPipelineColorBlendAttachmentState, 8> colorBlendAttachments;
+        colorBlendAttachments.reserve(desc.renderTargets.blendStates.size());
+
+        for (auto& attachment : desc.renderTargets.blendStates)
+        {
+            colorBlendAttachments.push_back({
+                .blendEnable = attachment.enable,
+                .srcColorBlendFactor = convert_to_vk(attachment.srcColorBlendFactor),
+                .dstColorBlendFactor = convert_to_vk(attachment.dstColorBlendFactor),
+                .colorBlendOp = convert_to_vk(attachment.colorBlendOp),
+                .srcAlphaBlendFactor = convert_to_vk(attachment.srcAlphaBlendFactor),
+                .dstAlphaBlendFactor = convert_to_vk(attachment.dstAlphaBlendFactor),
+                .alphaBlendOp = convert_to_vk(attachment.alphaBlendOp),
+                .colorWriteMask = convert_to_vk(attachment.colorWriteMask),
+            });
+        }
+
+        const VkPipelineColorBlendStateCreateInfo colorBlending{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_COPY,
+            .attachmentCount = colorBlendAttachments.size32(),
+            .pAttachments = colorBlendAttachments.data(),
+            .blendConstants = {},
+        };
+
+        const VkPipelineDepthStencilStateCreateInfo depthStencil{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .flags = convert_to_vk(desc.depthStencilState.flags),
+            .depthTestEnable = desc.depthStencilState.depthTestEnable,
+            .depthWriteEnable = desc.depthStencilState.depthWriteEnable,
+            .depthCompareOp = convert_to_vk(desc.depthStencilState.depthCompareOp),
+            .depthBoundsTestEnable = desc.depthStencilState.depthBoundsTestEnable,
+            .stencilTestEnable = desc.depthStencilState.stencilTestEnable,
+            .front =
+                {
+                    .failOp = convert_to_vk(desc.depthStencilState.front.failOp),
+                    .passOp = convert_to_vk(desc.depthStencilState.front.passOp),
+                    .depthFailOp = convert_to_vk(desc.depthStencilState.front.depthFailOp),
+                    .compareOp = convert_to_vk(desc.depthStencilState.front.compareOp),
+                    .compareMask = desc.depthStencilState.front.compareMask,
+                    .writeMask = desc.depthStencilState.front.writeMask,
+                    .reference = desc.depthStencilState.front.reference,
+                },
+            .back =
+                {
+                    .failOp = convert_to_vk(desc.depthStencilState.back.failOp),
+                    .passOp = convert_to_vk(desc.depthStencilState.back.passOp),
+                    .depthFailOp = convert_to_vk(desc.depthStencilState.back.depthFailOp),
+                    .compareOp = convert_to_vk(desc.depthStencilState.back.compareOp),
+                    .compareMask = desc.depthStencilState.back.compareMask,
+                    .writeMask = desc.depthStencilState.back.writeMask,
+                    .reference = desc.depthStencilState.back.reference,
+                },
+            .minDepthBounds = desc.depthStencilState.minDepthBounds,
+            .maxDepthBounds = desc.depthStencilState.maxDepthBounds,
+        };
+
+        constexpr VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+
+        const VkPipelineDynamicStateCreateInfo dynamicState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = array_size32(dynamicStates),
+            .pDynamicStates = dynamicStates,
+        };
+
+        const VkGraphicsPipelineCreateInfo pipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &pipelineRenderingCreateInfo,
+            .stageCount = stageCreateInfo.size32(),
+            .pStages = stageCreateInfo.data(),
+            .pVertexInputState = &vertexBufferInputInfo,
+            .pInputAssemblyState = &inputAssembly,
+            .pViewportState = &viewportState,
+            .pRasterizationState = &rasterizer,
+            .pMultisampleState = &multisampling,
+            .pDepthStencilState = &depthStencil,
+            .pColorBlendState = &colorBlending,
+            .pDynamicState = &dynamicState,
+            .layout = newPipeline->pipelineLayout,
+            .renderPass = nullptr,
+            .subpass = 0,
+            .basePipelineHandle = nullptr,
+            .basePipelineIndex = -1,
+        };
+
+        const VkResult result = vkCreateGraphicsPipelines(m_device,
+            nullptr,
+            1,
+            &pipelineInfo,
+            m_allocator.get_allocation_callbacks(),
+            &newPipeline->pipeline);
+
+        if (result != VK_SUCCESS)
+        {
+            return translate_error(result);
+        }
+
+        label_vulkan_object(newPipeline->pipeline, desc.debugLabel);
+        label_vulkan_object(newPipeline->pipelineLayout, desc.debugLabel);
+
+        // Success
+        cleanup.cancel();
+
+        return handle;
     }
 
     void vulkan_instance::destroy_render_pipeline(h32<render_pipeline> handle)
     {
-        (void) handle;
+        auto& pipeline = m_renderPipelines.at(handle);
+        destroy_pipeline_base(pipeline, m_device, m_allocator.get_allocation_callbacks());
+        m_renderPipelines.erase(handle);
     }
 
-    result<> vulkan_instance::begin_render_pass(hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline)
+    result<> vulkan_instance::begin_render_pass(
+        hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline, const render_pass_descriptor& descriptor)
     {
         (void) cmdBuffer;
         (void) pipeline;
+        (void) descriptor;
         return error::undefined;
     }
 

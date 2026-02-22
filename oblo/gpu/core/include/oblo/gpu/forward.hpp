@@ -41,6 +41,8 @@ namespace oblo::gpu
     struct render_pipeline_descriptor;
     struct shader_module_descriptor;
     struct swapchain_descriptor;
+    struct vertex_input_binding_descriptor;
+    struct vertex_input_attribute_descriptor;
 
     struct device_info;
     struct device_limits;
@@ -57,7 +59,7 @@ namespace oblo::gpu
     enum class error;
 
     enum class buffer_usage : u8;
-    enum class image_format : u32;
+    enum class data_format : u32;
     enum class image_resource_state : u8;
     enum class image_usage : u8;
     enum class mesh_index_type : u8;
@@ -65,4 +67,7 @@ namespace oblo::gpu
     enum class pipeline_sync_stage : u8;
     enum class shader_module_format : u8;
     enum class shader_stage : u8;
+    enum class vertex_input_rate : u8;
+
+    using image_format = data_format;
 }

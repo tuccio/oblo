@@ -145,6 +145,7 @@ namespace oblo::gpu
     {
         shader_stage stage;
         h32<shader_module> shaderModule;
+        const char* entryFunction;
     };
 
     struct color_blend_attachment_state
@@ -211,10 +212,13 @@ namespace oblo::gpu
     struct render_pipeline_descriptor
     {
         std::span<const render_pipeline_stage> stages;
+        std::span<const vertex_input_binding_descriptor> vertexInputBindings;
+        std::span<const vertex_input_attribute_descriptor> vertexInputAttributes;
         render_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
         primitive_topology primitiveTopology{primitive_topology::triangle_list};
+        debug_label debugLabel;
     };
 
     union clear_color_value {
@@ -308,5 +312,20 @@ namespace oblo::gpu
     {
         std::span<const image_state_transition> images;
         std::span<const global_memory_barrier> memory;
+    };
+
+    struct vertex_input_binding_descriptor
+    {
+        u32 binding;
+        u32 stride;
+        vertex_input_rate inputRate;
+    };
+
+    struct vertex_input_attribute_descriptor
+    {
+        u32 binding;
+        u32 location;
+        data_format format;
+        u32 offset;    
     };
 }

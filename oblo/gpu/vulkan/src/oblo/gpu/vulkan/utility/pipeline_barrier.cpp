@@ -178,8 +178,9 @@ namespace oblo::gpu::vk
                 return VK_ACCESS_2_MEMORY_READ_BIT;
             case memory_access_type::any_write:
                 return VK_ACCESS_2_MEMORY_WRITE_BIT;
+            default:
+                unreachable();
             }
-            return 0;
         }
 
         VkPipelineStageFlags2 deduce_stage_mask(pipeline_sync_stage newPass)

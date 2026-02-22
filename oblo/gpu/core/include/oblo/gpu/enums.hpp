@@ -169,7 +169,7 @@ namespace oblo::gpu
     };
 
     /// @brief Image format, enumerator values match VkFormat.
-    enum class image_format : u32
+    enum class data_format : u32
     {
         undefined = 0,
         r4g4_unorm_pack8 = 1,
@@ -465,6 +465,7 @@ namespace oblo::gpu
 
     enum class image_resource_state : u8
     {
+        undefined,
         render_target_write,
         depth_stencil_read,
         depth_stencil_write,
@@ -492,5 +493,11 @@ namespace oblo::gpu
         any_read,
         any_write,
         enum_max,
+    };
+
+    enum class vertex_input_rate : u8
+    {
+        vertex,
+        instance,
     };
 }

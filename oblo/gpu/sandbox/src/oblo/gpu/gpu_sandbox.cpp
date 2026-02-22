@@ -2,11 +2,11 @@
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/structs.hpp>
-#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
 #include <chrono>
@@ -168,6 +168,8 @@ namespace oblo
                     return "Failed to begin command buffer"_err;
                 }
 
+                render(cmd, backBuffer);
+
                 if (!m_gpu->end_command_buffer(cmd))
                 {
                     return "Failed to end command buffer"_err;
@@ -237,6 +239,60 @@ namespace oblo
         }
 
     private:
+        void render(hptr<gpu::command_buffer> cmd, h32<gpu::image> swapchainImage)
+        {
+            if (!ensure_pipelines_exist())
+            {
+                return;
+            }
+
+            {
+                // Prepare to present
+
+                const gpu::image_state_transition imageBarriers[] = {
+                    {
+                        .image = swapchainImage,
+                        .previousState = gpu::image_resource_state::undefined,
+                        .nextState = gpu::image_resource_state::render_target_write,
+                        .previousPipeline = gpu::pipeline_sync_stage::top_of_pipeline,
+                        .nextPipeline = gpu::pipeline_sync_stage::graphics,
+                    },
+                };
+
+                const gpu::memory_barrier_descriptor barriers{
+                    .images = imageBarriers,
+                };
+
+                m_gpu->cmd_apply_barriers(cmd, barriers);
+            }
+
+            if (m_gpu->begin_render_pass(cmd, m_renderPipeline))
+            {
+                m_gpu->end_render_pass(cmd);
+            }
+
+            {
+                // Prepare to present
+
+                const gpu::image_state_transition imageBarriers[] = {
+                    {
+                        .image = swapchainImage,
+                        .previousState = gpu::image_resource_state::render_target_write,
+                        .nextState = gpu::image_resource_state::present,
+                        .previousPipeline = gpu::pipeline_sync_stage::graphics,
+                        .nextPipeline = gpu::pipeline_sync_stage::bottom_of_pipeline,
+                    },
+                };
+
+                const gpu::memory_barrier_descriptor barriers{
+                    .images = imageBarriers,
+                };
+
+                m_gpu->cmd_apply_barriers(cmd, barriers);
+            }
+        }
+
+    private:
         void recreate_swapchain(vec2u windowSize)
         {
             if (m_swapchain)
@@ -256,6 +312,27 @@ namespace oblo
                               .value_or({});
         }
 
+        bool ensure_pipelines_exist()
+        {
+            if (!m_renderPipeline)
+            {
+                const gpu::image_format rtFormats[1] = {gpu::image_format::b8g8r8a8_unorm};
+
+                const gpu::render_pass_targets targets{
+                    .colorAttachmentFormats = rtFormats,
+                };
+
+                const gpu::render_pipeline_descriptor desc{
+                    .renderTargets = targets,
+                };
+
+                const expected r = m_gpu->create_render_pipeline(desc);
+                m_renderPipeline = r.value_or({});
+            }
+
+            return bool{m_renderPipeline};
+        }
+
     private:
         static constexpr u32 num_swapchain_images = 3u;
 
@@ -267,6 +344,7 @@ namespace oblo
         h32<gpu::swapchain> m_swapchain{};
         h32<gpu::semaphore> m_semaphores[num_swapchain_images]{};
         h32<gpu::command_buffer_pool> m_commandBufferPools[num_swapchain_images]{};
+        h32<gpu::render_pipeline> m_renderPipeline{};
     };
 }
 

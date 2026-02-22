@@ -78,8 +78,8 @@ namespace oblo::gpu::vk
 
         void destroy_image_pool(h32<image_pool> imagePoolHandle) override;
 
-        result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor);
-        void destroy_shader_module(h32<shader_module> handle);
+        result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor) override;
+        void destroy_shader_module(h32<shader_module> handle) override;
 
         result<h32<render_pipeline>> create_render_pipeline(const render_pipeline_descriptor& descriptor) override;
         void destroy_render_pipeline(h32<render_pipeline> handle) override;
@@ -87,7 +87,10 @@ namespace oblo::gpu::vk
         result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) override;
         void destroy_sampler(h32<sampler> handle) override;
 
-        result<> begin_render_pass(hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline) override;
+        result<> begin_render_pass(hptr<command_buffer> cmdBuffer,
+            h32<render_pipeline> pipeline,
+            const render_pass_descriptor& descriptor) override;
+
         void end_render_pass(hptr<command_buffer> cmdBuffer) override;
 
         result<h32<bindless_image>> acquire_bindless(h32<image> optImage) override;
@@ -138,7 +141,8 @@ namespace oblo::gpu::vk
         VkCommandBuffer unwrap_command_buffer(hptr<command_buffer> handle) const;
         VkImage unwrap_image(h32<image> handle) const;
         VkImageView unwrap_image_view(h32<image> handle) const;
-        VkQueue unwrap_queue(h32<queue> queue) const;
+        VkQueue unwrap_queue(h32<queue> handle) const;
+        VkShaderModule unwrap_shader_module(h32<shader_module> handle) const;
 
         debug_utils::object get_object_labeler() const;
 
@@ -150,6 +154,7 @@ namespace oblo::gpu::vk
         struct image_impl;
         struct image_pool_impl;
         struct queue_impl;
+        struct render_pipeline_impl;
         struct sampler_impl;
         struct shader_module_impl;
         struct swapchain_impl;
@@ -181,6 +186,7 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<fence, VkFence> m_fences;
         h32_flat_pool_dense_map<shader_module, shader_module_impl> m_shaderModules;
         h32_flat_pool_dense_map<sampler, sampler_impl> m_samplers;
+        h32_flat_pool_dense_map<render_pipeline, render_pipeline_impl> m_renderPipelines;
 
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};
