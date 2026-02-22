@@ -50,8 +50,6 @@ namespace oblo
     struct frame_graph_buffer;
     struct frame_graph_texture;
 
-    struct staging_buffer_span;
-
     enum class buffer_access : u8;
     enum class texture_access : u8;
 

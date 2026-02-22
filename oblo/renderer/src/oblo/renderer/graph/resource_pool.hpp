@@ -36,7 +36,7 @@ namespace oblo
         resource_pool& operator=(const resource_pool&) = delete;
         resource_pool& operator=(resource_pool&&) noexcept = delete;
 
-        bool init(gpu::gpu_queue_context& ctx);
+        bool init(gpu::gpu_instance& gpu);
         void shutdown(gpu::gpu_queue_context& ctx);
 
         void begin_build();
@@ -45,7 +45,8 @@ namespace oblo
         h32<transient_texture_resource> add_transient_texture(
             const gpu::image_descriptor& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
 
-        h32<transient_texture_resource> add_external_texture(const frame_graph_texture& texture);
+        h32<transient_texture_resource> add_external_texture(gpu::gpu_instance& gpu, h32<gpu::image> externalImage);
+        h32<transient_texture_resource> add_external_texture(const frame_graph_texture_impl& t);
 
         h32<transient_buffer_resource> add_transient_buffer(
             u32 size, flags<gpu::buffer_usage> usage, h32<stable_buffer_resource> stableId);
@@ -53,8 +54,8 @@ namespace oblo
         void add_transient_texture_usage(h32<transient_texture_resource> transientTexture, gpu::image_usage usage);
         void add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer, gpu::buffer_usage usage);
 
-        frame_graph_texture get_transient_texture(h32<transient_texture_resource> id) const;
-        frame_graph_buffer get_transient_buffer(h32<transient_buffer_resource> id) const;
+        frame_graph_texture_impl get_transient_texture(h32<transient_texture_resource> id) const;
+        frame_graph_buffer_impl get_transient_buffer(h32<transient_buffer_resource> id) const;
 
         bool is_stable(h32<transient_buffer_resource> id) const;
 
@@ -72,6 +73,9 @@ namespace oblo
             VkPipelineStageFlags2 stages,
             VkAccessFlags2 access,
             buffer_access_kind accessKind);
+
+    private:
+        h32<transient_texture_resource> add_texture_impl(const frame_graph_texture_impl& t, bool isExternal);
 
     private:
         struct buffer_resource;

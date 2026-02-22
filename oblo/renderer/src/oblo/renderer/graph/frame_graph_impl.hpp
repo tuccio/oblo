@@ -131,7 +131,7 @@ namespace oblo
     struct frame_graph_texture_transition
     {
         h32<frame_graph_pin_storage> texture;
-        texture_usage usage;
+        texture_access usage;
     };
 
     struct frame_graph_buffer_barrier
@@ -163,13 +163,13 @@ namespace oblo
     struct frame_graph_pending_upload
     {
         h32<frame_graph_pin_storage> buffer;
-        staging_buffer_span source;
+        gpu::staging_buffer_span source;
     };
 
     struct frame_graph_pending_download
     {
         u64 submitIndex;
-        staging_buffer_span stagedSpan;
+        gpu::staging_buffer_span stagedSpan;
         async_download_promise promise;
     };
 
@@ -192,7 +192,7 @@ namespace oblo
     {
         h32<resident_texture> resident;
         pin::texture texture;
-        texture_usage usage;
+        texture_access usage;
     };
 
     struct frame_graph_node_to_execute
@@ -249,7 +249,7 @@ namespace oblo
 
     struct frame_graph_retained_texture_desc
     {
-        image_initializer initializer;
+        gpu::image_descriptor initializer;
         h32<frame_graph_pin_storage> pin;
     };
 
@@ -269,10 +269,9 @@ namespace oblo
 
     public: // Runtime
         frame_allocator dynamicAllocator;
-        resource_manager* resourceManager{};
         gpu_info gpuInfo;
 
-        staging_buffer downloadStaging;
+        gpu::staging_buffer downloadStaging;
 
         dynamic_array<frame_graph_node_to_execute> sortedNodes;
 
@@ -294,7 +293,7 @@ namespace oblo
         dynamic_array<frame_graph_bindless_texture> bindlessTextures;
 
         deque<frame_graph_pending_download> pendingDownloads;
-        deque<texture> pendingTexturesToFree;
+        deque<frame_graph_texture_impl> pendingTexturesToFree;
 
         deque<frame_graph_pin_reroute> rerouteStash;
 
@@ -320,8 +319,8 @@ namespace oblo
     public: // Internals for frame graph execution
         void mark_active_nodes();
         void rebuild_runtime(const frame_graph_build_args& args);
-        void flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer);
-        void flush_downloads(vulkan_context& vkCtx);
+        void flush_uploads(hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer);
+        void flush_downloads(gpu::gpu_queue_context& queueCtx);
         void finish_frame();
 
         future<async_metrics> request_metrics();
@@ -330,13 +329,13 @@ namespace oblo
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
         void add_transient_resource(pin::texture handle, h32<transient_texture_resource> transientTexture);
-        void add_resource_transition(pin::texture handle, texture_usage usage);
+        void add_resource_transition(pin::texture handle, texture_access usage);
 
         h32<transient_texture_resource> find_pool_index(pin::texture handle) const;
         h32<transient_buffer_resource> find_pool_index(pin::buffer handle) const;
 
         void add_transient_buffer(
-            pin::buffer handle, h32<transient_buffer_resource> transientBuffer, const staging_buffer_span* upload);
+            pin::buffer handle, h32<transient_buffer_resource> transientBuffer, const gpu::staging_buffer_span* upload);
 
         void set_buffer_access(pin::buffer handle,
             VkPipelineStageFlags2 pipelineStage,
@@ -348,8 +347,10 @@ namespace oblo
 
         h32<frame_graph_pin_storage> allocate_dynamic_resource_pin();
 
-        h32<frame_graph_pin_storage> create_retained_texture(vulkan_context& ctx, const image_initializer& initializer);
-        void destroy_retained_texture(vulkan_context& ctx, h32<frame_graph_pin_storage> handle);
+        h32<frame_graph_pin_storage> create_retained_texture(gpu::gpu_instance& ctx,
+            const gpu::image_descriptor& initializer);
+
+        void destroy_retained_texture(gpu::gpu_queue_context& ctx, h32<frame_graph_pin_storage> handle);
 
         const frame_graph_node* get_owner_node(pin::buffer buffer) const;
         const frame_graph_node* get_owner_node(pin::texture texture) const;
@@ -368,7 +369,7 @@ namespace oblo
         void free_pin_storage(
             h32<frame_graph_pin_storage> key, const frame_graph_pin_storage& storage, bool isFrameAllocated);
 
-        void free_pending_textures(vulkan_context& ctx);
+        void free_pending_textures(gpu::gpu_queue_context& ctx);
 
         [[maybe_unused]] void write_dot(std::ostream& os) const;
     };
@@ -380,7 +381,7 @@ namespace oblo
 
     struct frame_graph_execution_state
     {
-        VkCommandBuffer commandBuffer{};
+        hptr<gpu::command_buffer> commandBuffer{};
         h32<frame_graph_pass> currentPass;
         image_layout_tracker imageLayoutTracker;
         pass_kind passKind;

@@ -35,6 +35,8 @@ namespace oblo
         void end_frame();
 
         gpu::gpu_instance& get_gpu_instance();
+        gpu::gpu_queue_context& get_gpu_queue_context();
+
         string_interner& get_string_interner();
 
         const instance_data_type_registry& get_instance_data_type_registry() const;
@@ -47,6 +49,9 @@ namespace oblo
 
         /// @brief Returns a handle to private platform-specific data.
         renderer_platform* get_renderer_platform();
+
+        // TODO: Get rid of the global command buffer
+        hptr<gpu::command_buffer> get_active_command_buffer();
 
     private:
         gpu::gpu_instance* m_gpu{};
@@ -75,6 +80,11 @@ namespace oblo
     inline gpu::gpu_instance& renderer::get_gpu_instance()
     {
         return *m_gpu;
+    }
+
+    inline gpu::gpu_queue_context& renderer::get_gpu_queue_context()
+    {
+        return *m_gpuQueueCtx;
     }
 
     inline string_interner& renderer::get_string_interner()

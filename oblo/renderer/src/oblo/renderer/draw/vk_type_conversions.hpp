@@ -8,8 +8,10 @@
 
 namespace oblo
 {
-    inline VkIndexType convert_to_vk(mesh_index_type indexType)
+    inline VkIndexType convert_to_vk(gpu::mesh_index_type indexType)
     {
+        using namespace gpu;
+
         switch (indexType)
         {
         case mesh_index_type::none:
@@ -29,8 +31,10 @@ namespace oblo
         }
     }
 
-    inline mesh_index_type convert_to_oblo(VkIndexType indexType)
+    inline gpu::mesh_index_type convert_to_oblo(VkIndexType indexType)
     {
+        using namespace gpu;
+
         switch (indexType)
         {
         case VK_INDEX_TYPE_NONE_KHR:
@@ -50,8 +54,10 @@ namespace oblo
         }
     }
 
-    inline VkAttachmentLoadOp convert_to_vk(attachment_load_op op)
+    inline VkAttachmentLoadOp convert_to_vk(gpu::attachment_load_op op)
     {
+        using namespace gpu;
+
         switch (op)
         {
         case attachment_load_op::none:
@@ -67,8 +73,10 @@ namespace oblo
         }
     }
 
-    inline VkAttachmentStoreOp convert_to_vk(attachment_store_op op)
+    inline VkAttachmentStoreOp convert_to_vk(gpu::attachment_store_op op)
     {
+        using namespace gpu;
+
         switch (op)
         {
         case attachment_store_op::none:
@@ -82,62 +90,62 @@ namespace oblo
         }
     }
 
-    inline VkCompareOp convert_to_vk(compare_op op)
+    inline VkCompareOp convert_to_vk(gpu::compare_op op)
     {
         return VkCompareOp(op);
     }
 
-    inline VkStencilOp convert_to_vk(stencil_op op)
+    inline VkStencilOp convert_to_vk(gpu::stencil_op op)
     {
         return VkStencilOp(op);
     }
 
-    inline VkPrimitiveTopology convert_to_vk(primitive_topology topology)
+    inline VkPrimitiveTopology convert_to_vk(gpu::primitive_topology topology)
     {
         return VkPrimitiveTopology(topology);
     }
 
-    inline VkPolygonMode convert_to_vk(polygon_mode mode)
+    inline VkPolygonMode convert_to_vk(gpu::polygon_mode mode)
     {
         return VkPolygonMode(mode);
     }
 
-    inline VkCullModeFlags convert_to_vk(flags<cull_mode> f)
+    inline VkCullModeFlags convert_to_vk(flags<gpu::cull_mode> f)
     {
         return VkCullModeFlags(f.storage);
     }
 
-    inline VkFrontFace convert_to_vk(front_face face)
+    inline VkFrontFace convert_to_vk(gpu::front_face face)
     {
         return VkFrontFace(face);
     }
 
-    inline VkPipelineDepthStencilStateCreateFlags convert_to_vk(flags<pipeline_depth_stencil_state_create> f)
+    inline VkPipelineDepthStencilStateCreateFlags convert_to_vk(flags<gpu::pipeline_depth_stencil_state_create> f)
     {
         return VkPipelineDepthStencilStateCreateFlags(f.storage);
     }
 
-    inline VkFormat convert_to_vk(texture_format format)
+    inline VkFormat convert_to_vk(gpu::image_format format)
     {
         return VkFormat(format);
     }
 
-    inline texture_format convert_to_oblo(VkFormat format)
+    inline gpu::image_format convert_to_oblo(VkFormat format)
     {
-        return texture_format(format);
+        return gpu::image_format(format);
     }
 
-    inline VkBlendFactor convert_to_vk(blend_factor factor)
+    inline VkBlendFactor convert_to_vk(gpu::blend_factor factor)
     {
         return VkBlendFactor(factor);
     }
 
-    inline VkBlendOp convert_to_vk(blend_op op)
+    inline VkBlendOp convert_to_vk(gpu::blend_op op)
     {
         return VkBlendOp(op);
     }
 
-    inline VkColorComponentFlags convert_to_vk(flags<color_component> f)
+    inline VkColorComponentFlags convert_to_vk(flags<gpu::color_component> f)
     {
         return VkColorComponentFlags(f.storage);
     }

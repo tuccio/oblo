@@ -91,10 +91,8 @@ namespace oblo
 
     resource_pool::~resource_pool() = default;
 
-    bool resource_pool::init(gpu::gpu_queue_context& ctx)
+    bool resource_pool::init(gpu::gpu_instance& gpu)
     {
-        gpu::gpu_instance& gpu = ctx.get_instance();
-
         auto* const vk = dynamic_cast<gpu::vk::vulkan_instance*>(&gpu);
 
         if (!vk)
@@ -204,18 +202,37 @@ namespace oblo
         return h32<transient_texture_resource>{id + 1};
     }
 
-    h32<transient_texture_resource> resource_pool::add_external_texture(const frame_graph_texture& texture)
+    h32<transient_texture_resource> resource_pool::add_texture_impl(const frame_graph_texture_impl& t, bool isExternal)
     {
-        const auto id = u32(m_textureResources.size());
+        const auto id = m_textureResources.size32();
 
         m_textureResources.push_back({
-            .descriptor = texture.descriptor,
-            .image = texture.image,
-            .imageView = texture.view,
-            .isExternal = true,
+            .descriptor = t.descriptor,
+            .image = t.image,
+            .imageView = t.view,
+            .isExternal = isExternal,
         });
 
         return h32<transient_texture_resource>{id + 1};
+    }
+
+    h32<transient_texture_resource> resource_pool::add_external_texture(gpu::gpu_instance& gpu,
+        h32<gpu::image> externalImage)
+    {
+        auto& vk = static_cast<gpu::vk::vulkan_instance&>(gpu);
+
+        const frame_graph_texture_impl t{
+            .image = vk.unwrap_image(externalImage),
+            .view = vk.unwrap_image_view(externalImage),
+            .descriptor = gpu.get_image_descriptor(externalImage),
+        };
+
+        return add_texture_impl(t, true);
+    }
+
+    h32<transient_texture_resource> resource_pool::add_external_texture(const frame_graph_texture_impl& t)
+    {
+        return add_texture_impl(t, true);
     }
 
     h32<transient_buffer_resource> resource_pool::add_transient_buffer(
@@ -246,7 +263,7 @@ namespace oblo
         m_bufferResources[transientBuffer.value - 1].usage |= usage;
     }
 
-    frame_graph_texture resource_pool::get_transient_texture(h32<transient_texture_resource> id) const
+    frame_graph_texture_impl resource_pool::get_transient_texture(h32<transient_texture_resource> id) const
     {
         OBLO_ASSERT(id);
         auto& resource = m_textureResources[id.value - 1];
@@ -258,7 +275,7 @@ namespace oblo
         };
     }
 
-    frame_graph_buffer resource_pool::get_transient_buffer(h32<transient_buffer_resource> id) const
+    frame_graph_buffer_impl resource_pool::get_transient_buffer(h32<transient_buffer_resource> id) const
     {
         OBLO_ASSERT(id);
         auto& resource = m_bufferResources[id.value - 1];

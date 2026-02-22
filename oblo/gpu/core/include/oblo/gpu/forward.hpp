@@ -47,6 +47,8 @@ namespace oblo::gpu
     class gpu_queue_context;
     class staging_buffer;
 
+    struct staging_buffer_span;
+
     enum class error;
 
     enum class buffer_usage : u8;

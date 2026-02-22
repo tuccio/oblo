@@ -11,16 +11,17 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
-#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/metrics/async_metrics.hpp>
+#include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/frame_graph_context.hpp>
 #include <oblo/renderer/graph/frame_graph_impl.hpp>
 #include <oblo/renderer/graph/frame_graph_template.hpp>
+#include <oblo/renderer/platform/renderer_platform.hpp>
 #include <oblo/renderer/renderer.hpp>
-#include <oblo/renderer/renderer_platform.hpp>
 #include <oblo/trace/profile.hpp>
 
 namespace oblo
@@ -135,7 +136,7 @@ namespace oblo
                             tracking->currentAccessKind = bufferUsage.accessKind;
 
                             const auto* const bufferPtr =
-                                static_cast<buffer*>(impl.access_storage(bufferUsage.pinStorage));
+                                static_cast<frame_graph_buffer_impl*>(impl.access_storage(bufferUsage.pinStorage));
 
                             OBLO_ASSERT(bufferPtr && bufferPtr->buffer);
 
@@ -505,8 +506,8 @@ namespace oblo
         const gpu::device_info deviceInfo = gpu.get_device_info();
         m_impl->gpuInfo.subgroupSize = deviceInfo.subgroupSize;
 
-        return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(ctx),
-               m_impl->downloadStaging.init(ctx, g_downloadStagingSize);
+        return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(gpu),
+               m_impl->downloadStaging.init(gpu, g_downloadStagingSize).has_value();
     }
 
     void frame_graph::shutdown(gpu::gpu_queue_context& ctx)
@@ -543,14 +544,14 @@ namespace oblo
         m_impl.reset();
     }
 
-    void frame_graph::build(const frame_graph_build_args& args)
+    void frame_graph::build(frame_graph_build_args& args)
     {
         OBLO_PROFILE_SCOPE("Frame Graph Build");
 
-        auto& vkCtx = args.vk;
+        gpu::gpu_queue_context& queueCtx = args.r.get_gpu_queue_context();
 
         // Free retained textures if the user destroyed some subgraphs that owned some
-        m_impl->free_pending_textures(vkCtx);
+        m_impl->free_pending_textures(queueCtx);
 
         m_impl->dynamicAllocator.restore_all();
 
@@ -577,9 +578,6 @@ namespace oblo
             ps.transientTexture = {};
         }
 
-        // This is used to register external textures (e.g. the swapchain images)
-        m_impl->resourceManager = &vkCtx.get_resource_manager();
-
         // The two calls are from a time where we managed multiple small graphs sharing the resource pool, rather than 1
         // big graph owning it.
         m_impl->resourcePool.begin_build();
@@ -592,7 +590,7 @@ namespace oblo
             auto& ps = m_impl->pinStorage.at(storageKey);
             OBLO_ASSERT(ps.isOwnedTexture);
 
-            const auto* t = static_cast<texture*>(ps.data);
+            const auto* t = static_cast<frame_graph_texture_impl*>(ps.data);
             ps.transientTexture = m_impl->resourcePool.add_external_texture(*t);
 
             m_impl->transientTextures.emplace_back(storageKey, ps.transientTexture);
@@ -640,13 +638,13 @@ namespace oblo
 
             for (const auto& pending : m_impl->pendingMetrics)
             {
-                buildCtx.acquire(pending.buffer, buffer_usage::download);
+                buildCtx.acquire(pending.buffer, buffer_access::download);
             }
 
             m_impl->end_pass_build(buildState);
         }
 
-        m_impl->resourcePool.end_build(args.vkCtx);
+        m_impl->resourcePool.end_build(queueCtx);
 
         auto& textureRegistry = args.textureRegistry;
 
@@ -659,38 +657,37 @@ namespace oblo
 
             textureRegistry.set_texture(texture.resident, t.view, image_layout_tracker::deduce_layout(texture.usage));
         }
-
-        m_impl->resourceManager = {};
     }
 
-    void frame_graph::execute(const frame_graph_execute_args& args)
+    void frame_graph::execute(frame_graph_execute_args& args)
     {
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
-        auto& vkContext = args.vkCtx;
-        const VkCommandBuffer commandBuffer = vkContext.get_active_command_buffer();
+        gpu::gpu_queue_context& queueCtx = args.r.get_gpu_queue_context();
+        const hptr<gpu::command_buffer> commandBuffer = args.r.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
-        m_impl->downloadStaging.begin_frame(vkContext.get_submit_index());
+        m_impl->downloadStaging.begin_frame(queueCtx.get_submit_index());
 
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
-            const buffer buf = resourcePool.get_transient_buffer(poolIndex);
+            const frame_graph_buffer_impl& buf = resourcePool.get_transient_buffer(poolIndex);
 
             auto& data = m_impl->pinStorage.at(storage);
 
             // This should only really happen for dynamic pins, we could consider adding some debug check though
             if (!data.data)
             {
-                data.data = m_impl->dynamicAllocator.allocate(sizeof(buffer), alignof(buffer));
+                data.data = m_impl->dynamicAllocator.allocate(sizeof(frame_graph_buffer_impl),
+                    alignof(frame_graph_buffer_impl));
             }
 
-            new (data.data) buffer{buf};
+            new (data.data) frame_graph_buffer_impl{buf};
         }
 
         if (!m_impl->pendingUploads.empty())
         {
-            m_impl->flush_uploads(commandBuffer, args.stagingBuffer);
+            m_impl->flush_uploads(commandBuffer, args.r.get_staging_buffer());
         }
 
         // Prepare the download buffers
@@ -700,7 +697,7 @@ namespace oblo
             auto& download = m_impl->pendingDownloads.emplace_back();
             auto& data = m_impl->pinStorage.at(enqueuedDownload.pinStorage);
 
-            buffer* const b = reinterpret_cast<buffer*>(data.data);
+            frame_graph_buffer_impl* const b = reinterpret_cast<frame_graph_buffer_impl*>(data.data);
             auto staging = m_impl->downloadStaging.stage_allocate(b->size);
 
             if (!staging)
@@ -710,7 +707,7 @@ namespace oblo
             }
 
             // This only works as long as we submit once per frame
-            download.submitIndex = vkContext.get_submit_index();
+            download.submitIndex = queueCtx.get_submit_index();
             download.stagedSpan = *staging;
             download.promise.init(get_global_allocator());
         }
@@ -734,7 +731,7 @@ namespace oblo
             // frame.
             if (!storage.isOwnedTexture)
             {
-                new (storage.data) texture{t};
+                new (storage.data) frame_graph_texture_impl{t};
             }
         }
 
@@ -754,7 +751,7 @@ namespace oblo
                 .pMemoryBarriers = &uploadMemoryBarrier,
             };
 
-            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBuffer), &dependencyInfo);
         }
 
         frame_graph_barriers barriers{
@@ -841,7 +838,7 @@ namespace oblo
 
         m_impl->downloadStaging.end_frame();
 
-        m_impl->flush_downloads(args.vkCtx);
+        m_impl->flush_downloads(queueCtx);
 
         m_impl->finish_frame();
     }
@@ -934,7 +931,7 @@ namespace oblo
                 .pImageMemoryBarriers = imageBarriers.data(),
             };
 
-            vkCmdPipelineBarrier2(state.commandBuffer, &dependencyInfo);
+            vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(state.commandBuffer), &dependencyInfo);
         }
 
         state.currentPass = passId;
@@ -1096,15 +1093,14 @@ namespace oblo
         return m_impl->emptyEvents.contains(type);
     }
 
-    void frame_graph_impl::add_transient_resource(pin::texture handle,
-        h32<transient_texture_resource> transientTexture)
+    void frame_graph_impl::add_transient_resource(pin::texture handle, h32<transient_texture_resource> transientTexture)
     {
         const auto storage = to_storage_handle(handle);
         transientTextures.emplace_back(storage, transientTexture);
         pinStorage.at(storage).transientTexture = transientTexture;
     }
 
-    void frame_graph_impl::add_resource_transition(pin::texture handle, texture_usage usage)
+    void frame_graph_impl::add_resource_transition(pin::texture handle, texture_access usage)
     {
         const auto storage = to_storage_handle(handle);
         textureTransitions.emplace_back(storage, usage);
@@ -1171,42 +1167,33 @@ namespace oblo
         return handle;
     }
 
-    h32<frame_graph_pin_storage> frame_graph_impl::create_retained_texture(vulkan_context& ctx,
-        const image_initializer& initializer)
+    h32<frame_graph_pin_storage> frame_graph_impl::create_retained_texture(gpu::gpu_instance& gpu,
+        const gpu::image_descriptor& initializer)
     {
-        auto& gpuAllocator = ctx.get_allocator();
+        const expected newImage = gpu.create_image(initializer);
 
-        allocated_image outImage{};
-
-        if (gpuAllocator.create_image(initializer, &outImage) != VK_SUCCESS)
+        if (!newImage)
         {
             return {};
         }
 
-        const expected view = gpu::vk::image_utils::create_image_view_2d(ctx.get_device(),
-            outImage.image,
-            initializer.format,
-            gpuAllocator.get_allocation_callbacks());
-
-        if (!view)
-        {
-            return {};
-        }
+        auto& vk = static_cast<gpu::vk::vulkan_instance&>(gpu);
 
         const auto [storage, key] = pinStorage.emplace();
         const auto handle = h32<frame_graph_pin_storage>{key};
 
-        texture* const t = new (memoryPool.allocate(sizeof(texture), alignof(texture))) texture{
-            .image = outImage.image,
-            .allocation = outImage.allocation,
-            .view = *view,
-            .initializer = initializer,
-        };
+        frame_graph_texture_impl* const t =
+            new (memoryPool.allocate(sizeof(frame_graph_texture_impl), alignof(frame_graph_texture_impl)))
+                frame_graph_texture_impl{
+                    .image = vk.unwrap_image(*newImage),
+                    .view = vk.unwrap_image_view(*newImage),
+                    .descriptor = initializer,
+                };
 
         storage->data = t;
         storage->isOwnedTexture = true;
-        storage->transientTexture = resourcePool.add_external_texture(*t);
-        storage->typeDesc = frame_graph_data_desc::make<texture>();
+        storage->transientTexture = resourcePool.add_external_texture(gpu, *newImage);
+        storage->typeDesc = frame_graph_data_desc::make<frame_graph_texture_impl>();
 
         transientTextures.emplace_back(key, storage->transientTexture);
         retainedTextures.emplace(key);
@@ -1220,7 +1207,7 @@ namespace oblo
         return handle;
     }
 
-    void frame_graph_impl::destroy_retained_texture(vulkan_context& ctx, h32<frame_graph_pin_storage> handle)
+    void frame_graph_impl::destroy_retained_texture(gpu::gpu_queue_context& ctx, h32<frame_graph_pin_storage> handle)
     {
         auto* const storage = pinStorage.try_find(handle);
 
@@ -1231,26 +1218,16 @@ namespace oblo
 
         OBLO_ASSERT(storage->isOwnedTexture);
 
-        auto* const t = static_cast<texture*>(storage->data);
+        auto* const t = static_cast<frame_graph_texture_impl*>(storage->data);
 
         if (t)
         {
-            if (t->image)
+            if (t->handle)
             {
-                ctx.destroy_deferred(t->image, ctx.get_submit_index());
+                ctx.destroy_deferred(t->handle, ctx.get_submit_index());
             }
 
-            if (t->view)
-            {
-                ctx.destroy_deferred(t->view, ctx.get_submit_index());
-            }
-
-            if (t->allocation)
-            {
-                ctx.destroy_deferred(t->allocation, ctx.get_submit_index());
-            }
-
-            memoryPool.deallocate(t, sizeof(texture), alignof(texture));
+            memoryPool.deallocate(t, sizeof(frame_graph_texture_impl), alignof(frame_graph_texture_impl));
         }
 
         pinStorage.erase(handle);
@@ -1534,7 +1511,7 @@ namespace oblo
         }
     }
 
-    void frame_graph_impl::flush_uploads(VkCommandBuffer commandBuffer, staging_buffer& stagingBuffer)
+    void frame_graph_impl::flush_uploads(hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer)
     {
         OBLO_ASSERT(!pendingUploads.empty());
 
@@ -1552,13 +1529,13 @@ namespace oblo
             .pMemoryBarriers = &before,
         };
 
-        vkCmdPipelineBarrier2(commandBuffer, &beforeDependencyInfo);
+        vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBuffer), &beforeDependencyInfo);
 
         for (const auto& upload : pendingUploads)
         {
             const auto& storage = pinStorage.at(upload.buffer);
-            const auto* const b = reinterpret_cast<buffer*>(storage.data);
-            stagingBuffer.upload(commandBuffer, upload.source, b->buffer, b->offset);
+            const auto* const b = reinterpret_cast<frame_graph_buffer_impl*>(storage.data);
+            stagingBuffer.upload(commandBuffer, upload.source, b->handle, b->offset);
         }
 
         pendingUploads.clear();
@@ -1577,12 +1554,12 @@ namespace oblo
             .pMemoryBarriers = &after,
         };
 
-        vkCmdPipelineBarrier2(commandBuffer, &afterDependencyInfo);
+        vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBuffer), &afterDependencyInfo);
     }
 
-    void frame_graph_impl::flush_downloads(vulkan_context& vkCtx)
+    void frame_graph_impl::flush_downloads(gpu::gpu_queue_context& queueCtx)
     {
-        const auto lastFinishedFrame = vkCtx.get_last_finished_submit();
+        const auto lastFinishedFrame = queueCtx.get_last_finished_submit();
 
         downloadStaging.notify_finished_frames(lastFinishedFrame);
 
@@ -1598,7 +1575,7 @@ namespace oblo
 
             if (isFirstDownload)
             {
-                downloadStaging.invalidate_memory_ranges();
+                downloadStaging.invalidate_memory_ranges().assert_value();
                 isFirstDownload = false;
             }
 
@@ -1665,7 +1642,7 @@ namespace oblo
         {
             if (storage.isOwnedTexture)
             {
-                const auto* const t = static_cast<texture*>(storage.data);
+                const auto* const t = static_cast<frame_graph_texture_impl*>(storage.data);
                 pendingTexturesToFree.emplace_back(*t);
                 retainedTextures.erase(key);
             }
@@ -1689,19 +1666,9 @@ namespace oblo
     {
         for (const auto& t : pendingTexturesToFree)
         {
-            if (t.allocation)
+            if (t.handle)
             {
-                ctx.destroy_deferred(t.allocation, ctx.get_submit_index());
-            }
-
-            if (t.image)
-            {
-                ctx.destroy_deferred(t.image, ctx.get_submit_index());
-            }
-
-            if (t.view)
-            {
-                ctx.destroy_deferred(t.view, ctx.get_submit_index());
+                ctx.destroy_deferred(t.handle, ctx.get_submit_index());
             }
         }
 

@@ -159,6 +159,15 @@ namespace oblo
         return true;
     }
 
+    void texture_registry::set_texture(h32<resident_texture> h, VkImageView view, VkImageLayout layout)
+    {
+        const resident_texture residentTexture{
+            .imageView = view,
+        };
+
+        set_texture(h, residentTexture, layout);
+    }
+
     void texture_registry::set_texture(
         h32<resident_texture> h, const resident_texture& residentTexture, VkImageLayout layout)
     {

@@ -6,6 +6,9 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 
+// TODO: Just temporarily, we need to type erase frame_graph_buffer_impl and frame_graph_texture_impl
+#include <oblo/renderer/platform/renderer_platform.hpp>
+
 namespace oblo
 {
     class frame_graph_init_context;
@@ -70,7 +73,7 @@ namespace oblo
 
             nodeDesc->pins.push_back({
                 .offset = offset,
-                .typeDesc = frame_graph_data_desc::make<texture>(),
+                .typeDesc = frame_graph_data_desc::make<frame_graph_texture_impl>(),
             });
         }
 
@@ -82,7 +85,7 @@ namespace oblo
 
             nodeDesc->pins.push_back({
                 .offset = offset,
-                .typeDesc = frame_graph_data_desc::make<buffer>(),
+                .typeDesc = frame_graph_data_desc::make<frame_graph_buffer_impl>(),
             });
         }
 
@@ -100,7 +103,7 @@ namespace oblo
         }
 
         template <typename T>
-        void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const data_sink<T>* pin)
+        void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const pin::data_sink<T>* pin)
         {
             const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 
@@ -108,8 +111,8 @@ namespace oblo
 
             nodeDesc->pins.push_back({
                 .offset = offset,
-                .typeDesc = frame_graph_data_desc::make<data_sink_container<T>>(),
-                .clearSink = [](void* ptr) { static_cast<data_sink_container<T>*>(ptr)->clear(); },
+                .typeDesc = frame_graph_data_desc::make<pin::data_sink_container<T>>(),
+                .clearSink = [](void* ptr) { static_cast<pin::data_sink_container<T>*>(ptr)->clear(); },
             });
         }
 

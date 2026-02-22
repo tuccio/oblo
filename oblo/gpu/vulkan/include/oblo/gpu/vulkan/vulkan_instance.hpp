@@ -69,6 +69,8 @@ namespace oblo::gpu::vk
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
         void destroy_image(h32<image> imageHandle) override;
 
+        image_descriptor get_image_descriptor(h32<image> imageHandle) override;
+
         result<h32<image_pool>> create_image_pool(std::span<const image_descriptor> descriptors,
             std::span<h32<image>> images) override;
 
@@ -136,7 +138,9 @@ namespace oblo::gpu::vk
         struct swapchain_impl;
 
     private:
-        h32<image> register_image(VkImage image, VkImageView view, VmaAllocation allocation);
+        h32<image> register_image(
+            VkImage image, VkImageView view, VmaAllocation allocation, const image_descriptor& descriptor);
+
         void unregister_image(h32<image> image);
 
         const queue_impl& get_queue(h32<queue> queue) const;

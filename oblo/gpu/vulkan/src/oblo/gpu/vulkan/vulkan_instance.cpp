@@ -118,7 +118,7 @@ namespace oblo::gpu::vk
     {
         if (label.empty())
         {
-#ifndef NDEBUG
+#ifndef OBLO_DEBUG
             m_labelHelper.set_object_name(m_device, obj, "Unnamed object");
 #endif
 
@@ -142,6 +142,7 @@ namespace oblo::gpu::vk
     struct vulkan_instance::image_impl : vk::allocated_image
     {
         VkImageView view;
+        image_descriptor descriptor;
     };
 
     struct vulkan_instance::image_pool_impl
@@ -454,10 +455,25 @@ namespace oblo::gpu::vk
             return translate_error(r);
         }
 
+        const image_descriptor imageDesc{
+            .format = descriptor.format,
+            .width = descriptor.width,
+            .height = descriptor.height,
+            .depth = 1,
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .type = image_type::plain_2d,
+            .samples = samples_count::one,
+            .memoryUsage = memory_usage::gpu_only,
+            .usages = {},
+        };
+
         for (u32 i = 0; i < it->swapchainWrapper.get_image_count(); ++i)
         {
-            it->images[i] =
-                register_image(it->swapchainWrapper.get_image(i), it->swapchainWrapper.get_image_view(i), nullptr);
+            it->images[i] = register_image(it->swapchainWrapper.get_image(i),
+                it->swapchainWrapper.get_image_view(i),
+                nullptr,
+                imageDesc);
         }
 
         return handle;
@@ -813,6 +829,8 @@ namespace oblo::gpu::vk
             vkFormat,
             m_allocator.get_allocation_callbacks());
 
+        it->descriptor = descriptor;
+
         if (!view)
         {
             destroy_image(h);
@@ -841,6 +859,11 @@ namespace oblo::gpu::vk
         }
 
         m_images.erase(imageHandle);
+    }
+
+    image_descriptor vulkan_instance::get_image_descriptor(h32<image> imageHandle)
+    {
+        return m_images.at(imageHandle).descriptor;
     }
 
     result<h32<image_pool>> vulkan_instance::create_image_pool(std::span<const image_descriptor> descriptors,
@@ -1301,7 +1324,8 @@ namespace oblo::gpu::vk
         return get_queue(queue).queue;
     }
 
-    h32<image> vulkan_instance::register_image(VkImage image, VkImageView view, VmaAllocation allocation)
+    h32<image> vulkan_instance::register_image(
+        VkImage image, VkImageView view, VmaAllocation allocation, const image_descriptor& descriptor)
     {
         auto&& [img, handle] = m_images.emplace();
 
@@ -1311,6 +1335,7 @@ namespace oblo::gpu::vk
                 .allocation = allocation,
             },
             view,
+            descriptor,
         };
 
         return handle;

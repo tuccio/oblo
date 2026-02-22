@@ -3,16 +3,16 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
 
 #include <vulkan/vulkan_core.h>
 
 namespace oblo
 {
     struct transient_texture_resource;
-    struct texture;
+    struct frame_graph_texture;
 
     enum class pass_kind : u8;
+    enum class texture_access : u8;
 
     class image_layout_tracker
     {
@@ -20,7 +20,7 @@ namespace oblo
         using handle_type = h32<transient_texture_resource>;
 
     public:
-        static VkImageLayout deduce_layout(texture_usage usage);
+        static VkImageLayout deduce_layout(texture_access usage);
 
     public:
         image_layout_tracker();
@@ -31,8 +31,9 @@ namespace oblo
 
         ~image_layout_tracker();
 
-        void start_tracking(handle_type handle, const texture& t);
-        bool add_transition(VkImageMemoryBarrier2& outBarrier, handle_type handle, pass_kind pass, texture_usage usage);
+        void start_tracking(handle_type handle, const frame_graph_texture_impl& t);
+        bool add_transition(
+            VkImageMemoryBarrier2& outBarrier, handle_type handle, pass_kind pass, texture_access usage);
 
         void clear();
 

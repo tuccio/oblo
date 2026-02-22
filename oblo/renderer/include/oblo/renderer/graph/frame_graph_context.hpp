@@ -8,6 +8,7 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/frame_graph_resources.hpp>
@@ -19,6 +20,7 @@
 
 namespace oblo
 {
+    class binding_tables_span;
     class frame_allocator;
     class random_generator;
     class texture;
@@ -29,12 +31,11 @@ namespace oblo
     template <typename E, u32 Size>
     struct flags;
 
-    struct vec2u;
-
     struct gpu_info;
     struct texture_init_desc;
+    struct vec2u;
 
-    class binding_tables_span;
+    using staging_buffer_span = gpu::staging_buffer_span;
 
     class frame_graph_init_context
     {
@@ -84,7 +85,7 @@ namespace oblo
 
         pin::texture get_resource(h32<retained_texture> texture) const;
 
-        void register_texture(pin::texture resource, h32<texture> externalTexture) const;
+        void register_texture(pin::texture resource, h32<gpu::image> externalTexture) const;
 
         // Temporary solution until the acceleration structure is a proper resource.
         void register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const;
@@ -93,7 +94,7 @@ namespace oblo
 
         h32<resident_texture> acquire_bindless(pin::texture texture, texture_access usage) const;
 
-        h32<resident_texture> load_resource(const resource_ptr<oblo::texture>& texture) const;
+        h32<resident_texture> load_resource(const resource_ptr<texture>& texture) const;
 
         void acquire(pin::buffer buffer, buffer_access usage) const;
 
@@ -126,20 +127,22 @@ namespace oblo
         template <typename T>
         std::span<const T> access(pin::data_sink<T> data) const
         {
-            return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            return *static_cast<pin::data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
         template <typename T>
         void push(pin::data_sink<T> data, T&& value) const
         {
-            auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            auto* a =
+                static_cast<pin::data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
             a->push_back(std::move(value));
         }
 
         template <typename T>
         void push(pin::data_sink<T> data, const T& value) const
         {
-            auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            auto* a =
+                static_cast<pin::data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
             a->push_back(value);
         }
 
@@ -149,8 +152,8 @@ namespace oblo
 
         random_generator& get_random_generator() const;
 
-        staging_buffer_span stage_upload(std::span<const byte> data) const;
-        staging_buffer_span stage_upload_image(std::span<const byte> data, u32 texelSize) const;
+        gpu::staging_buffer_span stage_upload(std::span<const byte> data) const;
+        gpu::staging_buffer_span stage_upload_image(std::span<const byte> data, u32 texelSize) const;
 
         u32 get_current_frames_count() const;
 
@@ -217,7 +220,7 @@ namespace oblo
         template <typename T>
         std::span<const T> access(pin::data_sink<T> data) const
         {
-            return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
+            return *static_cast<pin::data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
         pin::acceleration_structure get_global_tlas() const;
@@ -285,9 +288,6 @@ namespace oblo
 
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
-
-        frame_graph_buffer access(pin::buffer h) const;
-        frame_graph_texture access(pin::texture h) const;
 
         bool has_event_impl(const type_id& type) const;
 

@@ -2,9 +2,11 @@
 
 #include <oblo/core/unreachable.hpp>
 #include <oblo/gpu/types.hpp>
+#include <oblo/renderer/draw/vk_type_conversions.hpp>
+#include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/frame_graph_context.hpp>
 #include <oblo/renderer/graph/types_internal.hpp>
-#include <oblo/renderer/texture.hpp>
+#include <oblo/renderer/platform/renderer_platform.hpp>
 
 namespace oblo
 {
@@ -38,63 +40,63 @@ namespace oblo
             }
         }
 
-        void deduce_barrier(pass_kind newPass, texture_usage newUsage, VkImageMemoryBarrier2& outBarrier)
+        void deduce_barrier(pass_kind newPass, texture_access newUsage, VkImageMemoryBarrier2& outBarrier)
         {
             switch (newUsage)
             {
-            case texture_usage::depth_stencil_read:
+            case texture_access::depth_stencil_read:
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
                 outBarrier.dstStageMask =
                     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
                 break;
 
-            case texture_usage::depth_stencil_write:
+            case texture_access::depth_stencil_write:
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
                 outBarrier.dstStageMask =
                     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
                 break;
 
-            case texture_usage::render_target_write:
+            case texture_access::render_target_write:
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
                 outBarrier.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 break;
 
-            case texture_usage::shader_read:
+            case texture_access::shader_read:
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
                 outBarrier.dstStageMask = deduce_stage_mask(newPass);
                 break;
 
-            case texture_usage::storage_read:
+            case texture_access::storage_read:
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
                 outBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
                 outBarrier.dstStageMask = deduce_stage_mask(newPass);
                 break;
 
-            case texture_usage::storage_write:
+            case texture_access::storage_write:
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
                 outBarrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
                 outBarrier.dstStageMask = deduce_stage_mask(newPass);
                 break;
 
-            case texture_usage::transfer_source:
+            case texture_access::transfer_source:
                 OBLO_ASSERT(newPass == pass_kind::transfer);
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
                 outBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
                 break;
 
-            case texture_usage::transfer_destination:
+            case texture_access::transfer_destination:
                 OBLO_ASSERT(newPass == pass_kind::transfer);
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
                 outBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 outBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
                 break;
 
-            case texture_usage::present:
+            case texture_access::present:
                 outBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
                 outBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
                 break;
@@ -115,7 +117,7 @@ namespace oblo
         VkImageSubresourceRange range;
     };
 
-    VkImageLayout image_layout_tracker::deduce_layout(texture_usage usage)
+    VkImageLayout image_layout_tracker::deduce_layout(texture_access usage)
     {
         VkImageMemoryBarrier2 b{};
         deduce_barrier(pass_kind::none, usage, b);
@@ -126,15 +128,17 @@ namespace oblo
 
     image_layout_tracker::~image_layout_tracker() = default;
 
-    void image_layout_tracker::start_tracking(handle_type handle, const texture& t)
+    void image_layout_tracker::start_tracking(handle_type handle, const frame_graph_texture_impl& t)
     {
         VkImageAspectFlags aspectMask = 0;
 
-        if (is_depth_format(t.initializer.format))
+        const VkFormat format = convert_to_vk(t.descriptor.format);
+
+        if (is_depth_format(format))
         {
             aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-            if (has_stencil(t.initializer.format))
+            if (has_stencil(format))
             {
                 aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
             }
@@ -153,17 +157,17 @@ namespace oblo
                     {
                         .aspectMask = aspectMask,
                         .baseMipLevel = 0,
-                        .levelCount = t.initializer.mipLevels,
+                        .levelCount = t.descriptor.mipLevels,
                         .baseArrayLayer = 0,
-                        .layerCount = t.initializer.arrayLayers,
+                        .layerCount = t.descriptor.arrayLayers,
                     },
             });
     }
 
     bool image_layout_tracker::add_transition(
-        VkImageMemoryBarrier2& outBarrier, handle_type handle, pass_kind pass, texture_usage usage)
+        VkImageMemoryBarrier2& outBarrier, handle_type handle, pass_kind pass, texture_access usage)
     {
-        OBLO_ASSERT(pass != pass_kind::none || usage == texture_usage::present);
+        OBLO_ASSERT(pass != pass_kind::none || usage == texture_access::present);
 
         auto* const state = m_state.try_find(handle);
         OBLO_ASSERT(state);

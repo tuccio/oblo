@@ -1,14 +1,16 @@
 #pragma once
 
 #include <oblo/core/unreachable.hpp>
-#include <oblo/renderer/compiler/shader_stage.hpp>
+#include <oblo/gpu/types.hpp>
 
 #include <vulkan/vulkan.h>
 
 namespace oblo
 {
-    inline VkShaderStageFlagBits to_vk_shader_stage(shader_stage stage)
+    inline VkShaderStageFlagBits to_vk_shader_stage(gpu::shader_stage stage)
     {
+        using gpu::shader_stage;
+
         switch (stage)
         {
         case shader_stage::vertex:
@@ -44,8 +46,10 @@ namespace oblo
         }
     }
 
-    inline shader_stage from_vk_shader_stage(VkShaderStageFlagBits vkStage)
+    inline gpu::shader_stage from_vk_shader_stage(VkShaderStageFlagBits vkStage)
     {
+        using gpu::shader_stage;
+
         switch (vkStage)
         {
         case VK_SHADER_STAGE_VERTEX_BIT:

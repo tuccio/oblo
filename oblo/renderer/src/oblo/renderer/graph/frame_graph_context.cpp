@@ -4,6 +4,7 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -71,7 +72,7 @@ namespace oblo
 
         gpu::buffer_usage convert_buffer_usage(buffer_access usage)
         {
-            OBLO_ASSERT(usage != buffer_usage::enum_max);
+            OBLO_ASSERT(usage != buffer_access::enum_max);
 
             switch (usage)
             {
@@ -203,35 +204,35 @@ namespace oblo
             switch (usage)
             {
             case texture_access::transfer_destination:
-                resourcePool.add_transient_texture_access(frameGraph.find_pool_index(texture),
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     gpu::image_usage::transfer_destination);
                 break;
 
             case texture_access::transfer_source:
-                resourcePool.add_transient_texture_access(frameGraph.find_pool_index(texture),
-                    VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    gpu::image_usage::transfer_source);
                 break;
 
             case texture_access::shader_read:
-                resourcePool.add_transient_texture_access(frameGraph.find_pool_index(texture),
-                    VK_IMAGE_USAGE_SAMPLED_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    gpu::image_usage::shader_sample);
                 break;
 
             case texture_access::storage_read:
             case texture_access::storage_write:
-                resourcePool.add_transient_texture_access(frameGraph.find_pool_index(texture),
-                    VK_IMAGE_USAGE_STORAGE_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    gpu::image_usage::storage);
                 break;
 
             case texture_access::render_target_write:
-                resourcePool.add_transient_texture_access(frameGraph.find_pool_index(texture),
-                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    gpu::image_usage::color_attachment);
                 break;
 
             case texture_access::depth_stencil_write:
             case texture_access::depth_stencil_read:
-                resourcePool.add_transient_texture_access(frameGraph.find_pool_index(texture),
-                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+                resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
+                    gpu::image_usage::depth_stencil);
                 break;
 
             default:
@@ -240,7 +241,7 @@ namespace oblo
         }
 
         template <typename R>
-        constexpr h32<frame_graph_pin_storage> as_storage_handle(resource<R> h)
+        constexpr h32<frame_graph_pin_storage> as_storage_handle(pin::resource<R> h)
         {
             return h32<frame_graph_pin_storage>{h.value};
         }
@@ -250,13 +251,23 @@ namespace oblo
             return h32<frame_graph_pin_storage>{h.value};
         }
 
-        template <typename R>
-        const R& access_storage(const frame_graph_impl& frameGraph, resource<R> h)
+        template <typename T, typename R>
+        const T& access_storage_as(const frame_graph_impl& frameGraph, pin::resource<R> h)
         {
             const auto storage = as_storage_handle(h);
-            const auto* ptr = static_cast<R*>(frameGraph.access_storage(storage));
+            const auto* ptr = static_cast<T*>(frameGraph.access_storage(storage));
             OBLO_ASSERT(ptr);
             return *ptr;
+        }
+
+        const frame_graph_texture_impl& access_storage(const frame_graph_impl& frameGraph, pin::texture h)
+        {
+            return access_storage_as<frame_graph_texture_impl>(frameGraph, h);
+        }
+
+        const frame_graph_buffer_impl& access_storage(const frame_graph_impl& frameGraph, pin::buffer h)
+        {
+            return access_storage_as<frame_graph_buffer_impl>(frameGraph, h);
         }
 
         [[maybe_unused]] bool check_buffer_usage(const frame_graph_impl& frameGraph,
@@ -293,7 +304,7 @@ namespace oblo
             const binding_tables_span& bindingTables)
         {
             const auto& pm = args.passManager;
-            const auto& interner = args.stringInterner;
+            const auto& interner = args.r.get_string_interner();
 
             pm.bind_descriptor_sets(commandBuffer,
                 bindPoint,
@@ -327,7 +338,7 @@ namespace oblo
                         }
 
                         case bindable_resource_kind::buffer: {
-                            const buffer& b = access_storage(frameGraph, r->buffer);
+                            const frame_graph_buffer_impl& b = access_storage(frameGraph, r->buffer);
 
 #if OBLO_DEBUG
                             const bool isReadOnlyBuffer =
@@ -344,11 +355,11 @@ namespace oblo
                             }
 
 #endif
-                            return make_bindable_object(b);
+                            return make_bindable_object(b.buffer, b.offset, b.size);
                         }
 
                         case bindable_resource_kind::texture: {
-                            const texture& t = access_storage(frameGraph, r->texture);
+                            const frame_graph_texture_impl& t = access_storage(frameGraph, r->texture);
 
                             // The frame graph converts the pin storage handle to texture handle to use when keeping
                             // track of textures
@@ -378,8 +389,8 @@ namespace oblo
     {
         OBLO_ASSERT(m_state.currentPass);
 
-        const image_initializer imageInitializer =
-            create_image_initializer(initializer, convert_texture_access(usage) | VK_IMAGE_USAGE_SAMPLED_BIT);
+        const gpu::image_descriptor imageInitializer =
+            create_image_initializer(initializer, convert_texture_access(usage) | gpu::image_usage::shader_sample);
 
         // TODO: (#29) Reuse and alias texture memory
         constexpr lifetime_range range{0, 0};
@@ -401,15 +412,15 @@ namespace oblo
     }
 
     void frame_graph_build_context::create(
-        pin::buffer buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const
+        pin::buffer buffer, const buffer_resource_initializer& initializer, buffer_access usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
-        auto vkUsage = convert_buffer_usage(usage);
+        flags allUsages = convert_buffer_usage(usage);
 
         if (!initializer.data.empty())
         {
-            vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            allUsages |= gpu::buffer_usage::transfer_destination;
         }
 
         h32<stable_buffer_resource> stableId{};
@@ -423,7 +434,7 @@ namespace oblo
                 "Uploading at initialization time on stable buffers is currently not supported");
         }
 
-        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(initializer.size, vkUsage, stableId);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(initializer.size, allUsages, stableId);
 
         staging_buffer_span stagedData{};
         staging_buffer_span* stagedDataPtr{};
@@ -432,7 +443,7 @@ namespace oblo
 
         if (upload)
         {
-            [[maybe_unused]] const auto res = m_args.stagingBuffer.stage(initializer.data);
+            [[maybe_unused]] const auto res = m_args.r.get_staging_buffer().stage(initializer.data);
             OBLO_ASSERT(res, "Out of space on the staging buffer, we should flush instead");
 
             stagedData = *res;
@@ -449,7 +460,7 @@ namespace oblo
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, upload);
 
-        if (usage == buffer_usage::download)
+        if (usage == buffer_access::download)
         {
             OBLO_ASSERT(currentPass.kind == pass_kind::transfer);
             m_frameGraph.add_download(buffer);
@@ -457,22 +468,22 @@ namespace oblo
     }
 
     void frame_graph_build_context::create(
-        pin::buffer buffer, const staging_buffer_span& stagedData, buffer_usage usage) const
+        pin::buffer buffer, const staging_buffer_span& stagedData, buffer_access usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
-        auto vkUsage = convert_buffer_usage(usage);
+        flags allUsages = convert_buffer_usage(usage);
 
         const auto stagedDataSize = calculate_size(stagedData);
 
         if (stagedDataSize != 0)
         {
-            vkUsage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            allUsages |= gpu::buffer_usage::transfer_destination;
         }
 
         constexpr h32<stable_buffer_resource> notStable{};
 
-        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(stagedDataSize, vkUsage, notStable);
+        const auto poolIndex = m_frameGraph.resourcePool.add_transient_buffer(stagedDataSize, allUsages, notStable);
 
         // We rely on a global memory barrier in frame graph to synchronize all uploads before submitting any command
 
@@ -483,7 +494,7 @@ namespace oblo
         const auto [pipelineStage, access, accessKind] = convert_for_sync2(currentPass.kind, usage);
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, stagedDataSize != 0);
 
-        if (usage == buffer_usage::download)
+        if (usage == buffer_access::download)
         {
             OBLO_ASSERT(currentPass.kind == pass_kind::transfer);
             m_frameGraph.add_download(buffer);
@@ -493,15 +504,15 @@ namespace oblo
     h32<retained_texture> frame_graph_build_context::create_retained_texture(
         const texture_resource_initializer& initializer, flags<texture_access> usages) const
     {
-        const image_initializer& imageInit = create_image_initializer(initializer, convert_texture_access(usages));
-        const h32 storage = m_frameGraph.create_retained_texture(m_args.vkCtx, imageInit);
+        const gpu::image_descriptor& imageInit = create_image_initializer(initializer, convert_texture_access(usages));
+        const h32 storage = m_frameGraph.create_retained_texture(m_args.r.get_gpu_queue_context(), imageInit);
         return h32<retained_texture>{storage.value};
     }
 
     void frame_graph_build_context::destroy_retained_texture(h32<retained_texture> handle) const
     {
         const h32 storageHandle = as_storage_handle(handle);
-        m_frameGraph.destroy_retained_texture(m_args.vkCtx, storageHandle);
+        m_frameGraph.destroy_retained_texture(m_args.r.get_gpu_queue_context(), storageHandle);
     }
 
     pin::texture frame_graph_build_context::get_resource(h32<retained_texture> texture) const
@@ -509,10 +520,9 @@ namespace oblo
         return {texture.value};
     }
 
-    void frame_graph_build_context::register_texture(pin::texture resource, h32<texture> externalTexture) const
+    void frame_graph_build_context::register_texture(pin::texture resource, h32<gpu::image> externalTexture) const
     {
-        const auto& texture = m_frameGraph.resourceManager->get(externalTexture);
-        const auto poolIndex = m_frameGraph.resourcePool.add_external_texture(texture);
+        const auto poolIndex = m_frameGraph.resourcePool.add_external_texture(externalTexture);
         m_frameGraph.add_transient_resource(resource, poolIndex);
     }
 
@@ -548,7 +558,7 @@ namespace oblo
         return m_args.resourceCache.get_or_add(texture);
     }
 
-    void frame_graph_build_context::acquire(pin::buffer buffer, buffer_usage usage) const
+    void frame_graph_build_context::acquire(pin::buffer buffer, buffer_access usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -561,7 +571,7 @@ namespace oblo
 
         m_frameGraph.set_buffer_access(buffer, pipelineStage, access, accessKind, false);
 
-        if (usage == buffer_usage::download)
+        if (usage == buffer_access::download)
         {
             OBLO_ASSERT(currentPass.kind == pass_kind::transfer);
             m_frameGraph.add_download(buffer);
@@ -651,9 +661,9 @@ namespace oblo
         const auto& init = m_frameGraph.resourcePool.get_initializer(h);
 
         return texture_init_desc{
-            .width = init.extent.width,
-            .height = init.extent.height,
-            .format = convert_to_oblo(init.format),
+            .width = init.width,
+            .height = init.height,
+            .format = init.format,
         };
     }
 
@@ -669,12 +679,12 @@ namespace oblo
 
     staging_buffer_span frame_graph_build_context::stage_upload(std::span<const byte> data) const
     {
-        return m_args.stagingBuffer.stage(data).value();
+        return m_args.r.get_staging_buffer().stage(data).value();
     }
 
     staging_buffer_span frame_graph_build_context::stage_upload_image(std::span<const byte> data, u32 texelSize) const
     {
-        return m_args.stagingBuffer.stage_image(data, texelSize).value();
+        return m_args.r.get_staging_buffer().stage_image(data, texelSize).value();
     }
 
     u32 frame_graph_build_context::get_current_frames_count() const
@@ -688,7 +698,7 @@ namespace oblo
     {
     }
 
-    h32<compute_pass_instance> frame_graph_build_context::compute_pass(h32<vk::compute_pass> pass,
+    h32<compute_pass_instance> frame_graph_build_context::compute_pass(h32<oblo::compute_pass> pass,
         const compute_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::compute);
@@ -698,7 +708,7 @@ namespace oblo
         return h32<compute_pass_instance>{h.value};
     }
 
-    h32<render_pass_instance> frame_graph_build_context::render_pass(h32<vk::render_pass> pass,
+    h32<render_pass_instance> frame_graph_build_context::render_pass(h32<oblo::render_pass> pass,
         const render_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::graphics);
@@ -708,7 +718,7 @@ namespace oblo
         return h32<render_pass_instance>{h.value};
     }
 
-    h32<raytracing_pass_instance> frame_graph_build_context::raytracing_pass(h32<vk::raytracing_pass> pass,
+    h32<raytracing_pass_instance> frame_graph_build_context::raytracing_pass(h32<oblo::raytracing_pass> pass,
         const raytracing_pipeline_initializer& initializer) const
     {
         const auto h = m_frameGraph.begin_pass_build(m_state, pass_kind::raytracing);
@@ -998,25 +1008,15 @@ namespace oblo
     }
 
     void frame_graph_execute_context::bind_index_buffer(
-        pin::buffer buffer, u32 bufferOffset, mesh_index_type indexType) const
+        pin::buffer buffer, u32 bufferOffset, gpu::mesh_index_type indexType) const
     {
         const auto vkIndexType = convert_to_vk(indexType);
 
-        const auto b = access(buffer);
+        const frame_graph_buffer_impl& b = oblo::access_storage(m_frameGraph, buffer);
         vkCmdBindIndexBuffer(m_state.commandBuffer, b.buffer, b.offset + bufferOffset, vkIndexType);
     }
 
-    texture frame_graph_execute_context::access(pin::texture h) const
-    {
-        return vk::access_storage(m_frameGraph, h);
-    }
-
-    buffer frame_graph_execute_context::access(pin::buffer h) const
-    {
-        return vk::access_storage(m_frameGraph, h);
-    }
-
-    resource<acceleration_structure> frame_graph_execute_context::get_global_tlas() const
+    pin::acceleration_structure frame_graph_execute_context::get_global_tlas() const
     {
         return g_globalTLAS;
     }
@@ -1056,7 +1056,7 @@ namespace oblo
     {
         OBLO_ASSERT(m_state.currentPass && m_frameGraph.passes[m_state.currentPass.value].kind == pass_kind::transfer);
 
-        auto& stagingBuffer = m_args.stagingBuffer;
+        auto& stagingBuffer = m_args.r.get_staging_buffer();
         const auto stagedData = stagingBuffer.stage(data);
 
         if (!stagedData)

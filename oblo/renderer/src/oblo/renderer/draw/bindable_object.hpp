@@ -1,8 +1,7 @@
 #pragma once
 
-#include <oblo/renderer/buffer.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
-#include <oblo/renderer/texture.hpp>
+#include <oblo/renderer/platform/renderer_platform.hpp>
 
 namespace oblo
 {
@@ -35,9 +34,9 @@ namespace oblo
         };
     };
 
-    constexpr bindable_object make_bindable_object(const vk::buffer& b)
+    constexpr bindable_object make_bindable_object(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size)
     {
-        return {.kind = bindable_resource_kind::buffer, .buffer = {b.buffer, b.offset, b.size}};
+        return {.kind = bindable_resource_kind::buffer, .buffer = {buffer, offset, size}};
     }
 
     constexpr bindable_object make_bindable_object(VkImageView view, VkImageLayout layout)

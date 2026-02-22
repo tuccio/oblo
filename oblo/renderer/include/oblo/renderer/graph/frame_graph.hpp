@@ -54,9 +54,9 @@ namespace oblo
         bool init(gpu::gpu_queue_context& ctx);
         void shutdown(gpu::gpu_queue_context& ctx);
 
-        void build(const frame_graph_build_args& args);
+        void build(frame_graph_build_args& args);
 
-        void execute(const frame_graph_execute_args& args);
+        void execute(frame_graph_execute_args& args);
 
         void write_dot(std::ostream& os) const;
 
