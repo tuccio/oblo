@@ -15,13 +15,10 @@
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/gpu/vulkan/gpu_allocator.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/options_module.hpp>
-#include <oblo/trace/profile.hpp>
-#include <oblo/renderer/buffer.hpp>
-#include <oblo/renderer/compiler/compiler_module.hpp>
-#include <oblo/renderer/compiler/shader_cache.hpp>
 #include <oblo/renderer/draw/bindable_object.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
@@ -35,17 +32,15 @@
 #include <oblo/renderer/draw/shader_stage_utils.hpp>
 #include <oblo/renderer/draw/texture_registry.hpp>
 #include <oblo/renderer/draw/vk_type_conversions.hpp>
-#include <oblo/renderer/resource_manager.hpp>
-#include <oblo/renderer/texture.hpp>
-#include <oblo/renderer/vulkan_context.hpp>
+#include <oblo/trace/profile.hpp>
+#include <oblo/vulkan/compiler/compiler_module.hpp>
+#include <oblo/vulkan/compiler/shader_cache.hpp>
 
 #include <spirv_cross/spirv_cross.hpp>
 
 #ifdef TRACY_ENABLE
     #include <tracy/TracyVulkan.hpp>
 #endif
-
-#include <optional>
 
 namespace oblo
 {
@@ -457,7 +452,7 @@ namespace oblo
     struct raytracing_pipeline : base_pipeline
     {
         dynamic_array<VkShaderModule> shaderModules;
-        allocated_buffer shaderBindingTable{};
+        gpu::vk::allocated_buffer shaderBindingTable{};
 
         VkStridedDeviceAddressRegionKHR rayGen{};
         VkStridedDeviceAddressRegionKHR hit{};
@@ -467,72 +462,71 @@ namespace oblo
 
     namespace
     {
-        void destroy_pipeline(vulkan_context& ctx, const render_pipeline& variant)
+        void destroy_base_pipeline(gpu::vk::vulkan_instance& ctx, const base_pipeline& variant)
         {
-            const auto submitIndex = ctx.get_submit_index();
-
             if (const auto pipeline = variant.pipeline)
             {
-                ctx.destroy_deferred(pipeline, submitIndex);
+                vkDestroyPipeline(ctx.get_device(), pipeline, ctx.get_allocator().get_allocation_callbacks());
             }
 
             if (const auto pipelineLayout = variant.pipelineLayout)
             {
-                ctx.destroy_deferred(pipelineLayout, submitIndex);
+                vkDestroyPipelineLayout(ctx.get_device(),
+                    pipelineLayout,
+                    ctx.get_allocator().get_allocation_callbacks());
             }
+        }
+
+        void destroy_pipeline(gpu::vk::vulkan_instance& ctx, const render_pipeline& variant)
+        {
+            // TODO: Just temporarily wait to get things running
+            ctx.wait_idle();
+
+            destroy_base_pipeline(ctx, variant);
 
             for (const auto shaderModule : variant.shaderModules)
             {
                 if (shaderModule)
                 {
-                    ctx.destroy_deferred(shaderModule, submitIndex);
+                    vkDestroyShaderModule(ctx.get_device(),
+                        shaderModule,
+                        ctx.get_allocator().get_allocation_callbacks());
                 }
             }
         }
 
-        void destroy_pipeline(vulkan_context& ctx, const compute_pipeline& variant)
+        void destroy_pipeline(gpu::vk::vulkan_instance& ctx, const compute_pipeline& variant)
         {
-            const auto submitIndex = ctx.get_submit_index();
+            // TODO: Just temporarily wait to get things running
+            ctx.wait_idle();
 
-            if (const auto pipeline = variant.pipeline)
-            {
-                ctx.destroy_deferred(pipeline, submitIndex);
-            }
+            destroy_base_pipeline(ctx, variant);
 
-            if (const auto pipelineLayout = variant.pipelineLayout)
-            {
-                ctx.destroy_deferred(pipelineLayout, submitIndex);
-            }
-
-            if (const auto shaderModule = variant.shaderModule)
-            {
-                ctx.destroy_deferred(shaderModule, submitIndex);
-            }
+            vkDestroyShaderModule(ctx.get_device(),
+                variant.shaderModule,
+                ctx.get_allocator().get_allocation_callbacks());
         }
 
-        void destroy_pipeline(vulkan_context& ctx, const raytracing_pipeline& variant)
+        void destroy_pipeline(gpu::vk::vulkan_instance& ctx, const raytracing_pipeline& variant)
         {
-            const auto submitIndex = ctx.get_submit_index();
+            // TODO: Just temporarily wait to get things running
+            ctx.wait_idle();
 
-            if (const auto pipeline = variant.pipeline)
-            {
-                ctx.destroy_deferred(pipeline, submitIndex);
-            }
-
-            if (const auto pipelineLayout = variant.pipelineLayout)
-            {
-                ctx.destroy_deferred(pipelineLayout, submitIndex);
-            }
+            destroy_base_pipeline(ctx, variant);
 
             for (const auto shaderModule : variant.shaderModules)
             {
-                ctx.destroy_deferred(shaderModule, submitIndex);
+                if (shaderModule)
+                {
+                    vkDestroyShaderModule(ctx.get_device(),
+                        shaderModule,
+                        ctx.get_allocator().get_allocation_callbacks());
+                }
             }
 
             if (variant.shaderBindingTable.buffer)
             {
-                ctx.destroy_deferred(variant.shaderBindingTable.buffer, submitIndex);
-                ctx.destroy_deferred(variant.shaderBindingTable.allocation, submitIndex);
+                ctx.get_allocator().destroy(variant.shaderBindingTable);
             }
         }
 
@@ -592,8 +586,8 @@ namespace oblo
     {
         frame_allocator frameAllocator;
 
-        unique_ptr<shader_compiler> glslcCompiler;
-        unique_ptr<shader_compiler> glslangCompiler;
+        unique_ptr<vk::shader_compiler> glslcCompiler;
+        unique_ptr<vk::shader_compiler> glslangCompiler;
         option_proxy_struct<global_shader_options_proxy> shaderCompilerOptions;
         options_manager* optionsManager{};
         shader_cache shaderCache;

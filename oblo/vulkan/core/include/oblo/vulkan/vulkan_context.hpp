@@ -203,9 +203,4 @@ namespace oblo::vk
             any = nullptr;
         }
     }
-
-    inline const loaded_functions& vulkan_context::get_loaded_functions() const
-    {
-        return m_loadedFunctions;
-    }
 }

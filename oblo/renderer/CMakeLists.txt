@@ -26,5 +26,5 @@ target_link_libraries(
     oblo::app
     oblo::resource
     oblo::modules
-    oblo::vk::engine
+    oblo::vulkan::engine
 )

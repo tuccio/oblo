@@ -119,13 +119,13 @@ namespace oblo::gpu::vk
         if (label.empty())
         {
 #ifndef OBLO_DEBUG
-            m_labelHelper.set_object_name(m_device, obj, "Unnamed object");
+            m_objLabeler.set_object_name(m_device, obj, "Unnamed object");
 #endif
 
             return;
         }
 
-        m_labelHelper.set_object_name(m_device, obj, label.get());
+        m_objLabeler.set_object_name(m_device, obj, label.get());
     }
 
     struct vulkan_instance::buffer_impl : vk::allocated_buffer
@@ -219,7 +219,23 @@ namespace oblo::gpu::vk
             translate_error(instanceResult);
         }
 
-        OBLO_VK_LOAD_FN_ASSIGN(m_labelHelper, vkSetDebugUtilsObjectNameEXT);
+        // Load dynamic functions
+        OBLO_VK_LOAD_FN_ASSIGN(m_objLabeler, vkSetDebugUtilsObjectNameEXT);
+
+        OBLO_VK_LOAD_FN_ASSIGN(m_cmdLabeler, vkCmdBeginDebugUtilsLabelEXT);
+        OBLO_VK_LOAD_FN_ASSIGN(m_cmdLabeler, vkCmdEndDebugUtilsLabelEXT);
+
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCmdDrawMeshTasksEXT);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCmdDrawMeshTasksIndirectEXT);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCmdDrawMeshTasksIndirectCountEXT);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCreateAccelerationStructureKHR);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkDestroyAccelerationStructureKHR);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkGetAccelerationStructureBuildSizesKHR);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCmdBuildAccelerationStructuresKHR);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkGetAccelerationStructureDeviceAddressKHR);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCreateRayTracingPipelinesKHR);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkGetRayTracingShaderGroupHandlesKHR);
+        OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCmdTraceRaysKHR);
 
         return no_error;
     }
@@ -741,24 +757,7 @@ namespace oblo::gpu::vk
         descriptor.memoryProperties.visit(overload{
             [&initializer](memory_usage usage) -> void { initializer.memoryUsage = vk::allocated_memory_usage(usage); },
             [&initializer](flags<memory_requirement> requirements) -> void
-            {
-                VkMemoryPropertyFlags flags{};
-
-                for (const memory_requirement r : flags_range{requirements})
-                {
-                    switch (r)
-                    {
-                    case memory_requirement::host_visible:
-                        flags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-                        break;
-
-                    default:
-                        unreachable();
-                    }
-                }
-
-                initializer.requiredFlags = flags;
-            },
+            { initializer.requiredFlags = vk::convert_enum_flags(requirements); },
         });
 
         const VkResult r = m_allocator.create_buffer(initializer, &allocatedBuffer);
@@ -795,6 +794,12 @@ namespace oblo::gpu::vk
 
         const VkDeviceAddress address = vkGetBufferDeviceAddress(m_device, &info);
         return {address};
+    }
+
+    h64<device_address> vulkan_instance::get_device_address(buffer_range bufferWithOffset)
+    {
+        const h64 address = get_device_address(bufferWithOffset.buffer);
+        return offset_device_address(address, bufferWithOffset.offset);
     }
 
     result<h32<image>> vulkan_instance::create_image(const image_descriptor& descriptor)
@@ -1331,6 +1336,16 @@ namespace oblo::gpu::vk
             regions.data());
     }
 
+    void vulkan_instance::cmd_label_begin(hptr<command_buffer> cmd, const char* label)
+    {
+        m_cmdLabeler.begin(unwrap_handle<VkCommandBuffer>(cmd), label);
+    }
+
+    void vulkan_instance::cmd_label_end(hptr<command_buffer> cmd)
+    {
+        m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmd));
+    }
+
     VkPhysicalDevice vulkan_instance::get_physical_device() const
     {
         return m_physicalDevice;
@@ -1369,6 +1384,16 @@ namespace oblo::gpu::vk
     VkQueue vulkan_instance::unwrap_queue(h32<queue> queue) const
     {
         return get_queue(queue).queue;
+    }
+
+    debug_utils::object vulkan_instance::get_object_labeler() const
+    {
+        return m_objLabeler;
+    }
+
+    const loaded_functions& vulkan_instance::get_loaded_functions() const
+    {
+        return m_loadedFunctions;
     }
 
     h32<image> vulkan_instance::register_image(

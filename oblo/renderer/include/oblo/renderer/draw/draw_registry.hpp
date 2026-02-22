@@ -5,6 +5,8 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/gpu/forward.hpp>
+#include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/renderer/draw/dynamic_buffer.hpp>
 #include <oblo/renderer/draw/mesh_database.hpp>
 #include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
@@ -13,6 +15,8 @@
 #include <span>
 #include <unordered_map>
 #include <vector>
+
+#include <vulkan/vulkan_core.h>
 
 namespace oblo
 {
@@ -24,10 +28,7 @@ namespace oblo
     struct resource_ref;
 
     class instance_data_type_registry;
-    class staging_buffer;
-    class vulkan_context;
     struct draw_mesh;
-    struct staging_buffer_span;
 
     struct draw_buffer
     {
@@ -39,7 +40,7 @@ namespace oblo
     struct draw_instance_buffers
     {
         u32* instanceBufferIds;
-        staging_buffer_span* buffersData;
+        gpu::staging_buffer_span* buffersData;
         u32 count;
     };
 
@@ -62,8 +63,8 @@ namespace oblo
         draw_registry& operator=(const draw_registry&) = delete;
         draw_registry& operator=(draw_registry&&) noexcept = delete;
 
-        void init(vulkan_context& ctx,
-            staging_buffer& stagingBuffer,
+        void init(gpu::gpu_queue_context& ctx,
+            gpu::staging_buffer& stagingBuffer,
             string_interner& interner,
             ecs::entity_registry& entities,
             const resource_registry& resourceRegistry,
@@ -74,11 +75,11 @@ namespace oblo
         h32<draw_mesh> try_get_mesh(const resource_ref<mesh>& resourceId) const;
         h32<draw_mesh> get_or_create_mesh(const resource_ref<mesh>& resourceId);
 
-        void flush_uploads(VkCommandBuffer commandBuffer);
+        void flush_uploads(hptr<gpu::command_buffer> commandBuffer);
 
         void generate_mesh_database(frame_allocator& allocator);
         void generate_draw_calls(frame_allocator& allocator);
-        void generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer);
+        void generate_raytracing_structures(frame_allocator& allocator, hptr<gpu::command_buffer> commandBuffer);
 
         std::span<const batch_draw_data> get_draw_calls() const;
 
@@ -96,20 +97,21 @@ namespace oblo
         struct rt_acceleration_structure
         {
             VkAccelerationStructureKHR accelerationStructure;
-            VkDeviceAddress deviceAddress;
-            allocated_buffer buffer;
+            h64<gpu::device_address> deviceAddress;
+            h32<gpu::buffer> buffer;
         };
 
     private:
         void create_instances();
-        void defer_upload(const std::span<const byte> data, const buffer& b);
+        void defer_upload(const std::span<const byte> data, const gpu::buffer_range& b);
 
         void release(rt_acceleration_structure& as);
 
     private:
-        vulkan_context* m_ctx{};
+        gpu::gpu_queue_context* m_ctx{};
+        gpu::vk::vulkan_instance* m_vk{};
 
-        staging_buffer* m_stagingBuffer{};
+        gpu::staging_buffer* m_stagingBuffer{};
         const resource_registry* m_resourceRegistry{};
         mesh_database m_meshes;
         ecs::entity_registry* m_entities{};
@@ -133,7 +135,7 @@ namespace oblo
         ecs::type_set m_instanceDataTypes{};
 
         static constexpr u32 MeshBuffersCount{3};
-        std::array<h32<string>, MeshBuffersCount> m_meshDataNames{};
+        std::array<h32<buffer_table_name>, MeshBuffersCount> m_meshDataNames{};
 
         dynamic_array<pending_mesh_upload> m_pendingMeshUploads;
 

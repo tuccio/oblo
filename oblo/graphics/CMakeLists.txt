@@ -12,6 +12,6 @@ target_link_libraries(
     oblo::options
     oblo::reflection
     oblo::scene
-    oblo::vk::core
-    oblo::vk::engine
+    oblo::vulkan::core
+    oblo::vulkan::engine
 )

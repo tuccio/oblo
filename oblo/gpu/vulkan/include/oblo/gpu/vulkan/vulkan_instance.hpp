@@ -5,6 +5,7 @@
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
 #include <oblo/gpu/vulkan/utility/debug_utils.hpp>
+#include <oblo/gpu/vulkan/utility/loaded_functions.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -65,6 +66,7 @@ namespace oblo::gpu::vk
         void destroy_buffer(h32<buffer> bufferHandle) override;
 
         h64<device_address> get_device_address(h32<buffer> bufferHandle) override;
+        h64<device_address> get_device_address(buffer_range bufferWithOffset) override;
 
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
         void destroy_image(h32<image> imageHandle) override;
@@ -118,6 +120,11 @@ namespace oblo::gpu::vk
             h32<image> dst,
             std::span<const buffer_image_copy_descriptor> copies) override;
 
+        // Debugging and profiling
+
+        void cmd_label_begin(hptr<command_buffer> cmd, const char* label) override;
+        void cmd_label_end(hptr<command_buffer> cmd) override;
+
         // Vulkan specific
         VkPhysicalDevice get_physical_device() const;
         VkDevice get_device() const;
@@ -129,7 +136,9 @@ namespace oblo::gpu::vk
         VkImageView unwrap_image_view(h32<image> handle) const;
         VkQueue unwrap_queue(h32<queue> queue) const;
 
-        debug_utils::object get_debug_utils_object() const;
+        debug_utils::object get_object_labeler() const;
+
+        const loaded_functions& get_loaded_functions() const;
 
     private:
         struct buffer_impl;
@@ -172,6 +181,8 @@ namespace oblo::gpu::vk
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};
 
-        debug_utils::object m_labelHelper{};
+        debug_utils::label m_cmdLabeler{};
+        debug_utils::object m_objLabeler{};
+        loaded_functions m_loadedFunctions{};
     };
 }

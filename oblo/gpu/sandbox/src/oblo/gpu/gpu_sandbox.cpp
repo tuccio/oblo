@@ -2,10 +2,10 @@
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
-#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
@@ -249,7 +249,7 @@ namespace oblo
                               ->create_swapchain({
                                   .surface = m_windowSurface,
                                   .numImages = num_swapchain_images,
-                                  .format = gpu::texture_format::b8g8r8a8_unorm,
+                                  .format = gpu::image_format::b8g8r8a8_unorm,
                                   .width = windowSize.x,
                                   .height = windowSize.y,
                               })

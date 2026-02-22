@@ -15,22 +15,21 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
+#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/renderer/data/components.hpp>
+#include <oblo/renderer/data/gpu_aabb.hpp>
+#include <oblo/renderer/data/tags_internal.hpp>
+#include <oblo/renderer/draw/instance_data_type_registry.hpp>
+#include <oblo/renderer/draw/mesh_table.hpp>
+#include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/renderer/data/components.hpp>
-#include <oblo/renderer/data/gpu_aabb.hpp>
-#include <oblo/renderer/data/tags_internal.hpp>
-#include <oblo/renderer/draw/instance_data_type_registry.hpp>
-#include <oblo/renderer/draw/mesh_table.hpp>
-#include <oblo/renderer/error.hpp>
-#include <oblo/renderer/monotonic_gbu_buffer.hpp>
-#include <oblo/renderer/staging_buffer.hpp>
-#include <oblo/renderer/vulkan_context.hpp>
 
 #include <array>
 #include <charconv>
@@ -100,7 +99,7 @@ namespace oblo
 
         struct gpu_full_index_buffer
         {
-            u64 deviceAddress;
+            h64<gpu::device_address> deviceAddress;
             u32 indexType;
             u32 _padding;
         };
@@ -124,13 +123,13 @@ namespace oblo
     {
         rt_acceleration_structure as;
         resource_ref<mesh> mesh;
-        allocated_buffer fullIndexBuffer;
+        h32<gpu::buffer> fullIndexBuffer;
     };
 
     struct draw_registry::pending_mesh_upload
     {
-        staging_buffer_span src;
-        buffer dst;
+        gpu::staging_buffer_span src;
+        gpu::buffer_range dst;
     };
 
     struct draw_registry::instance_data_type_info
@@ -145,14 +144,15 @@ namespace oblo
         shutdown();
     }
 
-    void draw_registry::init(vulkan_context& ctx,
-        staging_buffer& stagingBuffer,
+    void draw_registry::init(gpu::gpu_queue_context& ctx,
+        gpu::staging_buffer& stagingBuffer,
         string_interner& interner,
         ecs::entity_registry& entities,
         const resource_registry& resourceRegistry,
         const instance_data_type_registry& instanceDataTypeRegistry)
     {
         m_ctx = &ctx;
+        m_vk = dynamic_cast<gpu::vk::vulkan_instance*>(&ctx.get_instance());
         m_stagingBuffer = &stagingBuffer;
         m_entities = &entities;
         m_typeRegistry = &m_entities->get_type_registry();
@@ -161,27 +161,27 @@ namespace oblo
         mesh_attribute_description attributes[u32(vertex_attributes::enum_max)]{};
 
         attributes[u32(vertex_attributes::position)] = {
-            .name = interner.get_or_add("in_Position"_hsv),
+            .name = interner.get_or_add("in_Position"_hsv).rebind<buffer_table_name>(),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::normal)] = {
-            .name = interner.get_or_add("in_Normal"_hsv),
+            .name = interner.get_or_add("in_Normal"_hsv).rebind<buffer_table_name>(),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::tangent)] = {
-            .name = interner.get_or_add("in_Tangent"_hsv),
+            .name = interner.get_or_add("in_Tangent"_hsv).rebind<buffer_table_name>(),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::bitangent)] = {
-            .name = interner.get_or_add("in_Bitangent"_hsv),
+            .name = interner.get_or_add("in_Bitangent"_hsv).rebind<buffer_table_name>(),
             .elementSize = sizeof(f32) * 3,
         };
 
         attributes[u32(vertex_attributes::uv0)] = {
-            .name = interner.get_or_add("in_UV0"_hsv),
+            .name = interner.get_or_add("in_UV0"_hsv).rebind<buffer_table_name>(),
             .elementSize = sizeof(f32) * 2,
         };
 
@@ -201,15 +201,15 @@ namespace oblo
 
         const mesh_attribute_description meshData[] = {
             {
-                .name = interner.get_or_add("b_meshDrawRange"_hsv),
+                .name = interner.get_or_add("b_meshDrawRange"_hsv).rebind<buffer_table_name>(),
                 .elementSize = sizeof(mesh_draw_range),
             },
             {
-                .name = interner.get_or_add("b_MeshAABBs"_hsv),
+                .name = interner.get_or_add("b_MeshAABBs"_hsv).rebind<buffer_table_name>(),
                 .elementSize = sizeof(gpu_aabb),
             },
             {
-                .name = interner.get_or_add("b_FullIndexBuffer"_hsv),
+                .name = interner.get_or_add("b_FullIndexBuffer"_hsv).rebind<buffer_table_name>(),
                 .elementSize = sizeof(gpu_full_index_buffer),
             },
         };
@@ -221,20 +221,16 @@ namespace oblo
             m_meshDataNames[i] = meshData[i].name;
         }
 
+        constexpr flags commonBufferUsages = gpu::buffer_usage::transfer_destination |
+            gpu::buffer_usage::device_address | gpu::buffer_usage::acceleration_structure_build_input;
+
         [[maybe_unused]] const auto meshDbInit = m_meshes.init({
-            .allocator = ctx.get_allocator(),
-            .resourceManager = ctx.get_resource_manager(),
+            .gpu = *m_vk,
             .attributes = attributes,
             .meshData = meshData,
-            .vertexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-            .indexBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-            .meshBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+            .vertexBufferUsage = commonBufferUsages | gpu::buffer_usage::storage,
+            .indexBufferUsage = commonBufferUsages | gpu::buffer_usage::index,
+            .meshBufferUsage = commonBufferUsages | gpu::buffer_usage::storage,
             .tableVertexCount = MaxVerticesPerBatch,
             .tableIndexCount = MaxIndicesPerBatch,
             .tableMeshCount = MaxMeshesPerBatch,
@@ -244,13 +240,13 @@ namespace oblo
         OBLO_ASSERT(meshDbInit);
 
         m_rtScratchBuffer.init(*m_ctx,
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
+            {flags{gpu::memory_requirement::device_local}});
 
         m_rtInstanceBuffer.init(*m_ctx,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            gpu::buffer_usage::acceleration_structure_build_input | gpu::buffer_usage::device_address |
+                gpu::buffer_usage::transfer_destination,
+            {flags{gpu::memory_requirement::device_local}});
 
         for (const auto& [type, info] : instanceDataTypeRegistry)
         {
@@ -278,7 +274,7 @@ namespace oblo
 
     void draw_registry::shutdown()
     {
-        vkDeviceWaitIdle(m_ctx->get_device());
+        m_vk->wait_idle().assert_value();
 
         m_meshes.shutdown();
         m_rtScratchBuffer.shutdown();
@@ -287,16 +283,7 @@ namespace oblo
         for (auto& blas : m_meshToBlas.values())
         {
             release(blas.as);
-
-            if (blas.fullIndexBuffer.allocation)
-            {
-                m_ctx->destroy_immediate(blas.fullIndexBuffer.allocation);
-            }
-
-            if (blas.fullIndexBuffer.buffer)
-            {
-                m_ctx->destroy_immediate(blas.fullIndexBuffer.buffer);
-            }
+            m_vk->destroy_buffer(blas.fullIndexBuffer);
         }
 
         m_meshToBlas.clear();
@@ -340,7 +327,7 @@ namespace oblo
 
         u32 vertexAttributesCount{0};
 
-        auto indexType = mesh_index_type::none;
+        auto indexType = gpu::mesh_index_type::none;
 
         flags<vertex_attributes> attributeFlags;
         attribute_kind meshAttributes[u32(vertex_attributes::enum_max)];
@@ -364,7 +351,7 @@ namespace oblo
                 switch (meshAttribute.format)
                 {
                 case data_format::u8:
-                    indexType = mesh_index_type::u8;
+                    indexType = gpu::mesh_index_type::u8;
                     break;
 
                 default:
@@ -385,11 +372,11 @@ namespace oblo
             return {};
         }
 
-        buffer indexBuffer{};
-        buffer meshletsBuffer{};
-        buffer vertexBuffers[u32(vertex_attributes::enum_max)];
+        gpu::buffer_range indexBuffer{};
+        gpu::buffer_range meshletsBuffer{};
+        gpu::buffer_range vertexBuffers[u32(vertex_attributes::enum_max)];
 
-        buffer meshDataBuffers[MeshBuffersCount]{};
+        gpu::buffer_range meshDataBuffers[MeshBuffersCount]{};
 
         [[maybe_unused]] const auto fetchedBuffers = m_meshes.fetch_buffers(meshHandle,
             {attributeIds, vertexAttributesCount},
@@ -474,16 +461,16 @@ namespace oblo
                 // We add tags for different index types, because we won't be able to draw these meshes together
                 switch (m_meshes.get_index_type({meshHandle.value}))
                 {
-                case mesh_index_type::none:
+                case gpu::mesh_index_type::none:
                     sets.tags.add(m_indexNoneTag);
                     break;
-                case mesh_index_type::u8:
+                case gpu::mesh_index_type::u8:
                     sets.tags.add(m_indexU8Tag);
                     break;
-                case mesh_index_type::u16:
+                case gpu::mesh_index_type::u16:
                     sets.tags.add(m_indexU16Tag);
                     break;
-                case mesh_index_type::u32:
+                case gpu::mesh_index_type::u32:
                     sets.tags.add(m_indexU32Tag);
                     break;
                 default:
@@ -504,7 +491,7 @@ namespace oblo
         deferred.apply(*m_entities);
     }
 
-    void draw_registry::defer_upload(const std::span<const byte> data, const buffer& b)
+    void draw_registry::defer_upload(const std::span<const byte> data, const gpu::buffer_range& b)
     {
         // Do we need info on pipeline barriers?
         [[maybe_unused]] const auto result = m_stagingBuffer->stage(data);
@@ -517,6 +504,9 @@ namespace oblo
 
     void draw_registry::release(rt_acceleration_structure& as)
     {
+        // TODO: Actually free
+
+#if 0
         if (as.accelerationStructure)
         {
             m_ctx->destroy_deferred(as.accelerationStructure, m_ctx->get_submit_index());
@@ -527,14 +517,17 @@ namespace oblo
             m_ctx->destroy_deferred(as.buffer.buffer, m_ctx->get_submit_index());
             m_ctx->destroy_deferred(as.buffer.allocation, m_ctx->get_submit_index());
         }
+#endif
 
         as = {};
     }
 
-    void draw_registry::flush_uploads(VkCommandBuffer commandBuffer)
+    void draw_registry::flush_uploads(hptr<gpu::command_buffer> commandBufferHandle)
     {
         if (!m_pendingMeshUploads.empty())
         {
+            const VkCommandBuffer commandBuffer = std::bit_cast<VkCommandBuffer>(commandBufferHandle);
+
             const VkMemoryBarrier2 before{
                 .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
                 .srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
@@ -554,7 +547,7 @@ namespace oblo
 
             for (const auto& upload : m_pendingMeshUploads)
             {
-                m_stagingBuffer->upload(commandBuffer, upload.src, upload.dst.buffer, upload.dst.offset);
+                m_stagingBuffer->upload(commandBufferHandle, upload.src, upload.dst.buffer, upload.dst.offset);
             }
 
             const VkMemoryBarrier2 after{
@@ -632,7 +625,7 @@ namespace oblo
 
             draw_instance_buffers instanceBuffers{
                 .instanceBufferIds = allocate_n<u32>(allocator, allComponentsCount),
-                .buffersData = allocate_n<staging_buffer_span>(allocator, allComponentsCount),
+                .buffersData = allocate_n<gpu::staging_buffer_span>(allocator, allComponentsCount),
                 .count = 0u,
             };
 
@@ -717,11 +710,10 @@ namespace oblo
         m_drawDataCount = drawBatches;
     }
 
-    void draw_registry::generate_raytracing_structures(frame_allocator& allocator, VkCommandBuffer commandBuffer)
+    void draw_registry::generate_raytracing_structures(frame_allocator& allocator,
+        hptr<gpu::command_buffer> commandBufferHandle)
     {
         OBLO_PROFILE_SCOPE();
-
-        const auto vkFn = m_ctx->get_loaded_functions();
 
         const auto entityRange =
             m_entities->range<draw_mesh_component, draw_instance_id_component, global_transform_component>()
@@ -734,7 +726,7 @@ namespace oblo
             std::span<u32> maxPrimitives;
             VkAccelerationStructureKHR accelerationStructure{};
             VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
-            allocated_buffer blasBuffer{};
+            h32<gpu::buffer> blasBuffer{};
             VkDeviceSize scratchSize{};
         };
 
@@ -746,9 +738,9 @@ namespace oblo
 
         VkDeviceSize blasScratchSize{};
 
-        auto& gpuAllocator = m_ctx->get_allocator();
-
         const auto firstBlasUpload = m_pendingMeshUploads.size();
+
+        const gpu::vk::loaded_functions& vkFn = m_vk->get_loaded_functions();
 
         for (auto&& chunk : entityRange)
         {
@@ -773,7 +765,7 @@ namespace oblo
                     }
 
                     const u32 positionAttribute[] = {u32(vertex_attributes::position)};
-                    buffer positionBuffer[1];
+                    gpu::buffer_range positionBuffer[1];
 
                     const mesh_handle meshHandle = std::bit_cast<mesh_handle>(mesh.mesh);
 
@@ -783,12 +775,13 @@ namespace oblo
                         continue;
                     }
 
-                    const VkDeviceAddress vertexAddress =
-                        m_ctx->get_device_address(positionBuffer[0].buffer) + positionBuffer[0].offset;
+                    const h64 vertexAddress =
+                        gpu::offset_device_address(m_vk->get_device_address(positionBuffer[0].buffer),
+                            positionBuffer[0].offset);
 
                     // TODO: We need a better solution, we can't use the microindices (mostly because of no support of
                     // building the BLAS from u8 indices)
-                    allocated_buffer allocatedIndexBuffer;
+                    h32<gpu::buffer> allocatedIndexBuffer{};
 
                     const auto indexType = meshPtr->get_attribute_format(attribute_kind::indices);
                     const auto indexData = meshPtr->get_attribute(attribute_kind::indices);
@@ -810,25 +803,27 @@ namespace oblo
 
                     const auto indexBufferByteSize = narrow_cast<u32>(indexData.size_bytes());
 
-                    if (gpuAllocator.create_buffer(
-                            {
-                                .size = indexBufferByteSize,
-                                .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                                .memoryUsage = memory_usage::gpu_only,
-                            },
-                            &allocatedIndexBuffer) != VK_SUCCESS)
+                    allocatedIndexBuffer =
+                        m_vk->create_buffer(
+                                {
+                                    .size = indexBufferByteSize,
+                                    .usages = gpu::buffer_usage::transfer_destination | gpu::buffer_usage::index |
+                                        gpu::buffer_usage::storage | gpu::buffer_usage::device_address |
+                                        gpu::buffer_usage::acceleration_structure_build_input,
+                                })
+                            .assert_value_or({});
+
+                    if (!allocatedIndexBuffer)
                     {
                         continue;
                     }
 
-                    const buffer indexBuffer{
-                        .buffer = allocatedIndexBuffer.buffer,
+                    const gpu::buffer_range indexBuffer{
+                        .buffer = allocatedIndexBuffer,
                         .size = indexBufferByteSize,
                     };
 
-                    const VkDeviceAddress indexAddress = m_ctx->get_device_address(indexBuffer.buffer);
+                    const h64 indexAddress = m_vk->get_device_address(allocatedIndexBuffer);
 
                     const auto geometry = allocate_n_span<VkAccelerationStructureGeometryKHR>(allocator, 1u);
                     const auto ranges = allocate_n_span<VkAccelerationStructureBuildRangeInfoKHR>(allocator, 1u);
@@ -848,11 +843,11 @@ namespace oblo
                                             .sType =
                                                 VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
                                             .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-                                            .vertexData = {.deviceAddress = vertexAddress},
+                                            .vertexData = {.deviceAddress = vertexAddress.value},
                                             .vertexStride = sizeof(vec3),
                                             .maxVertex = meshPtr->get_vertex_count() - 1,
                                             .indexType = vkIndexType,
-                                            .indexData = {.deviceAddress = indexAddress},
+                                            .indexData = {.deviceAddress = indexAddress.value},
                                         },
                                 },
                             .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
@@ -878,44 +873,41 @@ namespace oblo
                         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
                     };
 
-                    vkFn.vkGetAccelerationStructureBuildSizesKHR(m_ctx->get_device(),
+                    vkFn.vkGetAccelerationStructureBuildSizesKHR(m_vk->get_device(),
                         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
                         &buildInfo,
                         maxPrimitives.data(),
                         &sizeInfo);
 
                     // TODO: We should sub-allocate a buffer instead, but good enough for now
-                    allocated_buffer blasBuffer{};
-
-                    gpuAllocator.create_buffer(
-                        {
-                            .size = narrow_cast<u32>(sizeInfo.accelerationStructureSize),
-                            .usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                            .memoryUsage = memory_usage::gpu_only,
-                        },
-                        &blasBuffer);
+                    h32<gpu::buffer> blasBuffer =
+                        m_vk->create_buffer({
+                                                .size = sizeInfo.accelerationStructureSize,
+                                                .memoryProperties = {gpu::memory_usage::gpu_only},
+                                                .usages = gpu::buffer_usage::acceleration_structure_storage |
+                                                    gpu::buffer_usage::device_address,
+                                            })
+                            .assert_value_or({});
 
                     const VkAccelerationStructureCreateInfoKHR createInfo{
                         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
-                        .buffer = blasBuffer.buffer,
+                        .buffer = m_vk->unwrap_buffer(blasBuffer),
                         .size = sizeInfo.accelerationStructureSize,
                         .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
                     };
 
-                    if (vkFn.vkCreateAccelerationStructureKHR(m_ctx->get_device(),
+                    if (vkFn.vkCreateAccelerationStructureKHR(m_vk->get_device(),
                             &createInfo,
-                            gpuAllocator.get_allocation_callbacks(),
+                            m_vk->get_allocator().get_allocation_callbacks(),
                             &blas->as.accelerationStructure) != VK_SUCCESS)
                     {
                         log::error("Failed to create blas for mesh {}", mesh.mesh.value);
-                        gpuAllocator.destroy(blasBuffer);
+                        m_vk->destroy_buffer(blasBuffer);
 
                         // Free the index buffer we allocated as well
                         const auto submitIndex = m_ctx->get_submit_index();
 
-                        m_ctx->destroy_deferred(allocatedIndexBuffer.buffer, submitIndex);
-                        m_ctx->destroy_deferred(allocatedIndexBuffer.allocation, submitIndex);
+                        m_ctx->destroy_deferred(allocatedIndexBuffer, submitIndex);
 
                         continue;
                     }
@@ -927,8 +919,8 @@ namespace oblo
 
                     blas->as.buffer = blasBuffer;
 
-                    blas->as.deviceAddress =
-                        vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_ctx->get_device(), &asAddrInfo);
+                    blas->as.deviceAddress = {
+                        vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_vk->get_device(), &asAddrInfo)};
 
                     blas->fullIndexBuffer = allocatedIndexBuffer;
 
@@ -949,23 +941,25 @@ namespace oblo
                     {
                         // Finally we need to update the mesh table with the reference to our index buffer, so we can
                         // access it in the ray-tracing pipeline
-                        h32<string> meshBufferNames[1]{m_meshDataNames[u32(mesh_data_buffers::full_index_buffer)]};
-                        buffer meshBuffers[1]{};
+                        const h32<buffer_table_name> meshBufferNames[1]{
+                            m_meshDataNames[u32(mesh_data_buffers::full_index_buffer)]};
+
+                        gpu::buffer_range meshBuffers[1]{};
 
                         m_meshes.fetch_buffers(meshHandle, {}, {}, nullptr, meshBufferNames, meshBuffers, nullptr);
 
                         OBLO_ASSERT(meshBuffers[0].buffer);
 
-                        mesh_index_type meshIndexType{};
+                        gpu::mesh_index_type meshIndexType{};
 
                         switch (indexType)
                         {
                         case data_format::u16:
-                            meshIndexType = mesh_index_type::u16;
+                            meshIndexType = gpu::mesh_index_type::u16;
                             break;
 
                         case data_format::u32:
-                            meshIndexType = mesh_index_type::u32;
+                            meshIndexType = gpu::mesh_index_type::u32;
                             break;
 
                         default:
@@ -1000,7 +994,7 @@ namespace oblo
                     .mask = 0xff,
                     .instanceShaderBindingTableRecordOffset = 0,
                     .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
-                    .accelerationStructureReference = blas->as.deviceAddress,
+                    .accelerationStructureReference = blas->as.deviceAddress.value,
                 });
             }
         }
@@ -1027,14 +1021,14 @@ namespace oblo
                         .dstAccessMask = VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR,
                         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .buffer = buf.buffer,
+                        .buffer = m_vk->unwrap_buffer(buf.buffer),
                         .offset = buf.offset,
                         .size = buf.size,
                     };
                 }
 
                 // Flush any index buffer upload
-                flush_uploads(commandBuffer);
+                flush_uploads(commandBufferHandle);
 
                 const VkDependencyInfo dependencyInfo{
                     .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -1042,7 +1036,7 @@ namespace oblo
                     .pBufferMemoryBarriers = barriers.data(),
                 };
 
-                vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+                vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBufferHandle), &dependencyInfo);
             }
 
             const auto geometryInfo =
@@ -1051,20 +1045,18 @@ namespace oblo
             const auto buildRangeInfo =
                 allocate_n_span<VkAccelerationStructureBuildRangeInfoKHR*>(allocator, numQueuedBuilds);
 
-            allocated_buffer scratchBuffer{};
+            const expected scratchBuffer = m_vk->create_buffer({
+                .size = narrow_cast<u32>(blasScratchSize),
+                .memoryProperties = {gpu::memory_usage::gpu_only},
+                .usages = gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
+            });
 
-            OBLO_VK_PANIC(gpuAllocator.create_buffer(
-                {
-                    .size = narrow_cast<u32>(blasScratchSize),
-                    .usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                    .memoryUsage = memory_usage::gpu_only,
-                },
-                &scratchBuffer));
+            // TODO: Pretty hard to handle the error correctly at this point
+            scratchBuffer.assert_value();
 
-            m_ctx->destroy_deferred(scratchBuffer.buffer, m_ctx->get_submit_index());
-            m_ctx->destroy_deferred(scratchBuffer.allocation, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(*scratchBuffer, m_ctx->get_submit_index());
 
-            auto scratchAddress = m_ctx->get_device_address(scratchBuffer.buffer);
+            auto scratchAddress = m_vk->get_device_address(*scratchBuffer);
 
             for (usize i = 0; i < numQueuedBuilds; ++i)
             {
@@ -1072,20 +1064,20 @@ namespace oblo
 
                 geometryInfo[i] = blasBuild.buildInfo;
                 geometryInfo[i].dstAccelerationStructure = blasBuild.accelerationStructure;
-                geometryInfo[i].scratchData.deviceAddress = scratchAddress;
+                geometryInfo[i].scratchData.deviceAddress = scratchAddress.value;
                 buildRangeInfo[i] = blasBuild.ranges.data();
 
-                scratchAddress += blasBuild.scratchSize;
+                scratchAddress = gpu::offset_device_address(scratchAddress, blasBuild.scratchSize);
             }
 
-            m_ctx->begin_debug_label(commandBuffer, "Build BLAS");
+            m_vk->cmd_label_begin(commandBufferHandle, "Build BLAS");
 
-            vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
+            vkFn.vkCmdBuildAccelerationStructuresKHR(std::bit_cast<VkCommandBuffer>(commandBufferHandle),
                 u32(blasBuilds.size()),
                 geometryInfo.data(),
                 buildRangeInfo.data());
 
-            m_ctx->end_debug_label(commandBuffer);
+            m_vk->cmd_label_end(commandBufferHandle);
 
             // Add a barrier between BLAS and TLAS construction
 
@@ -1103,19 +1095,18 @@ namespace oblo
                 .pMemoryBarriers = &tlasBarrier,
             };
 
-            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBufferHandle), &dependencyInfo);
         }
 
         // Temporarily we just destroy the TLAS every frame and recreate it
         release(m_tlas);
 
         // Finally build the TLAS
-        VkDeviceAddress instanceBufferDeviceAddress{};
-
         m_rtInstanceBuffer.resize_discard(max(1u << 14, u32(instances.size_bytes())));
 
         const auto instanceBuffer = m_rtInstanceBuffer.get_buffer();
-        instanceBufferDeviceAddress = m_ctx->get_device_address(instanceBuffer);
+        const h64 instanceBufferDeviceAddress =
+            gpu::offset_device_address(m_vk->get_device_address(instanceBuffer.buffer), instanceBuffer.offset);
 
         if (!instances.empty())
         {
@@ -1134,7 +1125,7 @@ namespace oblo
                     .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
                     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .buffer = instanceBuffer.buffer,
+                    .buffer = m_vk->unwrap_buffer(instanceBuffer.buffer),
                     .offset = instanceBuffer.offset,
                     .size = instanceBuffer.size,
                 };
@@ -1145,9 +1136,9 @@ namespace oblo
                     .pBufferMemoryBarriers = &before,
                 };
 
-                vkCmdPipelineBarrier2(commandBuffer, &beforeInfo);
+                vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBufferHandle), &beforeInfo);
 
-                m_stagingBuffer->upload(commandBuffer, *staged, instanceBuffer.buffer, instanceBuffer.offset);
+                m_stagingBuffer->upload(commandBufferHandle, *staged, instanceBuffer.buffer, instanceBuffer.offset);
 
                 const VkBufferMemoryBarrier2 after{
                     .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
@@ -1158,7 +1149,7 @@ namespace oblo
                     .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
                     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .buffer = instanceBuffer.buffer,
+                    .buffer = m_vk->unwrap_buffer(instanceBuffer.buffer),
                     .offset = instanceBuffer.offset,
                     .size = instanceBuffer.size,
                 };
@@ -1169,7 +1160,7 @@ namespace oblo
                     .pBufferMemoryBarriers = &after,
                 };
 
-                vkCmdPipelineBarrier2(commandBuffer, &afterInfo);
+                vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBufferHandle), &afterInfo);
             }
         }
 
@@ -1182,7 +1173,7 @@ namespace oblo
                         {
                             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR,
                             .arrayOfPointers = VK_FALSE,
-                            .data = {.deviceAddress = instanceBufferDeviceAddress},
+                            .data = {.deviceAddress = instanceBufferDeviceAddress.value},
                         },
                 },
             .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
@@ -1202,31 +1193,30 @@ namespace oblo
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR,
         };
 
-        vkFn.vkGetAccelerationStructureBuildSizesKHR(m_ctx->get_device(),
+        vkFn.vkGetAccelerationStructureBuildSizesKHR(m_vk->get_device(),
             VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
             &accelerationStructureBuildGeometryInfo,
             &instanceCount,
             &sizeInfo);
 
-        gpuAllocator.create_buffer(
-            {
-                .size = narrow_cast<u32>(sizeInfo.accelerationStructureSize),
-                .usage =
-                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                .memoryUsage = memory_usage::gpu_only,
-            },
-            &m_tlas.buffer);
+        m_tlas.buffer = m_vk->create_buffer({
+                                                .size = narrow_cast<u32>(sizeInfo.accelerationStructureSize),
+                                                .memoryProperties = {gpu::memory_usage::gpu_only},
+                                                .usages = gpu::buffer_usage::acceleration_structure_storage |
+                                                    gpu::buffer_usage::device_address,
+                                            })
+                            .assert_value_or({});
 
         const VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
-            .buffer = m_tlas.buffer.buffer,
+            .buffer = m_vk->unwrap_buffer(m_tlas.buffer),
             .size = sizeInfo.accelerationStructureSize,
             .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
         };
 
-        vkFn.vkCreateAccelerationStructureKHR(m_ctx->get_device(),
+        vkFn.vkCreateAccelerationStructureKHR(m_vk->get_device(),
             &accelerationStructureCreateInfo,
-            gpuAllocator.get_allocation_callbacks(),
+            m_vk->get_allocator().get_allocation_callbacks(),
             &m_tlas.accelerationStructure);
 
         const VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo{
@@ -1234,8 +1224,8 @@ namespace oblo
             .accelerationStructure = m_tlas.accelerationStructure,
         };
 
-        m_tlas.deviceAddress =
-            vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_ctx->get_device(), &accelerationDeviceAddressInfo);
+        m_tlas.deviceAddress = {
+            vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_vk->get_device(), &accelerationDeviceAddressInfo)};
 
         m_rtScratchBuffer.resize_discard(narrow_cast<u32>(sizeInfo.buildScratchSize));
         const auto tlasScratchBuffer = m_rtScratchBuffer.get_buffer();
@@ -1250,7 +1240,7 @@ namespace oblo
             .pGeometries = &accelerationStructureGeometry,
             .scratchData =
                 {
-                    .deviceAddress = m_ctx->get_device_address(tlasScratchBuffer),
+                    .deviceAddress = m_vk->get_device_address(tlasScratchBuffer).value,
                 },
         };
 
@@ -1265,14 +1255,14 @@ namespace oblo
             &accelerationStructureBuildRangeInfo,
         };
 
-        m_ctx->begin_debug_label(commandBuffer, "Build TLAS");
+        m_vk->cmd_label_begin(commandBufferHandle, "Build TLAS");
 
-        vkFn.vkCmdBuildAccelerationStructuresKHR(commandBuffer,
+        vkFn.vkCmdBuildAccelerationStructuresKHR(std::bit_cast<VkCommandBuffer>(commandBufferHandle),
             1,
             &accelerationBuildGeometryInfo,
             accelerationStructureBuildRangeInfos);
 
-        m_ctx->end_debug_label(commandBuffer);
+        m_vk->cmd_label_end(commandBufferHandle);
 
         {
             // Finally add a barrier for using the TLAS in ray tracing pipelines
@@ -1291,7 +1281,7 @@ namespace oblo
                 .pMemoryBarriers = &tlasBarrier,
             };
 
-            vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+            vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBufferHandle), &dependencyInfo);
         }
     }
 

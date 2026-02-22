@@ -9,7 +9,7 @@ target_link_libraries(
     PRIVATE
     oblo::renderer
     oblo::scene
-    oblo::vk::engine
+    oblo::vulkan::engine
     imgui::imgui
     imgui::backend
 )

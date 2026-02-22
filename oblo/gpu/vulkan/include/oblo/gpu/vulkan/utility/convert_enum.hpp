@@ -119,6 +119,12 @@ namespace oblo::gpu::vk
         case buffer_usage::device_address:
             return VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
+        case buffer_usage::acceleration_structure_build_input:
+            return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+
+        case buffer_usage::acceleration_structure_storage:
+            return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+
         default:
             unreachable();
         }
@@ -136,6 +142,66 @@ namespace oblo::gpu::vk
         case image_aspect::depth:
             return VK_IMAGE_ASPECT_DEPTH_BIT;
 
+        default:
+            unreachable();
+        }
+    }
+
+    inline VkFilter convert_enum(sampler_filter filter)
+    {
+        switch (filter)
+        {
+        case sampler_filter::nearest:
+            return VK_FILTER_NEAREST;
+        case sampler_filter::linear:
+            return VK_FILTER_LINEAR;
+        default:
+            unreachable();
+        }
+    }
+
+    inline VkSamplerAddressMode convert_enum(sampler_address_mode mode)
+    {
+        switch (mode)
+        {
+        case sampler_address_mode::repeat:
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case sampler_address_mode::mirrored_repeat:
+            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case sampler_address_mode::clamp_to_edge:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case sampler_address_mode::clamp_to_border:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        case sampler_address_mode::mirror_clamp_to_edge:
+            return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+        default:
+            unreachable();
+        }
+    }
+
+    inline VkMemoryPropertyFlagBits convert_enum(memory_requirement r)
+    {
+        switch (r)
+        {
+        case memory_requirement::host_visible:
+            return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+
+        case memory_requirement::device_local:
+            return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+        default:
+            unreachable();
+        }
+    }
+
+    inline VkSamplerMipmapMode convert_enum(sampler_mipmap_mode mode)
+    {
+        switch (mode)
+        {
+        case sampler_mipmap_mode::nearest:
+            return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        case sampler_mipmap_mode::linear:
+            return VK_SAMPLER_MIPMAP_MODE_LINEAR;
         default:
             unreachable();
         }
@@ -172,48 +238,8 @@ namespace oblo::gpu::vk
         return detail::convert_enum_flags_impl<VkImageAspectFlags>(aspectMask);
     }
 
-    inline VkFilter convert_enum(sampler_filter filter)
+    inline VkMemoryPropertyFlags convert_enum_flags(flags<memory_requirement> r)
     {
-        switch (filter)
-        {
-        case sampler_filter::nearest:
-            return VK_FILTER_NEAREST;
-        case sampler_filter::linear:
-            return VK_FILTER_LINEAR;
-        default:
-            unreachable();
-        }
-    }
-
-    inline VkSamplerAddressMode convert_enum(sampler_address_mode mode)
-    {
-        switch (mode)
-        {
-        case sampler_address_mode::repeat:
-            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        case sampler_address_mode::mirrored_repeat:
-            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-        case sampler_address_mode::clamp_to_edge:
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        case sampler_address_mode::clamp_to_border:
-            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        case sampler_address_mode::mirror_clamp_to_edge:
-            return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
-        default:
-            unreachable();
-        }
-    }
-
-    inline VkSamplerMipmapMode convert_enum(sampler_mipmap_mode mode)
-    {
-        switch (mode)
-        {
-        case sampler_mipmap_mode::nearest:
-            return VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        case sampler_mipmap_mode::linear:
-            return VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        default:
-            unreachable();
-        }
+        return detail::convert_enum_flags_impl<VkMemoryPropertyFlags>(r);
     }
 }

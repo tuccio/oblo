@@ -34,6 +34,8 @@ namespace oblo::gpu
         transfer_source,
         transfer_destination,
         device_address,
+        acceleration_structure_build_input,
+        acceleration_structure_storage,
         enum_max,
     };
 
@@ -450,6 +452,7 @@ namespace oblo::gpu
     enum class memory_requirement : u8
     {
         host_visible,
+        device_local,
         enum_max,
     };
 
