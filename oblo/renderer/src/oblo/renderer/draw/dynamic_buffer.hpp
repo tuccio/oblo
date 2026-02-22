@@ -4,7 +4,7 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/structs.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 
 namespace oblo
 {

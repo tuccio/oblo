@@ -5,7 +5,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 
 namespace oblo
 {

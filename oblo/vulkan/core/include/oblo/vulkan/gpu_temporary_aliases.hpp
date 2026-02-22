@@ -1,7 +1,7 @@
 #pragma once
 
 #include <oblo/gpu/forward.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
 
 namespace oblo::vk

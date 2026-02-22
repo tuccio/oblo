@@ -9,7 +9,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/forward.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/frame_graph_resources.hpp>
 #include <oblo/renderer/graph/pins.hpp>

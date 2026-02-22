@@ -3,7 +3,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/unreachable.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 
 #include <vulkan/vulkan_core.h>
 

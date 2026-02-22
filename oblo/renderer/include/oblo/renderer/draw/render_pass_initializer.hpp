@@ -5,7 +5,7 @@
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 
 #include <span>
 

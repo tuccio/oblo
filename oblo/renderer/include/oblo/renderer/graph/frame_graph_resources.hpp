@@ -2,7 +2,7 @@
 
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 
 #include <span>
 

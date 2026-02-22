@@ -4,7 +4,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/forward.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/renderer/data/handles.hpp>
 
 #include <span>

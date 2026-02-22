@@ -5,7 +5,7 @@
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/variant.hpp>
 #include <oblo/gpu/forward.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/math/vec2i.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec3i.hpp>

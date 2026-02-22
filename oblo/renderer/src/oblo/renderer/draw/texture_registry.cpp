@@ -6,7 +6,7 @@
 #include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/gpu/structs.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/log/log.hpp>

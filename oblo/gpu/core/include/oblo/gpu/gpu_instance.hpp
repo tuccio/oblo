@@ -3,7 +3,7 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 
 #include <span>
 

@@ -1,7 +1,7 @@
 #include <oblo/renderer/graph/image_layout_tracker.hpp>
 
 #include <oblo/core/unreachable.hpp>
-#include <oblo/gpu/types.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/renderer/draw/vk_type_conversions.hpp>
 #include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/frame_graph_context.hpp>
