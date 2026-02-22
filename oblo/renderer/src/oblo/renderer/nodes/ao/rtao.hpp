@@ -23,11 +23,11 @@ namespace oblo
 
         pin::buffer inMeshDatabase;
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
-        data<f32> inBias;
-        data<f32> inMaxDistance;
-        data<f32> inMaxHistoryWeight;
+        pin::data<f32> inBias;
+        pin::data<f32> inMaxDistance;
+        pin::data<f32> inMaxHistoryWeight;
 
         u32 randomSeed;
 

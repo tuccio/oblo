@@ -12,14 +12,12 @@ namespace oblo::gpu
         u32,
     };
 
-    enum class texture_usage : u8
+    enum class image_usage : u8
     {
-        render_target_write,
-        depth_stencil_read,
-        depth_stencil_write,
-        shader_read,
-        storage_read,
-        storage_write,
+        color_attachment,
+        depth_stencil,
+        shader_sample,
+        storage,
         transfer_source,
         transfer_destination,
         present,
@@ -168,8 +166,8 @@ namespace oblo::gpu
         decrement_and_wrap,
     };
 
-    /// @brief Texture format, enumerator values match VkFormat.
-    enum class texture_format : u32
+    /// @brief Image format, enumerator values match VkFormat.
+    enum class image_format : u32
     {
         undefined = 0,
         r4g4_unorm_pack8 = 1,

@@ -10,7 +10,7 @@ namespace oblo
 {
     struct light_provider
     {
-        data<std::span<const light_data>> inOutLights;
+        pin::data<std::span<const light_data>> inOutLights;
         pin::buffer outLightData;
         pin::buffer outLightConfig;
 

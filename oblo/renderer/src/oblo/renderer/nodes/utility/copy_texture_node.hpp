@@ -11,7 +11,7 @@ namespace oblo
 {
     struct copy_texture_node
     {
-        data<copy_texture_info> inTarget;
+        pin::data<copy_texture_info> inTarget;
         h32<transfer_pass_instance> copyPassInstance;
 
         pin::texture inSource;

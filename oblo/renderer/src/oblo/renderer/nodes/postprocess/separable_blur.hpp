@@ -26,7 +26,7 @@ namespace oblo
         pin::texture inOutIntermediate;
         pin::texture outBlurred;
 
-        data<Config> inConfig;
+        pin::data<Config> inConfig;
 
         h32<compute_pass> blurPass;
         h32<compute_pass_instance> passInstanceH;

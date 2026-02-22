@@ -5,10 +5,9 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/renderer/draw/dynamic_buffer.hpp>
 #include <oblo/renderer/draw/mesh_database.hpp>
-#include <oblo/renderer/dynamic_buffer.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
-#include <oblo/renderer/monotonic_gbu_buffer.hpp>
+#include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
 
 #include <array>
 #include <span>

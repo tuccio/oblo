@@ -10,8 +10,8 @@ namespace oblo
 {
     struct raytraced_shadows
     {
-        data<vec2u> inResolution;
-        data<raytraced_shadow_config> inConfig;
+        pin::data<vec2u> inResolution;
+        pin::data<raytraced_shadow_config> inConfig;
 
         pin::buffer inCameraBuffer;
         pin::buffer inLightBuffer;

@@ -9,7 +9,7 @@
 
 namespace oblo::gpu::vk
 {
-    inline VkFormat convert_enum(texture_format format)
+    inline VkFormat convert_enum(gpu::image_format format)
     {
         return VkFormat(format);
     }
@@ -62,29 +62,27 @@ namespace oblo::gpu::vk
         }
     }
 
-    inline VkImageUsageFlagBits convert_enum(texture_usage usage)
+    inline VkImageUsageFlagBits convert_enum(image_usage usage)
     {
         switch (usage)
         {
-        case texture_usage::depth_stencil_read:
-        case texture_usage::depth_stencil_write:
+        case image_usage::depth_stencil:
             return VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-        case texture_usage::render_target_write:
+        case image_usage::color_attachment:
             return VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        case texture_usage::shader_read:
+        case image_usage::shader_sample:
             return VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        case texture_usage::transfer_destination:
+        case image_usage::transfer_destination:
             return VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        case texture_usage::transfer_source:
+        case image_usage::transfer_source:
             return VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-        case texture_usage::storage_read:
-        case texture_usage::storage_write:
-            return {};
+        case image_usage::storage:
+            return VK_IMAGE_USAGE_STORAGE_BIT;
 
         default:
             unreachable();
@@ -159,7 +157,7 @@ namespace oblo::gpu::vk
         }
     }
 
-    inline VkImageUsageFlags convert_enum_flags(flags<texture_usage> usages)
+    inline VkImageUsageFlags convert_enum_flags(flags<image_usage> usages)
     {
         return detail::convert_enum_flags_impl<VkImageUsageFlags>(usages);
     }

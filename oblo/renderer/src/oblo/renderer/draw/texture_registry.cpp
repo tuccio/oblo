@@ -3,9 +3,9 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/finally.hpp>
-#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/types.hpp>
 #include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
@@ -54,7 +54,7 @@ namespace oblo
     struct texture_registry::pending_texture_upload
     {
         h32<gpu::image> handle;
-        gpu::texture_format format;
+        gpu::image_format format;
         u32 width;
         u32 height;
         dynamic_array<upload_level> levels;
@@ -321,7 +321,7 @@ namespace oblo
             return false;
         }
 
-        const gpu::texture_format srcFormat = gpu::texture_format(desc.vkFormat);
+        const gpu::image_format srcFormat = gpu::image_format(desc.vkFormat);
 
         const gpu::image_descriptor descriptor{
             .format = srcFormat,
@@ -331,7 +331,7 @@ namespace oblo
             .mipLevels = desc.numLevels,
             .type = *imageType,
             .samples = gpu::samples_count::one,
-            .usages = gpu::texture_usage::shader_read | gpu::texture_usage::transfer_destination,
+            .usages = gpu::image_usage::shader_sample | gpu::image_usage::transfer_destination,
             .debugLabel = debugName,
         };
 

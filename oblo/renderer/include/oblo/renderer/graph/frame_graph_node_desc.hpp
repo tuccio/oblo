@@ -4,9 +4,7 @@
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/core/type_id.hpp>
-#include <oblo/renderer/buffer.hpp>
 #include <oblo/renderer/graph/pins.hpp>
-#include <oblo/renderer/texture.hpp>
 
 namespace oblo
 {
@@ -89,7 +87,7 @@ namespace oblo
         }
 
         template <typename T>
-        void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const data<T>* pin)
+        void register_pin(frame_graph_node_desc* nodeDesc, const u8* nodePtr, const pin::data<T>* pin)
         {
             const u8* const bMemberPtr = reinterpret_cast<const u8*>(pin);
 

@@ -22,7 +22,7 @@ namespace oblo
         pin::buffer inMeshDatabase;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::texture inVisibilityBuffer;
 

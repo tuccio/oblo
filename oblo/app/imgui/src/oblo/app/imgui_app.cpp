@@ -244,7 +244,7 @@ namespace oblo
 
         struct imgui_graph_image_push_node
         {
-            vk::data<ImTextureID> inId;
+            vk::pin::data<ImTextureID> inId;
             vk::resource<vk::texture> inTexture;
             vk::data_sink<imgui_graph_image> outImageSink;
 
@@ -260,8 +260,8 @@ namespace oblo
 
         struct imgui_render_node
         {
-            vk::data<imgui_render_backend*> inBackend;
-            vk::data<ImGuiViewport*> inViewport;
+            vk::pin::data<imgui_render_backend*> inBackend;
+            vk::pin::data<ImGuiViewport*> inViewport;
 
             vk::resource<vk::texture> inOutRenderTarget;
 

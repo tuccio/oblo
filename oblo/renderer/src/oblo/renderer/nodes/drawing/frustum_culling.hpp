@@ -16,13 +16,13 @@ namespace oblo
         h32<compute_pass> cullPass;
         h32<compute_pass_instance> cullPassInstance;
 
-        data<std::span<draw_buffer_data>> outDrawBufferData;
+        pin::data<std::span<draw_buffer_data>> outDrawBufferData;
 
         pin::buffer inMeshDatabase;
         pin::buffer inCameraBuffer;
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
-        data<render_world> inRenderWorld;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<render_world> inRenderWorld;
 
         void init(const frame_graph_init_context& context);
 

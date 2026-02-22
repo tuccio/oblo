@@ -10,7 +10,7 @@ namespace oblo
 {
     struct view_light_data_provider
     {
-        data<std::span<const light_data>> inLights;
+        pin::data<std::span<const light_data>> inLights;
         pin::buffer inSkyboxSettingsBuffer;
 
         pin::buffer inLightBuffer;

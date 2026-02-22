@@ -15,16 +15,16 @@ namespace oblo
 
     struct entity_picking
     {
-        data<picking_configuration> inPickingConfiguration;
+        pin::data<picking_configuration> inPickingConfiguration;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::texture inVisibilityBuffer;
         pin::buffer outPickingId;
 
-        data<bool> outDummyOut;
-        data<async_download> outPickingResult;
+        pin::data<bool> outDummyOut;
+        pin::data<async_download> outPickingResult;
 
         h32<compute_pass> pickingPass;
         h32<compute_pass_instance> pickingPassInstance;

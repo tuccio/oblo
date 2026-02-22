@@ -2,7 +2,6 @@
 
 #include <oblo/core/forward.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/gpu/forward.hpp>
 
 namespace oblo
 {
@@ -47,12 +46,14 @@ namespace oblo
     struct frame_graph_build_state;
     struct frame_graph_execution_state;
     struct frame_graph_pin_storage;
+
+    struct frame_graph_buffer;
+    struct frame_graph_texture;
+
     struct staging_buffer_span;
 
-    using buffer_usage = oblo::gpu::buffer_usage;
-    using mesh_index_type = oblo::gpu::mesh_index_type;
-    using shader_stage = oblo::gpu::shader_stage;
-    using texture_usage = oblo::gpu::texture_usage;
+    enum class buffer_access : u8;
+    enum class texture_access : u8;
 
     using async_download = future<dynamic_array<byte>>;
     using async_download_promise = promise<dynamic_array<byte>>;

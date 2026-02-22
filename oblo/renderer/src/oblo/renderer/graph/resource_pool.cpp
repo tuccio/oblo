@@ -233,7 +233,7 @@ namespace oblo
     }
 
     void resource_pool::add_transient_texture_usage(h32<transient_texture_resource> transientTexture,
-        gpu::texture_usage usage)
+        gpu::image_usage usage)
     {
         OBLO_ASSERT(transientTexture);
         m_textureResources[transientTexture.value - 1].descriptor.usages |= usage;

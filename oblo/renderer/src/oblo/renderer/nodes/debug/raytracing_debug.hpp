@@ -9,7 +9,7 @@ namespace oblo
 {
     struct raytracing_debug
     {
-        data<vec2u> inResolution;
+        pin::data<vec2u> inResolution;
 
         pin::buffer inCameraBuffer;
 
@@ -26,7 +26,7 @@ namespace oblo
         pin::buffer inMeshDatabase;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         void init(const frame_graph_init_context& context);
 

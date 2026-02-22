@@ -71,7 +71,7 @@ namespace oblo::gpu
 
     struct image_descriptor
     {
-        texture_format format;
+        image_format format;
         u32 width;
         u32 height;
         u32 depth;
@@ -80,7 +80,7 @@ namespace oblo::gpu
         image_type type;
         samples_count samples;
         memory_usage memoryUsage;
-        flags<texture_usage> usages;
+        flags<image_usage> usages;
         debug_label debugLabel;
     };
 
@@ -125,9 +125,9 @@ namespace oblo::gpu
 
     struct render_pass_targets
     {
-        std::span<const texture_format> colorAttachmentFormats;
-        texture_format depthFormat{texture_format::undefined};
-        texture_format stencilFormat{texture_format::undefined};
+        std::span<const image_format> colorAttachmentFormats;
+        image_format depthFormat{image_format::undefined};
+        image_format stencilFormat{image_format::undefined};
         std::span<const color_blend_attachment_state> blendStates;
     };
 
@@ -231,7 +231,7 @@ namespace oblo::gpu
     {
         hptr<surface> surface;
         u32 numImages;
-        texture_format format;
+        image_format format;
         u32 width;
         u32 height;
     };

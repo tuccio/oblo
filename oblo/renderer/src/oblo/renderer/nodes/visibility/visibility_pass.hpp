@@ -13,15 +13,15 @@ namespace oblo
 
     struct visibility_pass
     {
-        data<vec2u> inResolution;
-        data<std::span<draw_buffer_data>> inDrawData;
-        data<std::span<pin::buffer>> inDrawCallBuffer;
+        pin::data<vec2u> inResolution;
+        pin::data<std::span<draw_buffer_data>> inDrawData;
+        pin::data<std::span<pin::buffer>> inDrawCallBuffer;
 
         pin::buffer inCameraBuffer;
         pin::buffer inMeshDatabase;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::texture outVisibilityBuffer;
         pin::texture outLastFrameDepthBuffer;

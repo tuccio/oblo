@@ -17,13 +17,13 @@ namespace oblo
         pin::buffer inMeshDatabase;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::texture inVisibilityBuffer;
 
         pin::texture outFiltered;
 
-        data<raytraced_shadow_config> inConfig;
+        pin::data<raytraced_shadow_config> inConfig;
 
         h32<compute_pass> filterPass;
         h32<compute_pass_instance> filterPassInstance;

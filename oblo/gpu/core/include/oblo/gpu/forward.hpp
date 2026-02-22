@@ -50,10 +50,10 @@ namespace oblo::gpu
     enum class error;
 
     enum class buffer_usage : u8;
+    enum class image_usage : u8;
+    enum class image_format : u32;
     enum class mesh_index_type : u8;
     enum class pass_kind : u8;
     enum class shader_stage : u8;
-    enum class texture_format : u32;
-    enum class texture_usage : u8;
     enum class shader_module_format : u8;
 }

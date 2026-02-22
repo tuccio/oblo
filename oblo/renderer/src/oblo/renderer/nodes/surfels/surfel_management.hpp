@@ -32,11 +32,11 @@ namespace oblo
 
         pin::buffer outSurfelsMetrics;
 
-        data<u32> inMaxSurfels;
-        data<aabb> inGridBounds;
-        data<f32> inGridCellSize;
+        pin::data<u32> inMaxSurfels;
+        pin::data<aabb> inGridBounds;
+        pin::data<f32> inGridCellSize;
 
-        data<vec3u> outCellsCount;
+        pin::data<vec3u> outCellsCount;
 
         h32<compute_pass> initStackPass;
         h32<compute_pass_instance> initPassInstance;
@@ -60,8 +60,8 @@ namespace oblo
     /// tile to spawn a surfel on.
     struct surfel_tiling
     {
-        data_sink<surfel_tiling_data> outTileCoverageSink;
-        data_sink<vec3> outCameraPositionSink;
+        pin::data_sink<surfel_tiling_data> outTileCoverageSink;
+        pin::data_sink<vec3> outCameraPositionSink;
 
         pin::buffer outFullTileCoverage;
 
@@ -71,12 +71,12 @@ namespace oblo
         pin::buffer inSurfelsSpawnData; // This is not used, it's just here to forward it to debug views
         pin::buffer inLastFrameSurfelsLightingData;
 
-        data<camera_buffer> inCameraData;
+        pin::data<camera_buffer> inCameraData;
         pin::buffer inCameraBuffer;
         pin::texture inVisibilityBuffer;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::buffer inMeshDatabase;
 
@@ -95,10 +95,10 @@ namespace oblo
     /// @brief Goes over the tile coverage, determines whether or not to spawn a surfel in each tile.
     struct surfel_spawner
     {
-        data_sink<surfel_tiling_data> inTileCoverageSink;
+        pin::data_sink<surfel_tiling_data> inTileCoverageSink;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::buffer inOutSurfelsStack;
         pin::buffer inOutSurfelsSpawnData;
@@ -135,16 +135,16 @@ namespace oblo
 
         pin::buffer inMeshDatabase;
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::buffer inEntitySetBuffer;
 
-        data<aabb> inGridBounds;
-        data<f32> inGridCellSize;
-        data<vec3u> inCellsCount;
-        data<u32> inMaxSurfels;
+        pin::data<aabb> inGridBounds;
+        pin::data<f32> inGridCellSize;
+        pin::data<vec3u> inCellsCount;
+        pin::data<u32> inMaxSurfels;
 
-        data_sink<camera_buffer> inCameras;
+        pin::data_sink<camera_buffer> inCameras;
 
         h32<compute_pass> overcoveragePass;
         h32<compute_pass> clearPass;
@@ -167,9 +167,9 @@ namespace oblo
 
     struct surfel_accumulate_raycount
     {
-        data<u32> inMaxSurfels;
+        pin::data<u32> inMaxSurfels;
 
-        data<pin::buffer> outTotalRayCount;
+        pin::data<pin::buffer> outTotalRayCount;
 
         pin::buffer inSurfelsData;
 
@@ -190,9 +190,9 @@ namespace oblo
 
     struct surfel_raytracing
     {
-        data<u32> inMaxRayPaths;
-        data<u32> inMaxSurfels;
-        data<f32> inGIMultiplier;
+        pin::data<u32> inMaxRayPaths;
+        pin::data<u32> inMaxSurfels;
+        pin::data<f32> inGIMultiplier;
 
         pin::buffer inSurfelsMetrics;
 
@@ -209,14 +209,14 @@ namespace oblo
         pin::buffer inLightBuffer;
         pin::buffer inLightConfig;
 
-        data<pin::buffer> inTotalRayCount;
+        pin::data<pin::buffer> inTotalRayCount;
 
         pin::buffer inSkyboxSettingsBuffer;
 
         pin::buffer inMeshDatabase;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         h32<raytracing_pass> rtPass;
         h32<raytracing_pass_instance> rtPassInstance;

@@ -624,7 +624,7 @@ namespace oblo::swapchain_graph
 {
     struct swapchain_image_acquire
     {
-        data<h32<texture>> inSwapchainImageTexture;
+        pin::data<h32<texture>> inSwapchainImageTexture;
         pin::texture outSwapchainImageResource;
 
         void build(const frame_graph_build_context& ctx)

@@ -16,8 +16,8 @@ namespace oblo
 
     struct skybox_provider
     {
-        data<resource_ptr<oblo::texture>> inSkyboxResource;
-        data<skybox_settings> inSkyboxSettings;
+        pin::data<resource_ptr<oblo::texture>> inSkyboxResource;
+        pin::data<skybox_settings> inSkyboxSettings;
 
         pin::buffer outSkyboxSettingsBuffer;
 

@@ -50,7 +50,7 @@ namespace oblo
 
         const expected vertexBuffer = gpu.create_buffer({
             .size = vertexBufferSize,
-            .memoryFlags = gpu::memory_usage::gpu_only,
+            .memoryProperties = gpu::memory_usage::gpu_only,
             .usages = vertexBufferUsage,
             .debugLabel = "mesh_table_vertex_attributes",
         });
@@ -73,7 +73,7 @@ namespace oblo
 
             const expected meshDataBuffer = gpu.create_buffer({
                 .size = meshDataBufferSize,
-                .memoryFlags = gpu::memory_usage::gpu_only,
+                .memoryProperties = gpu::memory_usage::gpu_only,
                 .usages = meshBufferUsage,
                 .debugLabel = "mesh_table_per_mesh_data",
             });
@@ -92,7 +92,7 @@ namespace oblo
 
             const expected meshletsBuffer = gpu.create_buffer({
                 .size = meshletsBufferSize,
-                .memoryFlags = gpu::memory_usage::gpu_only,
+                .memoryProperties = gpu::memory_usage::gpu_only,
                 .usages = meshBufferUsage,
                 .debugLabel = "mesh_table_per_mesh_data",
             });

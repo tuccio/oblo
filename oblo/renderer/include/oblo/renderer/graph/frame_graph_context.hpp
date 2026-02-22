@@ -71,14 +71,14 @@ namespace oblo
 
         h32<empty_pass_instance> empty_pass() const;
 
-        void create(pin::texture texture, const texture_resource_initializer& initializer, texture_usage usage) const;
+        void create(pin::texture texture, const texture_resource_initializer& initializer, texture_access usage) const;
 
-        void create(pin::buffer buffer, const buffer_resource_initializer& initializer, buffer_usage usage) const;
+        void create(pin::buffer buffer, const buffer_resource_initializer& initializer, buffer_access usage) const;
 
-        void create(pin::buffer buffer, const staging_buffer_span& stagedData, buffer_usage usage) const;
+        void create(pin::buffer buffer, const staging_buffer_span& stagedData, buffer_access usage) const;
 
         h32<retained_texture> create_retained_texture(const texture_resource_initializer& initializer,
-            flags<texture_usage> usages) const;
+            flags<texture_access> usages) const;
 
         void destroy_retained_texture(h32<retained_texture> handle) const;
 
@@ -89,13 +89,13 @@ namespace oblo
         // Temporary solution until the acceleration structure is a proper resource.
         void register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const;
 
-        void acquire(pin::texture texture, texture_usage usage) const;
+        void acquire(pin::texture texture, texture_access usage) const;
 
-        h32<resident_texture> acquire_bindless(pin::texture texture, texture_usage usage) const;
+        h32<resident_texture> acquire_bindless(pin::texture texture, texture_access usage) const;
 
         h32<resident_texture> load_resource(const resource_ptr<oblo::texture>& texture) const;
 
-        void acquire(pin::buffer buffer, buffer_usage usage) const;
+        void acquire(pin::buffer buffer, buffer_access usage) const;
 
         void reroute(pin::buffer source, pin::buffer destination) const;
         void reroute(pin::texture source, pin::texture destination) const;
@@ -112,32 +112,32 @@ namespace oblo
         bool has_source(pin::texture texture) const;
 
         [[nodiscard]] pin::buffer create_dynamic_buffer(const buffer_resource_initializer& initializer,
-            buffer_usage usage) const;
+            buffer_access usage) const;
 
         [[nodiscard]] pin::buffer create_dynamic_buffer(const staging_buffer_span& stagedData,
-            buffer_usage usage) const;
+            buffer_access usage) const;
 
         template <typename T>
-        T& access(data<T> data) const
+        T& access(pin::data<T> data) const
         {
             return *static_cast<T*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
         template <typename T>
-        std::span<const T> access(data_sink<T> data) const
+        std::span<const T> access(pin::data_sink<T> data) const
         {
             return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
         template <typename T>
-        void push(data_sink<T> data, T&& value) const
+        void push(pin::data_sink<T> data, T&& value) const
         {
             auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
             a->push_back(std::move(value));
         }
 
         template <typename T>
-        void push(data_sink<T> data, const T& value) const
+        void push(pin::data_sink<T> data, const T& value) const
         {
             auto* a = static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
             a->push_back(value);
@@ -206,21 +206,21 @@ namespace oblo
 
         void bind_descriptor_sets(binding_tables_span bindingTables) const;
 
-        void bind_index_buffer(pin::buffer buffer, u32 bufferOffset, mesh_index_type indexType) const;
+        void bind_index_buffer(pin::buffer buffer, u32 bufferOffset, gpu::mesh_index_type indexType) const;
 
         template <typename T>
-        T& access(data<T> data) const
+        T& access(pin::data<T> data) const
         {
             return *static_cast<T*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
         template <typename T>
-        std::span<const T> access(data_sink<T> data) const
+        std::span<const T> access(pin::data_sink<T> data) const
         {
             return *static_cast<data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
 
-        resource<acceleration_structure> get_global_tlas() const;
+        pin::acceleration_structure get_global_tlas() const;
 
         /// @brief Determines whether the pin has an incoming edge.
         bool has_source(pin::buffer buffer) const;
@@ -265,7 +265,7 @@ namespace oblo
         void set_viewport(u32 w, u32 h, f32 minDepth = 0.f, f32 maxDepth = 1.f) const;
         void set_scissor(i32 x, i32 y, u32 w, u32 h) const;
 
-        void push_constants(flags<shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
+        void push_constants(flags<gpu::shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
         void trace_rays(u32 x, u32 y, u32 z) const;
 
@@ -286,8 +286,8 @@ namespace oblo
     private:
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
-        buffer access(pin::buffer h) const;
-        texture access(pin::texture h) const;
+        frame_graph_buffer access(pin::buffer h) const;
+        frame_graph_texture access(pin::texture h) const;
 
         bool has_event_impl(const type_id& type) const;
 
@@ -306,6 +306,6 @@ namespace oblo
     {
         u32 width;
         u32 height;
-        gpu::texture_format format;
+        gpu::image_format format;
     };
 }

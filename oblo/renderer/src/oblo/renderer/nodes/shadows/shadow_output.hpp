@@ -8,7 +8,7 @@ namespace oblo
 {
     struct shadow_output
     {
-        data<raytraced_shadow_config> inConfig;
+        pin::data<raytraced_shadow_config> inConfig;
 
         pin::texture outShadow;
         data_sink<light_visibility_event> outShadowSink;

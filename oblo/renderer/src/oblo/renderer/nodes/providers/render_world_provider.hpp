@@ -8,6 +8,6 @@ namespace oblo
 {
     struct render_world_provider
     {
-        data<render_world> inOutRenderWorld;
+        pin::data<render_world> inOutRenderWorld;
     };
 }

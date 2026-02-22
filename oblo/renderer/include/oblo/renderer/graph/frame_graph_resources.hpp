@@ -12,7 +12,7 @@ namespace oblo
     {
         u32 width;
         u32 height;
-        gpu::texture_format format;
+        gpu::image_format format;
         bool isStable;
         debug_label debugLabel{std::source_location::current()};
     };

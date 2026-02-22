@@ -52,7 +52,7 @@ namespace oblo::gpu
 
         const buffer_descriptor desc{
             .size = size,
-            .memoryFlags = flags{memory_requirement::host_visible},
+            .memoryProperties = flags{gpu::memory_requirement::host_visible},
             .usages = buffer_usage::transfer_source | buffer_usage::transfer_destination | buffer_usage::storage,
         };
 

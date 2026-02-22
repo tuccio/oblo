@@ -15,15 +15,15 @@ namespace oblo
 {
     struct view_buffers_node
     {
-        data<vec2u> inResolution;
-        data<camera_buffer> inCameraData;
-        data<time_buffer> inTimeData;
+        pin::data<vec2u> inResolution;
+        pin::data<camera_buffer> inCameraData;
+        pin::data<time_buffer> inTimeData;
         pin::buffer inMeshDatabase;
         pin::buffer outCameraBuffer;
         pin::buffer outTimeBuffer;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         data_sink<camera_buffer> outCameraDataSink;
 

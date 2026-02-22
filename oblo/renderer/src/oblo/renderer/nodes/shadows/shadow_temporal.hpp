@@ -21,7 +21,7 @@ namespace oblo
         h32<compute_pass> temporalPass;
         h32<compute_pass_instance> temporalPassInstance;
 
-        data<raytraced_shadow_config> inConfig;
+        pin::data<raytraced_shadow_config> inConfig;
 
         void init(const frame_graph_init_context& ctx);
 

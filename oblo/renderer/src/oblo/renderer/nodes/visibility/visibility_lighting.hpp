@@ -16,11 +16,11 @@ namespace oblo
 {
     struct visibility_lighting
     {
-        data<vec2u> inResolution;
+        pin::data<vec2u> inResolution;
 
-        data<std::span<const light_data>> inLights;
+        pin::data<std::span<const light_data>> inLights;
 
-        data_sink<light_visibility_event> inShadowSink;
+        pin::data_sink<light_visibility_event> inShadowSink;
 
         pin::buffer inCameraBuffer;
         pin::buffer inSkyboxSettingsBuffer;
@@ -40,7 +40,7 @@ namespace oblo
         pin::buffer inMeshDatabase;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::texture inVisibilityBuffer;
         pin::texture inAmbientOcclusion;
@@ -62,15 +62,15 @@ namespace oblo
 
     struct visibility_debug
     {
-        data<vec2u> inResolution;
-        data<visibility_debug_mode> inDebugMode;
+        pin::data<vec2u> inResolution;
+        pin::data<visibility_debug_mode> inDebugMode;
 
         pin::buffer inCameraBuffer;
 
         pin::buffer inMeshDatabase;
 
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         pin::texture inVisibilityBuffer;
         pin::texture outShadedImage;

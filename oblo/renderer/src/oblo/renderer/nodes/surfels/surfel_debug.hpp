@@ -22,7 +22,7 @@ namespace oblo
             enum_max,
         };
 
-        data<mode> inMode;
+        pin::data<mode> inMode;
 
         pin::buffer inCameraBuffer;
 
@@ -39,7 +39,7 @@ namespace oblo
         pin::texture inVisibilityBuffer;
         pin::buffer inMeshDatabase;
         pin::buffer inInstanceTables;
-        data<instance_data_table_buffers_span> inInstanceBuffers;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
         h32<compute_pass> debugPass;
         h32<compute_pass_instance> debugPassInstance;

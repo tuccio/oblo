@@ -109,7 +109,7 @@ namespace oblo
 
     void acquire_instance_tables(const frame_graph_build_context& ctx,
         pin::buffer instanceTables,
-        data<instance_data_table_buffers_span> instanceBuffers,
+        pin::data<instance_data_table_buffers_span> instanceBuffers,
         buffer_usage usage)
     {
         ctx.acquire(instanceTables, usage);
