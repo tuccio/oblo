@@ -121,7 +121,7 @@ namespace oblo::gpu::vk
     {
         if (label.empty())
         {
-#ifndef OBLO_DEBUG
+#ifdef OBLO_DEBUG
             m_objLabeler.set_object_name(m_device, obj, "Unnamed object");
 #endif
 
@@ -1343,7 +1343,9 @@ namespace oblo::gpu::vk
         }
 
         label_vulkan_object(newPipeline->pipeline, desc.debugLabel);
-        label_vulkan_object(newPipeline->pipelineLayout, desc.debugLabel);
+
+        // TODO
+        // label_vulkan_object(newPipeline->pipelineLayout, desc.debugLabel);
 
         // Success
         cleanup.cancel();
@@ -1358,18 +1360,93 @@ namespace oblo::gpu::vk
         m_renderPipelines.erase(handle);
     }
 
-    result<> vulkan_instance::begin_render_pass(
-        hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline, const render_pass_descriptor& descriptor)
+    namespace
     {
-        (void) cmdBuffer;
-        (void) pipeline;
-        (void) descriptor;
-        return error::undefined;
+        VkRenderingAttachmentInfo make_rendering_attachment_info(
+            VkImageView imageView, VkImageLayout layout, const render_attachment& attachment)
+        {
+            return {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .imageView = imageView,
+                .imageLayout = layout,
+                .loadOp = convert_to_vk(attachment.loadOp),
+                .storeOp = convert_to_vk(attachment.storeOp),
+                .clearValue = {std::bit_cast<VkClearColorValue>(attachment.clearValue)},
+            };
+        }
     }
 
-    void vulkan_instance::end_render_pass(hptr<command_buffer> cmdBuffer)
+    result<hptr<render_pass>> vulkan_instance::begin_render_pass(
+        hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline, const render_pass_descriptor& descriptor)
     {
-        (void) cmdBuffer;
+        auto* const p = m_renderPipelines.try_find(pipeline);
+
+        if (!p)
+        {
+            return error::invalid_handle;
+        }
+
+        buffered_array<VkRenderingAttachmentInfo, 2> colorAttachments;
+
+        for (const auto& colorAttachment : descriptor.colorAttachments)
+        {
+            const VkImageView view = unwrap_image_view(colorAttachment.image);
+
+            colorAttachments.push_back(
+                make_rendering_attachment_info(view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, colorAttachment));
+        }
+
+        std::optional<VkRenderingAttachmentInfo> depthAttachment;
+
+        if (descriptor.depthAttachment)
+        {
+            const VkImageView view = unwrap_image_view(descriptor.depthAttachment->image);
+
+            depthAttachment = make_rendering_attachment_info(view,
+                VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+                *descriptor.depthAttachment);
+        }
+
+        std::optional<VkRenderingAttachmentInfo> stencilAttachment;
+
+        if (descriptor.stencilAttachment)
+        {
+            const VkImageView view = unwrap_image_view(descriptor.stencilAttachment->image);
+
+            stencilAttachment = make_rendering_attachment_info(view,
+                VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+                *descriptor.stencilAttachment);
+        }
+
+        const VkRenderingInfo renderingInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .renderArea =
+                {
+                    .offset = {descriptor.renderOffset.x, descriptor.renderOffset.y},
+                    .extent = {descriptor.renderResolution.x, descriptor.renderResolution.y},
+                },
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = colorAttachments.size32(),
+            .pColorAttachments = colorAttachments.data(),
+            .pDepthAttachment = depthAttachment ? &*depthAttachment : nullptr,
+            .pStencilAttachment = stencilAttachment ? &*stencilAttachment : nullptr,
+        };
+
+        const VkCommandBuffer vkCommandBuffer = unwrap_handle<VkCommandBuffer>(cmdBuffer);
+
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p->pipeline);
+        vkCmdBeginRendering(vkCommandBuffer, &renderingInfo);
+
+        // TODO: Bind descriptors
+        // TODO: Returning an empty handle for now, we might want context in some cases, e.g. with profiling active
+
+        return hptr<render_pass>{};
+    }
+
+    void vulkan_instance::end_render_pass(hptr<command_buffer> cmdBuffer, hptr<render_pass>)
+    {
+        vkCmdEndRendering(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }
 
     result<h32<bindless_image>> vulkan_instance::acquire_bindless(h32<image> optImage)
@@ -1582,6 +1659,7 @@ namespace oblo::gpu::vk
         {
             VkImageMemoryBarrier2& barrier = imageBarriers.emplace_back();
             barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            barrier.image = unwrap_image(transition.image);
             deduce_barrier(barrier, transition);
         }
 
@@ -1654,6 +1732,11 @@ namespace oblo::gpu::vk
     VkQueue vulkan_instance::unwrap_queue(h32<queue> queue) const
     {
         return get_queue(queue).queue;
+    }
+
+    VkShaderModule vulkan_instance::unwrap_shader_module(h32<shader_module> handle) const
+    {
+        return m_shaderModules.at(handle).vkShaderModule;
     }
 
     debug_utils::object vulkan_instance::get_object_labeler() const

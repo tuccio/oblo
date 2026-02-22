@@ -12,6 +12,7 @@ namespace oblo::gpu
         device_lost,
         out_of_date,
         already_initialized,
+        invalid_handle,
         invalid_usage,
         not_enough_command_buffers,
     };

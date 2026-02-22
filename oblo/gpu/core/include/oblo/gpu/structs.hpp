@@ -326,6 +326,6 @@ namespace oblo::gpu
         u32 binding;
         u32 location;
         data_format format;
-        u32 offset;    
+        u32 offset;
     };
 }

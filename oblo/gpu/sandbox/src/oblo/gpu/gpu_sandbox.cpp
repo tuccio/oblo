@@ -108,7 +108,7 @@ namespace oblo
 
                 const vec2u windowSize = m_window.get_size();
 
-                if (!m_swapchain || (windowSize.x != lastWindowSize.x || lastWindowSize.y != lastWindowSize.y))
+                if (!m_swapchain || (windowSize.x != lastWindowSize.x || windowSize.y != lastWindowSize.y))
                 {
                     recreate_swapchain(windowSize);
 
@@ -266,9 +266,23 @@ namespace oblo
                 m_gpu->cmd_apply_barriers(cmd, barriers);
             }
 
-            if (m_gpu->begin_render_pass(cmd, m_renderPipeline))
+            const gpu::render_attachment colorAttachments[1] = {{
+                .image = swapchainImage,
+                .loadOp = gpu::attachment_load_op::clear,
+                .storeOp = gpu::attachment_store_op::store,
+                .clearValue =
+                    {
+                        .color = {.f32 = {1.f, 0.f, 0.f, 1.f}},
+                    },
+            }};
+
+            const gpu::render_pass_descriptor renderPassDesc{
+                .colorAttachments = colorAttachments,
+            };
+
+            if (const auto r = m_gpu->begin_render_pass(cmd, m_renderPipeline, renderPassDesc))
             {
-                m_gpu->end_render_pass(cmd);
+                m_gpu->end_render_pass(cmd, *r);
             }
 
             {

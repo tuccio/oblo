@@ -210,6 +210,11 @@ namespace oblo::gpu::vk
         {
             switch (state)
             {
+            case image_resource_state::undefined:
+                outLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                outStageMask = deduce_stage_mask(pipeline);
+                break;
+
             case image_resource_state::depth_stencil_read:
                 outLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 outAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;

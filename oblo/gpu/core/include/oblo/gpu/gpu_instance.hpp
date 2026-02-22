@@ -79,11 +79,11 @@ namespace oblo::gpu
         virtual result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) = 0;
         virtual void destroy_sampler(h32<sampler> handle) = 0;
 
-        virtual result<> begin_render_pass(hptr<command_buffer> cmdBuffer,
-            h32<render_pipeline> pipelinepipeline,
+        virtual result<hptr<render_pass>> begin_render_pass(hptr<command_buffer> cmdBuffer,
+            h32<render_pipeline> pipeline,
             const render_pass_descriptor& descriptor) = 0;
 
-        virtual void end_render_pass(hptr<command_buffer> cmdBuffer) = 0;
+        virtual void end_render_pass(hptr<command_buffer> cmdBuffer, hptr<render_pass> renderPass) = 0;
 
         virtual result<h32<bindless_image>> acquire_bindless(h32<image> optImage) = 0;
         virtual result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) = 0;
