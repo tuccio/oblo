@@ -16,6 +16,43 @@
 
 namespace oblo::gpu
 {
+    enum class sampler_address_mode : u8
+    {
+        repeat,
+        mirrored_repeat,
+        clamp_to_edge,
+        clamp_to_border,
+        mirror_clamp_to_edge,
+    };
+
+    enum class sampler_filter : u8
+    {
+        nearest,
+        linear,
+    };
+
+    enum class sampler_mipmap_mode : u8
+    {
+        nearest,
+        linear,
+    };
+
+    struct sampler_descriptor
+    {
+        sampler_filter magFilter;
+        sampler_filter minFilter;
+        sampler_mipmap_mode mipmapMode;
+        sampler_address_mode addressModeU;
+        sampler_address_mode addressModeV;
+        sampler_address_mode addressModeW;
+        f32 mipLodBias;
+        bool anisotropyEnable;
+        f32 maxAnisotropy;
+        f32 minLod;
+        f32 maxLod;
+        debug_label debugLabel;
+    };
+
     struct command_buffer_pool_descriptor
     {
         h32<queue> queue;

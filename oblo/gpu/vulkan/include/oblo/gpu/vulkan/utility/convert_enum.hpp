@@ -171,4 +171,49 @@ namespace oblo::gpu::vk
     {
         return detail::convert_enum_flags_impl<VkImageAspectFlags>(aspectMask);
     }
+
+    inline VkFilter convert_enum(sampler_filter filter)
+    {
+        switch (filter)
+        {
+        case sampler_filter::nearest:
+            return VK_FILTER_NEAREST;
+        case sampler_filter::linear:
+            return VK_FILTER_LINEAR;
+        default:
+            unreachable();
+        }
+    }
+
+    inline VkSamplerAddressMode convert_enum(sampler_address_mode mode)
+    {
+        switch (mode)
+        {
+        case sampler_address_mode::repeat:
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case sampler_address_mode::mirrored_repeat:
+            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case sampler_address_mode::clamp_to_edge:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case sampler_address_mode::clamp_to_border:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        case sampler_address_mode::mirror_clamp_to_edge:
+            return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+        default:
+            unreachable();
+        }
+    }
+
+    inline VkSamplerMipmapMode convert_enum(sampler_mipmap_mode mode)
+    {
+        switch (mode)
+        {
+        case sampler_mipmap_mode::nearest:
+            return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        case sampler_mipmap_mode::linear:
+            return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        default:
+            unreachable();
+        }
+    }
 }

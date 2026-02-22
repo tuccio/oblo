@@ -166,6 +166,11 @@ namespace oblo::gpu::vk
         dynamic_array<u32> spirv;
     };
 
+    struct vulkan_instance::sampler_impl
+    {
+        VkSampler vkSampler;
+    };
+
     struct vulkan_instance::swapchain_impl
     {
         swapchain_wrapper<3u> swapchainWrapper;
@@ -1058,6 +1063,48 @@ namespace oblo::gpu::vk
         shader_module_impl& impl = m_shaderModules.at(handle);
         vkDestroyShaderModule(m_device, impl.vkShaderModule, m_allocator.get_allocation_callbacks());
         m_shaderModules.erase(handle);
+    }
+
+    result<h32<sampler>> vulkan_instance::create_sampler(const sampler_descriptor& descriptor)
+    {
+        const VkSamplerCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = convert_enum(descriptor.magFilter),
+            .minFilter = convert_enum(descriptor.minFilter),
+            .mipmapMode = convert_enum(descriptor.mipmapMode),
+            .addressModeU = convert_enum(descriptor.addressModeU),
+            .addressModeV = convert_enum(descriptor.addressModeV),
+            .addressModeW = convert_enum(descriptor.addressModeW),
+            .mipLodBias = descriptor.mipLodBias,
+            .anisotropyEnable = descriptor.anisotropyEnable ? VK_TRUE : VK_FALSE,
+            .maxAnisotropy = descriptor.maxAnisotropy,
+            .compareEnable = VK_FALSE,
+            .compareOp = VK_COMPARE_OP_ALWAYS,
+            .minLod = descriptor.minLod,
+            .maxLod = descriptor.maxLod,
+            .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+            .unnormalizedCoordinates = VK_FALSE,
+        };
+
+        VkSampler vkSampler;
+        const VkResult r = vkCreateSampler(m_device, &info, m_allocator.get_allocation_callbacks(), &vkSampler);
+
+        if (r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        const auto [it, handle] = m_samplers.emplace();
+        it->vkSampler = vkSampler;
+        label_vulkan_object(vkSampler, descriptor.debugLabel);
+        return handle;
+    }
+
+    void vulkan_instance::destroy_sampler(h32<sampler> handle)
+    {
+        sampler_impl& impl = m_samplers.at(handle);
+        vkDestroySampler(m_device, impl.vkSampler, m_allocator.get_allocation_callbacks());
+        m_samplers.erase(handle);
     }
 
     result<h32<render_pipeline>> vulkan_instance::create_render_pipeline(const render_pipeline_descriptor& descriptor)

@@ -18,6 +18,7 @@ namespace oblo::gpu
     struct queue;
     struct render_pass;
     struct render_pipeline;
+    struct sampler;
     struct semaphore;
     struct shader_module;
     struct surface;
@@ -34,6 +35,7 @@ namespace oblo::gpu
     struct present_descriptor;
     struct queue_submit_descriptor;
     struct semaphore_descriptor;
+    struct sampler_descriptor;
     struct render_pass_descriptor;
     struct render_pipeline_descriptor;
     struct shader_module_descriptor;

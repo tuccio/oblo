@@ -75,6 +75,9 @@ namespace oblo::gpu
         virtual result<h32<render_pipeline>> create_render_pipeline(const render_pipeline_descriptor& descriptor) = 0;
         virtual void destroy_render_pipeline(h32<render_pipeline> handle) = 0;
 
+        virtual result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) = 0;
+        virtual void destroy_sampler(h32<sampler> handle) = 0;
+
         virtual result<> begin_render_pass(hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline) = 0;
         virtual void end_render_pass(hptr<command_buffer> cmdBuffer) = 0;
 

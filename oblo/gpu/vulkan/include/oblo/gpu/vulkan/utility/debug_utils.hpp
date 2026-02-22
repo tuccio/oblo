@@ -95,5 +95,10 @@ namespace oblo::gpu::vk::debug_utils
         {
             set_object_name(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, uint64_t(pipelineLayout), name);
         }
+
+        void set_object_name(VkDevice device, VkSampler sampler, const char* name) const
+        {
+            set_object_name(device, VK_OBJECT_TYPE_SAMPLER, uint64_t(sampler), name);
+        }
     };
 }
