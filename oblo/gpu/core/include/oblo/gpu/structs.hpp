@@ -4,8 +4,8 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/variant.hpp>
-#include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/forward.hpp>
 #include <oblo/math/vec2i.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/vec3i.hpp>
@@ -285,5 +285,28 @@ namespace oblo::gpu
         h32<buffer> buffer;
         u64 offset;
         u64 size;
+    };
+
+    struct image_state_transition
+    {
+        h32<image> image;
+        image_resource_state previousState;
+        image_resource_state nextState;
+        pipeline_sync_stage previousPipeline;
+        pipeline_sync_stage nextPipeline;
+    };
+
+    struct global_memory_barrier
+    {
+        flags<pipeline_sync_stage> previousPipelines;
+        flags<pipeline_sync_stage> nextPipelines;
+        flags<memory_access_type> previousAccesses;
+        flags<memory_access_type> nextAccesses;
+    };
+
+    struct memory_barrier_descriptor
+    {
+        std::span<const image_state_transition> images;
+        std::span<const global_memory_barrier> memory;
     };
 }

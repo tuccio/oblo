@@ -120,6 +120,10 @@ namespace oblo::gpu::vk
             h32<image> dst,
             std::span<const buffer_image_copy_descriptor> copies) override;
 
+        // Barriers and synchronization
+
+        void cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor) override;
+
         // Debugging and profiling
 
         void cmd_label_begin(hptr<command_buffer> cmd, const char* label) override;

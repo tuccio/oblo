@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/forward.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -20,4 +21,7 @@ namespace oblo::gpu::vk
         VkImage image,
         VkFormat format,
         VkImageSubresourceRange range);
+
+    void deduce_barrier(VkImageMemoryBarrier2& outBarrier, const image_state_transition& transition);
+    void deduce_barrier(VkMemoryBarrier2& outBarrier, const global_memory_barrier& memoryBarrier);
 }

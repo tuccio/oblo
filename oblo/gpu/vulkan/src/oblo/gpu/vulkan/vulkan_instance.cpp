@@ -9,6 +9,7 @@
 #include <oblo/gpu/vulkan/swapchain_wrapper.hpp>
 #include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
+#include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
 
 #define OBLO_VK_LOAD_FN(name) PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 #define OBLO_VK_LOAD_FN_ASSIGN(loader, name) (loader.name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name)))
@@ -1334,6 +1335,39 @@ namespace oblo::gpu::vk
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             regions.size32(),
             regions.data());
+    }
+
+    void vulkan_instance::cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor)
+    {
+        buffered_array<VkImageMemoryBarrier2, 32> imageBarriers;
+        imageBarriers.reserve(descriptor.images.size());
+
+        for (const image_state_transition& transition : descriptor.images)
+        {
+            VkImageMemoryBarrier2& barrier = imageBarriers.emplace_back();
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            deduce_barrier(barrier, transition);
+        }
+
+        buffered_array<VkMemoryBarrier2, 4> memoryBarriers;
+        memoryBarriers.reserve(descriptor.memory.size());
+
+        for (const global_memory_barrier& memoryBarrier : descriptor.memory)
+        {
+            VkMemoryBarrier2& barrier = memoryBarriers.emplace_back();
+            barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+            deduce_barrier(barrier, memoryBarrier);
+        }
+
+        const VkDependencyInfo dependencyInfo{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .memoryBarrierCount = memoryBarriers.size32(),
+            .pMemoryBarriers = memoryBarriers.data(),
+            .imageMemoryBarrierCount = imageBarriers.size32(),
+            .pImageMemoryBarriers = imageBarriers.data(),
+        };
+
+        vkCmdPipelineBarrier2(unwrap_handle<VkCommandBuffer>(cmd), &dependencyInfo);
     }
 
     void vulkan_instance::cmd_label_begin(hptr<command_buffer> cmd, const char* label)

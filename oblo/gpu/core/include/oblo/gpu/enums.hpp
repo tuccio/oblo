@@ -462,4 +462,35 @@ namespace oblo::gpu
         depth,
         enum_max,
     };
+
+    enum class image_resource_state : u8
+    {
+        render_target_write,
+        depth_stencil_read,
+        depth_stencil_write,
+        shader_read,
+        storage_read,
+        storage_write,
+        transfer_source,
+        transfer_destination,
+        present,
+    };
+
+    enum class pipeline_sync_stage : u8
+    {
+        top_of_pipeline,
+        graphics,
+        compute,
+        raytracing,
+        transfer,
+        bottom_of_pipeline,
+        enum_max,
+    };
+
+    enum class memory_access_type : u8
+    {
+        any_read,
+        any_write,
+        enum_max,
+    };
 }

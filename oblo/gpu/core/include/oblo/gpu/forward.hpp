@@ -32,6 +32,7 @@ namespace oblo::gpu
     struct fence_descriptor;
     struct image_descriptor;
     struct instance_descriptor;
+    struct memory_barrier_descriptor;
     struct present_descriptor;
     struct queue_submit_descriptor;
     struct semaphore_descriptor;
@@ -43,6 +44,8 @@ namespace oblo::gpu
 
     struct device_info;
     struct device_limits;
+    struct global_memory_barrier;
+    struct image_state_transition;
     struct memory_properties;
 
     class gpu_instance;
@@ -54,10 +57,12 @@ namespace oblo::gpu
     enum class error;
 
     enum class buffer_usage : u8;
-    enum class image_usage : u8;
     enum class image_format : u32;
+    enum class image_resource_state : u8;
+    enum class image_usage : u8;
     enum class mesh_index_type : u8;
     enum class pass_kind : u8;
-    enum class shader_stage : u8;
+    enum class pipeline_sync_stage : u8;
     enum class shader_module_format : u8;
+    enum class shader_stage : u8;
 }

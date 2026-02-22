@@ -1,9 +1,9 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
-#include <oblo/gpu/enums.hpp>
 
 #include <span>
 
@@ -111,6 +111,10 @@ namespace oblo::gpu
             h32<buffer> src,
             h32<image> dst,
             std::span<const buffer_image_copy_descriptor> copies) = 0;
+
+        // Barriers and synchronization
+
+        virtual void cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor) = 0;
 
         // Debugging and profiling
 
