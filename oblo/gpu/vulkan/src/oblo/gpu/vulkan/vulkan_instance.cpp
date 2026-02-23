@@ -720,11 +720,17 @@ namespace oblo::gpu::vk
         m_bindGroupLayouts.erase(handle);
     }
 
-    result<h32<bind_group>> vulkan_instance::acquire_transient_bind_group(const bind_group_descriptor& descriptor)
+    result<hptr<bind_group>> vulkan_instance::acquire_transient_bind_group(h32<bind_group_layout> handle)
     {
-        // TODO
-        (void) descriptor;
-        return error::undefined;
+        const VkDescriptorSetLayout layout = m_bindGroupLayouts.at(handle).descriptorSetLayout;
+        const result r = m_descriptorSetPool.acquire(get_last_finished_submit(), layout, nullptr);
+
+        if (!r)
+        {
+            return r.error();
+        }
+
+        return wrap_handle<bind_group>(*r);
     }
 
     result<h32<command_buffer_pool>> vulkan_instance::create_command_buffer_pool(

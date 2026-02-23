@@ -346,7 +346,6 @@ namespace oblo::gpu
         flags<shader_stage> shaderStages;
         bool readOnly;
     };
-
     struct bind_group_layout_descriptor
     {
         std::span<const bind_group_binding> bindings;

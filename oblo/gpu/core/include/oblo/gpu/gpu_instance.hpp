@@ -56,7 +56,7 @@ namespace oblo::gpu
 
         virtual void destroy_bind_group_layout(h32<bind_group_layout> handle) = 0;
 
-        virtual result<h32<bind_group>> acquire_transient_bind_group(const bind_group_descriptor& descriptor) = 0;
+        virtual result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle) = 0;
 
         virtual result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) = 0;
