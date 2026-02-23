@@ -1,5 +1,6 @@
 #include <oblo/app/graphics_window.hpp>
 #include <oblo/app/window_event_processor.hpp>
+#include <oblo/core/allocator.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/gpu/enums.hpp>
@@ -7,6 +8,9 @@
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
+#include <oblo/modules/module_manager.hpp>
+#include <oblo/vulkan/compiler/compiler_module.hpp>
+#include <oblo/vulkan/compiler/shader_compiler.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -14,6 +18,36 @@
 
 namespace oblo
 {
+    namespace
+    {
+        h32<gpu::shader_module> compile_shader(
+            gpu::gpu_instance& gpu, vk::shader_compiler& compiler, cstring_view path, gpu::shader_stage stage)
+        {
+            auto r = compiler.preprocess_from_file(*get_global_allocator(), path, stage, {});
+
+            if (r.has_errors())
+            {
+                return {};
+            }
+
+            r = compiler.compile(std::move(r), {.codeOptimization = false});
+
+            if (r.has_errors())
+            {
+                return {};
+            }
+
+            const std::span spirv = r.get_spirv();
+
+            return gpu
+                .create_shader_module({
+                    .format = gpu::shader_module_format::spirv,
+                    .data = {reinterpret_cast<const u8*>(spirv.data()), spirv.size_bytes()},
+                })
+                .value_or({});
+        }
+    }
+
     class gpu_sandbox
     {
     public:
@@ -24,6 +58,18 @@ namespace oblo
 
         expected<> run()
         {
+            auto* const compilerModule = m_moduleManager.load<vk::compiler_module>();
+
+            if (!compilerModule)
+            {
+                return "Failed to load compiler module"_err;
+            }
+
+            if (!m_moduleManager.finalize())
+            {
+                return "Failed to finalize modules"_err;
+            }
+
             m_gpu = allocate_unique<gpu::vk::vulkan_instance>();
 
             if (!m_gpu->init({
@@ -321,18 +367,60 @@ namespace oblo
         {
             if (!m_renderPipeline)
             {
-                const gpu::image_format rtFormats[1] = {gpu::image_format::b8g8r8a8_unorm};
+                auto* const compilerModule = m_moduleManager.find<vk::compiler_module>();
 
-                const gpu::render_pass_targets targets{
-                    .colorAttachmentFormats = rtFormats,
-                };
+                const auto compiler = compilerModule->make_glslang_compiler();
+                compiler->init({});
 
-                const gpu::render_pipeline_descriptor desc{
-                    .renderTargets = targets,
-                };
+                const h32 vertex =
+                    compile_shader(*m_gpu, *compiler, "./gpu_sandbox/shaders/triangle.vert", gpu::shader_stage::vertex);
 
-                const expected r = m_gpu->create_render_pipeline(desc);
-                m_renderPipeline = r.value_or({});
+                const h32 fragment = compile_shader(*m_gpu,
+                    *compiler,
+                    "./gpu_sandbox/shaders/triangle.frag",
+                    gpu::shader_stage::fragment);
+
+                if (vertex && fragment)
+                {
+                    const gpu::image_format rtFormats[1] = {gpu::image_format::b8g8r8a8_unorm};
+                    const gpu::color_blend_attachment_state blendStates[1] = {{.enable = false}};
+
+                    const gpu::render_pass_targets targets{
+                        .colorAttachmentFormats = rtFormats,
+                        .blendStates = blendStates,
+                    };
+
+                    const gpu::render_pipeline_stage stages[] = {
+                        {
+                            .stage = gpu::shader_stage::vertex,
+                            .shaderModule = vertex,
+                            .entryFunction = "main",
+                        },
+                        {
+                            .stage = gpu::shader_stage::vertex,
+                            .shaderModule = fragment,
+                            .entryFunction = "main",
+                        },
+                    };
+
+                    const gpu::render_pipeline_descriptor desc{
+                        .stages = stages,
+                        .renderTargets = targets,
+                    };
+
+                    const expected r = m_gpu->create_render_pipeline(desc);
+                    m_renderPipeline = r.value_or({});
+                }
+
+                if (vertex)
+                {
+                    m_gpu->destroy_shader_module(vertex);
+                }
+
+                if (fragment)
+                {
+                    m_gpu->destroy_shader_module(fragment);
+                }
             }
 
             return bool{m_renderPipeline};
@@ -342,6 +430,7 @@ namespace oblo
         static constexpr u32 num_swapchain_images = 3u;
 
     private:
+        module_manager m_moduleManager;
         graphics_window m_window;
         unique_ptr<gpu::gpu_instance> m_gpu;
         hptr<gpu::surface> m_windowSurface{};

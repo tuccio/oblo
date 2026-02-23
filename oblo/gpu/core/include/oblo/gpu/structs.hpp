@@ -91,6 +91,7 @@ namespace oblo::gpu
     struct push_constant_range
     {
         flags<shader_stage> stages;
+        u32 offset;
         u32 size;
     };
 
@@ -342,7 +343,7 @@ namespace oblo::gpu
     struct bind_group_binding
     {
         u32 binding;
-        binding_kind bindingKind;
+        resource_binding_kind bindingKind;
         flags<shader_stage> shaderStages;
         bool readOnly;
     };

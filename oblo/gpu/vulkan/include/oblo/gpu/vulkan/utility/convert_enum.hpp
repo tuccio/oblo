@@ -272,21 +272,21 @@ namespace oblo::gpu::vk
         }
     }
 
-    inline VkDescriptorType convert_enum(binding_kind kind)
+    inline VkDescriptorType convert_enum(resource_binding_kind kind)
     {
         switch (kind)
         {
-        case binding_kind::uniform:
+        case resource_binding_kind::uniform:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        case binding_kind::storage_buffer:
+        case resource_binding_kind::storage_buffer:
             return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        case binding_kind::storage_image:
+        case resource_binding_kind::storage_image:
             return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        case binding_kind::sampler:
+        case resource_binding_kind::sampler:
             return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        case binding_kind::sampler_image:
+        case resource_binding_kind::sampler_image:
             return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        case binding_kind::acceleration_structure:
+        case resource_binding_kind::acceleration_structure:
             return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
         default:
             unreachable();

@@ -166,7 +166,6 @@ namespace oblo::gpu::vk
     struct vulkan_instance::shader_module_impl
     {
         VkShaderModule vkShaderModule;
-        dynamic_array<u32> spirv;
     };
 
     struct vulkan_instance::sampler_impl
@@ -1122,18 +1121,20 @@ namespace oblo::gpu::vk
 
     result<h32<shader_module>> vulkan_instance::create_shader_module(const shader_module_descriptor& descriptor)
     {
-        if (descriptor.format != shader_module_format::spirv || descriptor.data.size_bytes() % 4 != 0)
+        if (descriptor.format != shader_module_format::spirv)
         {
             return error::invalid_usage;
         }
 
-        const usize numU32 = descriptor.data.size_bytes() / 4;
+        if (descriptor.data.size_bytes() % sizeof(u32) != 0 || uintptr(descriptor.data.data()) % sizeof(u32) != 0)
+        {
+            return error::invalid_usage;
+        }
 
-        // Copy the spirv because we can use spirv-cross on it for reflection purposes
-        dynamic_array<u32> spirv;
-        spirv.resize_default(numU32);
-
-        std::memcpy(spirv.data(), descriptor.data.data(), numU32);
+        const auto spirv = std::span{
+            reinterpret_cast<const u32*>(descriptor.data.data()),
+            descriptor.data.size_bytes() / sizeof(u32),
+        };
 
         const VkShaderModuleCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -1151,7 +1152,6 @@ namespace oblo::gpu::vk
 
         const auto [it, handle] = m_shaderModules.emplace();
         it->vkShaderModule = shaderModule;
-        it->spirv = std::move(spirv);
         return handle;
     }
 
@@ -1210,18 +1210,55 @@ namespace oblo::gpu::vk
 
         auto cleanup = finally_if_not_cancelled([this, handle] { destroy_render_pipeline(handle); });
 
+        buffered_array<VkDescriptorSetLayout, 4> descriptorSetLayouts;
+
+        for (const h32 h : desc.bindGroupLayouts)
+        {
+            const auto& bindGroup = m_bindGroupLayouts.at(h);
+            descriptorSetLayouts.emplace_back(bindGroup.descriptorSetLayout);
+        }
+
+        buffered_array<VkPushConstantRange, 4> pushConstantRanges;
+
+        for (const push_constant_range& pc : desc.pushConstants)
+        {
+            pushConstantRanges.push_back({
+                .stageFlags = convert_enum_flags(pc.stages),
+                .offset = pc.offset,
+                .size = pc.size,
+            });
+        }
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = descriptorSetLayouts.size32(),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = pushConstantRanges.size32(),
+            .pPushConstantRanges = pushConstantRanges.data(),
+        };
+
+        const VkResult pipelineLayoutResult = vkCreatePipelineLayout(m_device,
+            &pipelineLayoutInfo,
+            m_allocator.get_allocation_callbacks(),
+            &newPipeline->pipelineLayout);
+
+        if (pipelineLayoutResult != VK_SUCCESS)
+        {
+            return translate_error(pipelineLayoutResult);
+        }
+
+        label_vulkan_object(newPipeline->pipelineLayout, desc.debugLabel);
+
         buffered_array<VkPipelineShaderStageCreateInfo, 4> stageCreateInfo;
 
         for (const auto& stage : desc.stages)
         {
-            const VkPipelineShaderStageCreateInfo info{
+            stageCreateInfo.push_back({
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = convert_enum(stage.stage),
                 .module = unwrap_shader_module(stage.shaderModule),
                 .pName = stage.entryFunction ? stage.entryFunction : "main",
-            };
-
-            stageCreateInfo.emplace_back(info);
+            });
         }
 
         static_assert(sizeof(VkFormat) == sizeof(image_format), "We rely on this when reinterpret casting");
@@ -1402,9 +1439,6 @@ namespace oblo::gpu::vk
         }
 
         label_vulkan_object(newPipeline->pipeline, desc.debugLabel);
-
-        // TODO
-        // label_vulkan_object(newPipeline->pipelineLayout, desc.debugLabel);
 
         // Success
         cleanup.cancel();

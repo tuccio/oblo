@@ -501,7 +501,7 @@ namespace oblo::gpu
         instance,
     };
 
-    enum class binding_kind : u8
+    enum class resource_binding_kind : u8
     {
         uniform,
         storage_buffer,

@@ -63,7 +63,6 @@ namespace oblo::gpu
 
     enum class error;
 
-    enum class binding_kind : u8;
     enum class buffer_usage : u8;
     enum class data_format : u32;
     enum class image_resource_state : u8;
@@ -71,6 +70,7 @@ namespace oblo::gpu
     enum class mesh_index_type : u8;
     enum class pass_kind : u8;
     enum class pipeline_sync_stage : u8;
+    enum class resource_binding_kind : u8;
     enum class shader_module_format : u8;
     enum class shader_stage : u8;
     enum class vertex_input_rate : u8;
