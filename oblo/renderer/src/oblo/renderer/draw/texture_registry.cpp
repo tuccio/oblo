@@ -3,10 +3,10 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/finally.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/gpu/structs.hpp>
-#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/log/log.hpp>
@@ -64,16 +64,14 @@ namespace oblo
 
     texture_registry::~texture_registry() = default;
 
-    bool texture_registry::init(
-        gpu::vk::vulkan_instance& vkCtx, gpu::gpu_queue_context& queueCtx, gpu::staging_buffer& staging)
+    bool texture_registry::init(gpu::vk::vulkan_instance& vkCtx, gpu::staging_buffer& staging)
     {
         const u32 maxDescriptorCount = get_max_descriptor_count();
 
         m_imageInfo.reserve(maxDescriptorCount);
         m_textures.reserve(maxDescriptorCount);
 
-        m_vkCtx = &vkCtx;
-        m_queueCtx = &queueCtx;
+        m_gpu = &vkCtx;
         m_staging = &staging;
 
         return true;
@@ -81,7 +79,7 @@ namespace oblo
 
     void texture_registry::shutdown()
     {
-        const auto submitIndex = m_queueCtx->get_submit_index();
+        const auto submitIndex = m_gpu->get_submit_index();
 
         for (const auto& t : m_textures)
         {
@@ -91,7 +89,7 @@ namespace oblo
                 continue;
             }
 
-            m_queueCtx->destroy_deferred(t.handle, submitIndex);
+            m_gpu->destroy_deferred(t.handle, submitIndex);
         }
     }
 
@@ -222,8 +220,8 @@ namespace oblo
 
         if (t.handle)
         {
-            const auto submitIndex = m_queueCtx->get_submit_index();
-            m_queueCtx->destroy_deferred(t.handle, submitIndex);
+            const auto submitIndex = m_gpu->get_submit_index();
+            m_gpu->destroy_deferred(t.handle, submitIndex);
         }
 
         // Reset to the dummy
@@ -293,8 +291,8 @@ namespace oblo
                 .layerCount = 1,
             };
 
-            const VkImage vkImage = m_vkCtx->unwrap_image(upload.handle);
-            const VkCommandBuffer vkCmdBuffer = m_vkCtx->unwrap_command_buffer(commandBuffer);
+            const VkImage vkImage = m_gpu->unwrap_image(upload.handle);
+            const VkCommandBuffer vkCmdBuffer = m_gpu->unwrap_command_buffer(commandBuffer);
 
             gpu::vk::add_pipeline_barrier_cmd(vkCmdBuffer,
                 initialImageLayout,
@@ -344,7 +342,7 @@ namespace oblo
             .debugLabel = debugName,
         };
 
-        const expected image = m_vkCtx->create_image(descriptor);
+        const expected image = m_gpu->create_image(descriptor);
 
         if (!image)
         {
@@ -363,7 +361,7 @@ namespace oblo
         const auto cleanupAfterFailure = [this, &image]
         {
             m_pendingUploads.pop_back();
-            m_vkCtx->destroy_image(*image);
+            m_gpu->destroy_image(*image);
         };
 
         const u32 texelSize = texture.get_element_size();

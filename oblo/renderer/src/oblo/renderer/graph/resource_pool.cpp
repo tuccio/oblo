@@ -5,7 +5,7 @@
 #include <oblo/core/reflection/struct_hash.hpp>
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
@@ -143,7 +143,7 @@ namespace oblo
         return true;
     }
 
-    void resource_pool::shutdown(gpu::gpu_queue_context& ctx)
+    void resource_pool::shutdown(gpu::gpu_instance& ctx)
     {
         m_lastFramePool = m_currentFramePool;
         free_last_frame_resources(ctx);
@@ -173,7 +173,7 @@ namespace oblo
         m_bufferResources.clear();
     }
 
-    void resource_pool::end_build(gpu::gpu_queue_context& ctx)
+    void resource_pool::end_build(gpu::gpu_instance& ctx)
     {
         // TODO: Here we should check if we can reuse the allocation from last frame, instead for now we
         // simply free the objects from last frame
@@ -355,7 +355,7 @@ namespace oblo
         stableBuffer.previousAccessKind = accessKind;
     }
 
-    void resource_pool::free_last_frame_resources(gpu::gpu_queue_context& ctx)
+    void resource_pool::free_last_frame_resources(gpu::gpu_instance& ctx)
     {
         if (m_lastFramePool)
         {
@@ -516,7 +516,7 @@ namespace oblo
         it->second.lastUsedTime = m_frame;
     }
 
-    void resource_pool::free_stable_textures(gpu::gpu_queue_context& ctx, u32 unusedFor)
+    void resource_pool::free_stable_textures(gpu::gpu_instance& ctx, u32 unusedFor)
     {
         for (auto it = m_stableTextures.begin(); it != m_stableTextures.end();)
         {
@@ -536,7 +536,7 @@ namespace oblo
         }
     }
 
-    void resource_pool::free_stable_buffers(gpu::gpu_queue_context& ctx, u32 unusedFor)
+    void resource_pool::free_stable_buffers(gpu::gpu_instance& ctx, u32 unusedFor)
     {
         for (auto it = m_stableBuffers.begin(); it != m_stableBuffers.end();)
         {

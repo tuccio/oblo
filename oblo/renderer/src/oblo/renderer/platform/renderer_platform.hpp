@@ -18,13 +18,21 @@ namespace oblo
         pass_manager passManager;
     };
 
-    struct frame_graph_build_args : renderer_platform
+    struct frame_graph_build_args
     {
+        gpu::vk::vulkan_instance& vk;
+        texture_registry& textureRegistry;
+        resource_cache& resourceCache;
+        pass_manager& passManager;
         renderer& r;
     };
 
-    struct frame_graph_execute_args : renderer_platform
+    struct frame_graph_execute_args
     {
+        gpu::vk::vulkan_instance& vk;
+        texture_registry& textureRegistry;
+        resource_cache& resourceCache;
+        pass_manager& passManager;
         renderer& r;
     };
 

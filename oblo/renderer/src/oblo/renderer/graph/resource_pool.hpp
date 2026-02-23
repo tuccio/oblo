@@ -37,10 +37,10 @@ namespace oblo
         resource_pool& operator=(resource_pool&&) noexcept = delete;
 
         bool init(gpu::gpu_instance& gpu);
-        void shutdown(gpu::gpu_queue_context& ctx);
+        void shutdown(gpu::gpu_instance& ctx);
 
         void begin_build();
-        void end_build(gpu::gpu_queue_context& ctx);
+        void end_build(gpu::gpu_instance& ctx);
 
         h32<transient_texture_resource> add_transient_texture(
             const gpu::image_descriptor& initializer, lifetime_range range, h32<stable_texture_resource> stableId);
@@ -84,7 +84,7 @@ namespace oblo
         struct buffer_pool;
 
     private:
-        void free_last_frame_resources(gpu::gpu_queue_context& ctx);
+        void free_last_frame_resources(gpu::gpu_instance& ctx);
 
         void create_textures(gpu::vk::vulkan_instance& gpu);
         void create_buffers(gpu::vk::vulkan_instance& gpu);
@@ -92,8 +92,8 @@ namespace oblo
         void acquire_from_pool(gpu::vk::vulkan_instance& gpu, texture_resource& resource);
         void acquire_from_pool(gpu::vk::vulkan_instance& gpu, buffer_resource& resource);
 
-        void free_stable_textures(gpu::gpu_queue_context& ctx, u32 unusedFor);
-        void free_stable_buffers(gpu::gpu_queue_context& ctx, u32 unusedFor);
+        void free_stable_textures(gpu::gpu_instance& ctx, u32 unusedFor);
+        void free_stable_buffers(gpu::gpu_instance& ctx, u32 unusedFor);
 
     private:
         struct stable_texture_key

@@ -35,7 +35,6 @@ namespace oblo
         void end_frame();
 
         gpu::gpu_instance& get_gpu_instance();
-        gpu::gpu_queue_context& get_gpu_queue_context();
 
         string_interner& get_string_interner();
 
@@ -55,7 +54,6 @@ namespace oblo
 
     private:
         gpu::gpu_instance* m_gpu{};
-        gpu::gpu_queue_context* m_gpuQueueCtx{};
 
         unique_ptr<instance_data_type_registry> m_instanceDataTypeRegistry;
 
@@ -73,18 +71,13 @@ namespace oblo
 
     struct renderer::initializer
     {
-        gpu::gpu_queue_context& queueContext;
+        gpu::gpu_instance& gpu;
         bool isRayTracingEnabled;
     };
 
     inline gpu::gpu_instance& renderer::get_gpu_instance()
     {
         return *m_gpu;
-    }
-
-    inline gpu::gpu_queue_context& renderer::get_gpu_queue_context()
-    {
-        return *m_gpuQueueCtx;
     }
 
     inline string_interner& renderer::get_string_interner()

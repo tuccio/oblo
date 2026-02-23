@@ -2,7 +2,7 @@
 
 #include <oblo/core/utility.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/structs.hpp>
 
 namespace oblo
@@ -30,7 +30,7 @@ namespace oblo
         m_alignment = alignment;
     }
 
-    void monotonic_gpu_buffer::shutdown(gpu::gpu_queue_context& ctx)
+    void monotonic_gpu_buffer::shutdown(gpu::gpu_instance& ctx)
     {
         const u64 submitIndex = ctx.get_submit_index();
 

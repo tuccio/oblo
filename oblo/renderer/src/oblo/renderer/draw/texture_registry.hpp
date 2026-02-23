@@ -33,7 +33,7 @@ namespace oblo
         texture_registry& operator=(const texture_registry&) = delete;
         texture_registry& operator=(texture_registry&&) noexcept = delete;
 
-        bool init(gpu::vk::vulkan_instance& vkCtx, gpu::gpu_queue_context& queueCtx, gpu::staging_buffer& staging);
+        bool init(gpu::vk::vulkan_instance& vkCtx, gpu::staging_buffer& staging);
         void shutdown();
 
         void on_first_frame();
@@ -59,8 +59,7 @@ namespace oblo
         void set_texture(h32<resident_texture> h, const resident_texture& residentTexture, VkImageLayout layout);
 
     private:
-        gpu::vk::vulkan_instance* m_vkCtx{};
-        gpu::gpu_queue_context* m_queueCtx{};
+        gpu::vk::vulkan_instance* m_gpu{};
         gpu::staging_buffer* m_staging{};
         handle_pool<u32, 4> m_handlePool;
 

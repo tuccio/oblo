@@ -19,7 +19,7 @@ namespace oblo
         dynamic_buffer& operator=(const dynamic_buffer&) = delete;
         dynamic_buffer& operator=(dynamic_buffer&&) noexcept = delete;
 
-        void init(gpu::gpu_queue_context& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties);
+        void init(gpu::gpu_instance& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties);
         void shutdown();
 
         void clear();
@@ -40,7 +40,7 @@ namespace oblo
         bool reserve_impl(hptr<gpu::command_buffer> cmd, u32 size);
 
     private:
-        gpu::gpu_queue_context* m_ctx{};
+        gpu::gpu_instance* m_ctx{};
         h32<gpu::buffer> m_buffer{};
         u32 m_capacity{};
         u32 m_usedBytes{};

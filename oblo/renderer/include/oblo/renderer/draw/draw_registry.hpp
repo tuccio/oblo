@@ -63,7 +63,7 @@ namespace oblo
         draw_registry& operator=(const draw_registry&) = delete;
         draw_registry& operator=(draw_registry&&) noexcept = delete;
 
-        void init(gpu::gpu_queue_context& ctx,
+        void init(gpu::gpu_instance& ctx,
             gpu::staging_buffer& stagingBuffer,
             string_interner& interner,
             ecs::entity_registry& entities,
@@ -108,7 +108,7 @@ namespace oblo
         void release(rt_acceleration_structure& as);
 
     private:
-        gpu::gpu_queue_context* m_ctx{};
+        gpu::gpu_instance* m_ctx{};
         gpu::vk::vulkan_instance* m_vk{};
 
         gpu::staging_buffer* m_stagingBuffer{};

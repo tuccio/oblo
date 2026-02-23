@@ -2,7 +2,7 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 
 namespace oblo
 {
@@ -12,7 +12,7 @@ namespace oblo
     }
 
     void dynamic_buffer::init(
-        gpu::gpu_queue_context& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties)
+        gpu::gpu_instance& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties)
     {
         m_ctx = &ctx;
         m_buffer = {};

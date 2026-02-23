@@ -51,12 +51,12 @@ namespace oblo
         void disable_all_outputs(h32<frame_graph_subgraph> graph);
         void set_output_state(h32<frame_graph_subgraph> graph, string_view name, bool enable);
 
-        bool init(gpu::gpu_queue_context& ctx);
-        void shutdown(gpu::gpu_queue_context& ctx);
+        bool init(gpu::gpu_instance& ctx);
+        void shutdown(gpu::gpu_instance& ctx);
 
-        void build(frame_graph_build_args& args);
+        void build(const frame_graph_build_args& args);
 
-        void execute(frame_graph_execute_args& args);
+        void execute(const frame_graph_execute_args& args);
 
         void write_dot(std::ostream& os) const;
 

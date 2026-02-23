@@ -2,14 +2,13 @@
 
 #include <oblo/core/string/string.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/trace/profile.hpp>
 #include <oblo/renderer/draw/descriptor_set_pool.hpp>
 #include <oblo/renderer/draw/instance_data_type_registry.hpp>
+#include <oblo/renderer/platform/renderer_platform.hpp>
 #include <oblo/renderer/renderer_module.hpp>
-#include <oblo/renderer/renderer_platform.hpp>
+#include <oblo/trace/profile.hpp>
 
 namespace oblo
 {
@@ -28,8 +27,7 @@ namespace oblo
             return false;
         }
 
-        m_gpuQueueCtx = &initializer.queueContext;
-        m_gpu = &m_gpuQueueCtx->get_instance();
+        m_gpu = &initializer.gpu;
 
         m_isRayTracingEnabled = initializer.isRayTracingEnabled;
 
@@ -45,7 +43,7 @@ namespace oblo
             return false;
         }
 
-        if (!m_frameGraph.init(*m_gpuQueueCtx))
+        if (!m_frameGraph.init(*m_gpu))
         {
             return false;
         }
@@ -71,9 +69,9 @@ namespace oblo
 
     void renderer::shutdown()
     {
-        m_frameGraph.shutdown(*m_gpuQueueCtx);
+        m_frameGraph.shutdown(*m_gpu);
 
-        m_platform->passManager.shutdown(*m_gpuQueueCtx);
+        m_platform->passManager.shutdown(*m_gpu);
 
         m_platform->textureRegistry.shutdown();
         m_stagingBuffer.shutdown();
@@ -83,9 +81,9 @@ namespace oblo
     {
         m_platform->resourceCache.update();
 
-        m_stagingBuffer.notify_finished_frames(m_gpuQueueCtx->get_last_finished_submit());
+        m_stagingBuffer.notify_finished_frames(m_gpu->get_last_finished_submit());
 
-        m_stagingBuffer.begin_frame(m_vkContext->get_submit_index());
+        m_stagingBuffer.begin_frame(m_gpu->get_submit_index());
 
         if (m_firstUpdate)
         {
@@ -97,30 +95,34 @@ namespace oblo
 
     void renderer::end_frame()
     {
-        const VkCommandBuffer commandBuffer = m_vkContext->get_active_command_buffer();
+        const VkCommandBuffer commandBuffer = m_gpu->get_active_command_buffer();
 
         m_platform->textureRegistry.flush_uploads(commandBuffer);
 
         m_platform->passManager.begin_frame(commandBuffer);
 
-        m_frameGraph.build({
-            .vkCtx = *m_vkContext,
-            .stagingBuffer = m_stagingBuffer,
-            .passManager = m_platform->passManager,
+        const frame_graph_build_args buildArgs{
+            .vk = *static_cast<gpu::vk::vulkan_instance*>(m_gpu),
             .textureRegistry = m_platform->textureRegistry,
             .resourceCache = m_platform->resourceCache,
-        });
+            .passManager = m_platform->passManager,
+            .renderer = *this,
+        };
+
+        m_frameGraph.build(buildArgs);
 
         // Frame graph building might update the texture descriptors, so we update them after that
         m_platform->passManager.update_global_descriptor_sets();
 
-        m_frameGraph.execute({
-            .vkCtx = *m_vkContext,
-            .stagingBuffer = m_stagingBuffer,
-            .stringInterner = m_stringInterner,
-            .passManager = m_platform->passManager,
+        const frame_graph_execute_args executeArgs{
+            .vk = *static_cast<gpu::vk::vulkan_instance*>(m_gpu),
             .textureRegistry = m_platform->textureRegistry,
-        });
+            .resourceCache = m_platform->resourceCache,
+            .passManager = m_platform->passManager,
+            .renderer = *this,
+        };
+
+        m_frameGraph.execute(executeArgs);
 
         m_platform->passManager.end_frame();
         m_stagingBuffer.end_frame();

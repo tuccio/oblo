@@ -12,7 +12,6 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/metrics/async_metrics.hpp>
@@ -493,7 +492,7 @@ namespace oblo
         }
     }
 
-    bool frame_graph::init(gpu::gpu_queue_context& ctx)
+    bool frame_graph::init(gpu::gpu_instance& ctx)
     {
         // Just arbitrary fixed size for now
         constexpr u32 maxAllocationSize{64u << 20};
@@ -510,7 +509,7 @@ namespace oblo
                m_impl->downloadStaging.init(gpu, g_downloadStagingSize).has_value();
     }
 
-    void frame_graph::shutdown(gpu::gpu_queue_context& ctx)
+    void frame_graph::shutdown(gpu::gpu_instance& ctx)
     {
         for (const auto& node : m_impl->nodes.values())
         {
@@ -544,11 +543,11 @@ namespace oblo
         m_impl.reset();
     }
 
-    void frame_graph::build(frame_graph_build_args& args)
+    void frame_graph::build(const frame_graph_build_args& args)
     {
         OBLO_PROFILE_SCOPE("Frame Graph Build");
 
-        gpu::gpu_queue_context& queueCtx = args.r.get_gpu_queue_context();
+        gpu::gpu_instance& queueCtx = args.r.get_gpu_instance();
 
         // Free retained textures if the user destroyed some subgraphs that owned some
         m_impl->free_pending_textures(queueCtx);
@@ -659,11 +658,11 @@ namespace oblo
         }
     }
 
-    void frame_graph::execute(frame_graph_execute_args& args)
+    void frame_graph::execute(const frame_graph_execute_args& args)
     {
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
-        gpu::gpu_queue_context& queueCtx = args.r.get_gpu_queue_context();
+        gpu::gpu_instance& queueCtx = args.r.get_gpu_instance();
         const hptr<gpu::command_buffer> commandBuffer = args.r.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
@@ -1207,7 +1206,7 @@ namespace oblo
         return handle;
     }
 
-    void frame_graph_impl::destroy_retained_texture(gpu::gpu_queue_context& ctx, h32<frame_graph_pin_storage> handle)
+    void frame_graph_impl::destroy_retained_texture(gpu::gpu_instance& ctx, h32<frame_graph_pin_storage> handle)
     {
         auto* const storage = pinStorage.try_find(handle);
 
@@ -1557,7 +1556,7 @@ namespace oblo
         vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBuffer), &afterDependencyInfo);
     }
 
-    void frame_graph_impl::flush_downloads(gpu::gpu_queue_context& queueCtx)
+    void frame_graph_impl::flush_downloads(gpu::gpu_instance& queueCtx)
     {
         const auto lastFinishedFrame = queueCtx.get_last_finished_submit();
 
@@ -1662,7 +1661,7 @@ namespace oblo
         }
     }
 
-    void frame_graph_impl::free_pending_textures(gpu::gpu_queue_context& ctx)
+    void frame_graph_impl::free_pending_textures(gpu::gpu_instance& ctx)
     {
         for (const auto& t : pendingTexturesToFree)
         {

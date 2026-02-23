@@ -15,7 +15,7 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/renderer/data/components.hpp>
@@ -144,7 +144,7 @@ namespace oblo
         shutdown();
     }
 
-    void draw_registry::init(gpu::gpu_queue_context& ctx,
+    void draw_registry::init(gpu::gpu_instance& ctx,
         gpu::staging_buffer& stagingBuffer,
         string_interner& interner,
         ecs::entity_registry& entities,
@@ -152,7 +152,7 @@ namespace oblo
         const instance_data_type_registry& instanceDataTypeRegistry)
     {
         m_ctx = &ctx;
-        m_vk = dynamic_cast<gpu::vk::vulkan_instance*>(&ctx.get_instance());
+        m_vk = dynamic_cast<gpu::vk::vulkan_instance*>(&ctx);
         m_stagingBuffer = &stagingBuffer;
         m_entities = &entities;
         m_typeRegistry = &m_entities->get_type_registry();
@@ -511,13 +511,12 @@ namespace oblo
         {
             m_ctx->destroy_deferred(as.accelerationStructure, m_ctx->get_submit_index());
         }
-
-        if (as.buffer.buffer)
-        {
-            m_ctx->destroy_deferred(as.buffer.buffer, m_ctx->get_submit_index());
-            m_ctx->destroy_deferred(as.buffer.allocation, m_ctx->get_submit_index());
-        }
 #endif
+
+        if (as.buffer)
+        {
+            m_ctx->destroy_deferred(as.buffer, m_ctx->get_submit_index());
+        }
 
         as = {};
     }

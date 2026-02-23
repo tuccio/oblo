@@ -320,7 +320,7 @@ namespace oblo
         void mark_active_nodes();
         void rebuild_runtime(const frame_graph_build_args& args);
         void flush_uploads(hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer);
-        void flush_downloads(gpu::gpu_queue_context& queueCtx);
+        void flush_downloads(gpu::gpu_instance& queueCtx);
         void finish_frame();
 
         future<async_metrics> request_metrics();
@@ -350,7 +350,7 @@ namespace oblo
         h32<frame_graph_pin_storage> create_retained_texture(gpu::gpu_instance& ctx,
             const gpu::image_descriptor& initializer);
 
-        void destroy_retained_texture(gpu::gpu_queue_context& ctx, h32<frame_graph_pin_storage> handle);
+        void destroy_retained_texture(gpu::gpu_instance& ctx, h32<frame_graph_pin_storage> handle);
 
         const frame_graph_node* get_owner_node(pin::buffer buffer) const;
         const frame_graph_node* get_owner_node(pin::texture texture) const;
@@ -369,7 +369,7 @@ namespace oblo
         void free_pin_storage(
             h32<frame_graph_pin_storage> key, const frame_graph_pin_storage& storage, bool isFrameAllocated);
 
-        void free_pending_textures(gpu::gpu_queue_context& ctx);
+        void free_pending_textures(gpu::gpu_instance& ctx);
 
         [[maybe_unused]] void write_dot(std::ostream& os) const;
     };

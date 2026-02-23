@@ -505,14 +505,14 @@ namespace oblo
         const texture_resource_initializer& initializer, flags<texture_access> usages) const
     {
         const gpu::image_descriptor& imageInit = create_image_initializer(initializer, convert_texture_access(usages));
-        const h32 storage = m_frameGraph.create_retained_texture(m_args.r.get_gpu_queue_context(), imageInit);
+        const h32 storage = m_frameGraph.create_retained_texture(m_args.r.get_gpu_instance(), imageInit);
         return h32<retained_texture>{storage.value};
     }
 
     void frame_graph_build_context::destroy_retained_texture(h32<retained_texture> handle) const
     {
         const h32 storageHandle = as_storage_handle(handle);
-        m_frameGraph.destroy_retained_texture(m_args.r.get_gpu_queue_context(), storageHandle);
+        m_frameGraph.destroy_retained_texture(m_args.r.get_gpu_instance(), storageHandle);
     }
 
     pin::texture frame_graph_build_context::get_resource(h32<retained_texture> texture) const

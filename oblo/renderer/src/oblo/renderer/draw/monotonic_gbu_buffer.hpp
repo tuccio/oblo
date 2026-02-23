@@ -22,7 +22,7 @@ namespace oblo
         ~monotonic_gpu_buffer();
 
         void init(flags<gpu::buffer_usage> usage, gpu::memory_usage memoryUsage, u8 alignment, u64 chunkSize);
-        void shutdown(gpu::gpu_queue_context& ctx);
+        void shutdown(gpu::gpu_instance& ctx);
 
         expected<gpu::buffer_range> allocate(gpu::gpu_instance& gpu, u64 size);
 

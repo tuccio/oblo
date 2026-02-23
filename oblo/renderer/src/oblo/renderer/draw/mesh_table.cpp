@@ -2,7 +2,7 @@
 
 #include <oblo/core/finally.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 
 namespace oblo
 {
