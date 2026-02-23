@@ -3,6 +3,7 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
@@ -28,7 +29,7 @@ namespace oblo::gpu
         virtual void shutdown() = 0;
 
         virtual result<hptr<surface>> create_surface(hptr<native_window> nativeWindow) = 0;
-        virtual void destroy_surface(hptr<surface> surface) = 0;
+        virtual void destroy(hptr<surface> surface) = 0;
 
         virtual result<> finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface) = 0;
 
@@ -37,16 +38,16 @@ namespace oblo::gpu
         virtual h32<queue> get_universal_queue() = 0;
 
         virtual result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) = 0;
-        virtual void destroy_swapchain(h32<swapchain> handle) = 0;
+        virtual void destroy(h32<swapchain> handle) = 0;
 
         virtual result<h32<fence>> create_fence(const fence_descriptor& descriptor) = 0;
-        virtual void destroy_fence(h32<fence> handle) = 0;
+        virtual void destroy(h32<fence> handle) = 0;
 
         virtual result<> wait_for_fences(const std::span<const h32<fence>> fences) = 0;
         virtual result<> reset_fences(const std::span<const h32<fence>> fences) = 0;
 
         virtual result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) = 0;
-        virtual void destroy_semaphore(h32<semaphore> handle) = 0;
+        virtual void destroy(h32<semaphore> handle) = 0;
         virtual result<u64> read_timeline_semaphore(h32<semaphore> handle) = 0;
 
         virtual result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) = 0;
@@ -54,7 +55,7 @@ namespace oblo::gpu
         virtual result<h32<bind_group_layout>> create_bind_group_layout(
             const bind_group_layout_descriptor& descriptor) = 0;
 
-        virtual void destroy_bind_group_layout(h32<bind_group_layout> handle) = 0;
+        virtual void destroy(h32<bind_group_layout> handle) = 0;
 
         virtual result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle) = 0;
 
@@ -64,7 +65,7 @@ namespace oblo::gpu
         virtual result<> fetch_command_buffers(h32<command_buffer_pool> pool,
             std::span<hptr<command_buffer>> commandBuffers) = 0;
 
-        virtual void destroy_command_buffer_pool(h32<command_buffer_pool> commandBufferPool) = 0;
+        virtual void destroy(h32<command_buffer_pool> commandBufferPool) = 0;
 
         virtual result<> reset_command_buffer_pool(h32<command_buffer_pool> commandBufferPool) = 0;
 
@@ -72,29 +73,30 @@ namespace oblo::gpu
         virtual result<> end_command_buffer(hptr<command_buffer> commandBuffer) = 0;
 
         virtual result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) = 0;
-        virtual void destroy_buffer(h32<buffer> bufferHandle) = 0;
+        virtual void destroy(h32<buffer> bufferHandle) = 0;
 
         virtual h64<device_address> get_device_address(h32<buffer> bufferHandle) = 0;
         virtual h64<device_address> get_device_address(buffer_range bufferWithOffset) = 0;
 
         virtual result<h32<image>> create_image(const image_descriptor& descriptor) = 0;
-        virtual void destroy_image(h32<image> imageHandle) = 0;
+        virtual void destroy(h32<image> imageHandle) = 0;
 
         virtual image_descriptor get_image_descriptor(h32<image> imageHandle) = 0;
 
         virtual result<h32<image_pool>> create_image_pool(std::span<const image_descriptor> descriptors,
             std::span<h32<image>> images) = 0;
 
-        virtual void destroy_image_pool(h32<image_pool> imagePoolHandle) = 0;
+        virtual void destroy(h32<image_pool> imagePoolHandle) = 0;
 
         virtual result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor) = 0;
-        virtual void destroy_shader_module(h32<shader_module> handle) = 0;
+        virtual void destroy(h32<shader_module> handle) = 0;
 
-        virtual result<h32<graphics_pipeline>> create_graphics_pipeline(const graphics_pipeline_descriptor& descriptor) = 0;
-        virtual void destroy_graphics_pipeline(h32<graphics_pipeline> handle) = 0;
+        virtual result<h32<graphics_pipeline>> create_graphics_pipeline(
+            const graphics_pipeline_descriptor& descriptor) = 0;
+        virtual void destroy(h32<graphics_pipeline> handle) = 0;
 
         virtual result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) = 0;
-        virtual void destroy_sampler(h32<sampler> handle) = 0;
+        virtual void destroy(h32<sampler> handle) = 0;
 
         virtual result<hptr<graphics_pass>> begin_graphics_pass(hptr<command_buffer> cmdBuffer,
             h32<graphics_pipeline> pipeline,
@@ -123,9 +125,12 @@ namespace oblo::gpu
         result<> wait_for_submit_completion(u64 submitIndex);
 
         void destroy_deferred(h32<buffer> h, u64 submitIndex);
+        void destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex);
         void destroy_deferred(h32<fence> h, u64 submitIndex);
+        void destroy_deferred(h32<graphics_pipeline> h, u64 submitIndex);
         void destroy_deferred(h32<image> h, u64 submitIndex);
         void destroy_deferred(h32<image_pool> h, u64 submitIndex);
+        void destroy_deferred(h32<sampler> h, u64 submitIndex);
         void destroy_deferred(h32<semaphore> h, u64 submitIndex);
 
         // Memory mapping
@@ -184,6 +189,9 @@ namespace oblo::gpu
         void end_tracked_queue_submit();
 
         h32<fence> get_tracked_queue_fence();
+
+        template <typename T>
+        void destroy_deferred_impl(h32<T> handle, u64 submitIndex);
 
     protected:
         // We want the submit index to start from more than 0, which is the starting value of the semaphore

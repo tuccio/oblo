@@ -94,7 +94,7 @@ namespace oblo::gpu
                 m_impl.gpu->memory_unmap(m_impl.buffer).assert_value();
             }
 
-            m_impl.gpu->destroy_buffer(m_impl.buffer);
+            m_impl.gpu->destroy(m_impl.buffer);
         }
 
         m_impl = {};

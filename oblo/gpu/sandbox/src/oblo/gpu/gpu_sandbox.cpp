@@ -110,14 +110,13 @@ namespace oblo
 
             for (u32 i = 0; i < num_swapchain_images; ++i)
             {
-                const auto sem = m_gpu->create_semaphore({});
+                m_semaphores[i] = m_gpu->create_semaphore({}).value_or({});
+                m_acquiredImageSemaphore[i] = m_gpu->create_semaphore({}).value_or({});
 
-                if (!sem)
+                if (!m_semaphores[i] || !m_acquiredImageSemaphore[i])
                 {
                     return "Failed to create semaphore"_err;
                 }
-
-                m_semaphores[i] = *sem;
 
                 const auto pool = m_gpu->create_command_buffer_pool({
                     .queue = m_gpu->get_universal_queue(),
@@ -163,11 +162,20 @@ namespace oblo
                     return "Failed to initialize queue submission"_err;
                 }
 
+                if (const u64 submitIdx = m_gpu->get_submit_index(); submitIdx > num_swapchain_images)
+                {
+                    if (!m_gpu->wait_for_submit_completion(submitIdx - num_swapchain_images))
+                    {
+                        return "An error occurred while waiting for the GPU"_err;
+                    }
+                }
+
                 const h32<gpu::semaphore> currentFrameSemaphore = m_semaphores[semaphoreIndex];
+                const h32<gpu::semaphore> currentAcquiredImageSemaphore = m_acquiredImageSemaphore[semaphoreIndex];
 
                 do
                 {
-                    const expected result = m_gpu->acquire_swapchain_image(m_swapchain, currentFrameSemaphore);
+                    const expected result = m_gpu->acquire_swapchain_image(m_swapchain, currentAcquiredImageSemaphore);
 
                     if (result)
                     {
@@ -214,6 +222,7 @@ namespace oblo
                 if (const auto r = m_gpu->submit(m_gpu->get_universal_queue(),
                         {
                             .commandBuffers = commandBuffers,
+                            .waitSemaphores = {&currentAcquiredImageSemaphore, 1u},
                             .signalSemaphores = {&currentFrameSemaphore, 1u},
                         });
                     !r)
@@ -249,27 +258,39 @@ namespace oblo
                 {
                     if (m_semaphores[i])
                     {
-                        m_gpu->destroy_semaphore(m_semaphores[i]);
+                        m_gpu->destroy(m_semaphores[i]);
                         m_semaphores[i] = {};
+                    }
+
+                    if (m_acquiredImageSemaphore[i])
+                    {
+                        m_gpu->destroy(m_acquiredImageSemaphore[i]);
+                        m_acquiredImageSemaphore[i] = {};
                     }
 
                     if (m_commandBufferPools[i])
                     {
-                        m_gpu->destroy_command_buffer_pool(m_commandBufferPools[i]);
+                        m_gpu->destroy(m_commandBufferPools[i]);
                         m_commandBufferPools[i] = {};
                     }
                 }
 
                 if (m_swapchain)
                 {
-                    m_gpu->destroy_swapchain(m_swapchain);
+                    m_gpu->destroy(m_swapchain);
                     m_swapchain = {};
                 }
 
                 if (m_windowSurface)
                 {
-                    m_gpu->destroy_surface(m_windowSurface);
+                    m_gpu->destroy(m_windowSurface);
                     m_windowSurface = {};
+                }
+
+                if (m_renderPipeline)
+                {
+                    m_gpu->destroy(m_renderPipeline);
+                    m_renderPipeline = {};
                 }
 
                 m_gpu->shutdown();
@@ -361,7 +382,7 @@ namespace oblo
             if (m_swapchain)
             {
                 m_gpu->wait_idle().assert_value();
-                m_gpu->destroy_swapchain(m_swapchain);
+                m_gpu->destroy(m_swapchain);
             }
 
             m_swapchain = m_gpu
@@ -427,12 +448,12 @@ namespace oblo
 
                 if (vertex)
                 {
-                    m_gpu->destroy_shader_module(vertex);
+                    m_gpu->destroy(vertex);
                 }
 
                 if (fragment)
                 {
-                    m_gpu->destroy_shader_module(fragment);
+                    m_gpu->destroy(fragment);
                 }
             }
 
@@ -448,6 +469,7 @@ namespace oblo
         unique_ptr<gpu::gpu_instance> m_gpu;
         hptr<gpu::surface> m_windowSurface{};
         h32<gpu::swapchain> m_swapchain{};
+        h32<gpu::semaphore> m_acquiredImageSemaphore[num_swapchain_images]{};
         h32<gpu::semaphore> m_semaphores[num_swapchain_images]{};
         h32<gpu::command_buffer_pool> m_commandBufferPools[num_swapchain_images]{};
         h32<gpu::graphics_pipeline> m_renderPipeline{};

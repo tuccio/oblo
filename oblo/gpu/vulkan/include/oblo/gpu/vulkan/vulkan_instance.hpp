@@ -27,7 +27,7 @@ namespace oblo::gpu::vk
         void shutdown() override;
 
         result<hptr<surface>> create_surface(hptr<native_window> nativeWindow) override;
-        void destroy_surface(hptr<surface> surface) override;
+        void destroy(hptr<surface> surface) override;
 
         result<> finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface) override;
 
@@ -36,16 +36,16 @@ namespace oblo::gpu::vk
         device_info get_device_info() override;
 
         result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) override;
-        void destroy_swapchain(h32<swapchain> handle) override;
+        void destroy(h32<swapchain> handle) override;
 
         result<h32<fence>> create_fence(const fence_descriptor& descriptor) override;
-        void destroy_fence(h32<fence> handle) override;
+        void destroy(h32<fence> handle) override;
 
         result<> wait_for_fences(const std::span<const h32<fence>> fences) override;
         result<> reset_fences(const std::span<const h32<fence>> fences) override;
 
         result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) override;
-        void destroy_semaphore(h32<semaphore> handle) override;
+        void destroy(h32<semaphore> handle) override;
         result<u64> read_timeline_semaphore(h32<semaphore> handle) override;
 
         result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) override;
@@ -53,14 +53,14 @@ namespace oblo::gpu::vk
         result<h32<bind_group_layout>> create_bind_group_layout(
             const bind_group_layout_descriptor& descriptor) override;
 
-        void destroy_bind_group_layout(h32<bind_group_layout> handle) override;
+        void destroy(h32<bind_group_layout> handle) override;
 
         result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle) override;
 
         result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) override;
 
-        void destroy_command_buffer_pool(h32<command_buffer_pool> commandBufferPool) override;
+        void destroy(h32<command_buffer_pool> commandBufferPool) override;
 
         result<> reset_command_buffer_pool(h32<command_buffer_pool> commandBufferPool) override;
 
@@ -71,29 +71,29 @@ namespace oblo::gpu::vk
         result<> end_command_buffer(hptr<command_buffer> commandBuffer) override;
 
         result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
-        void destroy_buffer(h32<buffer> bufferHandle) override;
+        void destroy(h32<buffer> bufferHandle) override;
 
         h64<device_address> get_device_address(h32<buffer> bufferHandle) override;
         h64<device_address> get_device_address(buffer_range bufferWithOffset) override;
 
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
-        void destroy_image(h32<image> imageHandle) override;
+        void destroy(h32<image> imageHandle) override;
 
         image_descriptor get_image_descriptor(h32<image> imageHandle) override;
 
         result<h32<image_pool>> create_image_pool(std::span<const image_descriptor> descriptors,
             std::span<h32<image>> images) override;
 
-        void destroy_image_pool(h32<image_pool> imagePoolHandle) override;
+        void destroy(h32<image_pool> imagePoolHandle) override;
 
         result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor) override;
-        void destroy_shader_module(h32<shader_module> handle) override;
+        void destroy(h32<shader_module> handle) override;
 
         result<h32<graphics_pipeline>> create_graphics_pipeline(const graphics_pipeline_descriptor& descriptor) override;
-        void destroy_graphics_pipeline(h32<graphics_pipeline> handle) override;
+        void destroy(h32<graphics_pipeline> handle) override;
 
         result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) override;
-        void destroy_sampler(h32<sampler> handle) override;
+        void destroy(h32<sampler> handle) override;
 
         result<hptr<graphics_pass>> begin_graphics_pass(hptr<command_buffer> cmdBuffer,
             h32<graphics_pipeline> pipeline,

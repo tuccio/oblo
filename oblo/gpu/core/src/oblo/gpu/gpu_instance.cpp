@@ -9,12 +9,6 @@ namespace oblo::gpu
 {
     namespace
     {
-        template <typename T, auto Fn>
-        void dispose_impl(gpu_instance& gpu, const void* object)
-        {
-            (gpu.*Fn)(*reinterpret_cast<const T*>(object));
-        }
-
         constexpr u32 s_MaxTrackedSubmitsInFlight = 16;
 
         template <typename T>
@@ -28,7 +22,7 @@ namespace oblo::gpu
         bool submit_in_progress_toggle(dynamic_array<T>& submits, u64 submitIndex)
         {
             const u32 i = submitIndex % s_MaxTrackedSubmitsInFlight;
-            
+
             auto& submit = submits[i];
             const bool r = submit.submitInProgress;
 
@@ -95,7 +89,7 @@ namespace oblo::gpu
         {
             if (info.fence)
             {
-                destroy_fence(info.fence);
+                destroy(info.fence);
             }
         }
 
@@ -103,7 +97,7 @@ namespace oblo::gpu
 
         if (m_timelineSemaphore)
         {
-            destroy_semaphore(m_timelineSemaphore);
+            destroy(m_timelineSemaphore);
             m_timelineSemaphore = {};
         }
     }
@@ -146,7 +140,8 @@ namespace oblo::gpu
 
     h32<fence> gpu_instance::get_tracked_queue_fence()
     {
-        return m_submitInfo[m_submitIndex % s_MaxTrackedSubmitsInFlight].fence;
+        const u32 submitInfoIdx = m_submitIndex % s_MaxTrackedSubmitsInFlight;
+        return m_submitInfo[submitInfoIdx].fence;
     }
 
     result<> gpu_instance::wait_for_submit_completion(u64 submitIndex)
@@ -158,7 +153,7 @@ namespace oblo::gpu
             return no_error;
         }
 
-        const u32 submitInfoIdx = m_submitIndex % s_MaxTrackedSubmitsInFlight;
+        const u32 submitInfoIdx = submitIndex % s_MaxTrackedSubmitsInFlight;
         const auto& submitInfo = m_submitInfo[submitInfoIdx];
 
         const auto r = wait_for_fences({&submitInfo.fence, 1});
@@ -172,40 +167,47 @@ namespace oblo::gpu
         return no_error;
     }
 
-    void gpu_instance::destroy_deferred(h32<buffer> h, u64 submitIndex)
+    template <typename T>
+    void gpu_instance::destroy_deferred_impl(h32<T> h, u64 submitIndex)
     {
         auto& o = m_objectsToDispose.emplace_back(submitIndex);
-        new (o.buffer) h32<buffer>{h};
-        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_buffer>;
+        new (o.buffer) h32<T>{h};
+        o.cb = [](gpu_instance& gpu, const void* object) { gpu.destroy(*reinterpret_cast<const h32<T>*>(object)); };
+    }
+
+    void gpu_instance::destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<buffer> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
     }
 
     void gpu_instance::destroy_deferred(h32<fence> h, u64 submitIndex)
     {
-        auto& o = m_objectsToDispose.emplace_back(submitIndex);
-        new (o.buffer) h32<fence>{h};
-        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_fence>;
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<graphics_pipeline> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
     }
 
     void gpu_instance::destroy_deferred(h32<image> h, u64 submitIndex)
     {
-        auto& o = m_objectsToDispose.emplace_back(submitIndex);
-        new (o.buffer) h32<image>{h};
-        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_image>;
+        destroy_deferred_impl(h, submitIndex);
     }
 
     void gpu_instance::destroy_deferred(h32<image_pool> h, u64 submitIndex)
     {
-        auto& o = m_objectsToDispose.emplace_back(submitIndex);
-        new (o.buffer) h32<image_pool>{h};
-        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_image_pool>;
+        destroy_deferred_impl(h, submitIndex);
     }
 
     void gpu_instance::destroy_deferred(h32<semaphore> h, u64 submitIndex)
     {
-        auto& o = m_objectsToDispose.emplace_back(submitIndex);
-        new (o.buffer) h32<semaphore>{h};
-
-        o.cb = &dispose_impl<decltype(h), &gpu_instance::destroy_semaphore>;
+        destroy_deferred_impl(h, submitIndex);
     }
 
     void gpu_instance::destroy_tracked_queue_resources_until(u64 lastCompletedSubmit)

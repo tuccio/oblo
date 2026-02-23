@@ -212,8 +212,6 @@ namespace oblo::gpu::vk
 
     struct vulkan_instance::graphics_pipeline_impl final : pipeline_base
     {
-        VkPipeline pipeline;
-        VkPipelineLayout pipelineLayout;
     };
 
     vulkan_instance::vulkan_instance() = default;
@@ -280,6 +278,9 @@ namespace oblo::gpu::vk
 
     void vulkan_instance::shutdown()
     {
+        shutdown_tracked_queue_context();
+
+        m_descriptorSetPool.shutdown();
         m_allocator.shutdown();
 
         if (m_device)
@@ -302,7 +303,7 @@ namespace oblo::gpu::vk
         return translate_error_or_value(result, wrap_handle<surface>(vkSurface));
     }
 
-    void vulkan_instance::destroy_surface(hptr<surface> handle)
+    void vulkan_instance::destroy(hptr<surface> handle)
     {
         vkDestroySurfaceKHR(m_instance, unwrap_handle<VkSurfaceKHR>(handle), nullptr);
     }
@@ -538,7 +539,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_swapchain(h32<swapchain> handle)
+    void vulkan_instance::destroy(h32<swapchain> handle)
     {
         auto& sc = m_swapchains.at(handle);
 
@@ -576,7 +577,7 @@ namespace oblo::gpu::vk
         return m_fences.emplace(vkFence).second;
     }
 
-    void vulkan_instance::destroy_fence(h32<fence> handle)
+    void vulkan_instance::destroy(h32<fence> handle)
     {
         vkDestroyFence(m_device, m_fences.at(handle), m_allocator.get_allocation_callbacks());
         m_fences.erase(handle);
@@ -648,7 +649,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_semaphore(h32<semaphore> handle)
+    void vulkan_instance::destroy(h32<semaphore> handle)
     {
         vkDestroySemaphore(m_device, m_semaphores.at(handle), m_allocator.get_allocation_callbacks());
         m_semaphores.erase(handle);
@@ -712,7 +713,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_bind_group_layout(h32<bind_group_layout> handle)
+    void vulkan_instance::destroy(h32<bind_group_layout> handle)
     {
         // TODO: Right now we never destroy the descriptor set layouts, probably sharing them is not a good idea, or
         // they would at least need to be ref-counted
@@ -786,7 +787,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_command_buffer_pool(h32<command_buffer_pool> commandBufferPool)
+    void vulkan_instance::destroy(h32<command_buffer_pool> commandBufferPool)
     {
         auto& poolImpl = m_commandBufferPools.at(commandBufferPool);
         vkDestroyCommandPool(m_device, poolImpl.vkCommandPool, m_allocator.get_allocation_callbacks());
@@ -864,7 +865,7 @@ namespace oblo::gpu::vk
         return h;
     }
 
-    void vulkan_instance::destroy_buffer(h32<buffer> bufferHandle)
+    void vulkan_instance::destroy(h32<buffer> bufferHandle)
     {
         const auto& buffer = m_buffers.at(bufferHandle);
 
@@ -934,7 +935,7 @@ namespace oblo::gpu::vk
 
         if (!view)
         {
-            destroy_image(h);
+            destroy(h);
             return view.error();
         }
 
@@ -945,7 +946,7 @@ namespace oblo::gpu::vk
         return h;
     }
 
-    void vulkan_instance::destroy_image(h32<image> imageHandle)
+    void vulkan_instance::destroy(h32<image> imageHandle)
     {
         const auto& image = m_images.at(imageHandle);
 
@@ -1106,13 +1107,13 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_image_pool(h32<image_pool> imagePoolHandle)
+    void vulkan_instance::destroy(h32<image_pool> imagePoolHandle)
     {
         const image_pool_impl& pool = m_imagePools.at(imagePoolHandle);
 
         for (const h32 image : pool.images)
         {
-            destroy_image(image);
+            destroy(image);
         }
 
         m_allocator.destroy_memory(pool.allocation);
@@ -1155,7 +1156,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_shader_module(h32<shader_module> handle)
+    void vulkan_instance::destroy(h32<shader_module> handle)
     {
         shader_module_impl& impl = m_shaderModules.at(handle);
         vkDestroyShaderModule(m_device, impl.vkShaderModule, m_allocator.get_allocation_callbacks());
@@ -1197,7 +1198,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_sampler(h32<sampler> handle)
+    void vulkan_instance::destroy(h32<sampler> handle)
     {
         sampler_impl& impl = m_samplers.at(handle);
         vkDestroySampler(m_device, impl.vkSampler, m_allocator.get_allocation_callbacks());
@@ -1208,7 +1209,7 @@ namespace oblo::gpu::vk
     {
         const auto [newPipeline, handle] = m_renderPipelines.emplace();
 
-        auto cleanup = finally_if_not_cancelled([this, handle] { destroy_graphics_pipeline(handle); });
+        auto cleanup = finally_if_not_cancelled([this, handle] { destroy(handle); });
 
         buffered_array<VkDescriptorSetLayout, 4> descriptorSetLayouts;
 
@@ -1446,7 +1447,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_graphics_pipeline(h32<graphics_pipeline> handle)
+    void vulkan_instance::destroy(h32<graphics_pipeline> handle)
     {
         auto& pipeline = m_renderPipelines.at(handle);
         destroy_pipeline_base(pipeline, m_device, m_allocator.get_allocation_callbacks());
@@ -1572,8 +1573,8 @@ namespace oblo::gpu::vk
 
         if (!descriptor.waitSemaphores.empty())
         {
-            // This is probably not generic enough for all use cases
-            waitStages.assign(waitSemaphores.size(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+            // TODO: This is not generic enough for all use cases
+            waitStages.assign(descriptor.waitSemaphores.size(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 
             waitSemaphores.reserve(descriptor.waitSemaphores.size());
 
