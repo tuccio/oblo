@@ -292,6 +292,22 @@ namespace oblo::gpu::vk
             unreachable();
         }
     }
+
+    inline VkRayTracingShaderGroupTypeKHR convert_enum(raytracing_hit_type type)
+    {
+        switch (type)
+        {
+        case raytracing_hit_type::triangle:
+            return VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+
+        case raytracing_hit_type::procedural:
+            return VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+
+        default:
+            unreachable();
+        }
+    }
+
     namespace detail
     {
         template <typename R, typename T>

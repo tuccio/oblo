@@ -4,6 +4,7 @@
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
+#include <oblo/gpu/vulkan/error.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
 #include <oblo/gpu/vulkan/utility/debug_utils.hpp>
 #include <oblo/gpu/vulkan/utility/loaded_functions.hpp>
@@ -89,8 +90,16 @@ namespace oblo::gpu::vk
         result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor) override;
         void destroy(h32<shader_module> handle) override;
 
-        result<h32<graphics_pipeline>> create_graphics_pipeline(const graphics_pipeline_descriptor& descriptor) override;
+        result<h32<graphics_pipeline>> create_graphics_pipeline(
+            const graphics_pipeline_descriptor& descriptor) override;
         void destroy(h32<graphics_pipeline> handle) override;
+
+        result<h32<compute_pipeline>> create_compute_pipeline(const compute_pipeline_descriptor& descriptor) override;
+        void destroy(h32<compute_pipeline> handle) override;
+
+        result<h32<raytracing_pipeline>> create_raytracing_pipeline(
+            const raytracing_pipeline_descriptor& descriptor) override;
+        void destroy(h32<raytracing_pipeline> handle) override;
 
         result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) override;
         void destroy(h32<sampler> handle) override;
@@ -99,7 +108,17 @@ namespace oblo::gpu::vk
             h32<graphics_pipeline> pipeline,
             const graphics_pass_descriptor& descriptor) override;
 
-        void end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass> renderPass) override;
+        void end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass> graphicsPass) override;
+
+        result<hptr<compute_pass>> begin_compute_pass(hptr<command_buffer> cmdBuffer,
+            h32<compute_pipeline> pipeline) override;
+
+        void end_compute_pass(hptr<command_buffer> cmdBuffer, hptr<compute_pass> computePass) override;
+
+        result<hptr<raytracing_pass>> begin_raytracing_pass(hptr<command_buffer> cmdBuffer,
+            h32<raytracing_pipeline> pipeline) override;
+
+        void end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass> raytracingPass) override;
 
         result<h32<bindless_image>> acquire_bindless(h32<image> optImage) override;
         result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) override;
@@ -141,6 +160,11 @@ namespace oblo::gpu::vk
         void cmd_draw(
             hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance) override;
 
+        void cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ) override;
+
+        void cmd_trace_rays(
+            hptr<command_buffer> cmd, hptr<raytracing_pass> currentPass, u32 width, u32 height, u32 depth) override;
+
         void cmd_set_viewport(hptr<command_buffer> cmd,
             u32 firstScissor,
             std::span<const rectangle> viewports,
@@ -174,10 +198,12 @@ namespace oblo::gpu::vk
         struct bind_group_layout_impl;
         struct buffer_impl;
         struct command_buffer_pool_impl;
+        struct compute_pipeline_impl;
         struct image_impl;
         struct image_pool_impl;
         struct queue_impl;
         struct graphics_pipeline_impl;
+        struct raytracing_pipeline_impl;
         struct sampler_impl;
         struct shader_module_impl;
         struct swapchain_impl;
@@ -192,6 +218,11 @@ namespace oblo::gpu::vk
 
         template <typename T>
         void label_vulkan_object(T obj, const debug_label& label);
+
+        result<> create_pipeline_layout(std::span<const push_constant_range> pushConstants,
+            std::span<const h32<bind_group_layout>> bindGroupLayouts,
+            VkPipelineLayout* pipelineLayout,
+            const debug_label& label);
 
     private:
         VkInstance m_instance{};
@@ -211,11 +242,14 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<sampler, sampler_impl> m_samplers;
         h32_flat_pool_dense_map<bind_group_layout, bind_group_layout_impl> m_bindGroupLayouts;
         h32_flat_pool_dense_map<graphics_pipeline, graphics_pipeline_impl> m_renderPipelines;
+        h32_flat_pool_dense_map<compute_pipeline, compute_pipeline_impl> m_computePipelines;
+        h32_flat_pool_dense_map<raytracing_pipeline, raytracing_pipeline_impl> m_raytracingPipelines;
 
         descriptor_set_pool m_descriptorSetPool;
 
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};
+        VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_raytracingProperties{};
 
         debug_utils::label m_cmdLabeler{};
         debug_utils::object m_objLabeler{};

@@ -195,6 +195,16 @@ namespace oblo::gpu
         destroy_deferred_impl(h, submitIndex);
     }
 
+    void gpu_instance::destroy_deferred(h32<compute_pipeline> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<raytracing_pipeline> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
     void gpu_instance::destroy_deferred(h32<image> h, u64 submitIndex)
     {
         destroy_deferred_impl(h, submitIndex);

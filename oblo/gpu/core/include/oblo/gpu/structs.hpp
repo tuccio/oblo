@@ -17,27 +17,6 @@
 
 namespace oblo::gpu
 {
-    enum class sampler_address_mode : u8
-    {
-        repeat,
-        mirrored_repeat,
-        clamp_to_edge,
-        clamp_to_border,
-        mirror_clamp_to_edge,
-    };
-
-    enum class sampler_filter : u8
-    {
-        nearest,
-        linear,
-    };
-
-    enum class sampler_mipmap_mode : u8
-    {
-        nearest,
-        linear,
-    };
-
     struct sampler_descriptor
     {
         sampler_filter magFilter;
@@ -235,6 +214,37 @@ namespace oblo::gpu
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
         primitive_topology primitiveTopology{primitive_topology::triangle_list};
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct raytracing_hit_shader
+    {
+        h32<shader_module> handle;
+        shader_stage stage;
+    };
+
+    struct raytracing_hit_group_descriptor
+    {
+        raytracing_hit_type type;
+        std::span<const raytracing_hit_shader> shaders;
+    };
+
+    struct compute_pipeline_descriptor
+    {
+        h32<shader_module> computeShader;
+        std::span<const push_constant_range> pushConstants;
+        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct raytracing_pipeline_descriptor
+    {
+        h32<shader_module> rayGenerationShader;
+        std::span<const h32<shader_module>> missShaders;
+        std::span<const raytracing_hit_group_descriptor> hitGroups;
+        std::span<const push_constant_range> pushConstants;
+        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        u32 maxPipelineRayRecursionDepth;
         debug_label debugLabel = std::source_location::current();
     };
 

@@ -13,6 +13,7 @@ namespace oblo::gpu
     struct buffer;
     struct command_buffer_pool;
     struct command_buffer;
+    struct compute_pipeline;
     struct device_address;
     struct fence;
     struct graphics_pass;
@@ -21,6 +22,7 @@ namespace oblo::gpu
     struct image;
     struct native_window;
     struct queue;
+    struct raytracing_pipeline;
     struct sampler;
     struct semaphore;
     struct shader_module;
@@ -33,6 +35,8 @@ namespace oblo::gpu
     struct buffer_descriptor;
     struct buffer_image_copy_descriptor;
     struct command_buffer_pool_descriptor;
+    struct compute_pass;
+    struct compute_pipeline_descriptor;
     struct device_descriptor;
     struct fence_descriptor;
     struct graphics_pass_descriptor;
@@ -42,6 +46,9 @@ namespace oblo::gpu
     struct memory_barrier_descriptor;
     struct present_descriptor;
     struct queue_submit_descriptor;
+    struct raytracing_hit_group_descriptor;
+    struct raytracing_pass;
+    struct raytracing_pipeline_descriptor;
     struct sampler_descriptor;
     struct semaphore_descriptor;
     struct shader_module_descriptor;
@@ -68,7 +75,8 @@ namespace oblo::gpu
     enum class data_format : u32;
     enum class image_resource_state : u8;
     enum class image_usage : u8;
-    enum class mesh_index_type : u8;
+    enum class maytracing_hit_type : u8;
+    enum class resh_index_type : u8;
     enum class pass_kind : u8;
     enum class pipeline_sync_stage : u8;
     enum class resource_binding_kind : u8;

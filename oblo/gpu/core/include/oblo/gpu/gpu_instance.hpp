@@ -95,6 +95,14 @@ namespace oblo::gpu
             const graphics_pipeline_descriptor& descriptor) = 0;
         virtual void destroy(h32<graphics_pipeline> handle) = 0;
 
+        virtual result<h32<compute_pipeline>> create_compute_pipeline(
+            const compute_pipeline_descriptor& descriptor) = 0;
+        virtual void destroy(h32<compute_pipeline> handle) = 0;
+
+        virtual result<h32<raytracing_pipeline>> create_raytracing_pipeline(
+            const raytracing_pipeline_descriptor& descriptor) = 0;
+        virtual void destroy(h32<raytracing_pipeline> handle) = 0;
+
         virtual result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) = 0;
         virtual void destroy(h32<sampler> handle) = 0;
 
@@ -103,6 +111,16 @@ namespace oblo::gpu
             const graphics_pass_descriptor& descriptor) = 0;
 
         virtual void end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass> renderPass) = 0;
+
+        virtual result<hptr<compute_pass>> begin_compute_pass(hptr<command_buffer> cmdBuffer,
+            h32<compute_pipeline> pipeline) = 0;
+
+        virtual void end_compute_pass(hptr<command_buffer> cmdBuffer, hptr<compute_pass> renderPass) = 0;
+
+        virtual result<hptr<raytracing_pass>> begin_raytracing_pass(hptr<command_buffer> cmdBuffer,
+            h32<raytracing_pipeline> pipeline) = 0;
+
+        virtual void end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass> renderPass) = 0;
 
         virtual result<h32<bindless_image>> acquire_bindless(h32<image> optImage) = 0;
         virtual result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) = 0;
@@ -126,10 +144,12 @@ namespace oblo::gpu
 
         void destroy_deferred(h32<buffer> h, u64 submitIndex);
         void destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex);
+        void destroy_deferred(h32<compute_pipeline> h, u64 submitIndex);
         void destroy_deferred(h32<fence> h, u64 submitIndex);
         void destroy_deferred(h32<graphics_pipeline> h, u64 submitIndex);
         void destroy_deferred(h32<image> h, u64 submitIndex);
         void destroy_deferred(h32<image_pool> h, u64 submitIndex);
+        void destroy_deferred(h32<raytracing_pipeline> h, u64 submitIndex);
         void destroy_deferred(h32<sampler> h, u64 submitIndex);
         void destroy_deferred(h32<semaphore> h, u64 submitIndex);
 
@@ -161,6 +181,11 @@ namespace oblo::gpu
 
         virtual void cmd_draw(
             hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance) = 0;
+
+        virtual void cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ) = 0;
+
+        virtual void cmd_trace_rays(
+            hptr<command_buffer> cmd, hptr<raytracing_pass> currentPass, u32 width, u32 height, u32 depth) = 0;
 
         virtual void cmd_set_viewport(hptr<command_buffer> cmd,
             u32 firstViewport,

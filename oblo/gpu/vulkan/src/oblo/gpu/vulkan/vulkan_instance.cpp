@@ -4,6 +4,7 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/overload.hpp>
+#include <oblo/core/utility.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
@@ -194,6 +195,7 @@ namespace oblo::gpu::vk
         {
             VkPipeline pipeline;
             VkPipelineLayout pipelineLayout;
+            debug_label label;
         };
 
         void destroy_pipeline_base(const pipeline_base& p, VkDevice device, const VkAllocationCallbacks* allocationCbs)
@@ -212,6 +214,20 @@ namespace oblo::gpu::vk
 
     struct vulkan_instance::graphics_pipeline_impl final : pipeline_base
     {
+    };
+
+    struct vulkan_instance::compute_pipeline_impl final : pipeline_base
+    {
+    };
+
+    struct vulkan_instance::raytracing_pipeline_impl final : pipeline_base
+    {
+        gpu::vk::allocated_buffer shaderBindingTable{};
+
+        VkStridedDeviceAddressRegionKHR rayGen{};
+        VkStridedDeviceAddressRegionKHR hit{};
+        VkStridedDeviceAddressRegionKHR miss{};
+        VkStridedDeviceAddressRegionKHR callable{};
     };
 
     vulkan_instance::vulkan_instance() = default;
@@ -335,8 +351,13 @@ namespace oblo::gpu::vk
         m_physicalDevice = devices[0];
 
         // Cache the properties so users can query them on demand
+        m_raytracingProperties = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR,
+        };
+
         m_subgroupProperties = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES,
+            .pNext = &m_raytracingProperties,
         };
 
         m_physicalDeviceProperties = {
@@ -1205,54 +1226,27 @@ namespace oblo::gpu::vk
         m_samplers.erase(handle);
     }
 
-    result<h32<graphics_pipeline>> vulkan_instance::create_graphics_pipeline(const graphics_pipeline_descriptor& desc)
+    result<h32<graphics_pipeline>> vulkan_instance::create_graphics_pipeline(
+        const graphics_pipeline_descriptor& descriptor)
     {
         const auto [newPipeline, handle] = m_renderPipelines.emplace();
+        newPipeline->label = descriptor.debugLabel;
 
         auto cleanup = finally_if_not_cancelled([this, handle] { destroy(handle); });
 
-        buffered_array<VkDescriptorSetLayout, 4> descriptorSetLayouts;
+        const expected pipelineLayoutRes = create_pipeline_layout(descriptor.pushConstants,
+            descriptor.bindGroupLayouts,
+            &newPipeline->pipelineLayout,
+            descriptor.debugLabel);
 
-        for (const h32 h : desc.bindGroupLayouts)
+        if (!pipelineLayoutRes)
         {
-            const auto& bindGroup = m_bindGroupLayouts.at(h);
-            descriptorSetLayouts.emplace_back(bindGroup.descriptorSetLayout);
+            return pipelineLayoutRes.error();
         }
-
-        buffered_array<VkPushConstantRange, 4> pushConstantRanges;
-
-        for (const push_constant_range& pc : desc.pushConstants)
-        {
-            pushConstantRanges.push_back({
-                .stageFlags = convert_enum_flags(pc.stages),
-                .offset = pc.offset,
-                .size = pc.size,
-            });
-        }
-
-        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = descriptorSetLayouts.size32(),
-            .pSetLayouts = descriptorSetLayouts.data(),
-            .pushConstantRangeCount = pushConstantRanges.size32(),
-            .pPushConstantRanges = pushConstantRanges.data(),
-        };
-
-        const VkResult pipelineLayoutResult = vkCreatePipelineLayout(m_device,
-            &pipelineLayoutInfo,
-            m_allocator.get_allocation_callbacks(),
-            &newPipeline->pipelineLayout);
-
-        if (pipelineLayoutResult != VK_SUCCESS)
-        {
-            return translate_error(pipelineLayoutResult);
-        }
-
-        label_vulkan_object(newPipeline->pipelineLayout, desc.debugLabel);
 
         buffered_array<VkPipelineShaderStageCreateInfo, 4> stageCreateInfo;
 
-        for (const auto& stage : desc.stages)
+        for (const auto& stage : descriptor.stages)
         {
             stageCreateInfo.push_back({
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -1264,27 +1258,27 @@ namespace oblo::gpu::vk
 
         static_assert(sizeof(VkFormat) == sizeof(image_format), "We rely on this when reinterpret casting");
 
-        const u32 numAttachments = u32(desc.renderTargets.colorAttachmentFormats.size());
+        const u32 numAttachments = u32(descriptor.renderTargets.colorAttachmentFormats.size());
 
         const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
             .colorAttachmentCount = numAttachments,
             .pColorAttachmentFormats =
-                reinterpret_cast<const VkFormat*>(desc.renderTargets.colorAttachmentFormats.data()),
-            .depthAttachmentFormat = convert_to_vk(desc.renderTargets.depthFormat),
-            .stencilAttachmentFormat = convert_to_vk(desc.renderTargets.stencilFormat),
+                reinterpret_cast<const VkFormat*>(descriptor.renderTargets.colorAttachmentFormats.data()),
+            .depthAttachmentFormat = convert_to_vk(descriptor.renderTargets.depthFormat),
+            .stencilAttachmentFormat = convert_to_vk(descriptor.renderTargets.stencilFormat),
         };
 
         const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = convert_to_vk(desc.primitiveTopology),
+            .topology = convert_to_vk(descriptor.primitiveTopology),
             .primitiveRestartEnable = VK_FALSE,
         };
 
         buffered_array<VkVertexInputBindingDescription, 4> vertexInputBindingDescs;
-        vertexInputBindingDescs.reserve(desc.vertexInputBindings.size());
+        vertexInputBindingDescs.reserve(descriptor.vertexInputBindings.size());
 
-        for (auto& binding : desc.vertexInputBindings)
+        for (auto& binding : descriptor.vertexInputBindings)
         {
             vertexInputBindingDescs.push_back({
                 .binding = binding.binding,
@@ -1294,9 +1288,9 @@ namespace oblo::gpu::vk
         }
 
         buffered_array<VkVertexInputAttributeDescription, 4> vertexInputAttributes;
-        vertexInputBindingDescs.reserve(desc.vertexInputAttributes.size());
+        vertexInputBindingDescs.reserve(descriptor.vertexInputAttributes.size());
 
-        for (const auto& attribute : desc.vertexInputAttributes)
+        for (const auto& attribute : descriptor.vertexInputAttributes)
         {
             vertexInputAttributes.push_back({
                 .location = attribute.location,
@@ -1321,17 +1315,17 @@ namespace oblo::gpu::vk
 
         const VkPipelineRasterizationStateCreateInfo rasterizer{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .flags = convert_to_vk(desc.rasterizationState.flags),
-            .depthClampEnable = desc.rasterizationState.depthClampEnable,
-            .rasterizerDiscardEnable = desc.rasterizationState.rasterizerDiscardEnable,
-            .polygonMode = convert_to_vk(desc.rasterizationState.polygonMode),
-            .cullMode = convert_to_vk(desc.rasterizationState.cullMode),
-            .frontFace = convert_to_vk(desc.rasterizationState.frontFace),
-            .depthBiasEnable = desc.rasterizationState.depthBiasEnable,
-            .depthBiasConstantFactor = desc.rasterizationState.depthBiasConstantFactor,
-            .depthBiasClamp = desc.rasterizationState.depthBiasClamp,
-            .depthBiasSlopeFactor = desc.rasterizationState.depthBiasSlopeFactor,
-            .lineWidth = desc.rasterizationState.lineWidth,
+            .flags = convert_to_vk(descriptor.rasterizationState.flags),
+            .depthClampEnable = descriptor.rasterizationState.depthClampEnable,
+            .rasterizerDiscardEnable = descriptor.rasterizationState.rasterizerDiscardEnable,
+            .polygonMode = convert_to_vk(descriptor.rasterizationState.polygonMode),
+            .cullMode = convert_to_vk(descriptor.rasterizationState.cullMode),
+            .frontFace = convert_to_vk(descriptor.rasterizationState.frontFace),
+            .depthBiasEnable = descriptor.rasterizationState.depthBiasEnable,
+            .depthBiasConstantFactor = descriptor.rasterizationState.depthBiasConstantFactor,
+            .depthBiasClamp = descriptor.rasterizationState.depthBiasClamp,
+            .depthBiasSlopeFactor = descriptor.rasterizationState.depthBiasSlopeFactor,
+            .lineWidth = descriptor.rasterizationState.lineWidth,
 
         };
 
@@ -1342,9 +1336,9 @@ namespace oblo::gpu::vk
         };
 
         buffered_array<VkPipelineColorBlendAttachmentState, 8> colorBlendAttachments;
-        colorBlendAttachments.reserve(desc.renderTargets.blendStates.size());
+        colorBlendAttachments.reserve(descriptor.renderTargets.blendStates.size());
 
-        for (auto& attachment : desc.renderTargets.blendStates)
+        for (auto& attachment : descriptor.renderTargets.blendStates)
         {
             colorBlendAttachments.push_back({
                 .blendEnable = attachment.enable,
@@ -1369,34 +1363,34 @@ namespace oblo::gpu::vk
 
         const VkPipelineDepthStencilStateCreateInfo depthStencil{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .flags = convert_to_vk(desc.depthStencilState.flags),
-            .depthTestEnable = desc.depthStencilState.depthTestEnable,
-            .depthWriteEnable = desc.depthStencilState.depthWriteEnable,
-            .depthCompareOp = convert_to_vk(desc.depthStencilState.depthCompareOp),
-            .depthBoundsTestEnable = desc.depthStencilState.depthBoundsTestEnable,
-            .stencilTestEnable = desc.depthStencilState.stencilTestEnable,
+            .flags = convert_to_vk(descriptor.depthStencilState.flags),
+            .depthTestEnable = descriptor.depthStencilState.depthTestEnable,
+            .depthWriteEnable = descriptor.depthStencilState.depthWriteEnable,
+            .depthCompareOp = convert_to_vk(descriptor.depthStencilState.depthCompareOp),
+            .depthBoundsTestEnable = descriptor.depthStencilState.depthBoundsTestEnable,
+            .stencilTestEnable = descriptor.depthStencilState.stencilTestEnable,
             .front =
                 {
-                    .failOp = convert_to_vk(desc.depthStencilState.front.failOp),
-                    .passOp = convert_to_vk(desc.depthStencilState.front.passOp),
-                    .depthFailOp = convert_to_vk(desc.depthStencilState.front.depthFailOp),
-                    .compareOp = convert_to_vk(desc.depthStencilState.front.compareOp),
-                    .compareMask = desc.depthStencilState.front.compareMask,
-                    .writeMask = desc.depthStencilState.front.writeMask,
-                    .reference = desc.depthStencilState.front.reference,
+                    .failOp = convert_to_vk(descriptor.depthStencilState.front.failOp),
+                    .passOp = convert_to_vk(descriptor.depthStencilState.front.passOp),
+                    .depthFailOp = convert_to_vk(descriptor.depthStencilState.front.depthFailOp),
+                    .compareOp = convert_to_vk(descriptor.depthStencilState.front.compareOp),
+                    .compareMask = descriptor.depthStencilState.front.compareMask,
+                    .writeMask = descriptor.depthStencilState.front.writeMask,
+                    .reference = descriptor.depthStencilState.front.reference,
                 },
             .back =
                 {
-                    .failOp = convert_to_vk(desc.depthStencilState.back.failOp),
-                    .passOp = convert_to_vk(desc.depthStencilState.back.passOp),
-                    .depthFailOp = convert_to_vk(desc.depthStencilState.back.depthFailOp),
-                    .compareOp = convert_to_vk(desc.depthStencilState.back.compareOp),
-                    .compareMask = desc.depthStencilState.back.compareMask,
-                    .writeMask = desc.depthStencilState.back.writeMask,
-                    .reference = desc.depthStencilState.back.reference,
+                    .failOp = convert_to_vk(descriptor.depthStencilState.back.failOp),
+                    .passOp = convert_to_vk(descriptor.depthStencilState.back.passOp),
+                    .depthFailOp = convert_to_vk(descriptor.depthStencilState.back.depthFailOp),
+                    .compareOp = convert_to_vk(descriptor.depthStencilState.back.compareOp),
+                    .compareMask = descriptor.depthStencilState.back.compareMask,
+                    .writeMask = descriptor.depthStencilState.back.writeMask,
+                    .reference = descriptor.depthStencilState.back.reference,
                 },
-            .minDepthBounds = desc.depthStencilState.minDepthBounds,
-            .maxDepthBounds = desc.depthStencilState.maxDepthBounds,
+            .minDepthBounds = descriptor.depthStencilState.minDepthBounds,
+            .maxDepthBounds = descriptor.depthStencilState.maxDepthBounds,
         };
 
         constexpr VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
@@ -1439,7 +1433,7 @@ namespace oblo::gpu::vk
             return translate_error(result);
         }
 
-        label_vulkan_object(newPipeline->pipeline, desc.debugLabel);
+        label_vulkan_object(newPipeline->pipeline, descriptor.debugLabel);
 
         // Success
         cleanup.cancel();
@@ -1452,6 +1446,364 @@ namespace oblo::gpu::vk
         auto& pipeline = m_renderPipelines.at(handle);
         destroy_pipeline_base(pipeline, m_device, m_allocator.get_allocation_callbacks());
         m_renderPipelines.erase(handle);
+    }
+
+    result<h32<compute_pipeline>> vulkan_instance::create_compute_pipeline(
+        const compute_pipeline_descriptor& descriptor)
+    {
+        const auto [newPipeline, handle] = m_computePipelines.emplace();
+        newPipeline->label = descriptor.debugLabel;
+
+        auto cleanup = finally_if_not_cancelled([this, handle] { destroy(handle); });
+
+        const expected pipelineLayoutRes = create_pipeline_layout(descriptor.pushConstants,
+            descriptor.bindGroupLayouts,
+            &newPipeline->pipelineLayout,
+            descriptor.debugLabel);
+
+        if (!pipelineLayoutRes)
+        {
+            return pipelineLayoutRes.error();
+        }
+
+        const VkPipelineShaderStageCreateInfo shaderStageInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = unwrap_shader_module(descriptor.computeShader),
+            .pName = "main",
+        };
+
+        const VkComputePipelineCreateInfo pipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            .stage = shaderStageInfo,
+            .layout = newPipeline->pipelineLayout,
+        };
+
+        const VkResult result = vkCreateComputePipelines(m_device,
+            nullptr,
+            1,
+            &pipelineInfo,
+            m_allocator.get_allocation_callbacks(),
+            &newPipeline->pipeline);
+
+        if (result != VK_SUCCESS)
+        {
+            return translate_error(result);
+        }
+
+        label_vulkan_object(newPipeline->pipeline, descriptor.debugLabel);
+
+        cleanup.cancel();
+
+        return handle;
+    }
+
+    void vulkan_instance::destroy(h32<compute_pipeline> handle)
+    {
+        auto& pipeline = m_computePipelines.at(handle);
+        destroy_pipeline_base(pipeline, m_device, m_allocator.get_allocation_callbacks());
+        m_computePipelines.erase(handle);
+    }
+
+    result<h32<raytracing_pipeline>> vulkan_instance::create_raytracing_pipeline(
+        const raytracing_pipeline_descriptor& descriptor)
+    {
+        const auto [newPipeline, handle] = m_raytracingPipelines.emplace();
+        newPipeline->label = descriptor.debugLabel;
+
+        auto cleanup = finally_if_not_cancelled([this, handle] { destroy(handle); });
+
+        const expected pipelineLayoutRes = create_pipeline_layout(descriptor.pushConstants,
+            descriptor.bindGroupLayouts,
+            &newPipeline->pipelineLayout,
+            descriptor.debugLabel);
+
+        if (!pipelineLayoutRes)
+        {
+            return pipelineLayoutRes.error();
+        }
+
+        // Collect all shader stages
+        buffered_array<VkPipelineShaderStageCreateInfo, 8> shaderStages;
+        buffered_array<VkRayTracingShaderGroupCreateInfoKHR, 16> shaderGroups;
+
+        const u32 groupsCount = u32{bool{descriptor.rayGenerationShader}} + u32(descriptor.missShaders.size()) +
+            u32(descriptor.hitGroups.size());
+
+        // Ray generation shader
+        if (descriptor.rayGenerationShader)
+        {
+            const u32 shaderIdx = shaderStages.size32();
+
+            shaderStages.push_back({
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR,
+                .module = unwrap_shader_module(descriptor.rayGenerationShader),
+                .pName = "main",
+            });
+
+            shaderGroups.push_back({
+                .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+                .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
+                .generalShader = shaderIdx,
+                .closestHitShader = VK_SHADER_UNUSED_KHR,
+                .anyHitShader = VK_SHADER_UNUSED_KHR,
+                .intersectionShader = VK_SHADER_UNUSED_KHR,
+            });
+        }
+
+        // Miss shaders
+        for (const h32<shader_module> missShader : descriptor.missShaders)
+        {
+            const u32 shaderIdx = shaderStages.size32();
+
+            shaderStages.push_back({
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_MISS_BIT_KHR,
+                .module = unwrap_shader_module(missShader),
+                .pName = "main",
+            });
+
+            shaderGroups.push_back({
+                .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+                .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
+                .generalShader = shaderIdx,
+                .closestHitShader = VK_SHADER_UNUSED_KHR,
+                .anyHitShader = VK_SHADER_UNUSED_KHR,
+                .intersectionShader = VK_SHADER_UNUSED_KHR,
+            });
+        }
+
+        // Hit groups
+        for (const raytracing_hit_group_descriptor& hitGroup : descriptor.hitGroups)
+        {
+            u32 closestHitShaderIdx = VK_SHADER_UNUSED_KHR;
+            u32 anyHitShaderIdx = VK_SHADER_UNUSED_KHR;
+            u32 intersectionShaderIdx = VK_SHADER_UNUSED_KHR;
+
+            for (const raytracing_hit_shader& shader : hitGroup.shaders)
+            {
+                const u32 shaderIdx = shaderStages.size32();
+
+                switch (shader.stage)
+                {
+                case shader_stage::closest_hit:
+                    if (closestHitShaderIdx != VK_SHADER_UNUSED_KHR)
+                    {
+                        return error::invalid_usage;
+                    }
+
+                    closestHitShaderIdx = shaderIdx;
+                    break;
+
+                case shader_stage::any_hit:
+                    if (anyHitShaderIdx != VK_SHADER_UNUSED_KHR)
+                    {
+                        return error::invalid_usage;
+                    }
+
+                    anyHitShaderIdx = shaderIdx;
+                    break;
+
+                case shader_stage::intersection:
+                    if (intersectionShaderIdx != VK_SHADER_UNUSED_KHR)
+                    {
+                        return error::invalid_usage;
+                    }
+
+                    intersectionShaderIdx = shaderIdx;
+                    break;
+
+                default:
+                    return error::invalid_usage;
+                }
+
+                shaderStages.push_back({
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = convert_enum(shader.stage),
+                    .module = unwrap_shader_module(shader.handle),
+                    .pName = "main",
+                });
+            }
+
+            const VkRayTracingShaderGroupTypeKHR groupType = convert_enum(hitGroup.type);
+
+            shaderGroups.push_back({
+                .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+                .type = groupType,
+                .generalShader = VK_SHADER_UNUSED_KHR,
+                .closestHitShader = closestHitShaderIdx,
+                .anyHitShader = anyHitShaderIdx,
+                .intersectionShader = intersectionShaderIdx,
+            });
+        }
+
+        const VkRayTracingPipelineCreateInfoKHR pipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
+            .stageCount = shaderStages.size32(),
+            .pStages = shaderStages.data(),
+            .groupCount = shaderGroups.size32(),
+            .pGroups = shaderGroups.data(),
+            .maxPipelineRayRecursionDepth = descriptor.maxPipelineRayRecursionDepth,
+            .layout = newPipeline->pipelineLayout,
+        };
+
+        const VkResult result = m_loadedFunctions.vkCreateRayTracingPipelinesKHR(m_device,
+            nullptr,
+            nullptr,
+            1u,
+            &pipelineInfo,
+            m_allocator.get_allocation_callbacks(),
+            &newPipeline->pipeline);
+
+        if (result != VK_SUCCESS)
+        {
+            return translate_error(result);
+        }
+
+        label_vulkan_object(newPipeline->pipeline, descriptor.debugLabel);
+
+        // Create the shader buffer table
+
+        const u32 handleSize = m_raytracingProperties.shaderGroupHandleSize;
+        const u32 handleSizeAligned = round_up_multiple(handleSize, m_raytracingProperties.shaderGroupHandleAlignment);
+
+        newPipeline->rayGen = {
+            .stride = round_up_multiple(handleSizeAligned, m_raytracingProperties.shaderGroupBaseAlignment),
+        };
+
+        // Ray-generation is a special case, size has to match the stride
+        newPipeline->rayGen.size = newPipeline->rayGen.stride;
+
+        const u32 missCount = u32(descriptor.missShaders.size());
+
+        if (missCount > 0)
+        {
+            newPipeline->miss = {
+                .stride = handleSizeAligned,
+                .size =
+                    round_up_multiple(missCount * handleSizeAligned, m_raytracingProperties.shaderGroupBaseAlignment),
+            };
+        }
+
+        u32 hitCount = 0;
+
+        for (auto& hg : descriptor.hitGroups)
+        {
+            hitCount += u32(hg.shaders.size());
+        }
+
+        newPipeline->hit = {
+            .stride = handleSizeAligned,
+            .size = round_up_multiple(hitCount * handleSizeAligned, m_raytracingProperties.shaderGroupBaseAlignment),
+        };
+
+        const VkDeviceSize sbtBufferSize =
+            newPipeline->rayGen.size + newPipeline->miss.size + newPipeline->hit.size + newPipeline->callable.size;
+
+        const VkResult bindingTableResult = m_allocator.create_buffer(
+            {
+                .size = sbtBufferSize,
+                .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                    VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
+                .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                .debugLabel = "Shader Binding Table",
+            },
+            &newPipeline->shaderBindingTable);
+
+        if (bindingTableResult != VK_SUCCESS)
+        {
+            return translate_error(bindingTableResult);
+        }
+
+        void* sbtPtr;
+        const VkResult mapResult = m_allocator.map(newPipeline->shaderBindingTable.allocation, &sbtPtr);
+
+        if (mapResult != VK_SUCCESS)
+        {
+            return translate_error(mapResult);
+        }
+
+        const u32 handleCount = groupsCount;
+        const u32 handleDataSize = handleCount * handleSize;
+        dynamic_array<u8> handles;
+        handles.resize_default(handleDataSize);
+
+        const VkResult getHandlesResult = m_loadedFunctions.vkGetRayTracingShaderGroupHandlesKHR(m_device,
+            newPipeline->pipeline,
+            0,
+            handleCount,
+            handleDataSize,
+            handles.data());
+
+        if (getHandlesResult != VK_SUCCESS)
+        {
+            return translate_error(getHandlesResult);
+        }
+
+        const VkBufferDeviceAddressInfo deviceAddressInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
+            .buffer = newPipeline->shaderBindingTable.buffer,
+        };
+
+        const VkDeviceAddress sbtAddress = vkGetBufferDeviceAddress(m_device, &deviceAddressInfo);
+
+        newPipeline->rayGen.deviceAddress = sbtAddress;
+        newPipeline->miss.deviceAddress = newPipeline->rayGen.deviceAddress + newPipeline->rayGen.size;
+        newPipeline->hit.deviceAddress = newPipeline->miss.deviceAddress + newPipeline->miss.size;
+        newPipeline->callable.deviceAddress = newPipeline->hit.deviceAddress + newPipeline->hit.size;
+
+        struct group_desc
+        {
+            VkStridedDeviceAddressRegionKHR* group;
+            u32 groupHandles;
+        };
+
+        const group_desc groupsWithCount[] = {
+            {&newPipeline->rayGen, 1},
+            {&newPipeline->miss, missCount},
+            {
+                &newPipeline->hit,
+                hitCount,
+            },
+            {&newPipeline->callable, 0},
+        };
+
+        u32 nextHandleIndex = 0;
+
+        for (auto const [group, numHandles] : groupsWithCount)
+        {
+            if (group->size == 0)
+            {
+                continue;
+            }
+
+            const auto offset = group->deviceAddress - sbtAddress;
+
+            for (u32 i = 0; i < numHandles; ++i)
+            {
+                const auto dstOffset = offset + i * handleSizeAligned;
+                const auto srcOffset = nextHandleIndex * handleSize;
+
+                std::memcpy(static_cast<u8*>(sbtPtr) + dstOffset, handles.data() + srcOffset, handleSize);
+
+                ++nextHandleIndex;
+            }
+        }
+
+        m_allocator.unmap(newPipeline->shaderBindingTable.allocation);
+        m_allocator.invalidate_mapped_memory_ranges({&newPipeline->shaderBindingTable.allocation, 1});
+
+        cleanup.cancel();
+
+        return handle;
+    }
+
+    void vulkan_instance::destroy(h32<raytracing_pipeline> handle)
+    {
+        auto& pipeline = m_raytracingPipelines.at(handle);
+        destroy_pipeline_base(pipeline, m_device, m_allocator.get_allocation_callbacks());
+        m_raytracingPipelines.erase(handle);
     }
 
     namespace
@@ -1533,14 +1885,66 @@ namespace oblo::gpu::vk
         vkCmdBeginRendering(vkCommandBuffer, &renderingInfo);
 
         // TODO: Bind descriptors
-        // TODO: Returning an empty handle for now, we might want context in some cases, e.g. with profiling active
+        // TODO: We might want context in some cases, e.g. with profiling active
 
-        return hptr<graphics_pass>{};
+        return hptr<graphics_pass>{pipeline.value};
     }
 
     void vulkan_instance::end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass>)
     {
         vkCmdEndRendering(unwrap_handle<VkCommandBuffer>(cmdBuffer));
+    }
+
+    result<hptr<compute_pass>> vulkan_instance::begin_compute_pass(hptr<command_buffer> cmdBuffer,
+        h32<compute_pipeline> pipeline)
+    {
+        auto* const p = m_computePipelines.try_find(pipeline);
+
+        if (!p)
+        {
+            return error::invalid_handle;
+        }
+
+        const VkCommandBuffer vkCommandBuffer = unwrap_handle<VkCommandBuffer>(cmdBuffer);
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p->pipeline);
+
+        // TODO: Bind descriptors
+
+        m_cmdLabeler.begin(vkCommandBuffer, p->label.get());
+
+        return hptr<compute_pass>{pipeline.value};
+    }
+
+    void vulkan_instance::end_compute_pass(hptr<command_buffer> cmdBuffer, hptr<compute_pass>)
+    {
+        m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmdBuffer));
+    }
+
+    result<hptr<raytracing_pass>> vulkan_instance::begin_raytracing_pass(hptr<command_buffer> cmdBuffer,
+        h32<raytracing_pipeline> pipeline)
+    {
+        auto* const p = m_raytracingPipelines.try_find(pipeline);
+
+        if (!p)
+        {
+            return error::invalid_handle;
+        }
+
+        const VkCommandBuffer vkCommandBuffer = unwrap_handle<VkCommandBuffer>(cmdBuffer);
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, p->pipeline);
+
+        // TODO: Bind descriptors
+        // TODO: Begin label
+
+        m_cmdLabeler.begin(vkCommandBuffer, p->label.get());
+
+        // This is used in trace_rays, if we change this we need to update that too
+        return hptr<raytracing_pass>{pipeline.value};
+    }
+
+    void vulkan_instance::end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass>)
+    {
+        m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }
 
     result<h32<bindless_image>> vulkan_instance::acquire_bindless(h32<image> optImage)
@@ -1813,6 +2217,29 @@ namespace oblo::gpu::vk
         vkCmdDraw(unwrap_handle<VkCommandBuffer>(cmd), vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
+    void vulkan_instance::cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ)
+    {
+        vkCmdDispatch(unwrap_handle<VkCommandBuffer>(cmd), groupX, groupY, groupZ);
+    }
+
+    void vulkan_instance::cmd_trace_rays(
+        hptr<command_buffer> cmd, hptr<raytracing_pass> currentPass, u32 width, u32 height, u32 depth)
+    {
+        // Not ideal we could probably considering using the TLS or allocate this stuff into an arena
+        const h32<raytracing_pipeline> h{u32(currentPass.value)};
+
+        const auto& pipeline = m_raytracingPipelines.at(h);
+
+        m_loadedFunctions.vkCmdTraceRaysKHR(unwrap_handle<VkCommandBuffer>(cmd),
+            &pipeline.rayGen,
+            &pipeline.miss,
+            &pipeline.hit,
+            &pipeline.callable,
+            width,
+            height,
+            depth);
+    }
+
     void vulkan_instance::cmd_set_viewport(
         hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> viewports, f32 minDepth, f32 maxDepth)
     {
@@ -1942,6 +2369,52 @@ namespace oblo::gpu::vk
     {
         OBLO_ASSERT(queue);
         return m_queues[queue.value - 1];
+    }
+
+    result<> vulkan_instance::create_pipeline_layout(std::span<const push_constant_range> pushConstants,
+        std::span<const h32<bind_group_layout>> bindGroupLayouts,
+        VkPipelineLayout* pipelineLayout,
+        const debug_label& label)
+    {
+        buffered_array<VkDescriptorSetLayout, 4> descriptorSetLayouts;
+
+        for (const h32 h : bindGroupLayouts)
+        {
+            const auto& bindGroup = m_bindGroupLayouts.at(h);
+            descriptorSetLayouts.emplace_back(bindGroup.descriptorSetLayout);
+        }
+
+        buffered_array<VkPushConstantRange, 4> pushConstantRanges;
+
+        for (const push_constant_range& pc : pushConstants)
+        {
+            pushConstantRanges.push_back({
+                .stageFlags = convert_enum_flags(pc.stages),
+                .offset = pc.offset,
+                .size = pc.size,
+            });
+        }
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = descriptorSetLayouts.size32(),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = pushConstantRanges.size32(),
+            .pPushConstantRanges = pushConstantRanges.data(),
+        };
+
+        const VkResult pipelineLayoutResult = vkCreatePipelineLayout(m_device,
+            &pipelineLayoutInfo,
+            m_allocator.get_allocation_callbacks(),
+            pipelineLayout);
+
+        if (pipelineLayoutResult != VK_SUCCESS)
+        {
+            return translate_error(pipelineLayoutResult);
+        }
+
+        label_vulkan_object(*pipelineLayout, label);
+        return no_error;
     }
 }
 
