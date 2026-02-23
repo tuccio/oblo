@@ -181,6 +181,12 @@ namespace oblo::gpu::vk
         u32 acquiredImage{~0u};
     };
 
+    struct vulkan_instance::bind_group_layout_impl
+    {
+        VkDescriptorSetLayout descriptorSetLayout;
+        dynamic_array<descriptor_binding> bindings;
+    };
+
     // Pipelines
 
     namespace
@@ -472,7 +478,7 @@ namespace oblo::gpu::vk
             return translate_error(r);
         }
 
-        return no_error;
+        return init_tracked_queue_context();
     }
 
     h32<queue> vulkan_instance::get_universal_queue()
@@ -566,6 +572,8 @@ namespace oblo::gpu::vk
             return translate_error(r);
         }
 
+        label_vulkan_object(vkFence, descriptor.debugLabel);
+
         return m_fences.emplace(vkFence).second;
     }
 
@@ -635,6 +643,8 @@ namespace oblo::gpu::vk
             return translate_error(r);
         }
 
+        label_vulkan_object(semaphore, descriptor.debugLabel);
+
         auto&& [it, handle] = m_semaphores.emplace(semaphore);
         return handle;
     }
@@ -672,6 +682,49 @@ namespace oblo::gpu::vk
 
         sc.acquiredImage = imageIndex;
         return sc.images[imageIndex];
+    }
+
+    result<h32<bind_group_layout>> vulkan_instance::create_bind_group_layout(
+        const bind_group_layout_descriptor& descriptor)
+    {
+        auto [it, handle] = m_bindGroupLayouts.emplace();
+
+        it->bindings.reserve(descriptor.bindings.size());
+
+        for (const auto& binding : descriptor.bindings)
+        {
+            it->bindings.push_back({
+                .binding = binding.binding,
+                .descriptorType = convert_enum(binding.bindingKind),
+                .stageFlags = convert_enum_flags(binding.shaderStages),
+                .readOnly = binding.readOnly,
+            });
+        }
+
+        const expected r = m_descriptorSetPool.get_or_add_layout(it->bindings);
+
+        if (!r)
+        {
+            m_bindGroupLayouts.erase(handle);
+            return r.error();
+        }
+
+        it->descriptorSetLayout = *r;
+        return handle;
+    }
+
+    void vulkan_instance::destroy_bind_group_layout(h32<bind_group_layout> handle)
+    {
+        // TODO: Right now we never destroy the descriptor set layouts, probably sharing them is not a good idea, or
+        // they would at least need to be ref-counted
+        m_bindGroupLayouts.erase(handle);
+    }
+
+    result<h32<bind_group>> vulkan_instance::acquire_transient_bind_group(const bind_group_descriptor& descriptor)
+    {
+        // TODO
+        (void) descriptor;
+        return error::undefined;
     }
 
     result<h32<command_buffer_pool>> vulkan_instance::create_command_buffer_pool(
@@ -1466,6 +1519,11 @@ namespace oblo::gpu::vk
         (void) slot;
     }
 
+    result<> vulkan_instance::begin_submit_tracking()
+    {
+        return begin_tracked_queue_submit();
+    }
+
     result<> vulkan_instance::submit(h32<queue> queue, const queue_submit_descriptor& descriptor)
     {
         buffered_array<VkSemaphore, 8> waitSemaphores;
@@ -1512,12 +1570,27 @@ namespace oblo::gpu::vk
 
         VkFence vkFence{};
 
-        if (descriptor.signalFence)
+        OBLO_ASSERT(queue != universal_queue_id || !descriptor.signalFence,
+            "For the universal queue, we need to override with internal fence for tracking");
+
+        if (queue == universal_queue_id)
+        {
+            vkFence = m_fences.at(get_tracked_queue_fence());
+        }
+        else if (descriptor.signalFence)
         {
             vkFence = m_fences.at(descriptor.signalFence);
         }
 
-        return translate_result(vkQueueSubmit(get_queue(queue).queue, 1, &submitInfo, vkFence));
+        const auto result = translate_result(vkQueueSubmit(get_queue(queue).queue, 1, &submitInfo, vkFence));
+
+        if (result)
+        {
+            m_descriptorSetPool.on_submit(get_submit_index());
+            end_tracked_queue_submit();
+        }
+
+        return result;
     }
 
     result<> vulkan_instance::present(const present_descriptor& descriptor)

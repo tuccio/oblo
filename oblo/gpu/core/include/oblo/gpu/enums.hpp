@@ -500,4 +500,14 @@ namespace oblo::gpu
         vertex,
         instance,
     };
+
+    enum class binding_kind : u8
+    {
+        uniform,
+        storage_buffer,
+        storage_image,
+        sampler,
+        sampler_image,
+        acceleration_structure,
+    };
 }

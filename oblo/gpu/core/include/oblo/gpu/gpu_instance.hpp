@@ -1,5 +1,7 @@
 #pragma once
 
+#include <oblo/core/deque.hpp>
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/error.hpp>
@@ -12,7 +14,15 @@ namespace oblo::gpu
     class gpu_instance
     {
     public:
-        virtual ~gpu_instance() = default;
+        gpu_instance();
+
+        gpu_instance(const gpu_instance&) = delete;
+        gpu_instance(gpu_instance&&) = delete;
+
+        virtual ~gpu_instance();
+
+        gpu_instance& operator=(const gpu_instance&) = delete;
+        gpu_instance& operator=(gpu_instance&&) = delete;
 
         virtual result<> init(const instance_descriptor& descriptor) = 0;
         virtual void shutdown() = 0;
@@ -40,6 +50,13 @@ namespace oblo::gpu
         virtual result<u64> read_timeline_semaphore(h32<semaphore> handle) = 0;
 
         virtual result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) = 0;
+
+        virtual result<h32<bind_group_layout>> create_bind_group_layout(
+            const bind_group_layout_descriptor& descriptor) = 0;
+
+        virtual void destroy_bind_group_layout(h32<bind_group_layout> handle) = 0;
+
+        virtual result<h32<bind_group>> acquire_transient_bind_group(const bind_group_descriptor& descriptor) = 0;
 
         virtual result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) = 0;
@@ -89,11 +106,27 @@ namespace oblo::gpu
         virtual result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) = 0;
         virtual void release_bindless(h32<bindless_image> slot) = 0;
 
+        /// @brief Necessary to call for tracking the main queue and synchronizing with the GPU when necessary.
+        /// This function might release resources that are not used by the GPU anymore.
+        /// The end of the tracking happens upon submission on the main queue.
+        virtual result<> begin_submit_tracking() = 0;
         virtual result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) = 0;
 
         virtual result<> present(const present_descriptor& descriptor) = 0;
 
         virtual result<> wait_idle() = 0;
+
+        u64 get_submit_index() const;
+        u64 get_last_finished_submit() const;
+        bool is_submit_done(u64 submitIndex) const;
+
+        result<> wait_for_submit_completion(u64 submitIndex);
+
+        void destroy_deferred(h32<buffer> h, u64 submitIndex);
+        void destroy_deferred(h32<fence> h, u64 submitIndex);
+        void destroy_deferred(h32<image> h, u64 submitIndex);
+        void destroy_deferred(h32<image_pool> h, u64 submitIndex);
+        void destroy_deferred(h32<semaphore> h, u64 submitIndex);
 
         // Memory mapping
 
@@ -123,9 +156,49 @@ namespace oblo::gpu
 
         virtual void cmd_label_begin(hptr<command_buffer> cmd, const char* label) = 0;
         virtual void cmd_label_end(hptr<command_buffer> cmd) = 0;
+
+    protected:
+        struct submit_info;
+        struct disposable_object;
+
+        result<> init_tracked_queue_context();
+        void shutdown_tracked_queue_context();
+
+        void destroy_tracked_queue_resources_until(u64 lastCompletedSubmit);
+
+        result<> begin_tracked_queue_submit();
+        void end_tracked_queue_submit();
+
+        h32<fence> get_tracked_queue_fence();
+
+    protected:
+        // We want the submit index to start from more than 0, which is the starting value of the semaphore
+        u64 m_submitIndex{1};
+        u64 m_lastFinishedSubmit{};
+
+        h32<semaphore> m_timelineSemaphore{};
+        h32<queue> m_queue{};
+
+        dynamic_array<submit_info> m_submitInfo;
+        deque<disposable_object> m_objectsToDispose;
     };
 
-    /// @brief To be used to offset device address, to keep track where we make the assumptions on how to offset GPU
+    inline u64 gpu_instance::get_submit_index() const
+    {
+        return m_submitIndex;
+    }
+
+    inline u64 gpu_instance::get_last_finished_submit() const
+    {
+        return m_lastFinishedSubmit;
+    }
+
+    inline bool gpu_instance::is_submit_done(u64 submitIndex) const
+    {
+        return m_lastFinishedSubmit >= submitIndex;
+    }
+
+    /// @brief To be used to offset device address, to keep track where we make the assumptions on how to offset
     /// addresses.
     inline h64<device_address> offset_device_address(h64<device_address> address, u64 offset)
     {

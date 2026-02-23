@@ -5,7 +5,6 @@
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_queue_context.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
@@ -35,8 +34,6 @@ namespace oblo
                 return "Failed to initialize GPU instance"_err;
             }
 
-            constexpr u32 maxSubmissions = 8u;
-
             if (!m_window.create({
                     .title = "GPU Sandbox",
                     .style = window_style::app,
@@ -63,13 +60,6 @@ namespace oblo
                     m_windowSurface))
             {
                 return "Failed to create GPU device"_err;
-            }
-
-            m_mainQueueCtx = allocate_unique<gpu::gpu_queue_context>();
-
-            if (!m_mainQueueCtx->init(*m_gpu, m_gpu->get_universal_queue(), maxSubmissions))
-            {
-                return "Failed to initalize queue context"_err;
             }
 
             for (u32 i = 0; i < num_swapchain_images; ++i)
@@ -122,7 +112,7 @@ namespace oblo
 
                 h32<gpu::image> backBuffer{};
 
-                if (!m_mainQueueCtx->submit_begin())
+                if (!m_gpu->begin_submit_tracking())
                 {
                     return "Failed to initialize queue submission"_err;
                 }
@@ -175,7 +165,11 @@ namespace oblo
                     return "Failed to end command buffer"_err;
                 }
 
-                if (!m_mainQueueCtx->submit_end(commandBuffers, {}, {&currentFrameSemaphore, 1u}))
+                if (!m_gpu->submit(m_gpu->get_universal_queue(),
+                        {
+                            .commandBuffers = commandBuffers,
+                            .signalSemaphores = {&currentFrameSemaphore, 1u},
+                        }))
                 {
                     return "Failed to submit command buffers"_err;
                 }
@@ -197,7 +191,7 @@ namespace oblo
 
         void shutdown()
         {
-            if (m_gpu && m_mainQueueCtx)
+            if (m_gpu)
             {
                 m_gpu->wait_idle().assert_value();
 
@@ -227,9 +221,6 @@ namespace oblo
                     m_gpu->destroy_surface(m_windowSurface);
                     m_windowSurface = {};
                 }
-
-                m_mainQueueCtx->shutdown();
-                m_mainQueueCtx.reset();
 
                 m_gpu->shutdown();
                 m_gpu.reset();
@@ -353,7 +344,6 @@ namespace oblo
     private:
         graphics_window m_window;
         unique_ptr<gpu::gpu_instance> m_gpu;
-        unique_ptr<gpu::gpu_queue_context> m_mainQueueCtx;
         hptr<gpu::surface> m_windowSurface{};
         h32<gpu::swapchain> m_swapchain{};
         h32<gpu::semaphore> m_semaphores[num_swapchain_images]{};

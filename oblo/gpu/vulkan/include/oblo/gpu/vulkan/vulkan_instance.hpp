@@ -3,6 +3,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
 #include <oblo/gpu/vulkan/utility/debug_utils.hpp>
 #include <oblo/gpu/vulkan/utility/loaded_functions.hpp>
@@ -48,6 +49,13 @@ namespace oblo::gpu::vk
         result<u64> read_timeline_semaphore(h32<semaphore> handle) override;
 
         result<h32<image>> acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> waitSemaphore) override;
+
+        result<h32<bind_group_layout>> create_bind_group_layout(
+            const bind_group_layout_descriptor& descriptor) override;
+
+        void destroy_bind_group_layout(h32<bind_group_layout> handle) override;
+
+        result<h32<bind_group>> acquire_transient_bind_group(const bind_group_descriptor& descriptor) override;
 
         result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) override;
@@ -97,6 +105,7 @@ namespace oblo::gpu::vk
         result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) override;
         void release_bindless(h32<bindless_image> slot) override;
 
+        result<> begin_submit_tracking() override;
         result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
 
         result<> present(const present_descriptor& descriptor) override;
@@ -149,6 +158,7 @@ namespace oblo::gpu::vk
         const loaded_functions& get_loaded_functions() const;
 
     private:
+        struct bind_group_layout_impl;
         struct buffer_impl;
         struct command_buffer_pool_impl;
         struct image_impl;
@@ -186,7 +196,10 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<fence, VkFence> m_fences;
         h32_flat_pool_dense_map<shader_module, shader_module_impl> m_shaderModules;
         h32_flat_pool_dense_map<sampler, sampler_impl> m_samplers;
+        h32_flat_pool_dense_map<bind_group_layout, bind_group_layout_impl> m_bindGroupLayouts;
         h32_flat_pool_dense_map<render_pipeline, render_pipeline_impl> m_renderPipelines;
+
+        descriptor_set_pool m_descriptorSetPool;
 
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};

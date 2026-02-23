@@ -4,16 +4,19 @@
 
 namespace oblo::gpu
 {
+    struct acceleration_structure;
+    struct bind_group_layout;
+    struct bind_group;
     struct bindless_image;
-    struct buffer;
     struct buffer_image_copy_descriptor;
     struct buffer_range;
+    struct buffer;
     struct command_buffer_pool;
     struct command_buffer;
     struct device_address;
     struct fence;
-    struct image;
     struct image_pool;
+    struct image;
     struct native_window;
     struct queue;
     struct render_pass;
@@ -24,8 +27,10 @@ namespace oblo::gpu
     struct surface;
     struct swapchain;
 
-    struct buffer_descriptor;
+    struct bind_group_descriptor;
+    struct bind_group_layout_descriptor;
     struct buffer_copy_descriptor;
+    struct buffer_descriptor;
     struct buffer_image_copy_descriptor;
     struct command_buffer_pool_descriptor;
     struct device_descriptor;
@@ -35,29 +40,30 @@ namespace oblo::gpu
     struct memory_barrier_descriptor;
     struct present_descriptor;
     struct queue_submit_descriptor;
-    struct semaphore_descriptor;
-    struct sampler_descriptor;
     struct render_pass_descriptor;
     struct render_pipeline_descriptor;
+    struct sampler_descriptor;
+    struct semaphore_descriptor;
     struct shader_module_descriptor;
     struct swapchain_descriptor;
-    struct vertex_input_binding_descriptor;
     struct vertex_input_attribute_descriptor;
+    struct vertex_input_binding_descriptor;
 
     struct device_info;
     struct device_limits;
     struct global_memory_barrier;
     struct image_state_transition;
     struct memory_properties;
+    struct push_constant_range;
 
     class gpu_instance;
-    class gpu_queue_context;
     class staging_buffer;
 
     struct staging_buffer_span;
 
     enum class error;
 
+    enum class binding_kind : u8;
     enum class buffer_usage : u8;
     enum class data_format : u32;
     enum class image_resource_state : u8;

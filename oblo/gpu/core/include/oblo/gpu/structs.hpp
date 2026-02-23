@@ -88,6 +88,12 @@ namespace oblo::gpu
     {
     };
 
+    struct push_constant_range
+    {
+        flags<shader_stage> stages;
+        u32 size;
+    };
+
     struct buffer_descriptor
     {
         u64 size;
@@ -104,6 +110,7 @@ namespace oblo::gpu
     struct fence_descriptor
     {
         bool createSignaled;
+        debug_label debugLabel;
     };
 
     struct image_descriptor
@@ -214,6 +221,8 @@ namespace oblo::gpu
         std::span<const render_pipeline_stage> stages;
         std::span<const vertex_input_binding_descriptor> vertexInputBindings;
         std::span<const vertex_input_attribute_descriptor> vertexInputAttributes;
+        std::span<const push_constant_range> pushConstants;
+        std::span<const h32<bind_group_layout>> bindGroupLayouts;
         render_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
@@ -260,6 +269,7 @@ namespace oblo::gpu
     {
         bool timeline;
         u64 timelineInitialValue;
+        debug_label debugLabel;
     };
 
     struct shader_module_descriptor
@@ -327,5 +337,18 @@ namespace oblo::gpu
         u32 location;
         data_format format;
         u32 offset;
+    };
+
+    struct bind_group_binding
+    {
+        u32 binding;
+        binding_kind bindingKind;
+        flags<shader_stage> shaderStages;
+        bool readOnly;
+    };
+
+    struct bind_group_layout_descriptor
+    {
+        std::span<const bind_group_binding> bindings;
     };
 }

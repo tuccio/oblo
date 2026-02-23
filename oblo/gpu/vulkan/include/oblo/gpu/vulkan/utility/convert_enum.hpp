@@ -272,6 +272,26 @@ namespace oblo::gpu::vk
         }
     }
 
+    inline VkDescriptorType convert_enum(binding_kind kind)
+    {
+        switch (kind)
+        {
+        case binding_kind::uniform:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case binding_kind::storage_buffer:
+            return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        case binding_kind::storage_image:
+            return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        case binding_kind::sampler:
+            return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        case binding_kind::sampler_image:
+            return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        case binding_kind::acceleration_structure:
+            return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+        default:
+            unreachable();
+        }
+    }
     namespace detail
     {
         template <typename R, typename T>
@@ -306,5 +326,10 @@ namespace oblo::gpu::vk
     inline VkMemoryPropertyFlags convert_enum_flags(flags<memory_requirement> r)
     {
         return detail::convert_enum_flags_impl<VkMemoryPropertyFlags>(r);
+    }
+
+    inline VkShaderStageFlags convert_enum_flags(flags<shader_stage> r)
+    {
+        return detail::convert_enum_flags_impl<VkShaderStageFlags>(r);
     }
 }
