@@ -55,6 +55,7 @@ namespace oblo::gpu
     struct image_state_transition;
     struct memory_properties;
     struct push_constant_range;
+    struct rectangle;
 
     class gpu_instance;
     class staging_buffer;

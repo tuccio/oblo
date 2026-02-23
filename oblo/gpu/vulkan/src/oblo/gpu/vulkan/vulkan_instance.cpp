@@ -1257,7 +1257,7 @@ namespace oblo::gpu::vk
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = convert_enum(stage.stage),
                 .module = unwrap_shader_module(stage.shaderModule),
-                .pName = stage.entryFunction ? stage.entryFunction : "main",
+                .pName = stage.entryFunction,
             });
         }
 
@@ -1770,9 +1770,18 @@ namespace oblo::gpu::vk
 
         for (const image_state_transition& transition : descriptor.images)
         {
+            const auto& imageImpl = m_images.at(transition.image);
+
             VkImageMemoryBarrier2& barrier = imageBarriers.emplace_back();
             barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-            barrier.image = unwrap_image(transition.image);
+            barrier.image = imageImpl.image;
+            barrier.subresourceRange = {
+                .aspectMask = image_utils::deduce_aspect_mask(convert_enum(imageImpl.descriptor.format)),
+                .baseMipLevel = 0,
+                .levelCount = imageImpl.descriptor.mipLevels,
+                .baseArrayLayer = 0,
+                .layerCount = imageImpl.descriptor.arrayLayers,
+            };
             deduce_barrier(barrier, transition);
         }
 
@@ -1795,6 +1804,50 @@ namespace oblo::gpu::vk
         };
 
         vkCmdPipelineBarrier2(unwrap_handle<VkCommandBuffer>(cmd), &dependencyInfo);
+    }
+
+    void vulkan_instance::cmd_draw(
+        hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance)
+    {
+        vkCmdDraw(unwrap_handle<VkCommandBuffer>(cmd), vertexCount, instanceCount, firstVertex, firstInstance);
+    }
+
+    void vulkan_instance::cmd_set_viewport(
+        hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> viewports, f32 minDepth, f32 maxDepth)
+    {
+        buffered_array<VkViewport, 8> vkViewports;
+        vkViewports.reserve(viewports.size());
+
+        for (const rectangle& r : viewports)
+        {
+            vkViewports.push_back({
+                .x = f32(r.x),
+                .y = f32(r.y),
+                .width = f32(r.width),
+                .height = f32(r.height),
+                .minDepth = minDepth,
+                .maxDepth = maxDepth,
+            });
+        }
+
+        vkCmdSetViewport(unwrap_handle<VkCommandBuffer>(cmd), firstScissor, vkViewports.size32(), vkViewports.data());
+    }
+
+    void vulkan_instance::cmd_set_scissor(
+        hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors)
+    {
+        buffered_array<VkRect2D, 8> vkRects;
+        vkRects.reserve(scissors.size());
+
+        for (const rectangle& r : scissors)
+        {
+            vkRects.push_back({
+                .offset = {r.x, r.y},
+                .extent = {r.width, r.height},
+            });
+        }
+
+        vkCmdSetScissor(unwrap_handle<VkCommandBuffer>(cmd), firstScissor, vkRects.size32(), vkRects.data());
     }
 
     void vulkan_instance::cmd_label_begin(hptr<command_buffer> cmd, const char* label)

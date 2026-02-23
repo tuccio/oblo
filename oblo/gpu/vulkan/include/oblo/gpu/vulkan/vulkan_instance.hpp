@@ -136,6 +136,19 @@ namespace oblo::gpu::vk
 
         void cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor) override;
 
+        // Draw
+
+        void cmd_draw(
+            hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance) override;
+
+        void cmd_set_viewport(hptr<command_buffer> cmd,
+            u32 firstScissor,
+            std::span<const rectangle> viewports,
+            f32 minDepth,
+            f32 maxDepth) override;
+
+        void cmd_set_scissor(hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) override;
+
         // Debugging and profiling
 
         void cmd_label_begin(hptr<command_buffer> cmd, const char* label) override;

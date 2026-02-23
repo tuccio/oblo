@@ -152,6 +152,20 @@ namespace oblo::gpu
 
         virtual void cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor) = 0;
 
+        // Draw
+
+        virtual void cmd_draw(
+            hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance) = 0;
+
+        virtual void cmd_set_viewport(hptr<command_buffer> cmd,
+            u32 firstViewport,
+            std::span<const rectangle> viewports,
+            f32 minDepth,
+            f32 maxDepth) = 0;
+
+        virtual void cmd_set_scissor(
+            hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) = 0;
+
         // Debugging and profiling
 
         virtual void cmd_label_begin(hptr<command_buffer> cmd, const char* label) = 0;

@@ -204,20 +204,24 @@ namespace oblo
                     return "Failed to begin command buffer"_err;
                 }
 
-                render(cmd, backBuffer);
+                render(cmd, backBuffer, windowSize);
 
                 if (!m_gpu->end_command_buffer(cmd))
                 {
                     return "Failed to end command buffer"_err;
                 }
 
-                if (!m_gpu->submit(m_gpu->get_universal_queue(),
+                if (const auto r = m_gpu->submit(m_gpu->get_universal_queue(),
                         {
                             .commandBuffers = commandBuffers,
                             .signalSemaphores = {&currentFrameSemaphore, 1u},
-                        }))
+                        });
+                    !r)
                 {
-                    return "Failed to submit command buffers"_err;
+                    if (r.error() != gpu::error::out_of_date)
+                    {
+                        return "Failed to submit command buffers"_err;
+                    }
                 }
 
                 if (const expected r = m_gpu->present({
@@ -276,7 +280,7 @@ namespace oblo
         }
 
     private:
-        void render(hptr<gpu::command_buffer> cmd, h32<gpu::image> swapchainImage)
+        void render(hptr<gpu::command_buffer> cmd, h32<gpu::image> swapchainImage, vec2u resolution)
         {
             if (!ensure_pipelines_exist())
             {
@@ -309,16 +313,24 @@ namespace oblo
                 .storeOp = gpu::attachment_store_op::store,
                 .clearValue =
                     {
-                        .color = {.f32 = {1.f, 0.f, 0.f, 1.f}},
+                        .color = {.f32 = {0.f, 0.f, 0.f, 0.f}},
                     },
             }};
 
             const gpu::render_pass_descriptor renderPassDesc{
+                .renderResolution = resolution,
                 .colorAttachments = colorAttachments,
             };
 
             if (const auto r = m_gpu->begin_render_pass(cmd, m_renderPipeline, renderPassDesc))
             {
+                const gpu::rectangle rect[1] = {
+                    {.x = 0, .y = 0, .width = resolution.x, .height = resolution.y},
+                };
+
+                m_gpu->cmd_set_viewport(cmd, 0, rect, 0.f, 1.f);
+                m_gpu->cmd_set_scissor(cmd, 0, rect);
+                m_gpu->cmd_draw(cmd, 3, 1, 0, 0);
                 m_gpu->end_render_pass(cmd, *r);
             }
 
@@ -397,16 +409,17 @@ namespace oblo
                             .entryFunction = "main",
                         },
                         {
-                            .stage = gpu::shader_stage::vertex,
+                            .stage = gpu::shader_stage::fragment,
                             .shaderModule = fragment,
                             .entryFunction = "main",
                         },
                     };
 
-                    const gpu::render_pipeline_descriptor desc{
-                        .stages = stages,
+                    const gpu::render_pipeline_descriptor desc{.stages = stages,
                         .renderTargets = targets,
-                    };
+                        .rasterizationState = {
+                            .lineWidth = 1.f,
+                        }};
 
                     const expected r = m_gpu->create_render_pipeline(desc);
                     m_renderPipeline = r.value_or({});

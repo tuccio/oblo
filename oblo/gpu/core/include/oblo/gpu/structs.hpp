@@ -12,6 +12,7 @@
 #include <oblo/math/vec3u.hpp>
 
 #include <optional>
+#include <source_location>
 #include <span>
 
 namespace oblo::gpu
@@ -50,7 +51,7 @@ namespace oblo::gpu
         f32 maxAnisotropy;
         f32 minLod;
         f32 maxLod;
-        debug_label debugLabel;
+        debug_label debugLabel = std::source_location::current();
     };
 
     struct command_buffer_pool_descriptor
@@ -95,12 +96,18 @@ namespace oblo::gpu
         u32 size;
     };
 
+    struct rectangle
+    {
+        i32 x, y;
+        u32 width, height;
+    };
+
     struct buffer_descriptor
     {
         u64 size;
         memory_properties memoryProperties;
         flags<buffer_usage> usages;
-        debug_label debugLabel;
+        debug_label debugLabel = std::source_location::current();
     };
 
     struct device_descriptor
@@ -111,7 +118,7 @@ namespace oblo::gpu
     struct fence_descriptor
     {
         bool createSignaled;
-        debug_label debugLabel;
+        debug_label debugLabel = std::source_location::current();
     };
 
     struct image_descriptor
@@ -126,7 +133,7 @@ namespace oblo::gpu
         samples_count samples;
         memory_usage memoryUsage;
         flags<image_usage> usages;
-        debug_label debugLabel;
+        debug_label debugLabel = std::source_location::current();
     };
 
     struct instance_descriptor
@@ -228,7 +235,7 @@ namespace oblo::gpu
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
         primitive_topology primitiveTopology{primitive_topology::triangle_list};
-        debug_label debugLabel;
+        debug_label debugLabel = std::source_location::current();
     };
 
     union clear_color_value {
@@ -270,7 +277,7 @@ namespace oblo::gpu
     {
         bool timeline;
         u64 timelineInitialValue;
-        debug_label debugLabel;
+        debug_label debugLabel = std::source_location::current();
     };
 
     struct shader_module_descriptor
