@@ -13,6 +13,7 @@ target_link_libraries(
     PRIVATE
     oblo::log
     oblo::gpu::vulkan
+    oblo::vulkan::compiler
     oblo::resource
     oblo::scene
     spirv-cross::spirv-cross

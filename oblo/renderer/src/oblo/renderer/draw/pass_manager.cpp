@@ -5,6 +5,7 @@
 #include <oblo/core/filesystem/directory_watcher.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/finally.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/hash.hpp>
@@ -15,6 +16,7 @@
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -31,7 +33,6 @@
 #include <oblo/renderer/draw/render_pass_initializer.hpp>
 #include <oblo/renderer/draw/shader_stage_utils.hpp>
 #include <oblo/renderer/draw/texture_registry.hpp>
-#include <oblo/renderer/draw/vk_type_conversions.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/compiler/compiler_module.hpp>
 #include <oblo/vulkan/compiler/shader_cache.hpp>
@@ -54,93 +55,28 @@ namespace oblo
         // Push constants with this names are detected through reflection to be set at each draw
         constexpr auto InstanceTableIdPushConstant = "instanceTableId";
 
-        constexpr u8 MaxPipelineStages = u8(pipeline_stages::enum_max);
-
-        constexpr VkShaderStageFlagBits to_vulkan_stage_bits(pipeline_stages stage)
-        {
-            constexpr VkShaderStageFlagBits vkStageBits[] = {
-                VK_SHADER_STAGE_MESH_BIT_EXT,
-                VK_SHADER_STAGE_VERTEX_BIT,
-                VK_SHADER_STAGE_FRAGMENT_BIT,
-            };
-            return vkStageBits[u8(stage)];
-        }
-
-        string_view get_define_from_stage(pipeline_stages stage)
+        string_view get_define_from_stage(gpu::shader_stage stage)
         {
             switch (stage)
             {
-            case pipeline_stages::mesh:
+            case gpu::shader_stage::mesh:
                 return "OBLO_STAGE_MESH";
-            case pipeline_stages::vertex:
+            case gpu::shader_stage::vertex:
                 return "OBLO_STAGE_VERTEX";
-            case pipeline_stages::fragment:
+            case gpu::shader_stage::fragment:
                 return "OBLO_STAGE_FRAGMENT";
-            default:
-                unreachable();
-            }
-        }
-
-        enum class raytracing_stage : u8
-        {
-            generation,
-            intersection,
-            any_hit,
-            closest_hit,
-            miss,
-            callable,
-            enum_max,
-        };
-
-        VkShaderStageFlagBits to_vulkan_stage_bits(raytracing_stage stage)
-        {
-            switch (stage)
-            {
-            case raytracing_stage::generation:
-                return VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-
-            case raytracing_stage::intersection:
-                return VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
-
-            case raytracing_stage::any_hit:
-                return VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-
-            case raytracing_stage::closest_hit:
-                return VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-
-            case raytracing_stage::miss:
-                return VK_SHADER_STAGE_MISS_BIT_KHR;
-
-            case raytracing_stage::callable:
-                return VK_SHADER_STAGE_CALLABLE_BIT_KHR;
-
-            default:
-                unreachable();
-            }
-        }
-
-        string_view get_define_from_stage(raytracing_stage stage)
-        {
-            switch (stage)
-            {
-            case raytracing_stage::generation:
+            case gpu::shader_stage::raygen:
                 return "OBLO_STAGE_RAYGEN";
-
-            case raytracing_stage::intersection:
+            case gpu::shader_stage::intersection:
                 return "OBLO_STAGE_INTERSECTION";
-
-            case raytracing_stage::any_hit:
+            case gpu::shader_stage::any_hit:
                 return "OBLO_STAGE_ANY_HIT";
-
-            case raytracing_stage::closest_hit:
+            case gpu::shader_stage::closest_hit:
                 return "OBLO_STAGE_CLOSEST_HIT";
-
-            case raytracing_stage::miss:
+            case gpu::shader_stage::miss:
                 return "OBLO_STAGE_MISS_HIT";
-
-            case raytracing_stage::callable:
+            case gpu::shader_stage::callable:
                 return "OBLO_STAGE_CALLABLE";
-
             default:
                 unreachable();
             }
@@ -230,12 +166,12 @@ namespace oblo
             u32 binding;
             resource_kind kind;
             bool readOnly;
-            VkShaderStageFlags stageFlags;
+            flags<gpu::shader_stage> stageFlags;
         };
 
         struct push_constant_info
         {
-            VkPipelineStageFlags stages{};
+            flags<gpu::shader_stage> stages{};
             u32 size{};
             i32 instanceTableIdOffset{-1};
         };
@@ -321,25 +257,6 @@ namespace oblo
             }
         }
 
-        VkShaderModule create_shader_module_from_spirv(
-            VkDevice device, std::span<const unsigned> spirv, const VkAllocationCallbacks* allocationCbs)
-        {
-            const VkShaderModuleCreateInfo shaderModuleCreateInfo{
-                .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                .codeSize = spirv.size() * sizeof(spirv[0]),
-                .pCode = spirv.data(),
-            };
-
-            VkShaderModule shaderModule;
-
-            if (vkCreateShaderModule(device, &shaderModuleCreateInfo, allocationCbs, &shaderModule) != VK_SUCCESS)
-            {
-                return nullptr;
-            }
-
-            return shaderModule;
-        }
-
         bool is_printf_include(string_view path)
         {
             return path.ends_with("renderer/debug/printf.glsl");
@@ -349,10 +266,9 @@ namespace oblo
     struct render_pass
     {
         h32<string> name;
-        u8 stagesCount{0};
 
-        string shaderSourcePath[MaxPipelineStages];
-        pipeline_stages stages[MaxPipelineStages];
+        dynamic_array<string> shaderSourcePath;
+        dynamic_array<gpu::shader_stage> stages;
 
         dynamic_array<render_pass_variant> variants;
 
@@ -394,7 +310,7 @@ namespace oblo
         dynamic_array<raytracing_pass_variant> variants;
 
         dynamic_array<string> shaderSourcePaths;
-        dynamic_array<raytracing_stage> shaderStages;
+        dynamic_array<gpu::shader_stage> shaderStages;
 
         u32 shadersCount{};
         u32 groupsCount{};
@@ -404,9 +320,6 @@ namespace oblo
 
     struct base_pipeline
     {
-        VkPipelineLayout pipelineLayout;
-        VkPipeline pipeline;
-
         shader_resource vertexInputs;
         dynamic_array<shader_resource> resources;
         dynamic_array<descriptor_binding> descriptorSetBindings;
@@ -421,118 +334,49 @@ namespace oblo
 
         u32 lastRecompilationChangeId{};
 
-#ifdef TRACY_ENABLE
-        std::unique_ptr<tracy::SourceLocationData> tracyLocation;
-#endif
-
         void init(const char* name)
         {
             label = name;
-
-#ifdef TRACY_ENABLE
-            tracyLocation = std::make_unique<tracy::SourceLocationData>();
-            tracyLocation->name = name;
-#endif
         }
     };
 
     struct render_pipeline : base_pipeline
     {
-        VkShaderModule shaderModules[MaxPipelineStages];
-
         // TODO: Active stages (e.g. tessellation on/off)
         // TODO: Active options
+        h32<gpu::graphics_pipeline> pipeline{};
     };
 
     struct compute_pipeline : base_pipeline
     {
-        VkShaderModule shaderModule;
+        h32<gpu::compute_pipeline> pipeline{};
     };
 
     struct raytracing_pipeline : base_pipeline
     {
-        dynamic_array<VkShaderModule> shaderModules;
-        gpu::vk::allocated_buffer shaderBindingTable{};
-
-        VkStridedDeviceAddressRegionKHR rayGen{};
-        VkStridedDeviceAddressRegionKHR hit{};
-        VkStridedDeviceAddressRegionKHR miss{};
-        VkStridedDeviceAddressRegionKHR callable{};
+        h32<gpu::raytracing_pipeline> pipeline{};
     };
 
     namespace
     {
-        void destroy_base_pipeline(gpu::vk::vulkan_instance& ctx, const base_pipeline& variant)
+        void destroy_pipeline(gpu::gpu_instance& ctx, const render_pipeline& variant)
         {
-            if (const auto pipeline = variant.pipeline)
-            {
-                vkDestroyPipeline(ctx.get_device(), pipeline, ctx.get_allocator().get_allocation_callbacks());
-            }
-
-            if (const auto pipelineLayout = variant.pipelineLayout)
-            {
-                vkDestroyPipelineLayout(ctx.get_device(),
-                    pipelineLayout,
-                    ctx.get_allocator().get_allocation_callbacks());
-            }
+            ctx.destroy_deferred(variant.pipeline, ctx.get_submit_index());
         }
 
-        void destroy_pipeline(gpu::vk::vulkan_instance& ctx, const render_pipeline& variant)
+        void destroy_pipeline(gpu::gpu_instance& ctx, const compute_pipeline& variant)
         {
-            // TODO: Just temporarily wait to get things running
-            ctx.wait_idle();
-
-            destroy_base_pipeline(ctx, variant);
-
-            for (const auto shaderModule : variant.shaderModules)
-            {
-                if (shaderModule)
-                {
-                    vkDestroyShaderModule(ctx.get_device(),
-                        shaderModule,
-                        ctx.get_allocator().get_allocation_callbacks());
-                }
-            }
+            ctx.destroy_deferred(variant.pipeline, ctx.get_submit_index());
         }
 
-        void destroy_pipeline(gpu::vk::vulkan_instance& ctx, const compute_pipeline& variant)
+        void destroy_pipeline(gpu::gpu_instance& ctx, const raytracing_pipeline& variant)
         {
-            // TODO: Just temporarily wait to get things running
-            ctx.wait_idle();
-
-            destroy_base_pipeline(ctx, variant);
-
-            vkDestroyShaderModule(ctx.get_device(),
-                variant.shaderModule,
-                ctx.get_allocator().get_allocation_callbacks());
-        }
-
-        void destroy_pipeline(gpu::vk::vulkan_instance& ctx, const raytracing_pipeline& variant)
-        {
-            // TODO: Just temporarily wait to get things running
-            ctx.wait_idle();
-
-            destroy_base_pipeline(ctx, variant);
-
-            for (const auto shaderModule : variant.shaderModules)
-            {
-                if (shaderModule)
-                {
-                    vkDestroyShaderModule(ctx.get_device(),
-                        shaderModule,
-                        ctx.get_allocator().get_allocation_callbacks());
-                }
-            }
-
-            if (variant.shaderBindingTable.buffer)
-            {
-                ctx.get_allocator().destroy(variant.shaderBindingTable);
-            }
+            ctx.destroy_deferred(variant.pipeline, ctx.get_submit_index());
         }
 
         template <typename Pass, typename Pipelines>
         void poll_hot_reloading(
-            const string_interner& interner, vulkan_context& vkCtx, Pass& pass, Pipelines& pipelines)
+            const string_interner& interner, gpu::gpu_instance& gpu, Pass& pass, Pipelines& pipelines)
         {
             if (pass.shouldRecompile)
             {
@@ -542,7 +386,7 @@ namespace oblo
                 {
                     if (auto* const pipeline = pipelines.try_find(variant.pipeline))
                     {
-                        destroy_pipeline(vkCtx, *pipeline);
+                        destroy_pipeline(gpu, *pipeline);
                         pipelines.erase(variant.pipeline);
                     }
 
@@ -590,10 +434,9 @@ namespace oblo
         unique_ptr<vk::shader_compiler> glslangCompiler;
         option_proxy_struct<global_shader_options_proxy> shaderCompilerOptions;
         options_manager* optionsManager{};
-        shader_cache shaderCache;
+        vk::shader_cache shaderCache;
 
-        vulkan_context* vkCtx{};
-        VkDevice device{};
+        gpu::gpu_instance* gpu{};
         h32_flat_pool_dense_map<compute_pass> computePasses;
         h32_flat_pool_dense_map<render_pass> renderPasses;
         h32_flat_pool_dense_map<raytracing_pass> raytracingPasses;
@@ -601,8 +444,6 @@ namespace oblo
         h32_flat_pool_dense_map<compute_pipeline> computePipelines;
         h32_flat_pool_dense_map<raytracing_pipeline> raytracingPipelines;
         string_interner* interner{};
-        descriptor_set_pool descriptorSetPool;
-        descriptor_set_pool texturesDescriptorSetPool;
         const texture_registry* textureRegistry{};
         VkDescriptorSetLayout samplersSetLayout{};
         VkDescriptorSetLayout textures2DSetLayout{};
@@ -610,7 +451,7 @@ namespace oblo
         VkDescriptorSet currentSamplersDescriptor{};
         VkDescriptorSet currentTextures2DDescriptor{};
 
-        VkSampler samplers[u32(sampler::enum_max)]{};
+        h32<gpu::sampler> samplers[u32(sampler::enum_max)]{};
 
         u32 subgroupSize;
 
@@ -628,69 +469,34 @@ namespace oblo
 
         std::unordered_map<string, watching_passes, transparent_string_hash, std::equal_to<>> fileToPassList;
 
-        VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtPipelineProperties{};
-
-#ifdef TRACY_ENABLE
-        TracyVkCtx tracyCtx{};
-#endif
-
         void add_watch(string_view file, h32<compute_pass> pass);
         void add_watch(string_view file, h32<render_pass> pass);
         void add_watch(string_view file, h32<raytracing_pass> pass);
 
-        VkShaderModule create_shader_module(VkShaderStageFlagBits vkStage,
+        h32<gpu::shader_module> create_shader_module(gpu::shader_stage stage,
             cstring_view filePath,
             std::span<const string_view> builtInDefines,
             std::span<const hashed_string_view> defines,
             string_view debugName,
-            const shader_compiler_options& compilerOptions,
-            shader_compiler::result& result);
+            const vk::shader_compiler_options& compilerOptions,
+            vk::shader_compiler::result& result);
 
         bool create_pipeline_layout(base_pipeline& newPipeline);
 
         void create_reflection(base_pipeline& newPipeline,
-            VkShaderStageFlagBits vkStage,
+            gpu::shader_stage stage,
             std::span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
 
         VkDescriptorSet create_descriptor_set(
             VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn findBinding);
 
-        shader_compiler_options make_compiler_options();
+        vk::shader_compiler_options make_compiler_options();
 
         template <typename Filter = decltype([](auto&&) { return true; })>
         void invalidate_all_passes(Filter&& f = {});
 
         void propagate_pipeline_invalidation();
-
-        [[nodiscard]] void* begin_pass(VkCommandBuffer commandBuffer, const base_pipeline& pipeline)
-        {
-            void* scope{};
-
-#ifdef TRACY_ENABLE
-            if (enableProfilingThisFrame)
-            {
-                // TODO (#82): This should be preallocated to be usable in multi-threaded execution
-                scope = frameAllocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
-                new (scope) tracy::VkCtxScope{tracyCtx, pipeline.tracyLocation.get(), commandBuffer, true};
-            }
-#endif
-
-            vkCtx->begin_debug_label(commandBuffer, pipeline.label);
-            return scope;
-        }
-
-        void end_pass(VkCommandBuffer commandBuffer, void* ctx) const
-        {
-            vkCtx->end_debug_label(commandBuffer);
-
-#ifdef TRACY_ENABLE
-            if (enableProfilingThisFrame)
-            {
-                std::destroy_at(static_cast<tracy::VkCtxScope*>(ctx));
-            }
-#endif
-        }
     };
 
     void pass_manager::impl::add_watch(string_view file, h32<compute_pass> pass)
@@ -720,13 +526,13 @@ namespace oblo
         watches.raytracingPasses.emplace(pass);
     }
 
-    VkShaderModule pass_manager::impl::create_shader_module(VkShaderStageFlagBits vkStage,
+    h32<gpu::shader_module> pass_manager::impl::create_shader_module(gpu::shader_stage stage,
         cstring_view filePath,
         std::span<const string_view> builtInDefines,
         std::span<const hashed_string_view> userDefines,
         string_view debugName,
-        const shader_compiler_options& compilerOptions,
-        shader_compiler::result& result)
+        const vk::shader_compiler_options& compilerOptions,
+        vk::shader_compiler::result& result)
     {
         OBLO_PROFILE_SCOPE();
 
@@ -753,27 +559,24 @@ namespace oblo
             preambleBuilder.format("#define {}\n", define);
         }
 
-        const shader_preprocessor_options preprocessorOptions = {
+        const vk::shader_preprocessor_options preprocessorOptions = {
             .emitLineDirectives = emitLineDirectives,
             .preamble = preambleBuilder.as<string_view>(),
         };
 
-        result = shaderCache.find_or_compile(frameAllocator,
-            filePath,
-            from_vk_shader_stage(vkStage),
-            preprocessorOptions,
-            compilerOptions,
-            debugName);
+        result = shaderCache
+                     .find_or_compile(frameAllocator, filePath, stage, preprocessorOptions, compilerOptions, debugName);
 
         if (result.has_errors())
         {
             log::error("Shader compilation failed for {}\n{}", debugName, result.get_error_message());
-            return nullptr;
+            return {};
         }
 
-        return create_shader_module_from_spirv(device,
-            result.get_spirv(),
-            vkCtx->get_allocator().get_allocation_callbacks());
+        gpu->create_shader_module({
+            .format = gpu::shader_module_format::spirv,
+            .data = as_bytes(result.get_spirv()),
+        });
     }
 
     bool pass_manager::impl::create_pipeline_layout(base_pipeline& newPipeline)
@@ -911,7 +714,7 @@ namespace oblo
     }
 
     void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
-        VkShaderStageFlagBits vkStage,
+        gpu::shader_stage stage,
         std::span<const u32> spirv,
         vertex_inputs_reflection& vertexInputsReflection)
     {
@@ -919,7 +722,7 @@ namespace oblo
 
         const auto shaderResources = compiler.get_shader_resources();
 
-        if (vkStage == VK_SHADER_STAGE_VERTEX_BIT)
+        if (stage == gpu::shader_stage::vertex)
         {
             vertexInputsReflection.count = u32(shaderResources.stage_inputs.size());
 
@@ -943,7 +746,7 @@ namespace oblo
                     .location = location,
                     .binding = vertexAttributeIndex,
                     .kind = resource_kind::vertex_stage_input,
-                    .stageFlags = VkShaderStageFlags(vkStage),
+                    .stageFlags = stage,
                 });
 
                 const spirv_cross::SPIRType& type = compiler.get_type(stageInput.type_id);
@@ -987,7 +790,7 @@ namespace oblo
                 .binding = binding,
                 .kind = resource_kind::storage_buffer,
                 .readOnly = readOnly,
-                .stageFlags = VkShaderStageFlags(vkStage),
+                .stageFlags = stage,
             });
 
             collisionChecker.check(binding, storageBuffer.name.c_str(), newPipeline.label);
@@ -1011,7 +814,7 @@ namespace oblo
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::uniform_buffer,
-                .stageFlags = VkShaderStageFlags(vkStage),
+                .stageFlags = stage,
             });
 
             collisionChecker.check(binding, uniformBuffer.name.c_str(), newPipeline.label);
@@ -1035,7 +838,7 @@ namespace oblo
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::storage_image,
-                .stageFlags = VkShaderStageFlags(vkStage),
+                .stageFlags = stage,
             });
 
             collisionChecker.check(binding, storageImage.name.c_str(), newPipeline.label);
@@ -1059,7 +862,7 @@ namespace oblo
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::sampled_image,
-                .stageFlags = VkShaderStageFlags(vkStage),
+                .stageFlags = stage,
             });
 
             collisionChecker.check(binding, sampledImage.name.c_str(), newPipeline.label);
@@ -1084,7 +887,7 @@ namespace oblo
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::separate_image,
-                .stageFlags = VkShaderStageFlags(vkStage),
+                .stageFlags = stage,
             });
 
             collisionChecker.check(binding, image.name.c_str(), newPipeline.label);
@@ -1095,7 +898,7 @@ namespace oblo
             const auto name = interner->get_or_add(pushConstant.name);
 
             auto [it, inserted] = newPipeline.pushConstants.emplace(name);
-            it->stages |= vkStage;
+            it->stages |= stage;
             it->size = 128; // We should figure if we can get the size from reflection instead
 
             const auto& type = compiler.get_type(pushConstant.base_type_id);
@@ -1123,14 +926,14 @@ namespace oblo
                 .location = location,
                 .binding = binding,
                 .kind = resource_kind::acceleration_structure,
-                .stageFlags = VkShaderStageFlags(vkStage),
+                .stageFlags = stage,
             });
 
             collisionChecker.check(binding, accelerationStructure.name.c_str(), newPipeline.label);
         }
     }
 
-    shader_compiler_options pass_manager::impl::make_compiler_options()
+    vk::shader_compiler_options pass_manager::impl::make_compiler_options()
     {
         return {
             .codeOptimization = enableShaderOptimizations,
@@ -1394,7 +1197,7 @@ namespace oblo
     pass_manager::pass_manager() = default;
     pass_manager::~pass_manager() = default;
 
-    void pass_manager::init(vulkan_context& vkContext,
+    void pass_manager::init(gpu::gpu_instance& gpu,
         string_interner& interner,
         const texture_registry& textureRegistry,
         const instance_data_type_registry& instanceDataTypeRegistry)
@@ -1403,15 +1206,14 @@ namespace oblo
 
         m_impl->frameAllocator.init(1u << 22);
 
-        m_impl->vkCtx = &vkContext;
-        m_impl->device = vkContext.get_device();
+        m_impl->gpu = &gpu;
         m_impl->interner = &interner;
 
         m_impl->textureRegistry = &textureRegistry;
 
         instanceDataTypeRegistry.generate_defines(m_impl->instanceDataDefines);
 
-        auto* compilerModule = module_manager::get().find<compiler_module>();
+        auto* compilerModule = module_manager::get().find<vk::compiler_module>();
         m_impl->glslcCompiler = compilerModule->make_glslc_compiler("./glslc");
         m_impl->glslangCompiler = compilerModule->make_glslang_compiler();
 
@@ -1422,149 +1224,121 @@ namespace oblo
         m_impl->shaderCache.init("./spirv");
 
         {
-            constexpr VkSamplerCreateInfo samplerInfo{
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-                .magFilter = VK_FILTER_LINEAR,
-                .minFilter = VK_FILTER_LINEAR,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            constexpr gpu::sampler_descriptor samplerInfo{
+                .magFilter = gpu::sampler_filter::linear,
+                .minFilter = gpu::sampler_filter::linear,
+                .mipmapMode = gpu::sampler_mipmap_mode::linear,
+                .addressModeU = gpu::sampler_address_mode::repeat,
+                .addressModeV = gpu::sampler_address_mode::repeat,
+                .addressModeW = gpu::sampler_address_mode::repeat,
                 .mipLodBias = 0.0f,
+                .anisotropyEnable = false,
                 .compareEnable = false,
-                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
-                .maxLod = VK_LOD_CLAMP_NONE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-                .unnormalizedCoordinates = false,
+                .maxLod = gpu::sampler_descriptor::lod_clamp_none,
+                .borderColor = gpu::border_color::int_opaque_black,
             };
 
-            vkCreateSampler(vkContext.get_device(),
-                &samplerInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[u32(sampler::linear_repeat)]);
+            m_impl->samplers[u32(sampler::linear_repeat)] = gpu.create_sampler(samplerInfo).value_or({});
+        }
+        {
+            constexpr gpu::sampler_descriptor samplerInfo{
+                .magFilter = gpu::sampler_filter::linear,
+                .minFilter = gpu::sampler_filter::linear,
+                .mipmapMode = gpu::sampler_mipmap_mode::linear,
+                .addressModeU = gpu::sampler_address_mode::clamp_to_edge,
+                .addressModeV = gpu::sampler_address_mode::clamp_to_edge,
+                .addressModeW = gpu::sampler_address_mode::clamp_to_edge,
+                .mipLodBias = 0.0f,
+                .anisotropyEnable = false,
+                .compareEnable = false,
+                .compareOp = gpu::compare_op::always,
+                .minLod = 0.0f,
+                .maxLod = gpu::sampler_descriptor::lod_clamp_none,
+                .borderColor = gpu::border_color::int_opaque_black,
+            };
+
+            m_impl->samplers[u32(sampler::linear_clamp_edge)] = gpu.create_sampler(samplerInfo).value_or({});
         }
 
         {
-            constexpr VkSamplerCreateInfo samplerInfo{
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-                .magFilter = VK_FILTER_LINEAR,
-                .minFilter = VK_FILTER_LINEAR,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+            constexpr gpu::sampler_descriptor samplerInfo{
+                .magFilter = gpu::sampler_filter::linear,
+                .minFilter = gpu::sampler_filter::linear,
+                .mipmapMode = gpu::sampler_mipmap_mode::linear,
+                .addressModeU = gpu::sampler_address_mode::clamp_to_border,
+                .addressModeV = gpu::sampler_address_mode::clamp_to_border,
+                .addressModeW = gpu::sampler_address_mode::clamp_to_border,
                 .mipLodBias = 0.0f,
+                .anisotropyEnable = false,
                 .compareEnable = false,
-                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
-                .maxLod = VK_LOD_CLAMP_NONE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-                .unnormalizedCoordinates = false,
+                .maxLod = gpu::sampler_descriptor::lod_clamp_none,
+                .borderColor = gpu::border_color::int_opaque_black,
             };
 
-            vkCreateSampler(vkContext.get_device(),
-                &samplerInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[u32(sampler::linear_clamp_edge)]);
+            m_impl->samplers[u32(sampler::linear_clamp_black)] = gpu.create_sampler(samplerInfo).value_or({});
         }
 
         {
-            constexpr VkSamplerCreateInfo samplerInfo{
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-                .magFilter = VK_FILTER_LINEAR,
-                .minFilter = VK_FILTER_LINEAR,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+            constexpr gpu::sampler_descriptor samplerInfo{
+                .magFilter = gpu::sampler_filter::linear,
+                .minFilter = gpu::sampler_filter::linear,
+                .mipmapMode = gpu::sampler_mipmap_mode::linear,
+                .addressModeU = gpu::sampler_address_mode::clamp_to_border,
+                .addressModeV = gpu::sampler_address_mode::clamp_to_border,
+                .addressModeW = gpu::sampler_address_mode::clamp_to_border,
                 .mipLodBias = 0.0f,
+                .anisotropyEnable = false,
                 .compareEnable = false,
-                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
-                .maxLod = VK_LOD_CLAMP_NONE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-                .unnormalizedCoordinates = false,
+                .maxLod = gpu::sampler_descriptor::lod_clamp_none,
+                .borderColor = gpu::border_color::int_opaque_white,
             };
 
-            vkCreateSampler(vkContext.get_device(),
-                &samplerInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[u32(sampler::linear_clamp_black)]);
+            m_impl->samplers[u32(sampler::linear_clamp_white)] = gpu.create_sampler(samplerInfo).value_or({});
         }
 
         {
-            constexpr VkSamplerCreateInfo samplerInfo{
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-                .magFilter = VK_FILTER_LINEAR,
-                .minFilter = VK_FILTER_LINEAR,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+            constexpr gpu::sampler_descriptor samplerInfo{
+                .magFilter = gpu::sampler_filter::nearest,
+                .minFilter = gpu::sampler_filter::nearest,
+                .mipmapMode = gpu::sampler_mipmap_mode::nearest,
+                .addressModeU = gpu::sampler_address_mode::repeat,
+                .addressModeV = gpu::sampler_address_mode::repeat,
+                .addressModeW = gpu::sampler_address_mode::repeat,
                 .mipLodBias = 0.0f,
+                .anisotropyEnable = false,
                 .compareEnable = false,
-                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
-                .maxLod = VK_LOD_CLAMP_NONE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_WHITE,
-                .unnormalizedCoordinates = false,
+                .maxLod = gpu::sampler_descriptor::lod_clamp_none,
             };
 
-            vkCreateSampler(vkContext.get_device(),
-                &samplerInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[u32(sampler::linear_clamp_white)]);
+            m_impl->samplers[u32(sampler::nearest)] = gpu.create_sampler(samplerInfo).value_or({});
         }
 
         {
-            constexpr VkSamplerCreateInfo samplerInfo{
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-                .magFilter = VK_FILTER_NEAREST,
-                .minFilter = VK_FILTER_NEAREST,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .mipLodBias = 0.0f,
-                .compareEnable = false,
-                .compareOp = VK_COMPARE_OP_ALWAYS,
-                .minLod = 0.0f,
-                .maxLod = VK_LOD_CLAMP_NONE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-                .unnormalizedCoordinates = false,
-            };
-
-            vkCreateSampler(vkContext.get_device(),
-                &samplerInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[u32(sampler::nearest)]);
-        }
-
-        {
-            constexpr VkSamplerCreateInfo samplerInfo{
-                .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-                .magFilter = VK_FILTER_LINEAR,
-                .minFilter = VK_FILTER_LINEAR,
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-                .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            constexpr gpu::sampler_descriptor samplerInfo{
+                .magFilter = gpu::sampler_filter::linear,
+                .minFilter = gpu::sampler_filter::linear,
+                .mipmapMode = gpu::sampler_mipmap_mode::linear,
+                .addressModeU = gpu::sampler_address_mode::repeat,
+                .addressModeV = gpu::sampler_address_mode::repeat,
+                .addressModeW = gpu::sampler_address_mode::repeat,
                 .mipLodBias = 0.0f,
                 .anisotropyEnable = true,
-                .maxAnisotropy = 16,
+                .maxAnisotropy = 16.0f,
                 .compareEnable = false,
-                .compareOp = VK_COMPARE_OP_ALWAYS,
+                .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
-                .maxLod = VK_LOD_CLAMP_NONE,
-                .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-                .unnormalizedCoordinates = false,
+                .maxLod = gpu::sampler_descriptor::lod_clamp_none,
             };
 
-            vkCreateSampler(vkContext.get_device(),
-                &samplerInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplers[u32(sampler::anisotropic)]);
+            m_impl->samplers[u32(sampler::anisotropic)] = gpu.create_sampler(samplerInfo).value_or({});
         }
 
         {
@@ -1651,75 +1425,44 @@ namespace oblo
                 &m_impl->textures2DSetLayout);
         }
 
-        const auto subgroupProperties = vkContext.get_physical_device_subgroup_properties();
-        m_impl->subgroupSize = subgroupProperties.subgroupSize;
-
-        m_impl->rtPipelineProperties = {.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
-
-        VkPhysicalDeviceProperties2 physicalProp2{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-            .pNext = &m_impl->rtPipelineProperties,
-        };
-
-        vkGetPhysicalDeviceProperties2(m_impl->vkCtx->get_physical_device(), &physicalProp2);
-
-#ifdef TRACY_ENABLE
-        m_impl->tracyCtx = tracy::CreateVkContext(m_impl->vkCtx->get_physical_device(),
-            m_impl->vkCtx->get_device(),
-            PFN_vkResetQueryPoolEXT(vkGetInstanceProcAddr(m_impl->vkCtx->get_instance(), "vkResetQueryPoolEXT")),
-            PFN_vkGetPhysicalDeviceCalibrateableTimeDomainsEXT(
-                vkGetInstanceProcAddr(m_impl->vkCtx->get_instance(), "vkGetPhysicalDeviceCalibrateableTimeDomainsEXT")),
-            PFN_vkGetCalibratedTimestampsEXT(
-                vkGetInstanceProcAddr(m_impl->vkCtx->get_instance(), "vkGetCalibratedTimestampsEXT")));
-#endif
+        const gpu::device_info& deviceInfo = gpu.get_device_info();
+        m_impl->subgroupSize = deviceInfo.subgroupSize;
     }
 
-    void pass_manager::shutdown(vulkan_context& vkContext)
+    void pass_manager::shutdown()
     {
         if (!m_impl)
         {
             return;
         }
 
-#ifdef TRACY_ENABLE
-        if (m_impl->tracyCtx)
+        gpu::gpu_instance& gpu = *m_impl->gpu;
+
+        for (const auto& renderPipeline : m_impl->renderPipelines.values())
         {
-            tracy::DestroyVkContext(m_impl->tracyCtx);
-            m_impl->tracyCtx = {};
+            destroy_pipeline(gpu, renderPipeline);
         }
-#endif
 
-        if (m_impl->vkCtx)
+        for (const auto& computePipeline : m_impl->computePipelines.values())
         {
-            for (const auto& renderPipeline : m_impl->renderPipelines.values())
-            {
-                destroy_pipeline(*m_impl->vkCtx, renderPipeline);
-            }
+            destroy_pipeline(gpu, computePipeline);
+        }
 
-            for (const auto& computePipeline : m_impl->computePipelines.values())
-            {
-                destroy_pipeline(*m_impl->vkCtx, computePipeline);
-            }
-
-            for (const auto& raytracingPipeline : m_impl->raytracingPipelines.values())
-            {
-                destroy_pipeline(*m_impl->vkCtx, raytracingPipeline);
-            }
+        for (const auto& raytracingPipeline : m_impl->raytracingPipelines.values())
+        {
+            destroy_pipeline(gpu, raytracingPipeline);
         }
 
         for (auto sampler : m_impl->samplers)
         {
             if (sampler)
             {
-                vkContext.destroy_deferred(sampler, vkContext.get_submit_index());
+                gpu->destroy_deferred(sampler, gpu.get_submit_index());
             }
         }
 
-        vkContext.destroy_deferred(m_impl->textures2DSetLayout, vkContext.get_submit_index());
-        vkContext.destroy_deferred(m_impl->samplersSetLayout, vkContext.get_submit_index());
-
-        m_impl->descriptorSetPool.shutdown(vkContext);
-        m_impl->texturesDescriptorSetPool.shutdown(vkContext);
+        gpu.destroy_deferred(m_impl->textures2DSetLayout, gpu.get_submit_index());
+        gpu.destroy_deferred(m_impl->samplersSetLayout, gpu.get_submit_index());
 
         m_impl.reset();
     }
@@ -1772,13 +1515,10 @@ namespace oblo
 
         renderPass.name = m_impl->interner->get_or_add(desc.name);
 
-        renderPass.stagesCount = 0;
-
         for (const auto& stage : desc.stages)
         {
-            renderPass.shaderSourcePath[renderPass.stagesCount] = stage.shaderSourcePath;
-            renderPass.stages[renderPass.stagesCount] = stage.stage;
-            ++renderPass.stagesCount;
+            renderPass.shaderSourcePath.emplace_back(stage.shaderSourcePath);
+            renderPass.stages.emplace_back(stage.stage);
 
             m_impl->add_watch(stage.shaderSourcePath, handle);
         }
@@ -1804,41 +1544,41 @@ namespace oblo
 
     namespace
     {
-        raytracing_stage deduce_rt_shader_stage(string_view p)
+        expected<gpu::shader_stage> deduce_rt_shader_stage(string_view p)
         {
             auto&& ext = filesystem::extension(p);
 
             if (ext == ".rgen")
             {
-                return raytracing_stage::generation;
+                return gpu::shader_stage::raygen;
             }
 
             if (ext == ".rint")
             {
-                return raytracing_stage::intersection;
+                return gpu::shader_stage::intersection;
             }
 
             if (ext == ".rahit")
             {
-                return raytracing_stage::any_hit;
+                return gpu::shader_stage::any_hit;
             }
 
             if (ext == ".rchit")
             {
-                return raytracing_stage::closest_hit;
+                return gpu::shader_stage::closest_hit;
             }
 
             if (ext == ".rmiss")
             {
-                return raytracing_stage::miss;
+                return gpu::shader_stage::miss;
             }
 
             if (ext == ".rcall")
             {
-                return raytracing_stage::callable;
+                return gpu::shader_stage::callable;
             }
 
-            unreachable();
+            return "Unrecognized file extension"_err;
         }
     }
 
@@ -1851,20 +1591,29 @@ namespace oblo
 
         renderPass.name = m_impl->interner->get_or_add(desc.name);
 
+        constexpr u32 noShader = ~u32{};
+
         const auto appendShader = [&](string_view source)
         {
             if (!source.empty())
             {
+                const expected stage = deduce_rt_shader_stage(source);
+
+                if (!stage)
+                {
+                    return noShader;
+                }
+
                 const auto size = renderPass.shaderSourcePaths.size();
                 renderPass.shaderSourcePaths.push_back(source.as<string>());
-                renderPass.shaderStages.push_back(deduce_rt_shader_stage(source));
+                renderPass.shaderStages.push_back(*stage);
 
                 m_impl->add_watch(source, handle);
 
                 return u32(size);
             }
 
-            return ~u32{};
+            return noShader;
         };
 
         renderPass.generation = appendShader(desc.generation);
@@ -1895,8 +1644,8 @@ namespace oblo
         }
 
         renderPass.shadersCount = narrow_cast<u32>(renderPass.shaderSourcePaths.size());
-        renderPass.groupsCount = u32{renderPass.generation != VK_SHADER_UNUSED_KHR} + u32(renderPass.miss.size()) +
-            u32(desc.hitGroups.size());
+        renderPass.groupsCount =
+            u32{renderPass.generation != noShader} + u32(renderPass.miss.size()) + u32(desc.hitGroups.size());
 
         return handle;
     }
@@ -1913,7 +1662,7 @@ namespace oblo
             return {};
         }
 
-        poll_hot_reloading(*m_impl->interner, *m_impl->vkCtx, *renderPass, m_impl->renderPipelines);
+        poll_hot_reloading(*m_impl->interner, *m_impl->gpu, *renderPass, m_impl->renderPipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -1936,9 +1685,21 @@ namespace oblo
 
         newPipeline.init(m_impl->interner->c_str(renderPass->name));
 
+        buffered_array<h32<gpu::shader_module>, 4> shaderModules;
+
+        // Destroy the modules at the end, whether we succeed or not
+        const auto cleanup = finally(
+            [this, &shaderModules]
+            {
+                for (const h32 module : shaderModules)
+                {
+                    m_impl->gpu->destroy(module);
+                }
+            });
+
         const auto failure = [this, &newPipeline, pipelineHandle, renderPass, expectedHash]
         {
-            destroy_pipeline(*m_impl->vkCtx, newPipeline);
+            destroy_pipeline(*m_impl->gpu, newPipeline);
             m_impl->renderPipelines.erase(pipelineHandle);
             // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             renderPass->variants.emplace_back().hash = expectedHash;
@@ -1946,12 +1707,11 @@ namespace oblo
             return h32<render_pipeline>{};
         };
 
-        VkPipelineShaderStageCreateInfo stageCreateInfo[MaxPipelineStages]{};
-        u32 actualStagesCount{0};
+        buffered_array<gpu::graphics_pipeline_stage, 4> stageCreateInfo;
 
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
+        const vk::shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
 
         string_view builtInDefines[2]{"OBLO_PIPELINE_RENDER"};
 
@@ -1959,18 +1719,17 @@ namespace oblo
 
         deque<string_view> sourceFiles;
 
-        for (u8 stageIndex = 0; stageIndex < renderPass->stagesCount; ++stageIndex)
+        for (usize stageIndex = 0; stageIndex < renderPass->stages.size(); ++stageIndex)
         {
-            const auto pipelineStage = renderPass->stages[stageIndex];
-            const auto vkStage = to_vulkan_stage_bits(pipelineStage);
+            const gpu::shader_stage shaderStage = renderPass->stages[stageIndex];
 
             const auto& filePath = renderPass->shaderSourcePath[stageIndex];
 
-            builtInDefines[1] = get_define_from_stage(pipelineStage);
+            builtInDefines[1] = get_define_from_stage(shaderStage);
 
-            shader_compiler::result compilerResult;
+            vk::shader_compiler::result compilerResult;
 
-            const auto shaderModule = m_impl->create_shader_module(vkStage,
+            const auto shaderModule = m_impl->create_shader_module(shaderStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
@@ -1992,18 +1751,15 @@ namespace oblo
                 newPipeline.hasPrintfInclude |= is_printf_include(include);
             }
 
-            newPipeline.shaderModules[stageIndex] = shaderModule;
+            shaderModules.emplace_back(shaderModule);
 
-            stageCreateInfo[actualStagesCount] = {
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = vkStage,
-                .module = shaderModule,
-                .pName = "main",
-            };
+            stageCreateInfo.push_back({
+                .stage = shaderStage,
+                .shaderModule = shaderModule,
+                .entryFunction = "main",
+            });
 
-            m_impl->create_reflection(newPipeline, vkStage, compilerResult.get_spirv(), vertexInputReflection);
-
-            ++actualStagesCount;
+            m_impl->create_reflection(newPipeline, shaderStage, compilerResult.get_spirv(), vertexInputReflection);
         }
 
         if (!m_impl->create_pipeline_layout(newPipeline))
@@ -2011,7 +1767,7 @@ namespace oblo
             return failure();
         }
 
-        static_assert(sizeof(VkFormat) == sizeof(texture_format), "We rely on this when reinterpret casting");
+        static_assert(sizeof(VkFormat) == sizeof(gpu::image_format), "We rely on this when reinterpret casting");
 
         const u32 numAttachments = u32(desc.renderTargets.colorAttachmentFormats.size());
 

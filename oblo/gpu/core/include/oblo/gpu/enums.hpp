@@ -520,6 +520,16 @@ namespace oblo::gpu
         mirror_clamp_to_edge,
     };
 
+    enum class border_color : u8
+    {
+        float_transparent_black,
+        int_transparent_black,
+        float_opaque_black,
+        int_opaque_black,
+        float_opaque_white,
+        int_opaque_white,
+    };
+
     enum class sampler_filter : u8
     {
         nearest,

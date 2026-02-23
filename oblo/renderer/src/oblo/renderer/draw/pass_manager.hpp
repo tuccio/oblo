@@ -5,8 +5,9 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
 
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include <span>
 
@@ -26,7 +27,6 @@ namespace oblo
 {
     class instance_data_type_registry;
     class texture_registry;
-    class vulkan_context;
     struct base_pipeline;
     struct bindable_object;
     struct compute_pass;
@@ -60,12 +60,12 @@ namespace oblo
         pass_manager& operator=(pass_manager&&) noexcept = delete;
         ~pass_manager();
 
-        void init(vulkan_context& vkContext,
+        void init(gpu::gpu_instance& gpu,
             string_interner& interner,
             const texture_registry& textureRegistry,
             const instance_data_type_registry& instanceDataTypeRegistry);
 
-        void shutdown(vulkan_context& vkContext);
+        void shutdown();
 
         void set_system_include_paths(std::span<const string_view> paths);
         void set_raytracing_enabled(bool isRayTracingEnabled);

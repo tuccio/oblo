@@ -1197,12 +1197,12 @@ namespace oblo::gpu::vk
             .mipLodBias = descriptor.mipLodBias,
             .anisotropyEnable = descriptor.anisotropyEnable ? VK_TRUE : VK_FALSE,
             .maxAnisotropy = descriptor.maxAnisotropy,
-            .compareEnable = VK_FALSE,
-            .compareOp = VK_COMPARE_OP_ALWAYS,
+            .compareEnable = descriptor.compareEnable,
+            .compareOp = convert_enum(descriptor.compareOp),
             .minLod = descriptor.minLod,
             .maxLod = descriptor.maxLod,
-            .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-            .unnormalizedCoordinates = VK_FALSE,
+            .borderColor = convert_enum(descriptor.borderColor),
+            .unnormalizedCoordinates = descriptor.unnormalizedCoordinates,
         };
 
         VkSampler vkSampler;

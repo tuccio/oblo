@@ -19,6 +19,8 @@ namespace oblo::gpu
 {
     struct sampler_descriptor
     {
+        static constexpr f32 lod_clamp_none = 1000.f;
+
         sampler_filter magFilter;
         sampler_filter minFilter;
         sampler_mipmap_mode mipmapMode;
@@ -28,8 +30,12 @@ namespace oblo::gpu
         f32 mipLodBias;
         bool anisotropyEnable;
         f32 maxAnisotropy;
+        bool compareEnable;
+        compare_op compareOp;
         f32 minLod;
         f32 maxLod;
+        border_color borderColor;
+        bool unnormalizedCoordinates;
         debug_label debugLabel = std::source_location::current();
     };
 
@@ -293,7 +299,7 @@ namespace oblo::gpu
     struct shader_module_descriptor
     {
         shader_module_format format;
-        std::span<const u8> data;
+        std::span<const byte> data;
     };
 
     struct swapchain_descriptor

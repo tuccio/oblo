@@ -436,11 +436,14 @@ namespace oblo
                         },
                     };
 
-                    const gpu::graphics_pipeline_descriptor desc{.stages = stages,
+                    const gpu::graphics_pipeline_descriptor desc{
+                        .stages = stages,
                         .renderTargets = targets,
-                        .rasterizationState = {
-                            .lineWidth = 1.f,
-                        }};
+                        .rasterizationState =
+                            {
+                                .lineWidth = 1.f,
+                            },
+                    };
 
                     const expected r = m_gpu->create_graphics_pipeline(desc);
                     m_renderPipeline = r.value_or({});

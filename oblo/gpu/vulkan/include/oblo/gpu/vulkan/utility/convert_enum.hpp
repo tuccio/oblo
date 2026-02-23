@@ -179,16 +179,60 @@ namespace oblo::gpu::vk
         }
     }
 
+    inline VkCompareOp convert_enum(compare_op op)
+    {
+        switch (op)
+        {
+        case compare_op::never:
+            return VK_COMPARE_OP_NEVER;
+        case compare_op::less:
+            return VK_COMPARE_OP_LESS;
+        case compare_op::equal:
+            return VK_COMPARE_OP_EQUAL;
+        case compare_op::less_or_equal:
+            return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case compare_op::greater:
+            return VK_COMPARE_OP_GREATER;
+        case compare_op::not_equal:
+            return VK_COMPARE_OP_NOT_EQUAL;
+        case compare_op::greater_or_equal:
+            return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case compare_op::always:
+            return VK_COMPARE_OP_ALWAYS;
+        default:
+            unreachable();
+        }
+    }
+
+    constexpr VkBorderColor convert_enum(gpu::border_color c) noexcept
+    {
+        switch (c)
+        {
+        case gpu::border_color::float_transparent_black:
+            return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        case gpu::border_color::int_transparent_black:
+            return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+        case gpu::border_color::float_opaque_black:
+            return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+        case gpu::border_color::int_opaque_black:
+            return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        case gpu::border_color::float_opaque_white:
+            return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        case gpu::border_color::int_opaque_white:
+            return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+        default:
+            unreachable();
+        }
+    }
+
     inline VkMemoryPropertyFlagBits convert_enum(memory_requirement r)
     {
         switch (r)
         {
         case memory_requirement::host_visible:
             return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-
         case memory_requirement::device_local:
             return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
         default:
             unreachable();
         }
