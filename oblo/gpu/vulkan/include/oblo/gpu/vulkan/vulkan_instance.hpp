@@ -89,17 +89,17 @@ namespace oblo::gpu::vk
         result<h32<shader_module>> create_shader_module(const shader_module_descriptor& descriptor) override;
         void destroy_shader_module(h32<shader_module> handle) override;
 
-        result<h32<render_pipeline>> create_render_pipeline(const render_pipeline_descriptor& descriptor) override;
-        void destroy_render_pipeline(h32<render_pipeline> handle) override;
+        result<h32<graphics_pipeline>> create_graphics_pipeline(const graphics_pipeline_descriptor& descriptor) override;
+        void destroy_graphics_pipeline(h32<graphics_pipeline> handle) override;
 
         result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) override;
         void destroy_sampler(h32<sampler> handle) override;
 
-        result<hptr<render_pass>> begin_render_pass(hptr<command_buffer> cmdBuffer,
-            h32<render_pipeline> pipeline,
-            const render_pass_descriptor& descriptor) override;
+        result<hptr<graphics_pass>> begin_graphics_pass(hptr<command_buffer> cmdBuffer,
+            h32<graphics_pipeline> pipeline,
+            const graphics_pass_descriptor& descriptor) override;
 
-        void end_render_pass(hptr<command_buffer> cmdBuffer, hptr<render_pass> renderPass) override;
+        void end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass> renderPass) override;
 
         result<h32<bindless_image>> acquire_bindless(h32<image> optImage) override;
         result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) override;
@@ -177,7 +177,7 @@ namespace oblo::gpu::vk
         struct image_impl;
         struct image_pool_impl;
         struct queue_impl;
-        struct render_pipeline_impl;
+        struct graphics_pipeline_impl;
         struct sampler_impl;
         struct shader_module_impl;
         struct swapchain_impl;
@@ -210,7 +210,7 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<shader_module, shader_module_impl> m_shaderModules;
         h32_flat_pool_dense_map<sampler, sampler_impl> m_samplers;
         h32_flat_pool_dense_map<bind_group_layout, bind_group_layout_impl> m_bindGroupLayouts;
-        h32_flat_pool_dense_map<render_pipeline, render_pipeline_impl> m_renderPipelines;
+        h32_flat_pool_dense_map<graphics_pipeline, graphics_pipeline_impl> m_renderPipelines;
 
         descriptor_set_pool m_descriptorSetPool;
 

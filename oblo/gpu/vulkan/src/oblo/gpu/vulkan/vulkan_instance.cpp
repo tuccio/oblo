@@ -210,7 +210,7 @@ namespace oblo::gpu::vk
         }
     }
 
-    struct vulkan_instance::render_pipeline_impl final : pipeline_base
+    struct vulkan_instance::graphics_pipeline_impl final : pipeline_base
     {
         VkPipeline pipeline;
         VkPipelineLayout pipelineLayout;
@@ -1204,11 +1204,11 @@ namespace oblo::gpu::vk
         m_samplers.erase(handle);
     }
 
-    result<h32<render_pipeline>> vulkan_instance::create_render_pipeline(const render_pipeline_descriptor& desc)
+    result<h32<graphics_pipeline>> vulkan_instance::create_graphics_pipeline(const graphics_pipeline_descriptor& desc)
     {
         const auto [newPipeline, handle] = m_renderPipelines.emplace();
 
-        auto cleanup = finally_if_not_cancelled([this, handle] { destroy_render_pipeline(handle); });
+        auto cleanup = finally_if_not_cancelled([this, handle] { destroy_graphics_pipeline(handle); });
 
         buffered_array<VkDescriptorSetLayout, 4> descriptorSetLayouts;
 
@@ -1446,7 +1446,7 @@ namespace oblo::gpu::vk
         return handle;
     }
 
-    void vulkan_instance::destroy_render_pipeline(h32<render_pipeline> handle)
+    void vulkan_instance::destroy_graphics_pipeline(h32<graphics_pipeline> handle)
     {
         auto& pipeline = m_renderPipelines.at(handle);
         destroy_pipeline_base(pipeline, m_device, m_allocator.get_allocation_callbacks());
@@ -1456,7 +1456,7 @@ namespace oblo::gpu::vk
     namespace
     {
         VkRenderingAttachmentInfo make_rendering_attachment_info(
-            VkImageView imageView, VkImageLayout layout, const render_attachment& attachment)
+            VkImageView imageView, VkImageLayout layout, const graphics_attachment& attachment)
         {
             return {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -1469,8 +1469,8 @@ namespace oblo::gpu::vk
         }
     }
 
-    result<hptr<render_pass>> vulkan_instance::begin_render_pass(
-        hptr<command_buffer> cmdBuffer, h32<render_pipeline> pipeline, const render_pass_descriptor& descriptor)
+    result<hptr<graphics_pass>> vulkan_instance::begin_graphics_pass(
+        hptr<command_buffer> cmdBuffer, h32<graphics_pipeline> pipeline, const graphics_pass_descriptor& descriptor)
     {
         auto* const p = m_renderPipelines.try_find(pipeline);
 
@@ -1534,10 +1534,10 @@ namespace oblo::gpu::vk
         // TODO: Bind descriptors
         // TODO: Returning an empty handle for now, we might want context in some cases, e.g. with profiling active
 
-        return hptr<render_pass>{};
+        return hptr<graphics_pass>{};
     }
 
-    void vulkan_instance::end_render_pass(hptr<command_buffer> cmdBuffer, hptr<render_pass>)
+    void vulkan_instance::end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass>)
     {
         vkCmdEndRendering(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }

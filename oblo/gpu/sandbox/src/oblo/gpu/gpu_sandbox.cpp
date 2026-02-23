@@ -307,7 +307,7 @@ namespace oblo
                 m_gpu->cmd_apply_barriers(cmd, barriers);
             }
 
-            const gpu::render_attachment colorAttachments[1] = {{
+            const gpu::graphics_attachment colorAttachments[1] = {{
                 .image = swapchainImage,
                 .loadOp = gpu::attachment_load_op::clear,
                 .storeOp = gpu::attachment_store_op::store,
@@ -317,12 +317,12 @@ namespace oblo
                     },
             }};
 
-            const gpu::render_pass_descriptor renderPassDesc{
+            const gpu::graphics_pass_descriptor renderPassDesc{
                 .renderResolution = resolution,
                 .colorAttachments = colorAttachments,
             };
 
-            if (const auto r = m_gpu->begin_render_pass(cmd, m_renderPipeline, renderPassDesc))
+            if (const auto r = m_gpu->begin_graphics_pass(cmd, m_renderPipeline, renderPassDesc))
             {
                 const gpu::rectangle rect[1] = {
                     {.x = 0, .y = 0, .width = resolution.x, .height = resolution.y},
@@ -331,7 +331,7 @@ namespace oblo
                 m_gpu->cmd_set_viewport(cmd, 0, rect, 0.f, 1.f);
                 m_gpu->cmd_set_scissor(cmd, 0, rect);
                 m_gpu->cmd_draw(cmd, 3, 1, 0, 0);
-                m_gpu->end_render_pass(cmd, *r);
+                m_gpu->end_graphics_pass(cmd, *r);
             }
 
             {
@@ -397,12 +397,12 @@ namespace oblo
                     const gpu::image_format rtFormats[1] = {gpu::image_format::b8g8r8a8_unorm};
                     const gpu::color_blend_attachment_state blendStates[1] = {{.enable = false}};
 
-                    const gpu::render_pass_targets targets{
+                    const gpu::graphics_pass_targets targets{
                         .colorAttachmentFormats = rtFormats,
                         .blendStates = blendStates,
                     };
 
-                    const gpu::render_pipeline_stage stages[] = {
+                    const gpu::graphics_pipeline_stage stages[] = {
                         {
                             .stage = gpu::shader_stage::vertex,
                             .shaderModule = vertex,
@@ -415,13 +415,13 @@ namespace oblo
                         },
                     };
 
-                    const gpu::render_pipeline_descriptor desc{.stages = stages,
+                    const gpu::graphics_pipeline_descriptor desc{.stages = stages,
                         .renderTargets = targets,
                         .rasterizationState = {
                             .lineWidth = 1.f,
                         }};
 
-                    const expected r = m_gpu->create_render_pipeline(desc);
+                    const expected r = m_gpu->create_graphics_pipeline(desc);
                     m_renderPipeline = r.value_or({});
                 }
 
@@ -450,7 +450,7 @@ namespace oblo
         h32<gpu::swapchain> m_swapchain{};
         h32<gpu::semaphore> m_semaphores[num_swapchain_images]{};
         h32<gpu::command_buffer_pool> m_commandBufferPools[num_swapchain_images]{};
-        h32<gpu::render_pipeline> m_renderPipeline{};
+        h32<gpu::graphics_pipeline> m_renderPipeline{};
     };
 }
 

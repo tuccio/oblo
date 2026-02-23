@@ -156,7 +156,7 @@ namespace oblo::gpu
         std::span<const h32<semaphore>> signalSemaphores;
     };
 
-    struct render_pipeline_stage
+    struct graphics_pipeline_stage
     {
         shader_stage stage;
         h32<shader_module> shaderModule;
@@ -176,7 +176,7 @@ namespace oblo::gpu
             color_component::r | color_component::g | color_component::b | color_component::a;
     };
 
-    struct render_pass_targets
+    struct graphics_pass_targets
     {
         std::span<const image_format> colorAttachmentFormats;
         image_format depthFormat{image_format::undefined};
@@ -224,14 +224,14 @@ namespace oblo::gpu
         f32 lineWidth;
     };
 
-    struct render_pipeline_descriptor
+    struct graphics_pipeline_descriptor
     {
-        std::span<const render_pipeline_stage> stages;
+        std::span<const graphics_pipeline_stage> stages;
         std::span<const vertex_input_binding_descriptor> vertexInputBindings;
         std::span<const vertex_input_attribute_descriptor> vertexInputAttributes;
         std::span<const push_constant_range> pushConstants;
         std::span<const h32<bind_group_layout>> bindGroupLayouts;
-        render_pass_targets renderTargets;
+        graphics_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
         primitive_topology primitiveTopology{primitive_topology::triangle_list};
@@ -255,7 +255,7 @@ namespace oblo::gpu
         clear_depth_stencil_value depthStencil;
     };
 
-    struct render_attachment
+    struct graphics_attachment
     {
         h32<image> image;
         attachment_load_op loadOp;
@@ -263,14 +263,14 @@ namespace oblo::gpu
         clear_value clearValue;
     };
 
-    struct render_pass_descriptor
+    struct graphics_pass_descriptor
     {
         vec2i renderOffset;
         vec2u renderResolution;
 
-        std::span<const render_attachment> colorAttachments;
-        std::optional<render_attachment> depthAttachment;
-        std::optional<render_attachment> stencilAttachment;
+        std::span<const graphics_attachment> colorAttachments;
+        std::optional<graphics_attachment> depthAttachment;
+        std::optional<graphics_attachment> stencilAttachment;
     };
 
     struct semaphore_descriptor
