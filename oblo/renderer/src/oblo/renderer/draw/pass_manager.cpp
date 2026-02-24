@@ -322,7 +322,7 @@ namespace oblo
         dynamic_array<descriptor_binding> descriptorSetBindings;
         flat_dense_map<h32<string>, push_constant_info> pushConstants;
 
-        VkDescriptorSetLayout descriptorSetLayout{};
+        h32<gpu::bind_group_layout> descriptorSetLayout{};
 
         bool requiresTextures2D{};
         bool hasPrintfInclude{};
@@ -445,8 +445,8 @@ namespace oblo
         h32<gpu::bind_group_layout> samplersSetLayout{};
         h32<gpu::bind_group_layout> textures2DSetLayout{};
 
-        h32<gpu::bind_group> currentSamplersDescriptor{};
-        h32<gpu::bind_group> currentTextures2DDescriptor{};
+        hptr<gpu::bind_group> currentSamplersDescriptor{};
+        hptr<gpu::bind_group> currentTextures2DDescriptor{};
 
         h32<gpu::sampler> samplers[u32(sampler::enum_max)]{};
 
@@ -485,8 +485,9 @@ namespace oblo
             std::span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
 
-        VkDescriptorSet create_descriptor_set(
-            VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn findBinding);
+        hptr<gpu::bind_group> create_descriptor_set(h32<gpu::bind_group_layout> descriptorSetLayout,
+            const base_pipeline& pipeline,
+            locate_binding_fn findBinding);
 
         vk::shader_compiler_options make_compiler_options();
 
@@ -1016,8 +1017,8 @@ namespace oblo
         }
     }
 
-    VkDescriptorSet pass_manager::impl::create_descriptor_set(
-        VkDescriptorSetLayout descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn locateBinding)
+    hptr<gpu::bind_group> pass_manager::impl::create_descriptor_set(
+        h32<gpu::bind_group_layout> descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn locateBinding)
     {
         const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
 
@@ -2624,83 +2625,70 @@ namespace oblo
     }
 
     void pass_manager::push_constants(
-        const render_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
+        const render_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, std::span<const byte> data) const
     {
-        vkCmdPushConstants(ctx.commandBuffer,
-            ctx.internalPipeline->pipelineLayout,
-            stages,
-            offset,
-            u32(data.size()),
-            data.data());
+        m_impl->gpu->cmd_push_constants(ctx.commandBuffer, ctx.internalPipeline->pipeline, stages, offset, data);
     }
 
     void pass_manager::push_constants(
-        const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
+        const compute_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, std::span<const byte> data) const
     {
-        vkCmdPushConstants(ctx.commandBuffer,
-            ctx.internalPipeline->pipelineLayout,
-            stages,
-            offset,
-            u32(data.size()),
-            data.data());
+        m_impl->gpu->cmd_push_constants(ctx.commandBuffer, ctx.internalPipeline->pipeline, stages, offset, data);
     }
 
-    void pass_manager::push_constants(
-        const raytracing_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const
-    {
-        vkCmdPushConstants(ctx.commandBuffer,
-            ctx.internalPipeline->pipelineLayout,
-            stages,
-            offset,
-            u32(data.size()),
-            data.data());
-    }
-
-    void pass_manager::push_constants(hptr<gpu::command_buffer> commandBuffer,
-        const base_pipeline& pipeline,
-        VkShaderStageFlags stages,
+    void pass_manager::push_constants(const raytracing_pass_context& ctx,
+        flags<gpu::shader_stage> stages,
         u32 offset,
         std::span<const byte> data) const
     {
-        vkCmdPushConstants(commandBuffer, pipeline.pipelineLayout, stages, offset, u32(data.size()), data.data());
+        m_impl->gpu->cmd_push_constants(ctx.commandBuffer, ctx.internalPipeline->pipeline, stages, offset, data);
     }
 
-    void pass_manager::bind_descriptor_sets(hptr<gpu::command_buffer> commandBuffer,
-        VkPipelineBindPoint bindPoint,
-        const base_pipeline& pipeline,
-        function_ref<bindable_object(const descriptor_binding&)> locateBinding) const
+    void pass_manager::bind_descriptor_sets(const render_pass_context& ctx, const locate_binding_fn locateBinding) const
     {
-        if (const auto descriptorSetLayout = pipeline.descriptorSetLayout)
+        if (const auto bindGroupLayout = ctx.internalPipeline->descriptorSetLayout)
         {
-            const VkDescriptorSet descriptorSet =
-                m_impl->create_descriptor_set(descriptorSetLayout, pipeline, locateBinding);
+            const hptr<gpu::bind_group> bindGroup =
+                m_impl->create_descriptor_set(bindGroupLayout, *ctx.internalPipeline, locateBinding);
 
-            vkCmdBindDescriptorSets(commandBuffer,
-                bindPoint,
-                pipeline.pipelineLayout,
-                0,
-                1,
-                &descriptorSet,
-                0,
-                nullptr);
+            m_impl->gpu->cmd_bind_groups(ctx.commandBuffer,
+                ctx.internalPipeline->pipeline,
+                0u,
+                std::span{&bindGroup, 1u});
+        }
+    }
+
+    void pass_manager::bind_descriptor_sets(const compute_pass_context& ctx, locate_binding_fn locateBinding) const
+    {
+        if (const auto bindGroupLayout = ctx.internalPipeline->descriptorSetLayout)
+        {
+            const hptr<gpu::bind_group> bindGroup =
+                m_impl->create_descriptor_set(bindGroupLayout, *ctx.internalPipeline, locateBinding);
+
+            m_impl->gpu->cmd_bind_groups(ctx.commandBuffer,
+                ctx.internalPipeline->pipeline,
+                0u,
+                std::span{&bindGroup, 1u});
+        }
+    }
+
+    void pass_manager::bind_descriptor_sets(const raytracing_pass_context& ctx, locate_binding_fn locateBinding) const
+    {
+        if (const auto bindGroupLayout = ctx.internalPipeline->descriptorSetLayout)
+        {
+            const hptr<gpu::bind_group> bindGroup =
+                m_impl->create_descriptor_set(bindGroupLayout, *ctx.internalPipeline, locateBinding);
+
+            m_impl->gpu->cmd_bind_groups(ctx.commandBuffer,
+                ctx.internalPipeline->pipeline,
+                0u,
+                std::span{&bindGroup, 1u});
         }
     }
 
     void pass_manager::trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const
     {
-        m_impl->gpu->cmd_trace_rays(ctx.commandBuffer, ctx.internalCtx) const auto& vkFn =
-            m_impl->vkCtx->get_loaded_functions();
-
-        const auto& pipeline = *ctx.internalPipeline;
-
-        vkFn.vkCmdTraceRaysKHR(ctx.commandBuffer,
-            &pipeline.rayGen,
-            &pipeline.miss,
-            &pipeline.hit,
-            &pipeline.callable,
-            width,
-            height,
-            depth);
+        m_impl->gpu->cmd_trace_rays(ctx.commandBuffer, ctx.pass, width, height, depth);
     }
 
     const base_pipeline* pass_manager::get_base_pipeline(const compute_pipeline* pipeline) const

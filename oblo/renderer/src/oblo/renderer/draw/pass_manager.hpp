@@ -111,16 +111,11 @@ namespace oblo
             u32 offset,
             std::span<const byte> data) const;
 
-        void push_constants(hptr<gpu::command_buffer> commandBuffer,
-            const base_pipeline& pipeline,
-            flags<gpu::shader_stage> stages,
-            u32 offset,
-            std::span<const byte> data) const;
+        void bind_descriptor_sets(const render_pass_context& ctx, locate_binding_fn locateBinding) const;
 
-        void bind_descriptor_sets(hptr<gpu::command_buffer> commandBuffer,
-            VkPipelineBindPoint bindPoint,
-            const base_pipeline& pipeline,
-            locate_binding_fn locateBinding) const;
+        void bind_descriptor_sets(const compute_pass_context& ctx, locate_binding_fn locateBinding) const;
+
+        void bind_descriptor_sets(const raytracing_pass_context& ctx, locate_binding_fn locateBinding) const;
 
         void trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const;
 
