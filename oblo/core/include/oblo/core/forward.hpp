@@ -7,6 +7,7 @@ namespace oblo
     class hashed_string_view;
     class string;
     class string_builder;
+    class string_interner;
     class string_view;
 
     template <typename T>

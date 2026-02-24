@@ -2343,6 +2343,115 @@ namespace oblo::gpu::vk
         vkCmdSetScissor(unwrap_handle<VkCommandBuffer>(cmd), firstScissor, vkRects.size32(), vkRects.data());
     }
 
+    namespace
+    {
+        void bind_descriptor_sets(const pipeline_base& base,
+            VkCommandBuffer cmd,
+            VkPipelineBindPoint bindPoint,
+            u32 firstSet,
+            std::span<const hptr<bind_group>> bindGroups)
+        {
+            vkCmdBindDescriptorSets(cmd,
+                bindPoint,
+                base.pipelineLayout,
+                firstSet,
+                u32(bindGroups.size()),
+                reinterpret_cast<const VkDescriptorSet*>(bindGroups.data()),
+                0,
+                nullptr);
+        }
+    }
+
+    void vulkan_instance::cmd_bind_groups(hptr<command_buffer> cmd,
+        h32<graphics_pipeline> pipeline,
+        u32 firstSet,
+        std::span<const hptr<bind_group>> bindGroups)
+    {
+        auto& pipelineImpl = m_renderPipelines.at(pipeline);
+
+        bind_descriptor_sets(pipelineImpl,
+            unwrap_handle<VkCommandBuffer>(cmd),
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            firstSet,
+            bindGroups);
+    }
+
+    void vulkan_instance::cmd_bind_groups(hptr<command_buffer> cmd,
+        h32<compute_pipeline> pipeline,
+        u32 firstSet,
+        std::span<const hptr<bind_group>> bindGroups)
+    {
+        auto& pipelineImpl = m_computePipelines.at(pipeline);
+
+        bind_descriptor_sets(pipelineImpl,
+            unwrap_handle<VkCommandBuffer>(cmd),
+            VK_PIPELINE_BIND_POINT_COMPUTE,
+            firstSet,
+            bindGroups);
+    }
+
+    void vulkan_instance::cmd_bind_groups(hptr<command_buffer> cmd,
+        h32<raytracing_pipeline> pipeline,
+        u32 firstSet,
+        std::span<const hptr<bind_group>> bindGroups)
+    {
+        auto& pipelineImpl = m_raytracingPipelines.at(pipeline);
+
+        bind_descriptor_sets(pipelineImpl,
+            unwrap_handle<VkCommandBuffer>(cmd),
+            VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+            firstSet,
+            bindGroups);
+    }
+
+    void vulkan_instance::cmd_push_constants(hptr<command_buffer> cmd,
+        h32<graphics_pipeline> pipeline,
+        flags<shader_stage> shaderStages,
+        u32 offset,
+        std::span<const byte> data)
+    {
+        auto& pipelineImpl = m_renderPipelines.at(pipeline);
+
+        vkCmdPushConstants(unwrap_handle<VkCommandBuffer>(cmd),
+            pipelineImpl.pipelineLayout,
+            convert_enum_flags(shaderStages),
+            offset,
+            u32(data.size()),
+            data.data());
+    }
+
+    void vulkan_instance::cmd_push_constants(hptr<command_buffer> cmd,
+        h32<compute_pipeline> pipeline,
+        flags<shader_stage> shaderStages,
+        u32 offset,
+        std::span<const byte> data)
+    {
+        auto& pipelineImpl = m_computePipelines.at(pipeline);
+
+        vkCmdPushConstants(unwrap_handle<VkCommandBuffer>(cmd),
+            pipelineImpl.pipelineLayout,
+            convert_enum_flags(shaderStages),
+            offset,
+            u32(data.size()),
+            data.data());
+    }
+
+    void vulkan_instance::cmd_push_constants(hptr<command_buffer> cmd,
+        h32<raytracing_pipeline> pipeline,
+        flags<shader_stage> shaderStages,
+        u32 offset,
+        std::span<const byte> data)
+    {
+        auto& pipelineImpl = m_raytracingPipelines.at(pipeline);
+
+        vkCmdPushConstants(unwrap_handle<VkCommandBuffer>(cmd),
+            pipelineImpl.pipelineLayout,
+            convert_enum_flags(shaderStages),
+            offset,
+            u32(data.size()),
+            data.data());
+    }
+
     void vulkan_instance::cmd_label_begin(hptr<command_buffer> cmd, const char* label)
     {
         m_cmdLabeler.begin(unwrap_handle<VkCommandBuffer>(cmd), label);

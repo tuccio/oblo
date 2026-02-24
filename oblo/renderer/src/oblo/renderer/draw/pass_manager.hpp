@@ -1,27 +1,18 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
+#include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/unique_ptr.hpp>
-#include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/forward.hpp>
 
 #include <vulkan/vulkan_core.h>
 
 #include <span>
-
-namespace oblo
-{
-    class string;
-    class string_interner;
-
-    template <typename T>
-    struct flat_key_extractor;
-
-    template <typename>
-    class function_ref;
-}
 
 namespace oblo
 {
@@ -80,48 +71,53 @@ namespace oblo
         h32<raytracing_pipeline> get_or_create_pipeline(h32<raytracing_pass> handle,
             const raytracing_pipeline_initializer& desc);
 
-        void begin_frame(VkCommandBuffer commandBuffer);
+        void begin_frame(hptr<gpu::command_buffer> commandBuffer);
         void end_frame();
         void update_global_descriptor_sets();
 
         bool is_profiling_enabled() const;
         void set_profiling_enabled(bool enabled);
 
-        [[nodiscard]] expected<render_pass_context> begin_render_pass(
-            VkCommandBuffer commandBuffer, h32<render_pipeline> pipeline, const VkRenderingInfo& renderingInfo) const;
+        [[nodiscard]] expected<render_pass_context> begin_render_pass(hptr<gpu::command_buffer> commandBuffer,
+            h32<render_pipeline> pipeline,
+            const VkRenderingInfo& renderingInfo) const;
 
         void end_render_pass(const render_pass_context& context) const;
 
-        expected<compute_pass_context> begin_compute_pass(VkCommandBuffer commandBuffer,
+        expected<compute_pass_context> begin_compute_pass(hptr<gpu::command_buffer> commandBuffer,
             h32<compute_pipeline> pipeline) const;
 
         void end_compute_pass(const compute_pass_context& context) const;
 
-        expected<raytracing_pass_context> begin_raytracing_pass(VkCommandBuffer commandBuffer,
+        expected<raytracing_pass_context> begin_raytracing_pass(hptr<gpu::command_buffer> commandBuffer,
             h32<raytracing_pipeline> pipeline) const;
 
         void end_raytracing_pass(const raytracing_pass_context& context) const;
 
         u32 get_subgroup_size() const;
 
-        void push_constants(
-            const render_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const;
+        void push_constants(const render_pass_context& ctx,
+            flags<gpu::shader_stage> stages,
+            u32 offset,
+            std::span<const byte> data) const;
 
-        void push_constants(
-            const compute_pass_context& ctx, VkShaderStageFlags stages, u32 offset, std::span<const byte> data) const;
+        void push_constants(const compute_pass_context& ctx,
+            flags<gpu::shader_stage> stages,
+            u32 offset,
+            std::span<const byte> data) const;
 
         void push_constants(const raytracing_pass_context& ctx,
-            VkShaderStageFlags stages,
+            flags<gpu::shader_stage> stages,
             u32 offset,
             std::span<const byte> data) const;
 
-        void push_constants(VkCommandBuffer commandBuffer,
+        void push_constants(hptr<gpu::command_buffer> commandBuffer,
             const base_pipeline& pipeline,
-            VkShaderStageFlags stages,
+            flags<gpu::shader_stage> stages,
             u32 offset,
             std::span<const byte> data) const;
 
-        void bind_descriptor_sets(VkCommandBuffer commandBuffer,
+        void bind_descriptor_sets(hptr<gpu::command_buffer> commandBuffer,
             VkPipelineBindPoint bindPoint,
             const base_pipeline& pipeline,
             locate_binding_fn locateBinding) const;
@@ -143,22 +139,20 @@ namespace oblo
 
     struct render_pass_context
     {
-        VkCommandBuffer commandBuffer;
-        void* internalCtx;
+        hptr<gpu::command_buffer> commandBuffer;
         const render_pipeline* internalPipeline;
     };
 
     struct compute_pass_context
     {
-        VkCommandBuffer commandBuffer;
-        void* internalCtx;
+        hptr<gpu::command_buffer> commandBuffer;
         const compute_pipeline* internalPipeline;
     };
 
     struct raytracing_pass_context
     {
-        VkCommandBuffer commandBuffer;
-        void* internalCtx;
+        hptr<gpu::command_buffer> commandBuffer;
+        hptr<gpu::raytracing_pass> pass;
         const raytracing_pipeline* internalPipeline;
     };
 }

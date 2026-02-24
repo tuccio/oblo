@@ -169,6 +169,39 @@ namespace oblo::gpu::vk
 
         void cmd_set_scissor(hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) override;
 
+        void cmd_bind_groups(hptr<command_buffer> cmd,
+            h32<graphics_pipeline> pipeline,
+            u32 firstGroup,
+            std::span<const hptr<bind_group>> bindGroups) override;
+
+        void cmd_bind_groups(hptr<command_buffer> cmd,
+            h32<compute_pipeline> pipeline,
+            u32 firstGroup,
+            std::span<const hptr<bind_group>> bindGroups) override;
+
+        void cmd_bind_groups(hptr<command_buffer> cmd,
+            h32<raytracing_pipeline> pipeline,
+            u32 firstGroup,
+            std::span<const hptr<bind_group>> bindGroups) override;
+
+        void cmd_push_constants(hptr<command_buffer> cmd,
+            h32<graphics_pipeline> pipeline,
+            flags<shader_stage> shaderStages,
+            u32 offset,
+            std::span<const byte> data) override;
+
+        void cmd_push_constants(hptr<command_buffer> cmd,
+            h32<compute_pipeline> pipeline,
+            flags<shader_stage> shaderStages,
+            u32 offset,
+            std::span<const byte> data) override;
+
+        void cmd_push_constants(hptr<command_buffer> cmd,
+            h32<raytracing_pipeline> pipeline,
+            flags<shader_stage> shaderStages,
+            u32 offset,
+            std::span<const byte> data) override;
+
         // Debugging and profiling
 
         void cmd_label_begin(hptr<command_buffer> cmd, const char* label) override;

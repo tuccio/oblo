@@ -2,8 +2,8 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/core/ring_buffer_tracker.hpp>
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
@@ -191,6 +191,39 @@ namespace oblo::gpu
 
         virtual void cmd_set_scissor(
             hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) = 0;
+
+        virtual void cmd_bind_groups(hptr<command_buffer> cmd,
+            h32<graphics_pipeline> pipeline,
+            u32 firstGroup,
+            std::span<const hptr<bind_group>> bindGroups) = 0;
+
+        virtual void cmd_bind_groups(hptr<command_buffer> cmd,
+            h32<compute_pipeline> pipeline,
+            u32 firstGroup,
+            std::span<const hptr<bind_group>> bindGroups) = 0;
+
+        virtual void cmd_bind_groups(hptr<command_buffer> cmd,
+            h32<raytracing_pipeline> pipeline,
+            u32 firstGroup,
+            std::span<const hptr<bind_group>> bindGroups) = 0;
+
+        virtual void cmd_push_constants(hptr<command_buffer> cmd,
+            h32<graphics_pipeline> pipeline,
+            flags<shader_stage> shaderStages,
+            u32 offset,
+            std::span<const byte> data) = 0;
+
+        virtual void cmd_push_constants(hptr<command_buffer> cmd,
+            h32<compute_pipeline> pipeline,
+            flags<shader_stage> shaderStages,
+            u32 offset,
+            std::span<const byte> data) = 0;
+
+        virtual void cmd_push_constants(hptr<command_buffer> cmd,
+            h32<raytracing_pipeline> pipeline,
+            flags<shader_stage> shaderStages,
+            u32 offset,
+            std::span<const byte> data) = 0;
 
         // Debugging and profiling
 

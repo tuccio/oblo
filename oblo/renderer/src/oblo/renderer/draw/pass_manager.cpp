@@ -445,8 +445,8 @@ namespace oblo
         h32<gpu::bind_group_layout> samplersSetLayout{};
         h32<gpu::bind_group_layout> textures2DSetLayout{};
 
-        VkDescriptorSet currentSamplersDescriptor{};
-        VkDescriptorSet currentTextures2DDescriptor{};
+        h32<gpu::bind_group> currentSamplersDescriptor{};
+        h32<gpu::bind_group> currentTextures2DDescriptor{};
 
         h32<gpu::sampler> samplers[u32(sampler::enum_max)]{};
 
@@ -2351,7 +2351,7 @@ namespace oblo
         return pipelineHandle;
     }
 
-    void pass_manager::begin_frame([[maybe_unused]] VkCommandBuffer commandBuffer)
+    void pass_manager::begin_frame([[maybe_unused]] hptr<gpu::command_buffer> commandBuffer)
     {
         m_impl->frameAllocator.restore_all();
 
@@ -2468,8 +2468,9 @@ namespace oblo
         m_impl->enableProfiling = enable;
     }
 
-    expected<render_pass_context> pass_manager::begin_render_pass(
-        VkCommandBuffer commandBuffer, h32<render_pipeline> pipelineHandle, const VkRenderingInfo& renderingInfo) const
+    expected<render_pass_context> pass_manager::begin_render_pass(hptr<gpu::command_buffer> commandBuffer,
+        h32<render_pipeline> pipelineHandle,
+        const VkRenderingInfo& renderingInfo) const
     {
         const auto* pipeline = m_impl->renderPipelines.try_find(pipelineHandle);
 
@@ -2520,7 +2521,7 @@ namespace oblo
         m_impl->end_pass(context.commandBuffer, context.internalCtx);
     }
 
-    expected<compute_pass_context> pass_manager::begin_compute_pass(VkCommandBuffer commandBuffer,
+    expected<compute_pass_context> pass_manager::begin_compute_pass(hptr<gpu::command_buffer> commandBuffer,
         h32<compute_pipeline> pipelineHandle) const
     {
         const auto* pipeline = m_impl->computePipelines.try_find(pipelineHandle);
@@ -2570,7 +2571,7 @@ namespace oblo
         m_impl->end_pass(context.commandBuffer, context.internalCtx);
     }
 
-    expected<raytracing_pass_context> pass_manager::begin_raytracing_pass(VkCommandBuffer commandBuffer,
+    expected<raytracing_pass_context> pass_manager::begin_raytracing_pass(hptr<gpu::command_buffer> commandBuffer,
         h32<raytracing_pipeline> pipelineHandle) const
     {
         const auto* pipeline = m_impl->raytracingPipelines.try_find(pipelineHandle);
@@ -2580,44 +2581,41 @@ namespace oblo
             return "Raytracing pipeline not found"_err;
         }
 
-        const raytracing_pass_context rtPipelineContext{
-            .commandBuffer = commandBuffer,
-            .internalCtx = m_impl->begin_pass(commandBuffer, *pipeline),
-            .internalPipeline = pipeline,
-        };
-
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->pipeline);
-
         if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)
         {
-            vkCmdBindDescriptorSets(commandBuffer,
-                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                pipeline->pipelineLayout,
+            m_impl->gpu->cmd_bind_groups(commandBuffer,
+                pipelineHandle,
                 TextureSamplerDescriptorSet,
-                1,
-                &m_impl->currentSamplersDescriptor,
-                0,
-                nullptr);
+                {&m_impl->currentSamplersDescriptor, 1u});
         }
 
         if (pipeline->requiresTextures2D && m_impl->currentTextures2DDescriptor)
         {
-            vkCmdBindDescriptorSets(commandBuffer,
-                VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-                pipeline->pipelineLayout,
+            m_impl->gpu->cmd_bind_groups(commandBuffer,
+                pipelineHandle,
                 Textures2DDescriptorSet,
-                1,
-                &m_impl->currentTextures2DDescriptor,
-                0,
-                nullptr);
+                {&m_impl->currentTextures2DDescriptor, 1u});
         }
+
+        const expected pass = m_impl->gpu->begin_raytracing_pass(commandBuffer, pipeline->pipeline);
+
+        if (!pass)
+        {
+            return "Failed to begin pass"_err;
+        }
+
+        const raytracing_pass_context rtPipelineContext{
+            .commandBuffer = commandBuffer,
+            .pass = *pass,
+            .internalPipeline = pipeline,
+        };
 
         return rtPipelineContext;
     }
 
     void pass_manager::end_raytracing_pass(const raytracing_pass_context& context) const
     {
-        m_impl->end_pass(context.commandBuffer, context.internalCtx);
+        m_impl->gpu->end_raytracing_pass(context.commandBuffer, context.pass);
     }
 
     u32 pass_manager::get_subgroup_size() const
@@ -2658,7 +2656,7 @@ namespace oblo
             data.data());
     }
 
-    void pass_manager::push_constants(VkCommandBuffer commandBuffer,
+    void pass_manager::push_constants(hptr<gpu::command_buffer> commandBuffer,
         const base_pipeline& pipeline,
         VkShaderStageFlags stages,
         u32 offset,
@@ -2667,7 +2665,7 @@ namespace oblo
         vkCmdPushConstants(commandBuffer, pipeline.pipelineLayout, stages, offset, u32(data.size()), data.data());
     }
 
-    void pass_manager::bind_descriptor_sets(VkCommandBuffer commandBuffer,
+    void pass_manager::bind_descriptor_sets(hptr<gpu::command_buffer> commandBuffer,
         VkPipelineBindPoint bindPoint,
         const base_pipeline& pipeline,
         function_ref<bindable_object(const descriptor_binding&)> locateBinding) const
@@ -2690,7 +2688,8 @@ namespace oblo
 
     void pass_manager::trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const
     {
-        const auto& vkFn = m_impl->vkCtx->get_loaded_functions();
+        m_impl->gpu->cmd_trace_rays(ctx.commandBuffer, ctx.internalCtx) const auto& vkFn =
+            m_impl->vkCtx->get_loaded_functions();
 
         const auto& pipeline = *ctx.internalPipeline;
 
