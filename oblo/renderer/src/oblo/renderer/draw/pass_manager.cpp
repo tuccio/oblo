@@ -22,7 +22,6 @@
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/options_module.hpp>
-#include <oblo/renderer/draw/bindable_object.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
 #include <oblo/renderer/draw/draw_registry.hpp>
@@ -41,15 +40,6 @@
 
 namespace oblo
 {
-    struct named_shader_binding
-    {
-        h32<string> name;
-        u32 binding;
-        gpu::resource_binding_kind kind;
-        flags<gpu::shader_stage> stageFlags;
-        bool readOnly;
-    };
-
     namespace
     {
         constexpr u32 TextureSamplerDescriptorSet{1};
@@ -1038,13 +1028,13 @@ namespace oblo
 
             switch (bindableObject.kind)
             {
-            case bindable_resource_kind::buffer:
-                if (is_buffer_binding(binding))
+            case gpu::bindable_resource_kind::buffer:
+                if (is_buffer_binding(binding) && bindableObject.buffer)
                 {
                     bindGroupData.push_back({
                         .binding = binding.binding,
                         .bindingKind = binding.kind,
-                        .data = bindableObject.buffer,
+                        .object = bindableObject.buffer,
                     });
                 }
                 else
@@ -1055,13 +1045,13 @@ namespace oblo
                 }
 
                 break;
-            case bindable_resource_kind::texture:
-                if (is_image_binding(binding))
+            case gpu::bindable_resource_kind::image:
+                if (is_image_binding(binding) && bindableObject.texture)
                 {
                     bindGroupData.push_back({
                         .binding = binding.binding,
                         .bindingKind = binding.kind,
-                        .data = bindableObject.texture,
+                        .object = bindableObject.texture,
                     });
                 }
                 else
@@ -1072,13 +1062,14 @@ namespace oblo
                 }
 
                 break;
-            case bindable_resource_kind::acceleration_structure:
-                if (binding.kind == gpu::resource_binding_kind::acceleration_structure)
+            case gpu::bindable_resource_kind::acceleration_structure:
+                if (binding.kind == gpu::resource_binding_kind::acceleration_structure &&
+                    bindableObject.accelerationStructure)
                 {
                     bindGroupData.push_back({
                         .binding = binding.binding,
                         .bindingKind = binding.kind,
-                        .data = bindableObject.accelerationStructure,
+                        .object = bindableObject.accelerationStructure,
                     });
                 }
                 else
@@ -1088,13 +1079,6 @@ namespace oblo
                         pipeline.label,
                         interner->str(binding.name));
                 }
-
-                break;
-
-            case bindable_resource_kind::none:
-                log::debug("[{}] Unable to find matching buffer for binding {}",
-                    pipeline.label,
-                    interner->str(binding.name));
 
                 break;
 
@@ -1111,7 +1095,7 @@ namespace oblo
             return {};
         }
 
-        return bindGroup;
+        return *bindGroup;
     }
 
     pass_manager::pass_manager() = default;
@@ -1324,7 +1308,7 @@ namespace oblo
         {
             if (sampler)
             {
-                gpu->destroy_deferred(sampler, gpu.get_submit_index());
+                gpu.destroy_deferred(sampler, gpu.get_submit_index());
             }
         }
 

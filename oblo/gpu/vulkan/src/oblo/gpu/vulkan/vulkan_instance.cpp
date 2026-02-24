@@ -1048,6 +1048,21 @@ namespace oblo::gpu::vk
         return offset_device_address(address, bufferWithOffset.offset);
     }
 
+    result<h32<acceleration_structure>> vulkan_instance::create_acceleration_structure(
+        const acceleration_structure_descriptor& descriptor)
+    {
+        // TODO
+        (void) descriptor;
+        return error::invalid_usage;
+    }
+
+    void vulkan_instance::destroy(h32<acceleration_structure> handle) 
+    {
+        auto& asImpl = m_accelerationStructures.at(handle);
+        m_loadedFunctions.vkDestroyAccelerationStructureKHR(m_device, asImpl.vkAccelerationStructure, m_allocator.get_allocation_callbacks());
+        m_accelerationStructures.erase(handle);
+    }
+
     result<h32<image>> vulkan_instance::create_image(const image_descriptor& descriptor)
     {
         vk::allocated_image allocatedImage;

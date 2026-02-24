@@ -82,6 +82,10 @@ namespace oblo::gpu
         virtual h64<device_address> get_device_address(h32<buffer> bufferHandle) = 0;
         virtual h64<device_address> get_device_address(buffer_range bufferWithOffset) = 0;
 
+        virtual result<h32<acceleration_structure>> create_acceleration_structure(
+            const acceleration_structure_descriptor& descriptor) = 0;
+        virtual void destroy(h32<acceleration_structure> handle) = 0;
+
         virtual result<h32<image>> create_image(const image_descriptor& descriptor) = 0;
         virtual void destroy(h32<image> imageHandle) = 0;
 
@@ -142,6 +146,8 @@ namespace oblo::gpu
 
         result<> wait_for_submit_completion(u64 submitIndex);
 
+        void destroy_deferred(h32<acceleration_structure> h, u64 submitIndex);
+        void destroy_deferred(h32<bind_group_layout> h, u64 submitIndex);
         void destroy_deferred(h32<buffer> h, u64 submitIndex);
         void destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex);
         void destroy_deferred(h32<compute_pipeline> h, u64 submitIndex);

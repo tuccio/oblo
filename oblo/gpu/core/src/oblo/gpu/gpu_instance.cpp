@@ -175,6 +175,16 @@ namespace oblo::gpu
         o.cb = [](gpu_instance& gpu, const void* object) { gpu.destroy(*reinterpret_cast<const h32<T>*>(object)); };
     }
 
+    void gpu_instance::destroy_deferred(h32<acceleration_structure> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<bind_group_layout> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
     void gpu_instance::destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex)
     {
         destroy_deferred_impl(h, submitIndex);

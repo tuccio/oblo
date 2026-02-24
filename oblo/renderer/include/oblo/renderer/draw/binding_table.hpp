@@ -4,6 +4,7 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/pair.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 
@@ -14,7 +15,7 @@ namespace oblo
 {
     struct bindable_resource
     {
-        bindable_resource_kind kind;
+        gpu::bindable_resource_kind kind;
 
         union {
             pin::buffer buffer;
@@ -28,18 +29,19 @@ namespace oblo
     public:
         void bind(hashed_string_view name, pin::buffer r)
         {
-            m_kv.emplace_back(name, bindable_resource{.kind = bindable_resource_kind::buffer, .buffer = r});
+            m_kv.emplace_back(name, bindable_resource{.kind = gpu::bindable_resource_kind::buffer, .buffer = r});
         }
 
         void bind(hashed_string_view name, pin::texture r)
         {
-            m_kv.emplace_back(name, bindable_resource{.kind = bindable_resource_kind::texture, .texture = r});
+            m_kv.emplace_back(name, bindable_resource{.kind = gpu::bindable_resource_kind::image, .texture = r});
         }
 
         void bind(hashed_string_view name, pin::acceleration_structure r)
         {
             m_kv.emplace_back(name,
-                bindable_resource{.kind = bindable_resource_kind::acceleration_structure, .accelerationStructure = r});
+                bindable_resource{.kind = gpu::bindable_resource_kind::acceleration_structure,
+                    .accelerationStructure = r});
         }
 
         void bind_buffers(std::initializer_list<pair<hashed_string_view, pin::buffer>> list)

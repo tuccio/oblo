@@ -81,6 +81,11 @@ namespace oblo::gpu::vk
         h64<device_address> get_device_address(h32<buffer> bufferHandle) override;
         h64<device_address> get_device_address(buffer_range bufferWithOffset) override;
 
+        result<h32<acceleration_structure>> create_acceleration_structure(
+            const acceleration_structure_descriptor& descriptor) override;
+
+        void destroy(h32<acceleration_structure> handle) override;
+
         result<h32<image>> create_image(const image_descriptor& descriptor) override;
         void destroy(h32<image> imageHandle) override;
 
@@ -268,6 +273,7 @@ namespace oblo::gpu::vk
         gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
 
+        // Lazy approach with all these maps, we don't iterate over them so another solution would be preferrable
         h32_flat_pool_dense_map<acceleration_structure, acceleration_structure_impl> m_accelerationStructures;
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
         h32_flat_pool_dense_map<buffer, buffer_impl> m_buffers;

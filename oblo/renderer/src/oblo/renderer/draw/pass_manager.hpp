@@ -150,4 +150,13 @@ namespace oblo
         hptr<gpu::raytracing_pass> pass;
         const raytracing_pipeline* internalPipeline;
     };
+
+    struct named_shader_binding
+    {
+        h32<string> name;
+        u32 binding;
+        gpu::resource_binding_kind kind;
+        flags<gpu::shader_stage> stageFlags;
+        bool readOnly;
+    };
 }
