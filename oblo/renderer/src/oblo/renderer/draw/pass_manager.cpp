@@ -188,7 +188,7 @@ namespace oblo
             return (u32(type) << 2) | vecsize;
         }
 
-        VkFormat get_type_format(const spirv_cross::SPIRType& type)
+        gpu::data_format get_type_format(const spirv_cross::SPIRType& type)
         {
             // Not really dealing with matrices here
             OBLO_ASSERT(type.columns == 1);
@@ -196,20 +196,20 @@ namespace oblo
             switch (combine_type_vecsize(type.basetype, type.vecsize))
             {
             case combine_type_vecsize(spirv_cross::SPIRType::Float, 1):
-                return VK_FORMAT_R32_SFLOAT;
+                return gpu::data_format::r32_sfloat;
 
             case combine_type_vecsize(spirv_cross::SPIRType::Float, 2):
-                return VK_FORMAT_R32G32_SFLOAT;
+                return gpu::data_format::r32g32_sfloat;
 
             case combine_type_vecsize(spirv_cross::SPIRType::Float, 3):
-                return VK_FORMAT_R32G32B32_SFLOAT;
+                return gpu::data_format::r32g32b32_sfloat;
 
             case combine_type_vecsize(spirv_cross::SPIRType::Float, 4):
-                return VK_FORMAT_R32G32B32A32_SFLOAT;
+                return gpu::data_format::r32g32b32a32_sfloat;
 
             default:
                 OBLO_ASSERT(false);
-                return VK_FORMAT_UNDEFINED;
+                return gpu::data_format::undefined;
             }
         }
 
@@ -220,8 +220,8 @@ namespace oblo
 
         struct vertex_inputs_reflection
         {
-            VkVertexInputBindingDescription* bindingDescs;
-            VkVertexInputAttributeDescription* attributeDescs;
+            gpu::vertex_input_binding_descriptor* bindingDescs;
+            gpu::vertex_input_attribute_descriptor* attributeDescs;
             u32 count;
         };
 
@@ -726,9 +726,9 @@ namespace oblo
             if (vertexInputsReflection.count > 0)
             {
                 vertexInputsReflection.bindingDescs =
-                    allocate_n<VkVertexInputBindingDescription>(frameAllocator, vertexInputsReflection.count);
+                    allocate_n<gpu::vertex_input_attribute_descriptor>(frameAllocator, vertexInputsReflection.count);
                 vertexInputsReflection.attributeDescs =
-                    allocate_n<VkVertexInputAttributeDescription>(frameAllocator, vertexInputsReflection.count);
+                    allocate_n<gpu::vertex_input_attribute_descriptor>(frameAllocator, vertexInputsReflection.count);
             }
 
             u32 vertexAttributeIndex = 0;
@@ -751,7 +751,7 @@ namespace oblo
                 vertexInputsReflection.bindingDescs[vertexAttributeIndex] = {
                     .binding = vertexAttributeIndex,
                     .stride = get_type_byte_size(type),
-                    .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+                    .inputRate = gpu::vertex_input_rate::vertex,
                 };
 
                 vertexInputsReflection.attributeDescs[vertexAttributeIndex] = {
@@ -1029,12 +1029,12 @@ namespace oblo
             switch (bindableObject.kind)
             {
             case gpu::bindable_resource_kind::buffer:
-                if (is_buffer_binding(binding) && bindableObject.buffer)
+                if (is_buffer_binding(binding) && bindableObject.buffer.buffer)
                 {
                     bindGroupData.push_back({
                         .binding = binding.binding,
                         .bindingKind = binding.kind,
-                        .object = bindableObject.buffer,
+                        .object = gpu::make_bindable_object(bindableObject.buffer),
                     });
                 }
                 else
@@ -1046,12 +1046,12 @@ namespace oblo
 
                 break;
             case gpu::bindable_resource_kind::image:
-                if (is_image_binding(binding) && bindableObject.texture)
+                if (is_image_binding(binding) && bindableObject.image.image)
                 {
                     bindGroupData.push_back({
                         .binding = binding.binding,
                         .bindingKind = binding.kind,
-                        .object = bindableObject.texture,
+                        .object = gpu::make_bindable_object(bindableObject.image),
                     });
                 }
                 else
@@ -1069,7 +1069,7 @@ namespace oblo
                     bindGroupData.push_back({
                         .binding = binding.binding,
                         .bindingKind = binding.kind,
-                        .object = bindableObject.accelerationStructure,
+                        .object = gpu::make_bindable_object(bindableObject.accelerationStructure),
                     });
                 }
                 else
@@ -1558,7 +1558,7 @@ namespace oblo
             return h32<render_pipeline>{};
         };
 
-        buffered_array<gpu::graphics_pipeline_stage, 4> stageCreateInfo;
+        buffered_array<gpu::graphics_pipeline_stage, 4> graphicsStages;
 
         vertex_inputs_reflection vertexInputReflection{};
 
@@ -1604,7 +1604,7 @@ namespace oblo
 
             shaderModules.emplace_back(shaderModule);
 
-            stageCreateInfo.push_back({
+            graphicsStages.push_back({
                 .stage = shaderStage,
                 .shaderModule = shaderModule,
                 .entryFunction = "main",
@@ -1613,168 +1613,34 @@ namespace oblo
             m_impl->create_reflection(newPipeline, shaderStage, compilerResult.get_spirv(), vertexInputReflection);
         }
 
-        if (!m_impl->create_pipeline_layout(newPipeline))
+        buffered_array<h32<gpu::bind_group_layout>, 3> bindGroupLayouts;
+        buffered_array<gpu::push_constant_range, 4> pushConstantRanges;
+
+        if (!m_impl->create_layout_from_reflection(newPipeline, bindGroupLayouts, pushConstantRanges))
         {
             return failure();
         }
 
-        static_assert(sizeof(VkFormat) == sizeof(gpu::image_format), "We rely on this when reinterpret casting");
+        const expected graphicsPipeline = m_impl->gpu->create_graphics_pipeline({
+            .stages = graphicsStages,
+            .vertexInputBindings = {vertexInputReflection.bindingDescs, vertexInputReflection.count},
+            .vertexInputAttributes = {vertexInputReflection.attributeDescs, vertexInputReflection.count},
+            .pushConstants = pushConstantRanges,
+            .bindGroupLayouts = bindGroupLayouts,
+            .renderTargets = desc.renderTargets,
+            .depthStencilState = desc.depthStencilState,
+            .rasterizationState = desc.rasterizationState,
+            .primitiveTopology = desc.primitiveTopology,
+            .debugLabel = debug_label{newPipeline.label},
+        });
 
-        const u32 numAttachments = u32(desc.renderTargets.colorAttachmentFormats.size());
-
-        const VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
-            .colorAttachmentCount = numAttachments,
-            .pColorAttachmentFormats =
-                reinterpret_cast<const VkFormat*>(desc.renderTargets.colorAttachmentFormats.data()),
-            .depthAttachmentFormat = convert_to_vk(desc.renderTargets.depthFormat),
-            .stencilAttachmentFormat = convert_to_vk(desc.renderTargets.stencilFormat),
-        };
-
-        const VkPipelineInputAssemblyStateCreateInfo inputAssembly{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = convert_to_vk(desc.primitiveTopology),
-            .primitiveRestartEnable = VK_FALSE,
-        };
-
-        const VkPipelineVertexInputStateCreateInfo vertexBufferInputInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = vertexInputReflection.count,
-            .pVertexBindingDescriptions = vertexInputReflection.bindingDescs,
-            .vertexAttributeDescriptionCount = vertexInputReflection.count,
-            .pVertexAttributeDescriptions = vertexInputReflection.attributeDescs,
-        };
-
-        constexpr VkPipelineViewportStateCreateInfo viewportState{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-            .viewportCount = 1,
-            .scissorCount = 1,
-        };
-
-        const VkPipelineRasterizationStateCreateInfo rasterizer{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .flags = convert_to_vk(desc.rasterizationState.flags),
-            .depthClampEnable = desc.rasterizationState.depthClampEnable,
-            .rasterizerDiscardEnable = desc.rasterizationState.rasterizerDiscardEnable,
-            .polygonMode = convert_to_vk(desc.rasterizationState.polygonMode),
-            .cullMode = convert_to_vk(desc.rasterizationState.cullMode),
-            .frontFace = convert_to_vk(desc.rasterizationState.frontFace),
-            .depthBiasEnable = desc.rasterizationState.depthBiasEnable,
-            .depthBiasConstantFactor = desc.rasterizationState.depthBiasConstantFactor,
-            .depthBiasClamp = desc.rasterizationState.depthBiasClamp,
-            .depthBiasSlopeFactor = desc.rasterizationState.depthBiasSlopeFactor,
-            .lineWidth = desc.rasterizationState.lineWidth,
-
-        };
-
-        const VkPipelineMultisampleStateCreateInfo multisampling{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            .minSampleShading = 1.f,
-        };
-
-        buffered_array<VkPipelineColorBlendAttachmentState, 8> colorBlendAttachments;
-        colorBlendAttachments.reserve(desc.renderTargets.blendStates.size());
-
-        for (auto& attachment : desc.renderTargets.blendStates)
+        if (!graphicsPipeline)
         {
-            colorBlendAttachments.push_back({
-                .blendEnable = attachment.enable,
-                .srcColorBlendFactor = convert_to_vk(attachment.srcColorBlendFactor),
-                .dstColorBlendFactor = convert_to_vk(attachment.dstColorBlendFactor),
-                .colorBlendOp = convert_to_vk(attachment.colorBlendOp),
-                .srcAlphaBlendFactor = convert_to_vk(attachment.srcAlphaBlendFactor),
-                .dstAlphaBlendFactor = convert_to_vk(attachment.dstAlphaBlendFactor),
-                .alphaBlendOp = convert_to_vk(attachment.alphaBlendOp),
-                .colorWriteMask = convert_to_vk(attachment.colorWriteMask),
-            });
+            return failure();
         }
 
-        const VkPipelineColorBlendStateCreateInfo colorBlending{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .logicOpEnable = VK_FALSE,
-            .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = colorBlendAttachments.size32(),
-            .pAttachments = colorBlendAttachments.data(),
-            .blendConstants = {},
-        };
-
-        const VkPipelineDepthStencilStateCreateInfo depthStencil{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .flags = convert_to_vk(desc.depthStencilState.flags),
-            .depthTestEnable = desc.depthStencilState.depthTestEnable,
-            .depthWriteEnable = desc.depthStencilState.depthWriteEnable,
-            .depthCompareOp = convert_to_vk(desc.depthStencilState.depthCompareOp),
-            .depthBoundsTestEnable = desc.depthStencilState.depthBoundsTestEnable,
-            .stencilTestEnable = desc.depthStencilState.stencilTestEnable,
-            .front =
-                {
-                    .failOp = convert_to_vk(desc.depthStencilState.front.failOp),
-                    .passOp = convert_to_vk(desc.depthStencilState.front.passOp),
-                    .depthFailOp = convert_to_vk(desc.depthStencilState.front.depthFailOp),
-                    .compareOp = convert_to_vk(desc.depthStencilState.front.compareOp),
-                    .compareMask = desc.depthStencilState.front.compareMask,
-                    .writeMask = desc.depthStencilState.front.writeMask,
-                    .reference = desc.depthStencilState.front.reference,
-                },
-            .back =
-                {
-                    .failOp = convert_to_vk(desc.depthStencilState.back.failOp),
-                    .passOp = convert_to_vk(desc.depthStencilState.back.passOp),
-                    .depthFailOp = convert_to_vk(desc.depthStencilState.back.depthFailOp),
-                    .compareOp = convert_to_vk(desc.depthStencilState.back.compareOp),
-                    .compareMask = desc.depthStencilState.back.compareMask,
-                    .writeMask = desc.depthStencilState.back.writeMask,
-                    .reference = desc.depthStencilState.back.reference,
-                },
-            .minDepthBounds = desc.depthStencilState.minDepthBounds,
-            .maxDepthBounds = desc.depthStencilState.maxDepthBounds,
-        };
-
-        constexpr VkDynamicState dynamicStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-
-        const VkPipelineDynamicStateCreateInfo dynamicState{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-            .dynamicStateCount = array_size32(dynamicStates),
-            .pDynamicStates = dynamicStates,
-        };
-
-        const VkGraphicsPipelineCreateInfo pipelineInfo{
-            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .pNext = &pipelineRenderingCreateInfo,
-            .stageCount = actualStagesCount,
-            .pStages = stageCreateInfo,
-            .pVertexInputState = &vertexBufferInputInfo,
-            .pInputAssemblyState = &inputAssembly,
-            .pViewportState = &viewportState,
-            .pRasterizationState = &rasterizer,
-            .pMultisampleState = &multisampling,
-            .pDepthStencilState = &depthStencil,
-            .pColorBlendState = &colorBlending,
-            .pDynamicState = &dynamicState,
-            .layout = newPipeline.pipelineLayout,
-            .renderPass = nullptr,
-            .subpass = 0,
-            .basePipelineHandle = nullptr,
-            .basePipelineIndex = -1,
-        };
-
-        if (vkCreateGraphicsPipelines(m_impl->device,
-                nullptr,
-                1,
-                &pipelineInfo,
-                m_impl->vkCtx->get_allocator().get_allocation_callbacks(),
-                &newPipeline.pipeline) == VK_SUCCESS)
-        {
-            renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
-
-            const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
-            debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
-
-            return pipelineHandle;
-        }
-
-        return failure();
+        renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
+        return pipelineHandle;
     }
 
     h32<compute_pipeline> pass_manager::get_or_create_pipeline(h32<compute_pass> computePassHandle,

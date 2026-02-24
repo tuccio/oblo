@@ -357,8 +357,8 @@ namespace oblo::gpu
 
     struct vertex_input_attribute_descriptor
     {
-        u32 binding;
         u32 location;
+        u32 binding;
         data_format format;
         u32 offset;
     };

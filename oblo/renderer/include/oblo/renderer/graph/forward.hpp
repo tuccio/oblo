@@ -38,7 +38,6 @@ namespace oblo
     struct render_pass_config;
 
     class binding_table;
-    struct bindable_object;
 
     struct resident_texture;
     struct retained_texture;

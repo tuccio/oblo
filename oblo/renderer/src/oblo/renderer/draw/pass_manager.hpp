@@ -19,7 +19,6 @@ namespace oblo
     class instance_data_type_registry;
     class texture_registry;
     struct base_pipeline;
-    struct bindable_object;
     struct compute_pass;
     struct compute_pass_initializer;
     struct compute_pipeline;
@@ -41,7 +40,7 @@ namespace oblo
     class pass_manager
     {
     public:
-        using locate_binding_fn = function_ref<bindable_object(const named_shader_binding&)>;
+        using locate_binding_fn = function_ref<gpu::bindable_object(const named_shader_binding&)>;
 
     public:
         pass_manager();
