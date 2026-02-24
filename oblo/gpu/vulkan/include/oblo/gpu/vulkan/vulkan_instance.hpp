@@ -120,10 +120,6 @@ namespace oblo::gpu::vk
 
         void end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass> raytracingPass) override;
 
-        result<h32<bindless_image>> acquire_bindless(h32<image> optImage) override;
-        result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) override;
-        void release_bindless(h32<bindless_image> slot) override;
-
         result<> begin_submit_tracking() override;
         result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
 
@@ -245,7 +241,8 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<compute_pipeline, compute_pipeline_impl> m_computePipelines;
         h32_flat_pool_dense_map<raytracing_pipeline, raytracing_pipeline_impl> m_raytracingPipelines;
 
-        descriptor_set_pool m_descriptorSetPool;
+        descriptor_set_pool m_generalDescriptorSetPool;
+        descriptor_set_pool m_textureDescriptorSetPool;
 
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};

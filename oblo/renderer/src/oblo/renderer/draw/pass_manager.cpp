@@ -12,6 +12,7 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
@@ -33,15 +34,11 @@
 #include <oblo/renderer/draw/render_pass_initializer.hpp>
 #include <oblo/renderer/draw/shader_stage_utils.hpp>
 #include <oblo/renderer/draw/texture_registry.hpp>
-#include <oblo/trace/profile.hpp>
+#include <oblo/trace/profile.hpp>ss
 #include <oblo/vulkan/compiler/compiler_module.hpp>
 #include <oblo/vulkan/compiler/shader_cache.hpp>
 
 #include <spirv_cross/spirv_cross.hpp>
-
-#ifdef TRACY_ENABLE
-    #include <tracy/TracyVulkan.hpp>
-#endif
 
 namespace oblo
 {
@@ -445,8 +442,8 @@ namespace oblo
         h32_flat_pool_dense_map<raytracing_pipeline> raytracingPipelines;
         string_interner* interner{};
         const texture_registry* textureRegistry{};
-        VkDescriptorSetLayout samplersSetLayout{};
-        VkDescriptorSetLayout textures2DSetLayout{};
+        h32<gpu::bind_group_layout> samplersSetLayout{};
+        h32<gpu::bind_group_layout> textures2DSetLayout{};
 
         VkDescriptorSet currentSamplersDescriptor{};
         VkDescriptorSet currentTextures2DDescriptor{};
@@ -1238,6 +1235,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_black,
+                .debugLabel = "linear_repeat",
             };
 
             m_impl->samplers[u32(sampler::linear_repeat)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1257,6 +1255,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_black,
+                .debugLabel = "linear_clamp_edge",
             };
 
             m_impl->samplers[u32(sampler::linear_clamp_edge)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1277,6 +1276,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_black,
+                .debugLabel = "linear_clamp_black",
             };
 
             m_impl->samplers[u32(sampler::linear_clamp_black)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1297,6 +1297,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_white,
+                .debugLabel = "linear_clamp_white",
             };
 
             m_impl->samplers[u32(sampler::linear_clamp_white)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1316,6 +1317,7 @@ namespace oblo
                 .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
+                .debugLabel = "nearest",
             };
 
             m_impl->samplers[u32(sampler::nearest)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1336,60 +1338,36 @@ namespace oblo
                 .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
+                .debugLabel = "anisotropic",
             };
 
             m_impl->samplers[u32(sampler::anisotropic)] = gpu.create_sampler(samplerInfo).value_or({});
         }
 
-        {
-            constexpr VkDescriptorPoolSize descriptorPoolSizes[] = {
-                {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
-                {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
-            };
+        const expected samplersSetLayout = gpu.create_bind_group_layout({
+            .bindings = make_span_initializer<gpu::bind_group_binding>({{
+                .binding = TexturesSamplerBinding,
+                .bindingKind = gpu::resource_binding_kind::sampler,
+                .shaderStages = flags<gpu::shader_stage>::all(),
+                .immutableSamplers = m_impl->samplers,
+            }}),
+        });
 
-            m_impl->descriptorSetPool.init(vkContext,
-                128,
-                VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-                descriptorPoolSizes);
-        }
+        m_impl->samplersSetLayout = samplersSetLayout.assert_value_or({});
 
-        {
-            const VkDescriptorPoolSize descriptorPoolSizes[] = {
-                {VK_DESCRIPTOR_TYPE_SAMPLER, array_size32(m_impl->samplers)},
-                {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, textureRegistry.get_max_descriptor_count()},
-            };
+        // We can only really have 1 bindless descriptor per set, only the last one can have variable count.
+        const expected bindlessTexturesLayout = gpu.create_bind_group_layout({
+            .bindings = make_span_initializer<gpu::bind_group_binding>({{
+                .binding = Textures2DBinding,
+                .bindingKind = gpu::resource_binding_kind::sampled_image,
+                .shaderStages = flags<gpu::shader_stage>::all(),
+                .bindlessCount = textureRegistry.get_max_descriptor_count(),
+            }}),
+        });
 
-            m_impl->texturesDescriptorSetPool.init(vkContext,
-                128,
-                VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
-                descriptorPoolSizes);
-        }
-
-        {
-            const VkDescriptorSetLayoutBinding vkBindings[] = {
-                {
-                    .binding = TexturesSamplerBinding,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
-                    .descriptorCount = array_size32(m_impl->samplers),
-                    .stageFlags = VK_SHADER_STAGE_ALL,
-                    .pImmutableSamplers = m_impl->samplers,
-                },
-            };
-
-            const VkDescriptorSetLayoutCreateInfo layoutInfo = {
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .bindingCount = array_size32(vkBindings),
-                .pBindings = vkBindings,
-            };
-
-            vkCreateDescriptorSetLayout(vkContext.get_device(),
-                &layoutInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->samplersSetLayout);
-        }
+        m_impl->textures2DSetLayout = bindlessTexturesLayout.assert_value_or({});
 
         {
-            // We can only really have 1 bindless descriptor per set, only the last one can have variable count.
             constexpr VkDescriptorBindingFlags bindlessFlags[] = {
                 VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
                     VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT |

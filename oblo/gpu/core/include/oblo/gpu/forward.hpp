@@ -7,7 +7,6 @@ namespace oblo::gpu
     struct acceleration_structure;
     struct bind_group_layout;
     struct bind_group;
-    struct bindless_image;
     struct buffer_image_copy_descriptor;
     struct buffer_range;
     struct buffer;

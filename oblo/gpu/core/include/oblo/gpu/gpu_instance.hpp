@@ -122,10 +122,6 @@ namespace oblo::gpu
 
         virtual void end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass> renderPass) = 0;
 
-        virtual result<h32<bindless_image>> acquire_bindless(h32<image> optImage) = 0;
-        virtual result<h32<bindless_image>> replace_bindless(h32<bindless_image> slot, h32<image> optImage) = 0;
-        virtual void release_bindless(h32<bindless_image> slot) = 0;
-
         /// @brief Necessary to call for tracking the main queue and synchronizing with the GPU when necessary.
         /// This function might release resources that are not used by the GPU anymore.
         /// The end of the tracking happens upon submission on the main queue.

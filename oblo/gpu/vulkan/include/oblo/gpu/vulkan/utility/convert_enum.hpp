@@ -327,8 +327,10 @@ namespace oblo::gpu::vk
         case resource_binding_kind::storage_image:
             return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         case resource_binding_kind::sampler:
+            return VK_DESCRIPTOR_TYPE_SAMPLER;
+        case resource_binding_kind::sampled_image:
             return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        case resource_binding_kind::sampler_image:
+        case resource_binding_kind::image_with_sampler:
             return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         case resource_binding_kind::acceleration_structure:
             return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;

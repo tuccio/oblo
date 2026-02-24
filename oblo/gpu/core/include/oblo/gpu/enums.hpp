@@ -507,8 +507,10 @@ namespace oblo::gpu
         storage_buffer,
         storage_image,
         sampler,
-        sampler_image,
+        sampled_image,
+        image_with_sampler,
         acceleration_structure,
+        enum_max,
     };
 
     enum class sampler_address_mode : u8

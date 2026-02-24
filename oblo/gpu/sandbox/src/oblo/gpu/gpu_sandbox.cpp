@@ -42,7 +42,7 @@ namespace oblo
             return gpu
                 .create_shader_module({
                     .format = gpu::shader_module_format::spirv,
-                    .data = {reinterpret_cast<const u8*>(spirv.data()), spirv.size_bytes()},
+                    .data = {reinterpret_cast<const byte*>(spirv.data()), spirv.size_bytes()},
                 })
                 .value_or({});
         }

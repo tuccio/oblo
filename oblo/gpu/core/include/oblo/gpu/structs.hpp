@@ -369,7 +369,15 @@ namespace oblo::gpu
         resource_binding_kind bindingKind;
         flags<shader_stage> shaderStages;
         bool readOnly;
+
+        /// @brief The number of bindless descriptors (0 means not bindless)
+        /// @remarks Bindless descriptors are only considered for the last binding of the group.
+        u32 bindlessCount;
+
+        /// @brief Only used if the bindingKind is resource_binding_kind::sampler
+        std::span<const h32<sampler>> immutableSamplers;
     };
+
     struct bind_group_layout_descriptor
     {
         std::span<const bind_group_binding> bindings;
