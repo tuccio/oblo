@@ -726,7 +726,7 @@ namespace oblo
             if (vertexInputsReflection.count > 0)
             {
                 vertexInputsReflection.bindingDescs =
-                    allocate_n<gpu::vertex_input_attribute_descriptor>(frameAllocator, vertexInputsReflection.count);
+                    allocate_n<gpu::vertex_input_binding_descriptor>(frameAllocator, vertexInputsReflection.count);
                 vertexInputsReflection.attributeDescs =
                     allocate_n<gpu::vertex_input_attribute_descriptor>(frameAllocator, vertexInputsReflection.count);
             }
@@ -1653,7 +1653,7 @@ namespace oblo
             return {};
         }
 
-        poll_hot_reloading(*m_impl->interner, *m_impl->vkCtx, *computePass, m_impl->computePipelines);
+        poll_hot_reloading(*m_impl->interner, *m_impl->gpu, *computePass, m_impl->computePipelines);
 
         const u64 definesHash = hash_defines(desc.defines);
 
@@ -1678,29 +1678,40 @@ namespace oblo
 
         const auto failure = [this, &newPipeline, pipelineHandle, computePass, expectedHash]
         {
-            destroy_pipeline(*m_impl->vkCtx, newPipeline);
+            destroy_pipeline(*m_impl->gpu, newPipeline);
             m_impl->computePipelines.erase(pipelineHandle);
             // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             computePass->variants.emplace_back().hash = expectedHash;
             return h32<compute_pipeline>{};
         };
 
+        h32<gpu::shader_module> shaderModule{};
+
+        const auto cleanupShaderModule = finally(
+            [&shaderModule, this]
+            {
+                if (shaderModule)
+                {
+                    m_impl->gpu->destroy(shaderModule);
+                }
+            });
+
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
+        const vk::shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
 
         {
             constexpr string_view builtInDefines[] = {"OBLO_PIPELINE_COMPUTE", "OBLO_STAGE_COMPUTE"};
 
-            constexpr auto vkStage = VK_SHADER_STAGE_COMPUTE_BIT;
+            constexpr auto shaderStage = gpu::shader_stage::compute;
 
             const auto& filePath = computePass->shaderSourcePath;
 
             string_builder builder;
 
-            shader_compiler::result compilerResult;
+            vk::shader_compiler::result compilerResult;
 
-            const auto shaderModule = m_impl->create_shader_module(vkStage,
+            const expected compiledShader = m_impl->create_shader_module(shaderStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
@@ -1708,7 +1719,7 @@ namespace oblo
                 compilerOptions,
                 compilerResult);
 
-            if (!shaderModule)
+            if (!compiledShader)
             {
                 return failure();
             }
@@ -1722,43 +1733,32 @@ namespace oblo
                 newPipeline.hasPrintfInclude |= is_printf_include(include);
             }
 
-            newPipeline.shaderModule = shaderModule;
+            shaderModule = *compiledShader;
 
-            m_impl->create_reflection(newPipeline, vkStage, compilerResult.get_spirv(), vertexInputReflection);
+            m_impl->create_reflection(newPipeline, shaderStage, compilerResult.get_spirv(), vertexInputReflection);
         }
 
-        if (!m_impl->create_pipeline_layout(newPipeline))
+        buffered_array<h32<gpu::bind_group_layout>, 3> bindGroupLayouts;
+        buffered_array<gpu::push_constant_range, 4> pushConstantRanges;
+
+        if (!m_impl->create_layout_from_reflection(newPipeline, bindGroupLayouts, pushConstantRanges))
         {
             return failure();
         }
 
-        const VkComputePipelineCreateInfo pipelineInfo{
-            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-            .flags = 0,
-            .stage =
-                {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .stage = VK_SHADER_STAGE_COMPUTE_BIT,
-                    .module = newPipeline.shaderModule,
-                    .pName = "main",
-                },
-            .layout = newPipeline.pipelineLayout,
-        };
+        const expected computePipeline = m_impl->gpu->create_compute_pipeline({
+            .computeShader = shaderModule,
+            .pushConstants = pushConstantRanges,
+            .bindGroupLayouts = bindGroupLayouts,
+            .debugLabel = debug_label{newPipeline.label},
+        });
 
-        if (vkCreateComputePipelines(m_impl->device,
-                nullptr,
-                1,
-                &pipelineInfo,
-                m_impl->vkCtx->get_allocator().get_allocation_callbacks(),
-                &newPipeline.pipeline) == VK_SUCCESS)
+        if (!computePipeline)
         {
-            computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
-
-            const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
-            debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
-
-            return pipelineHandle;
+            return failure();
         }
+
+        computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
 
         return failure();
     }
