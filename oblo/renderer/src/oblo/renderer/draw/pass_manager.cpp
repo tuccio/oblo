@@ -25,7 +25,6 @@
 #include <oblo/renderer/draw/bindable_object.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
-#include <oblo/renderer/draw/descriptor_set_pool.hpp>
 #include <oblo/renderer/draw/draw_registry.hpp>
 #include <oblo/renderer/draw/global_shader_options.hpp>
 #include <oblo/renderer/draw/instance_data_type_registry.hpp>
@@ -34,7 +33,7 @@
 #include <oblo/renderer/draw/render_pass_initializer.hpp>
 #include <oblo/renderer/draw/shader_stage_utils.hpp>
 #include <oblo/renderer/draw/texture_registry.hpp>
-#include <oblo/trace/profile.hpp>ss
+#include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/compiler/compiler_module.hpp>
 #include <oblo/vulkan/compiler/shader_cache.hpp>
 
@@ -42,6 +41,15 @@
 
 namespace oblo
 {
+    struct named_shader_binding
+    {
+        h32<string> name;
+        u32 binding;
+        gpu::resource_binding_kind kind;
+        flags<gpu::shader_stage> stageFlags;
+        bool readOnly;
+    };
+
     namespace
     {
         constexpr u32 TextureSamplerDescriptorSet{1};
@@ -227,12 +235,12 @@ namespace oblo
             u32 count;
         };
 
-        bool is_buffer_binding(const descriptor_binding& binding)
+        bool is_buffer_binding(const named_shader_binding& binding)
         {
-            switch (binding.descriptorType)
+            switch (binding.kind)
             {
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+            case gpu::resource_binding_kind::uniform:
+            case gpu::resource_binding_kind::storage_buffer:
                 return true;
 
             default:
@@ -240,13 +248,13 @@ namespace oblo
             }
         }
 
-        bool is_image_binding(const descriptor_binding& binding)
+        bool is_image_binding(const named_shader_binding& binding)
         {
-            switch (binding.descriptorType)
+            switch (binding.kind)
             {
-            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+            case gpu::resource_binding_kind::sampled_image:
+            case gpu::resource_binding_kind::storage_image:
+            case gpu::resource_binding_kind::image_with_sampler:
                 return true;
 
             default:
@@ -319,7 +327,7 @@ namespace oblo
     {
         shader_resource vertexInputs;
         dynamic_array<shader_resource> resources;
-        dynamic_array<descriptor_binding> descriptorSetBindings;
+        dynamic_array<named_shader_binding> descriptorSetBindings;
         flat_dense_map<h32<string>, push_constant_info> pushConstants;
 
         h32<gpu::bind_group_layout> descriptorSetLayout{};
@@ -478,7 +486,9 @@ namespace oblo
             const vk::shader_compiler_options& compilerOptions,
             vk::shader_compiler::result& result);
 
-        bool create_pipeline_layout(base_pipeline& newPipeline);
+        bool create_layout_from_reflection(base_pipeline& newPipeline,
+            dynamic_array<gpu::bind_group_layout>& bindGroupLayouts,
+            dynamic_array<gpu::push_constant_range>& pushConstantRanges);
 
         void create_reflection(base_pipeline& newPipeline,
             gpu::shader_stage stage,
@@ -577,7 +587,9 @@ namespace oblo
         });
     }
 
-    bool pass_manager::impl::create_pipeline_layout(base_pipeline& newPipeline)
+    bool pass_manager::impl::create_layout_from_reflection(base_pipeline& newPipeline,
+        dynamic_array<gpu::bind_group_layout>& bindGroupLayouts,
+        dynamic_array<gpu::push_constant_range>& pushConstantRanges)
     {
         struct shader_resource_sorting
         {
@@ -622,93 +634,90 @@ namespace oblo
             }
         }
 
+        dynamic_array<gpu::bind_group_binding> newBindGroupBindings;
+        newBindGroupBindings.reserve(newPipeline.resources.size());
+
         newPipeline.descriptorSetBindings.reserve(newPipeline.resources.size());
 
         for (const auto& resource : newPipeline.resources)
         {
-            VkDescriptorType descriptorType;
+            gpu::resource_binding_kind descriptorType;
 
             switch (resource.kind)
             {
             case resource_kind::storage_buffer:
-                descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                descriptorType = gpu::resource_binding_kind::storage_buffer;
                 break;
 
             case resource_kind::uniform_buffer:
-                descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                descriptorType = gpu::resource_binding_kind::uniform;
                 break;
 
             case resource_kind::separate_image:
-                descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                descriptorType = gpu::resource_binding_kind::sampled_image;
                 break;
 
             case resource_kind::storage_image:
-                descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                descriptorType = gpu::resource_binding_kind::storage_image;
                 break;
 
             case resource_kind::sampled_image:
-                descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                descriptorType = gpu::resource_binding_kind::image_with_sampler;
                 break;
 
             case resource_kind::acceleration_structure:
-                descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+                descriptorType = gpu::resource_binding_kind::acceleration_structure;
                 break;
 
             default:
+                // We skip resources that don't need bindings, e.g. vertex inputs
                 continue;
             }
 
             newPipeline.descriptorSetBindings.push_back({
                 .name = resource.name,
                 .binding = resource.binding,
-                .descriptorType = descriptorType,
+                .kind = descriptorType,
                 .stageFlags = resource.stageFlags,
                 .readOnly = resource.readOnly,
             });
+
+            newBindGroupBindings.push_back({
+                .binding = resource.binding,
+                .bindingKind = descriptorType,
+                .shaderStages = resource.stageFlags,
+            });
         }
 
-        newPipeline.descriptorSetLayout = descriptorSetPool.get_or_add_layout(newPipeline.descriptorSetBindings);
+        const expected newBindGroupLayout = gpu->create_bind_group_layout({
+            .bindings = newBindGroupBindings,
+        });
 
-        VkDescriptorSetLayout descriptorSetLayouts[3] = {newPipeline.descriptorSetLayout};
-        u32 descriptorSetLayoutsCount{newPipeline.descriptorSetLayout != nullptr};
+        if (!newBindGroupLayout)
+        {
+            newBindGroupLayout.assert_value();
+            return false;
+        }
+
+        newPipeline.descriptorSetLayout = *newBindGroupLayout;
+
+        bindGroupLayouts.push_back(newPipeline.descriptorSetLayout);
 
         if (newPipeline.requiresTextures2D)
         {
-            descriptorSetLayouts[descriptorSetLayoutsCount++] = samplersSetLayout;
-            descriptorSetLayouts[descriptorSetLayoutsCount++] = textures2DSetLayout;
+            bindGroupLayouts.emplace_back(samplersSetLayout);
+            bindGroupLayouts.emplace_back(textures2DSetLayout);
         }
-
-        buffered_array<VkPushConstantRange, 2> pushConstantRanges;
 
         for (const auto& pushConstant : newPipeline.pushConstants.values())
         {
             pushConstantRanges.push_back({
-                .stageFlags = pushConstant.stages,
+                .stages = pushConstant.stages,
                 .size = pushConstant.size,
             });
         }
 
-        // TODO: Figure out inputs
-        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount = descriptorSetLayoutsCount,
-            .pSetLayouts = descriptorSetLayouts,
-            .pushConstantRangeCount = u32(pushConstantRanges.size()),
-            .pPushConstantRanges = pushConstantRanges.data(),
-        };
-
-        const auto success = vkCreatePipelineLayout(device,
-                                 &pipelineLayoutInfo,
-                                 vkCtx->get_allocator().get_allocation_callbacks(),
-                                 &newPipeline.pipelineLayout) == VK_SUCCESS;
-
-        if (success)
-        {
-            const auto& debugUtils = vkCtx->get_debug_utils_object();
-            debugUtils.set_object_name(device, newPipeline.pipelineLayout, newPipeline.label);
-        }
-
-        return success;
+        return true;
     }
 
     void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
@@ -1040,7 +1049,7 @@ namespace oblo
 
         auto writeBufferToDescriptorSet =
             [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
-                const descriptor_binding& binding,
+                const named_shader_binding& binding,
                 const bindable_buffer& buffer)
         {
             OBLO_ASSERT(buffersCount < MaxWrites);
@@ -1073,7 +1082,7 @@ namespace oblo
                 &descriptorSetWrites,
                 &imagesCount,
                 &writesCount,
-                sampler = samplers[u32(sampler::linear_repeat)]](const descriptor_binding& binding,
+                sampler = samplers[u32(sampler::linear_repeat)]](const named_shader_binding& binding,
                 const bindable_texture& texture)
         {
             OBLO_ASSERT(imagesCount < MaxWrites);
@@ -1100,7 +1109,7 @@ namespace oblo
 
         auto writeAccelerationStructureToDescriptorSet =
             [descriptorSet, &asSetWrites, &descriptorSetWrites, &accelerationStructuresCount, &writesCount](
-                const descriptor_binding& binding,
+                const named_shader_binding& binding,
                 const bindable_acceleration_structure& as)
         {
             OBLO_ASSERT(accelerationStructuresCount < MaxWrites);
@@ -1367,42 +1376,6 @@ namespace oblo
         });
 
         m_impl->textures2DSetLayout = bindlessTexturesLayout.assert_value_or({});
-
-        {
-            constexpr VkDescriptorBindingFlags bindlessFlags[] = {
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
-                    VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT |
-                    VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT,
-            };
-
-            const VkDescriptorSetLayoutBinding vkBindings[] = {
-                {
-                    .binding = Textures2DBinding,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .descriptorCount = textureRegistry.get_max_descriptor_count(),
-                    .stageFlags = VK_SHADER_STAGE_ALL,
-                },
-            };
-
-            const VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedInfo{
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
-                .bindingCount = array_size32(bindlessFlags),
-                .pBindingFlags = bindlessFlags,
-            };
-
-            const VkDescriptorSetLayoutCreateInfo layoutInfo = {
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .pNext = &extendedInfo,
-                .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT,
-                .bindingCount = array_size32(vkBindings),
-                .pBindings = vkBindings,
-            };
-
-            vkCreateDescriptorSetLayout(vkContext.get_device(),
-                &layoutInfo,
-                vkContext.get_allocator().get_allocation_callbacks(),
-                &m_impl->textures2DSetLayout);
-        }
 
         const gpu::device_info& deviceInfo = gpu.get_device_info();
         m_impl->subgroupSize = deviceInfo.subgroupSize;

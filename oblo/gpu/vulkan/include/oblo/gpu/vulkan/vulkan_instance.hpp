@@ -58,6 +58,9 @@ namespace oblo::gpu::vk
 
         result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle) override;
 
+        result<hptr<bind_group>> acquire_transient_variable_bind_group(h32<bind_group_layout> handle,
+            u32 count) override;
+
         result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) override;
 
@@ -274,8 +277,7 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<compute_pipeline, compute_pipeline_impl> m_computePipelines;
         h32_flat_pool_dense_map<raytracing_pipeline, raytracing_pipeline_impl> m_raytracingPipelines;
 
-        descriptor_set_pool m_generalDescriptorSetPool;
-        descriptor_set_pool m_textureDescriptorSetPool;
+        descriptor_set_pool m_perFrameSetPool;
 
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};

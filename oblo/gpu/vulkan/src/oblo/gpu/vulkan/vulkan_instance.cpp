@@ -188,18 +188,11 @@ namespace oblo::gpu::vk
         u32 acquiredImage{~0u};
     };
 
-    enum class bind_group_layout_pool_kind : u8
-    {
-        general,
-        texture,
-    };
-
     struct vulkan_instance::bind_group_layout_impl
     {
         VkDescriptorSetLayout descriptorSetLayout;
-        dynamic_array<descriptor_binding> bindings;
 
-        bind_group_layout_pool_kind pool;
+        flags<resource_binding_kind> resourceKinds;
     };
 
     // Pipelines
@@ -311,8 +304,7 @@ namespace oblo::gpu::vk
     {
         shutdown_tracked_queue_context();
 
-        m_generalDescriptorSetPool.shutdown();
-        m_textureDescriptorSetPool.shutdown();
+        m_perFrameSetPool.shutdown();
         m_allocator.shutdown();
 
         if (m_device)
@@ -515,21 +507,23 @@ namespace oblo::gpu::vk
             return translate_error(r);
         }
 
-        /// @see descriptor_pool_general_kinds
-        m_generalDescriptorSetPool.init(m_device,
-            m_allocator.get_allocation_callbacks(),
-            128,                                               // Equally split between uniform and storage
-            VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // Not sure we need this
+        // Those are currently all per-frame sets, we reset them once, we don't have a concept of long living-sets
+        // currently
+
+        m_perFrameSetPool.init(m_device, m_allocator.get_allocation_callbacks());
+
+        m_perFrameSetPool.add_pool_kind(descriptor_pool_general_kinds,
+            128u,
+            0u,
             make_span_initializer<VkDescriptorPoolSize>({
                 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
                 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
             }));
 
         /// @see descriptor_pool_texture-kinds, this one allows bindless descriptors for textures
-        m_textureDescriptorSetPool.init(m_device,
-            m_allocator.get_allocation_callbacks(),
-            128, // Equally split between uniform and storage
-            VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
+        m_perFrameSetPool.add_pool_kind(descriptor_pool_texture_kinds,
+            1u, // This is just because we only need one
+            VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
             make_span_initializer<VkDescriptorPoolSize>({
                 {VK_DESCRIPTOR_TYPE_SAMPLER, 32},         // We might want to expose or let users configure these limits
                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2048}, // We may want to match this number with texture_registry
@@ -744,64 +738,97 @@ namespace oblo::gpu::vk
     result<h32<bind_group_layout>> vulkan_instance::create_bind_group_layout(
         const bind_group_layout_descriptor& descriptor)
     {
-        auto [it, handle] = m_bindGroupLayouts.emplace();
+        buffered_array<VkDescriptorSetLayoutBinding, 32> bindings;
+        bindings.reserve(descriptor.bindings.size());
 
-        it->bindings.reserve(descriptor.bindings.size());
+        buffered_array<VkSampler, 32> samplers;
 
         flags<resource_binding_kind> bindingKinds{};
 
         for (const auto& binding : descriptor.bindings)
         {
-            it->bindings.push_back({
+            const bool hasSamplers = !binding.immutableSamplers.empty();
+
+            if (hasSamplers)
+            {
+                samplers.reserve(binding.immutableSamplers.size());
+            }
+
+            OBLO_ASSERT(binding.count > 0, "Probably forgot to set the count");
+
+            bindings.push_back({
                 .binding = binding.binding,
                 .descriptorType = convert_enum(binding.bindingKind),
+                .descriptorCount = binding.count,
                 .stageFlags = convert_enum_flags(binding.shaderStages),
-                .readOnly = binding.readOnly,
+                .pImmutableSamplers = hasSamplers ? samplers.data() : nullptr,
             });
 
             bindingKinds |= binding.bindingKind;
         }
 
+        // These are needed for bindless textures
+        constexpr VkDescriptorBindingFlags bindlessFlags[] = {
+            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT |
+                VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT,
+        };
+
+        VkDescriptorSetLayoutBindingFlagsCreateInfoEXT extendedInfo{
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT,
+            .bindingCount = array_size32(bindlessFlags),
+            .pBindingFlags = bindlessFlags,
+        };
+
+        void* pAcquireNext{};
+        VkDescriptorSetLayoutCreateFlags createFlags{};
+        flags<resource_binding_kind> resourceKinds{};
+
         if (descriptor_pool_general_kinds.contains_all(bindingKinds))
         {
-            const expected r = m_generalDescriptorSetPool.get_or_add_layout(it->bindings);
-
-            if (!r)
-            {
-                m_bindGroupLayouts.erase(handle);
-                return r.error();
-            }
-
-            it->descriptorSetLayout = *r;
-            it->pool = bind_group_layout_pool_kind::general;
+            resourceKinds = descriptor_pool_general_kinds;
         }
         else if (descriptor_pool_texture_kinds.contains_all(bindingKinds))
         {
-            const expected r = m_textureDescriptorSetPool.get_or_add_layout(it->bindings);
+            createFlags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
+            pAcquireNext = &extendedInfo;
 
-            if (!r)
-            {
-                m_bindGroupLayouts.erase(handle);
-                return r.error();
-            }
-
-            it->descriptorSetLayout = *r;
-            it->pool = bind_group_layout_pool_kind::texture;
+            resourceKinds = descriptor_pool_texture_kinds;
         }
         else
         {
             // We don't have a pool for this combination, we could decide to create one
-            m_bindGroupLayouts.erase(handle);
             return error::invalid_usage;
         }
+
+        const VkDescriptorSetLayoutCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .pNext = pAcquireNext,
+            .flags = createFlags,
+            .bindingCount = bindings.size32(),
+            .pBindings = bindings.data(),
+        };
+
+        VkDescriptorSetLayout vkLayout;
+        const VkResult r =
+            vkCreateDescriptorSetLayout(m_device, &createInfo, m_allocator.get_allocation_callbacks(), &vkLayout);
+
+        if (r != VK_SUCCESS)
+        {
+            return translate_error(r);
+        }
+
+        auto [it, handle] = m_bindGroupLayouts.emplace();
+
+        it->descriptorSetLayout = vkLayout;
+        it->resourceKinds = resourceKinds;
 
         return handle;
     }
 
     void vulkan_instance::destroy(h32<bind_group_layout> handle)
     {
-        // TODO: Right now we never destroy the descriptor set layouts, probably sharing them is not a good idea, or
-        // they would at least need to be ref-counted
+        auto& layout = m_bindGroupLayouts.at(handle);
+        vkDestroyDescriptorSetLayout(m_device, layout.descriptorSetLayout, m_allocator.get_allocation_callbacks());
         m_bindGroupLayouts.erase(handle);
     }
 
@@ -810,21 +837,31 @@ namespace oblo::gpu::vk
         const bind_group_layout_impl& bindGroup = m_bindGroupLayouts.at(handle);
         const VkDescriptorSetLayout layout = bindGroup.descriptorSetLayout;
 
-        descriptor_set_pool* pool{};
+        const result r =
+            m_perFrameSetPool.acquire(bindGroup.resourceKinds, get_last_finished_submit(), layout, nullptr);
 
-        switch (bindGroup.pool)
+        if (!r)
         {
-        case bind_group_layout_pool_kind::general:
-            pool = &m_generalDescriptorSetPool;
-            break;
-        case bind_group_layout_pool_kind::texture:
-            pool = &m_textureDescriptorSetPool;
-            break;
-        default:
-            return error::invalid_usage;
+            return r.error();
         }
 
-        const result r = pool->acquire(get_last_finished_submit(), layout, nullptr);
+        return wrap_handle<bind_group>(*r);
+    }
+
+    result<hptr<bind_group>> vulkan_instance::acquire_transient_variable_bind_group(h32<bind_group_layout> handle,
+        u32 count)
+    {
+        const bind_group_layout_impl& bindGroup = m_bindGroupLayouts.at(handle);
+        const VkDescriptorSetLayout layout = bindGroup.descriptorSetLayout;
+
+        VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
+            .descriptorSetCount = 1,
+            .pDescriptorCounts = &count,
+        };
+
+        const result r =
+            m_perFrameSetPool.acquire(bindGroup.resourceKinds, get_last_finished_submit(), layout, nullptr);
 
         if (!r)
         {
@@ -2095,8 +2132,7 @@ namespace oblo::gpu::vk
         if (result)
         {
             const u64 submitIndex = get_submit_index();
-            m_generalDescriptorSetPool.on_submit(submitIndex);
-            m_textureDescriptorSetPool.on_submit(submitIndex);
+            m_perFrameSetPool.on_submit(submitIndex);
             end_tracked_queue_submit();
         }
 

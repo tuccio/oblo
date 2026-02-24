@@ -24,7 +24,7 @@ namespace oblo
     struct compute_pass_initializer;
     struct compute_pipeline;
     struct compute_pipeline_initializer;
-    struct descriptor_binding;
+    struct named_shader_binding;
     struct raytracing_pass;
     struct raytracing_pass_initializer;
     struct raytracing_pipeline;
@@ -41,7 +41,7 @@ namespace oblo
     class pass_manager
     {
     public:
-        using locate_binding_fn = function_ref<bindable_object(const descriptor_binding&)>;
+        using locate_binding_fn = function_ref<bindable_object(const named_shader_binding&)>;
 
     public:
         pass_manager();
