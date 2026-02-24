@@ -8,15 +8,9 @@
 
 namespace oblo
 {
-    enum class raytracing_hit_type : u8
-    {
-        triangle,
-        procedural,
-    };
-
     struct raytracing_hit_group_initializer
     {
-        raytracing_hit_type type;
+        gpu::raytracing_hit_type type;
         buffered_array<string_view, 2> shaders;
     };
 

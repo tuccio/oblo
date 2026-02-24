@@ -288,7 +288,7 @@ namespace oblo
 
     struct raytracing_hit_group
     {
-        raytracing_hit_type type;
+        gpu::raytracing_hit_type type;
         dynamic_array<raytracing_shader> shaders;
     };
 
@@ -1711,7 +1711,7 @@ namespace oblo
 
             vk::shader_compiler::result compilerResult;
 
-            const expected compiledShader = m_impl->create_shader_module(shaderStage,
+            shaderModule = m_impl->create_shader_module(shaderStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
@@ -1719,7 +1719,7 @@ namespace oblo
                 compilerOptions,
                 compilerResult);
 
-            if (!compiledShader)
+            if (!shaderModule)
             {
                 return failure();
             }
@@ -1732,8 +1732,6 @@ namespace oblo
                 m_impl->add_watch(include, computePassHandle);
                 newPipeline.hasPrintfInclude |= is_printf_include(include);
             }
-
-            shaderModule = *compiledShader;
 
             m_impl->create_reflection(newPipeline, shaderStage, compilerResult.get_spirv(), vertexInputReflection);
         }
@@ -1773,9 +1771,7 @@ namespace oblo
             return {};
         }
 
-        auto* const vkCtx = m_impl->vkCtx;
-
-        poll_hot_reloading(*m_impl->interner, *vkCtx, *raytracingPass, m_impl->raytracingPipelines);
+        poll_hot_reloading(*m_impl->interner, *m_impl->gpu, *raytracingPass, m_impl->raytracingPipelines);
 
         usize definesHash = 0;
 
@@ -1806,7 +1802,7 @@ namespace oblo
 
         const auto failure = [this, &newPipeline, pipelineHandle, raytracingPass, expectedHash]
         {
-            destroy_pipeline(*m_impl->vkCtx, newPipeline);
+            destroy_pipeline(*m_impl->gpu, newPipeline);
             m_impl->raytracingPipelines.erase(pipelineHandle);
             // We push an invalid variant so we avoid trying to rebuild a failed pipeline every frame
             raytracingPass->variants.emplace_back().hash = expectedHash;
@@ -1815,15 +1811,25 @@ namespace oblo
 
         vertex_inputs_reflection vertexInputReflection{};
 
-        const shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
-
-        dynamic_array<VkPipelineShaderStageCreateInfo> stages{&m_impl->frameAllocator};
-        stages.reserve(raytracingPass->shadersCount);
+        const vk::shader_compiler_options compilerOptions{m_impl->make_compiler_options()};
 
         string_view builtInDefines[2] = {"OBLO_PIPELINE_RAYTRACING"};
 
         string_builder builder;
         deque<string_view> sourceFiles;
+
+        buffered_array<h32<gpu::shader_module>, 8> shaderModules;
+        buffered_array<gpu::shader_stage, 8> shaderStages;
+
+        // Destroy the modules at the end, whether we succeed or not
+        const auto cleanup = finally(
+            [this, &shaderModules]
+            {
+                for (const h32 module : shaderModules)
+                {
+                    m_impl->gpu->destroy(module);
+                }
+            });
 
         for (u32 currentShaderIndex = 0; currentShaderIndex < raytracingPass->shaderSourcePaths.size();
             ++currentShaderIndex)
@@ -1831,13 +1837,11 @@ namespace oblo
             const auto& filePath = raytracingPass->shaderSourcePaths[currentShaderIndex];
             const auto rtStage = raytracingPass->shaderStages[currentShaderIndex];
 
-            const auto vkStage = to_vulkan_stage_bits(rtStage);
-
             builtInDefines[1] = get_define_from_stage(rtStage);
 
-            shader_compiler::result compilerResult;
+            vk::shader_compiler::result compilerResult;
 
-            const auto shaderModule = m_impl->create_shader_module(vkStage,
+            const auto shaderModule = m_impl->create_shader_module(rtStage,
                 filePath,
                 builtInDefines,
                 desc.defines,
@@ -1859,232 +1863,76 @@ namespace oblo
                 newPipeline.hasPrintfInclude |= is_printf_include(include);
             }
 
-            newPipeline.shaderModules.push_back(shaderModule);
+            shaderModules.push_back(shaderModule);
+            shaderStages.push_back(rtStage);
 
-            m_impl->create_reflection(newPipeline, vkStage, compilerResult.get_spirv(), vertexInputReflection);
-
-            stages.push_back({
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .stage = vkStage,
-                .module = shaderModule,
-                .pName = "main",
-            });
+            m_impl->create_reflection(newPipeline, rtStage, compilerResult.get_spirv(), vertexInputReflection);
         }
 
-        dynamic_array<VkRayTracingShaderGroupCreateInfoKHR> groups{&m_impl->frameAllocator};
-        groups.reserve(raytracingPass->groupsCount);
+        h32<gpu::shader_module> raygenShader{};
 
-        groups.push_back({
-            .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
-            .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
-            .generalShader = raytracingPass->generation,
-            .closestHitShader = VK_SHADER_UNUSED_KHR,
-            .anyHitShader = VK_SHADER_UNUSED_KHR,
-            .intersectionShader = VK_SHADER_UNUSED_KHR,
-        });
+        if (raytracingPass->generation != VK_SHADER_UNUSED_KHR)
+        {
+            raygenShader = shaderModules[raytracingPass->generation];
+        }
+
+        dynamic_array<h32<gpu::shader_module>> missShaders{&m_impl->frameAllocator};
+        missShaders.reserve(raytracingPass->miss.size());
+
+        dynamic_array<gpu::raytracing_hit_group_descriptor> hitGroups{&m_impl->frameAllocator};
+        hitGroups.reserve(raytracingPass->hitGroups.size());
 
         for (const auto& miss : raytracingPass->miss)
         {
-            groups.push_back({
-                .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
-                .type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR,
-                .generalShader = miss.shaderIndex,
-                .closestHitShader = VK_SHADER_UNUSED_KHR,
-                .anyHitShader = VK_SHADER_UNUSED_KHR,
-                .intersectionShader = VK_SHADER_UNUSED_KHR,
-            });
+            const u32 shaderIndex = miss.shaderIndex;
+            missShaders.push_back(shaderModules[shaderIndex]);
         }
 
-        for (const auto& hg : raytracingPass->hitGroups)
+        for (const auto& hitGroup : raytracingPass->hitGroups)
         {
-            const auto type = hg.type == raytracing_hit_type::triangle
-                ? VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR
-                : VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+            const usize numShaders = hitGroup.shaders.size();
 
-            groups.push_back({
-                .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
-                .type = type,
-                .generalShader = VK_SHADER_UNUSED_KHR,
-                .closestHitShader = VK_SHADER_UNUSED_KHR,
-                .anyHitShader = VK_SHADER_UNUSED_KHR,
-                .intersectionShader = VK_SHADER_UNUSED_KHR,
-            });
+            const auto shaders = allocate_n_span<gpu::raytracing_hit_shader>(m_impl->frameAllocator, numShaders);
 
-            for (const auto& shader : hg.shaders)
+            for (usize i = 0; i < numShaders; ++i)
             {
-                switch (raytracingPass->shaderStages[shader.shaderIndex])
-                {
-                case raytracing_stage::intersection:
-                    groups.back().intersectionShader = shader.shaderIndex;
-                    break;
-                case raytracing_stage::any_hit:
-                    groups.back().anyHitShader = shader.shaderIndex;
-                    break;
-                case raytracing_stage::closest_hit:
-                    groups.back().closestHitShader = shader.shaderIndex;
-                    break;
-                default:
-                    OBLO_ASSERT(false);
-                    break;
-                }
+                const u32 shaderIndex = hitGroup.shaders[i].shaderIndex;
+
+                shaders[i] = {
+                    .handle = shaderModules[shaderIndex],
+                    .stage = shaderStages[shaderIndex],
+                };
             }
+
+            hitGroups.push_back({
+                .type = hitGroup.type,
+                .shaders = shaders,
+            });
         }
 
-        if (!m_impl->create_pipeline_layout(newPipeline))
+        buffered_array<h32<gpu::bind_group_layout>, 3> bindGroupLayouts;
+        buffered_array<gpu::push_constant_range, 4> pushConstantRanges;
+
+        if (!m_impl->create_layout_from_reflection(newPipeline, bindGroupLayouts, pushConstantRanges))
         {
             return failure();
         }
 
-        const VkRayTracingPipelineCreateInfoKHR pipelineInfo{
-            .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR,
-            .flags = 0,
-            .stageCount = u32(stages.size()),
-            .pStages = stages.data(),
-            .groupCount = u32(groups.size()),
-            .pGroups = groups.data(),
+        const expected rayTracingPipeline = m_impl->gpu->create_raytracing_pipeline({
+
+            .rayGenerationShader = raygenShader,
+            .missShaders = missShaders,
+            .hitGroups = hitGroups,
+            .pushConstants = pushConstantRanges,
+            .bindGroupLayouts = bindGroupLayouts,
             .maxPipelineRayRecursionDepth = desc.maxPipelineRayRecursionDepth,
-            .layout = newPipeline.pipelineLayout,
-        };
+            .debugLabel = debug_label{newPipeline.label},
+        });
 
-        const auto& vkFn = vkCtx->get_loaded_functions();
-
-        if (vkFn.vkCreateRayTracingPipelinesKHR(m_impl->device,
-                nullptr,
-                nullptr,
-                1u,
-                &pipelineInfo,
-                vkCtx->get_allocator().get_allocation_callbacks(),
-                &newPipeline.pipeline) != VK_SUCCESS)
+        if (!rayTracingPipeline)
         {
             return failure();
         }
-
-        const auto& debugUtils = m_impl->vkCtx->get_debug_utils_object();
-        debugUtils.set_object_name(m_impl->device, newPipeline.pipeline, newPipeline.label);
-
-        // Create the shader buffer table
-
-        const u32 handleSize = m_impl->rtPipelineProperties.shaderGroupHandleSize;
-        const u32 handleSizeAligned =
-            round_up_multiple(handleSize, m_impl->rtPipelineProperties.shaderGroupHandleAlignment);
-
-        newPipeline.rayGen = {
-            .stride = round_up_multiple(handleSizeAligned, m_impl->rtPipelineProperties.shaderGroupBaseAlignment),
-        };
-
-        // Ray-generation is a special case, size has to match the stride
-        newPipeline.rayGen.size = newPipeline.rayGen.stride;
-
-        const u32 missCount = u32(raytracingPass->miss.size());
-
-        if (missCount > 0)
-        {
-            newPipeline.miss = {
-                .stride = handleSizeAligned,
-                .size = round_up_multiple(missCount * handleSizeAligned,
-                    m_impl->rtPipelineProperties.shaderGroupBaseAlignment),
-            };
-        }
-
-        u32 hitCount = 0;
-
-        for (auto& hg : raytracingPass->hitGroups)
-        {
-            hitCount += u32(hg.shaders.size());
-        }
-
-        newPipeline.hit = {
-            .stride = handleSizeAligned,
-            .size =
-                round_up_multiple(hitCount * handleSizeAligned, m_impl->rtPipelineProperties.shaderGroupBaseAlignment),
-        };
-
-        const auto sbtBufferSize =
-            u32(newPipeline.rayGen.size + newPipeline.miss.size + newPipeline.hit.size + newPipeline.callable.size);
-
-        auto& allocator = vkCtx->get_allocator();
-
-        if (allocator.create_buffer(
-                {
-                    .size = narrow_cast<u32>(sbtBufferSize),
-                    .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                        VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
-                    .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                    .debugLabel = "Shader Binding Table",
-                },
-                &newPipeline.shaderBindingTable) != VK_SUCCESS)
-        {
-            return failure();
-        }
-
-        void* sbtPtr;
-
-        if (allocator.map(newPipeline.shaderBindingTable.allocation, &sbtPtr) != VK_SUCCESS)
-        {
-            return failure();
-        }
-
-        const u32 handleCount = raytracingPass->groupsCount;
-        const u32 handleDataSize = handleCount * handleSize;
-        dynamic_array<u8> handles{&m_impl->frameAllocator, handleDataSize};
-
-        if (vkFn.vkGetRayTracingShaderGroupHandlesKHR(vkCtx->get_device(),
-                newPipeline.pipeline,
-                0,
-                handleCount,
-                handleDataSize,
-                handles.data()) != VK_SUCCESS)
-        {
-            return failure();
-        }
-
-        const auto sbtAddress = vkCtx->get_device_address(newPipeline.shaderBindingTable.buffer);
-
-        newPipeline.rayGen.deviceAddress = sbtAddress;
-        newPipeline.miss.deviceAddress = newPipeline.rayGen.deviceAddress + newPipeline.rayGen.size;
-        newPipeline.hit.deviceAddress = newPipeline.miss.deviceAddress + newPipeline.miss.size;
-        newPipeline.callable.deviceAddress = newPipeline.hit.deviceAddress + newPipeline.hit.size;
-
-        struct group_desc
-        {
-            VkStridedDeviceAddressRegionKHR* group;
-            u32 groupHandles;
-        };
-
-        const group_desc groupsWithCount[] = {
-            {&newPipeline.rayGen, 1},
-            {&newPipeline.miss, missCount},
-            {
-                &newPipeline.hit,
-                hitCount,
-            },
-            {&newPipeline.callable, 0},
-        };
-
-        u32 nextHandleIndex = 0;
-
-        for (auto const [group, numHandles] : groupsWithCount)
-        {
-            if (group->size == 0)
-            {
-                continue;
-            }
-
-            const auto offset = group->deviceAddress - sbtAddress;
-
-            for (u32 i = 0; i < numHandles; ++i)
-            {
-                const auto dstOffset = offset + i * handleSizeAligned;
-                const auto srcOffset = nextHandleIndex * handleSize;
-
-                std::memcpy(static_cast<u8*>(sbtPtr) + dstOffset, handles.data() + srcOffset, handleSize);
-
-                ++nextHandleIndex;
-            }
-        }
-
-        allocator.unmap(newPipeline.shaderBindingTable.allocation);
-        allocator.invalidate_mapped_memory_ranges({&newPipeline.shaderBindingTable.allocation, 1});
 
         raytracingPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
         return pipelineHandle;
