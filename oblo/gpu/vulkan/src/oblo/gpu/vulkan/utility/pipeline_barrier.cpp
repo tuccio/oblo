@@ -202,72 +202,111 @@ namespace oblo::gpu::vk
             }
         }
 
+        template <bool WithPipeline>
         void deduce_barrier(VkImageLayout& outLayout,
-            VkAccessFlags2& outAccessMask,
-            VkPipelineStageFlags2& outStageMask,
+            [[maybe_unused]] VkAccessFlags2& outAccessMask,
+            [[maybe_unused]] VkPipelineStageFlags2& outStageMask,
             image_resource_state state,
-            pipeline_sync_stage pipeline)
+            [[maybe_unused]] pipeline_sync_stage pipeline)
         {
+            // Mind that we use this function in deduce_layout too
             switch (state)
             {
             case image_resource_state::undefined:
                 outLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                outStageMask = deduce_stage_mask(pipeline);
+
+                if constexpr (WithPipeline)
+                {
+                    outStageMask = deduce_stage_mask(pipeline);
+                }
+
                 break;
 
             case image_resource_state::depth_stencil_read:
                 outLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                outAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-                outStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+
+                if constexpr (WithPipeline)
+                {
+                    outAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+                    outStageMask =
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+                }
+
                 break;
 
             case image_resource_state::depth_stencil_write:
                 outLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                outAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-                outStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+
+                if constexpr (WithPipeline)
+                {
+                    outAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                    outStageMask =
+                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+                }
                 break;
 
             case image_resource_state::render_target_write:
                 outLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                outAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-                outStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                if constexpr (WithPipeline)
+                {
+                    outAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+                    outStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                }
                 break;
 
             case image_resource_state::shader_read:
                 outLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                outAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-                outStageMask = deduce_stage_mask(pipeline);
+                if constexpr (WithPipeline)
+                {
+                    outAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+                    outStageMask = deduce_stage_mask(pipeline);
+                }
                 break;
 
             case image_resource_state::storage_read:
                 outLayout = VK_IMAGE_LAYOUT_GENERAL;
-                outAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-                outStageMask = deduce_stage_mask(pipeline);
+                if constexpr (WithPipeline)
+                {
+                    outAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+                    outStageMask = deduce_stage_mask(pipeline);
+                }
                 break;
 
             case image_resource_state::storage_write:
                 outLayout = VK_IMAGE_LAYOUT_GENERAL;
-                outAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-                outStageMask = deduce_stage_mask(pipeline);
+                if constexpr (WithPipeline)
+                {
+                    outAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+                    outStageMask = deduce_stage_mask(pipeline);
+                }
                 break;
 
             case image_resource_state::transfer_source:
-                OBLO_ASSERT(pipeline == pipeline_sync_stage::transfer);
                 outLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-                outAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-                outStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                if constexpr (WithPipeline)
+                {
+                    OBLO_ASSERT(pipeline == pipeline_sync_stage::transfer);
+                    outAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                    outStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                }
                 break;
 
             case image_resource_state::transfer_destination:
-                OBLO_ASSERT(pipeline == pipeline_sync_stage::transfer);
                 outLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                outAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-                outStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                if constexpr (WithPipeline)
+                {
+                    OBLO_ASSERT(pipeline == pipeline_sync_stage::transfer);
+                    outAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                    outStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                }
                 break;
 
             case image_resource_state::present:
                 outLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                outStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+                if constexpr (WithPipeline)
+                {
+                    outStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+                }
                 break;
 
             default:
@@ -279,13 +318,13 @@ namespace oblo::gpu::vk
 
     void deduce_barrier(VkImageMemoryBarrier2& outBarrier, const image_state_transition& transition)
     {
-        deduce_barrier(outBarrier.oldLayout,
+        deduce_barrier<true>(outBarrier.oldLayout,
             outBarrier.srcAccessMask,
             outBarrier.srcStageMask,
             transition.previousState,
             transition.previousPipeline);
 
-        deduce_barrier(outBarrier.newLayout,
+        deduce_barrier<true>(outBarrier.newLayout,
             outBarrier.dstAccessMask,
             outBarrier.dstStageMask,
             transition.nextState,
@@ -325,4 +364,12 @@ namespace oblo::gpu::vk
         outBarrier.srcStageMask = srcStage;
     }
 
+    VkImageLayout deduce_layout(image_resource_state state)
+    {
+        VkImageLayout outLayout;
+        VkAccessFlags2 accessMask;
+        VkPipelineStageFlags2 stageMask;
+        deduce_barrier<false>(outLayout, accessMask, stageMask, state, {});
+        return outLayout;
+    }
 }

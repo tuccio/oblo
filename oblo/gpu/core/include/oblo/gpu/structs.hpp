@@ -378,5 +378,48 @@ namespace oblo::gpu
     struct bind_group_layout_descriptor
     {
         std::span<const bind_group_binding> bindings;
+        debug_label debugLabel = std::source_location::current();
     };
+
+    using bindable_acceleration_structure = h32<acceleration_structure>;
+    using bindable_buffer = buffer_range;
+
+    struct bindable_image
+    {
+        h32<image> image;
+        image_resource_state state;
+    };
+
+    struct bindable_object
+    {
+        bindable_resource_kind kind;
+
+        union {
+            bindable_buffer buffer;
+            bindable_image image;
+            bindable_acceleration_structure accelerationStructure;
+        };
+    };
+
+    struct bind_group_data
+    {
+        u32 binding;
+        resource_binding_kind bindingKind;
+        bindable_object object;
+    };
+
+    constexpr bindable_object make_bindable_object(const bindable_acceleration_structure& as)
+    {
+        return {.kind = bindable_resource_kind::acceleration_structure, .accelerationStructure = as};
+    }
+
+    constexpr bindable_object make_bindable_object(const bindable_buffer& b)
+    {
+        return {.kind = bindable_resource_kind::buffer, .buffer = b};
+    }
+
+    constexpr bindable_object make_bindable_object(const bindable_image& image)
+    {
+        return {.kind = bindable_resource_kind::image, .image = image};
+    }
 }

@@ -513,6 +513,13 @@ namespace oblo::gpu
         enum_max,
     };
 
+    enum class bindable_resource_kind : u8
+    {
+        acceleration_structure,
+        buffer,
+        image,
+    };
+
     enum class sampler_address_mode : u8
     {
         repeat,

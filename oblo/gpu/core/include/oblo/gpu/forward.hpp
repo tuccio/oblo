@@ -55,6 +55,7 @@ namespace oblo::gpu
     struct vertex_input_attribute_descriptor;
     struct vertex_input_binding_descriptor;
 
+    struct bind_group_data;
     struct device_info;
     struct device_limits;
     struct global_memory_barrier;

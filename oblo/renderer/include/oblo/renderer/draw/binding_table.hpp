@@ -12,14 +12,6 @@
 
 namespace oblo
 {
-    enum class bindable_resource_kind : u8
-    {
-        none,
-        buffer,
-        texture,
-        acceleration_structure,
-    };
-
     struct bindable_resource
     {
         bindable_resource_kind kind;

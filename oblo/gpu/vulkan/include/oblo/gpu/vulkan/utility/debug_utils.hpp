@@ -86,6 +86,11 @@ namespace oblo::gpu::vk::debug_utils
             set_object_name(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, uint64_t(descriptorSet), name);
         }
 
+        void set_object_name(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const char* name) const
+        {
+            set_object_name(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, uint64_t(descriptorSetLayout), name);
+        }
+
         void set_object_name(VkDevice device, VkPipeline pieline, const char* name) const
         {
             set_object_name(device, VK_OBJECT_TYPE_PIPELINE, uint64_t(pieline), name);

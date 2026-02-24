@@ -56,10 +56,11 @@ namespace oblo::gpu::vk
 
         void destroy(h32<bind_group_layout> handle) override;
 
-        result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle) override;
+        result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle,
+            std::span<const bind_group_data> data) override;
 
-        result<hptr<bind_group>> acquire_transient_variable_bind_group(h32<bind_group_layout> handle,
-            u32 count) override;
+        result<hptr<bind_group>> acquire_transient_variable_bind_group(
+            h32<bind_group_layout> handle, std::span<const bind_group_data> data, u32 count) override;
 
         result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) override;
@@ -215,6 +216,7 @@ namespace oblo::gpu::vk
         VkDevice get_device() const;
         gpu_allocator& get_allocator();
 
+        VkAccelerationStructureKHR unwrap_acceleration_structure(h32<acceleration_structure> handle) const;
         VkBuffer unwrap_buffer(h32<buffer> handle) const;
         VkCommandBuffer unwrap_command_buffer(hptr<command_buffer> handle) const;
         VkImage unwrap_image(h32<image> handle) const;
@@ -227,6 +229,7 @@ namespace oblo::gpu::vk
         const loaded_functions& get_loaded_functions() const;
 
     private:
+        struct acceleration_structure_impl;
         struct bind_group_layout_impl;
         struct buffer_impl;
         struct command_buffer_pool_impl;
@@ -256,6 +259,8 @@ namespace oblo::gpu::vk
             VkPipelineLayout* pipelineLayout,
             const debug_label& label);
 
+        void initialize_descriptor_set(VkDescriptorSet descriptorSet, std::span<const bind_group_data> data);
+
     private:
         VkInstance m_instance{};
         VkPhysicalDevice m_physicalDevice{};
@@ -263,6 +268,7 @@ namespace oblo::gpu::vk
         gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
 
+        h32_flat_pool_dense_map<acceleration_structure, acceleration_structure_impl> m_accelerationStructures;
         h32_flat_pool_dense_map<swapchain, swapchain_impl> m_swapchains;
         h32_flat_pool_dense_map<buffer, buffer_impl> m_buffers;
         h32_flat_pool_dense_map<image, image_impl> m_images;

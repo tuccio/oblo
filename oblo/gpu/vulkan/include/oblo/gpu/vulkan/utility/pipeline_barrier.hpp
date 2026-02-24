@@ -24,4 +24,6 @@ namespace oblo::gpu::vk
 
     void deduce_barrier(VkImageMemoryBarrier2& outBarrier, const image_state_transition& transition);
     void deduce_barrier(VkMemoryBarrier2& outBarrier, const global_memory_barrier& memoryBarrier);
+
+    VkImageLayout deduce_layout(image_resource_state state);
 }

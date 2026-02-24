@@ -487,7 +487,7 @@ namespace oblo
             vk::shader_compiler::result& result);
 
         bool create_layout_from_reflection(base_pipeline& newPipeline,
-            dynamic_array<gpu::bind_group_layout>& bindGroupLayouts,
+            dynamic_array<h32<gpu::bind_group_layout>>& bindGroupLayouts,
             dynamic_array<gpu::push_constant_range>& pushConstantRanges);
 
         void create_reflection(base_pipeline& newPipeline,
@@ -588,7 +588,7 @@ namespace oblo
     }
 
     bool pass_manager::impl::create_layout_from_reflection(base_pipeline& newPipeline,
-        dynamic_array<gpu::bind_group_layout>& bindGroupLayouts,
+        dynamic_array<h32<gpu::bind_group_layout>>& bindGroupLayouts,
         dynamic_array<gpu::push_constant_range>& pushConstantRanges)
     {
         struct shader_resource_sorting
@@ -1029,110 +1029,8 @@ namespace oblo
     hptr<gpu::bind_group> pass_manager::impl::create_descriptor_set(
         h32<gpu::bind_group_layout> descriptorSetLayout, const base_pipeline& pipeline, locate_binding_fn locateBinding)
     {
-        const VkDescriptorSet descriptorSet = descriptorSetPool.acquire(descriptorSetLayout);
-
-        vkCtx->get_debug_utils_object().set_object_name(device,
-            descriptorSet,
-            string_builder{}.format("{} / pass_manager", pipeline.label).c_str());
-
-        constexpr u32 MaxWrites{64};
-
-        u32 buffersCount{0};
-        u32 imagesCount{0};
-        u32 writesCount{0};
-        u32 accelerationStructuresCount{0};
-
-        VkDescriptorBufferInfo bufferInfo[MaxWrites];
-        VkDescriptorImageInfo imageInfo[MaxWrites];
-        VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
-        VkWriteDescriptorSetAccelerationStructureKHR asSetWrites[MaxWrites];
-
-        auto writeBufferToDescriptorSet =
-            [descriptorSet, &bufferInfo, &descriptorSetWrites, &buffersCount, &writesCount](
-                const named_shader_binding& binding,
-                const bindable_buffer& buffer)
-        {
-            OBLO_ASSERT(buffersCount < MaxWrites);
-            OBLO_ASSERT(writesCount < MaxWrites);
-            OBLO_ASSERT(buffer.buffer);
-            OBLO_ASSERT(buffer.size > 0);
-
-            bufferInfo[buffersCount] = {
-                .buffer = buffer.buffer,
-                .offset = buffer.offset,
-                .range = buffer.size,
-            };
-
-            descriptorSetWrites[writesCount] = {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstSet = descriptorSet,
-                .dstBinding = binding.binding,
-                .descriptorCount = 1,
-                .descriptorType = binding.descriptorType,
-                .pBufferInfo = bufferInfo + buffersCount,
-            };
-
-            ++buffersCount;
-            ++writesCount;
-        };
-
-        auto writeImageToDescriptorSet =
-            [descriptorSet,
-                &imageInfo,
-                &descriptorSetWrites,
-                &imagesCount,
-                &writesCount,
-                sampler = samplers[u32(sampler::linear_repeat)]](const named_shader_binding& binding,
-                const bindable_texture& texture)
-        {
-            OBLO_ASSERT(imagesCount < MaxWrites);
-            OBLO_ASSERT(writesCount < MaxWrites);
-
-            imageInfo[imagesCount] = {
-                .sampler = sampler,
-                .imageView = texture.view,
-                .imageLayout = texture.layout,
-            };
-
-            descriptorSetWrites[writesCount] = {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstSet = descriptorSet,
-                .dstBinding = binding.binding,
-                .descriptorCount = 1,
-                .descriptorType = binding.descriptorType,
-                .pImageInfo = imageInfo + imagesCount,
-            };
-
-            ++imagesCount;
-            ++writesCount;
-        };
-
-        auto writeAccelerationStructureToDescriptorSet =
-            [descriptorSet, &asSetWrites, &descriptorSetWrites, &accelerationStructuresCount, &writesCount](
-                const named_shader_binding& binding,
-                const bindable_acceleration_structure& as)
-        {
-            OBLO_ASSERT(accelerationStructuresCount < MaxWrites);
-            OBLO_ASSERT(writesCount < MaxWrites);
-
-            asSetWrites[accelerationStructuresCount] = {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
-                .accelerationStructureCount = 1,
-                .pAccelerationStructures = &as.handle,
-            };
-
-            descriptorSetWrites[writesCount] = {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .pNext = &asSetWrites[accelerationStructuresCount],
-                .dstSet = descriptorSet,
-                .dstBinding = binding.binding,
-                .descriptorCount = 1,
-                .descriptorType = binding.descriptorType,
-            };
-
-            ++accelerationStructuresCount;
-            ++writesCount;
-        };
+        buffered_array<gpu::bind_group_data, 32> bindGroupData;
+        bindGroupData.reserve(pipeline.descriptorSetBindings.size());
 
         for (const auto& binding : pipeline.descriptorSetBindings)
         {
@@ -1143,7 +1041,11 @@ namespace oblo
             case bindable_resource_kind::buffer:
                 if (is_buffer_binding(binding))
                 {
-                    writeBufferToDescriptorSet(binding, bindableObject.buffer);
+                    bindGroupData.push_back({
+                        .binding = binding.binding,
+                        .bindingKind = binding.kind,
+                        .data = bindableObject.buffer,
+                    });
                 }
                 else
                 {
@@ -1156,7 +1058,11 @@ namespace oblo
             case bindable_resource_kind::texture:
                 if (is_image_binding(binding))
                 {
-                    writeImageToDescriptorSet(binding, bindableObject.texture);
+                    bindGroupData.push_back({
+                        .binding = binding.binding,
+                        .bindingKind = binding.kind,
+                        .data = bindableObject.texture,
+                    });
                 }
                 else
                 {
@@ -1167,9 +1073,13 @@ namespace oblo
 
                 break;
             case bindable_resource_kind::acceleration_structure:
-                if (binding.descriptorType == VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
+                if (binding.kind == gpu::resource_binding_kind::acceleration_structure)
                 {
-                    writeAccelerationStructureToDescriptorSet(binding, bindableObject.accelerationStructure);
+                    bindGroupData.push_back({
+                        .binding = binding.binding,
+                        .bindingKind = binding.kind,
+                        .data = bindableObject.accelerationStructure,
+                    });
                 }
                 else
                 {
@@ -1193,12 +1103,15 @@ namespace oblo
             }
         }
 
-        if (writesCount > 0)
+        const expected bindGroup = gpu->acquire_transient_bind_group(descriptorSetLayout, bindGroupData);
+
+        if (!bindGroup)
         {
-            vkUpdateDescriptorSets(device, writesCount, descriptorSetWrites, 0, nullptr);
+            OBLO_ASSERT(false);
+            return {};
         }
 
-        return descriptorSet;
+        return bindGroup;
     }
 
     pass_manager::pass_manager() = default;
@@ -1361,6 +1274,7 @@ namespace oblo
                 .shaderStages = flags<gpu::shader_stage>::all(),
                 .immutableSamplers = m_impl->samplers,
             }}),
+            .debugLabel = "samplers_layout",
         });
 
         m_impl->samplersSetLayout = samplersSetLayout.assert_value_or({});
@@ -1369,10 +1283,11 @@ namespace oblo
         const expected bindlessTexturesLayout = gpu.create_bind_group_layout({
             .bindings = make_span_initializer<gpu::bind_group_binding>({{
                 .binding = Textures2DBinding,
+                .count = textureRegistry.get_max_descriptor_count(),
                 .bindingKind = gpu::resource_binding_kind::sampled_image,
                 .shaderStages = flags<gpu::shader_stage>::all(),
-                .bindlessCount = textureRegistry.get_max_descriptor_count(),
             }}),
+            .debugLabel = "bindless_textures",
         });
 
         m_impl->textures2DSetLayout = bindlessTexturesLayout.assert_value_or({});

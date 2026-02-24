@@ -139,6 +139,11 @@ namespace oblo::gpu::vk
         m_objLabeler.set_object_name(m_device, obj, label.get());
     }
 
+    struct vulkan_instance::acceleration_structure_impl
+    {
+        VkAccelerationStructureKHR vkAccelerationStructure{};
+    };
+
     struct vulkan_instance::buffer_impl : vk::allocated_buffer
     {
     };
@@ -191,7 +196,7 @@ namespace oblo::gpu::vk
     struct vulkan_instance::bind_group_layout_impl
     {
         VkDescriptorSetLayout descriptorSetLayout;
-
+        debug_label debugLabel;
         flags<resource_binding_kind> resourceKinds;
     };
 
@@ -817,6 +822,8 @@ namespace oblo::gpu::vk
             return translate_error(r);
         }
 
+        label_vulkan_object(vkLayout, descriptor.debugLabel);
+
         auto [it, handle] = m_bindGroupLayouts.emplace();
 
         it->descriptorSetLayout = vkLayout;
@@ -832,7 +839,8 @@ namespace oblo::gpu::vk
         m_bindGroupLayouts.erase(handle);
     }
 
-    result<hptr<bind_group>> vulkan_instance::acquire_transient_bind_group(h32<bind_group_layout> handle)
+    result<hptr<bind_group>> vulkan_instance::acquire_transient_bind_group(h32<bind_group_layout> handle,
+        std::span<const bind_group_data> data)
     {
         const bind_group_layout_impl& bindGroup = m_bindGroupLayouts.at(handle);
         const VkDescriptorSetLayout layout = bindGroup.descriptorSetLayout;
@@ -845,11 +853,15 @@ namespace oblo::gpu::vk
             return r.error();
         }
 
+        label_vulkan_object(*r, bindGroup.debugLabel);
+
+        initialize_descriptor_set(*r, data);
+
         return wrap_handle<bind_group>(*r);
     }
 
-    result<hptr<bind_group>> vulkan_instance::acquire_transient_variable_bind_group(h32<bind_group_layout> handle,
-        u32 count)
+    result<hptr<bind_group>> vulkan_instance::acquire_transient_variable_bind_group(
+        h32<bind_group_layout> handle, std::span<const bind_group_data> data, u32 count)
     {
         const bind_group_layout_impl& bindGroup = m_bindGroupLayouts.at(handle);
         const VkDescriptorSetLayout layout = bindGroup.descriptorSetLayout;
@@ -867,6 +879,10 @@ namespace oblo::gpu::vk
         {
             return r.error();
         }
+
+        label_vulkan_object(*r, bindGroup.debugLabel);
+
+        initialize_descriptor_set(*r, data);
 
         return wrap_handle<bind_group>(*r);
     }
@@ -2513,6 +2529,11 @@ namespace oblo::gpu::vk
         return m_allocator;
     }
 
+    VkAccelerationStructureKHR vulkan_instance::unwrap_acceleration_structure(h32<acceleration_structure> handle) const
+    {
+        return m_accelerationStructures.at(handle).vkAccelerationStructure;
+    }
+
     VkBuffer vulkan_instance::unwrap_buffer(h32<buffer> handle) const
     {
         return m_buffers.at(handle).buffer;
@@ -2625,6 +2646,120 @@ namespace oblo::gpu::vk
 
         label_vulkan_object(*pipelineLayout, label);
         return no_error;
+    }
+
+    void vulkan_instance::initialize_descriptor_set(VkDescriptorSet descriptorSet,
+        std::span<const bind_group_data> data)
+    {
+        constexpr u32 MaxWrites{64};
+
+        u32 buffersCount{0};
+        u32 imagesCount{0};
+        u32 writesCount{0};
+        u32 accelerationStructuresCount{0};
+
+        VkDescriptorBufferInfo bufferInfo[MaxWrites];
+        VkDescriptorImageInfo imageInfo[MaxWrites];
+        VkWriteDescriptorSet descriptorSetWrites[MaxWrites];
+        VkWriteDescriptorSetAccelerationStructureKHR asSetWrites[MaxWrites];
+
+        // We need a sampler even for bindless textures
+        VkSampler const anySampler = m_samplers.empty() ? nullptr : m_samplers.values().front().vkSampler;
+
+        for (const bind_group_data& bindingData : data)
+        {
+            switch (bindingData.object.kind)
+            {
+            case bindable_resource_kind::acceleration_structure: {
+                const bindable_acceleration_structure& as = bindingData.object.accelerationStructure;
+
+                OBLO_ASSERT(accelerationStructuresCount < MaxWrites);
+                OBLO_ASSERT(writesCount < MaxWrites);
+
+                const VkAccelerationStructureKHR accelerationStructure = unwrap_acceleration_structure(as);
+
+                asSetWrites[accelerationStructuresCount] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+                    .accelerationStructureCount = 1,
+                    .pAccelerationStructures = &accelerationStructure,
+                };
+
+                descriptorSetWrites[writesCount] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .pNext = &asSetWrites[accelerationStructuresCount],
+                    .dstSet = descriptorSet,
+                    .dstBinding = bindingData.binding,
+                    .descriptorCount = 1,
+                    .descriptorType = convert_enum(bindingData.bindingKind),
+                };
+
+                ++accelerationStructuresCount;
+                ++writesCount;
+            }
+            break;
+
+            case bindable_resource_kind::buffer: {
+                const bindable_buffer& buffer = bindingData.object.buffer;
+
+                OBLO_ASSERT(buffersCount < MaxWrites);
+                OBLO_ASSERT(writesCount < MaxWrites);
+                OBLO_ASSERT(buffer.buffer);
+                OBLO_ASSERT(buffer.size > 0);
+
+                bufferInfo[buffersCount] = {
+                    .buffer = unwrap_buffer(buffer.buffer),
+                    .offset = buffer.offset,
+                    .range = buffer.size,
+                };
+
+                descriptorSetWrites[writesCount] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = descriptorSet,
+                    .dstBinding = bindingData.binding,
+                    .descriptorCount = 1,
+                    .descriptorType = convert_enum(bindingData.bindingKind),
+                    .pBufferInfo = bufferInfo + buffersCount,
+                };
+
+                ++buffersCount;
+                ++writesCount;
+            }
+            break;
+
+            case bindable_resource_kind::image: {
+                const bindable_image& image = bindingData.object.image;
+
+                OBLO_ASSERT(imagesCount < MaxWrites);
+                OBLO_ASSERT(writesCount < MaxWrites);
+
+                const auto& imageImpl = m_images.at(image.image);
+
+                imageInfo[imagesCount] = {
+                    .sampler = anySampler,
+                    .imageView = imageImpl.view,
+                    .imageLayout = deduce_layout(image.state),
+                };
+
+                descriptorSetWrites[writesCount] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = descriptorSet,
+                    .dstBinding = bindingData.binding,
+                    .descriptorCount = 1,
+                    .descriptorType = convert_enum(bindingData.bindingKind),
+                    .pImageInfo = imageInfo + imagesCount,
+                };
+
+                ++imagesCount;
+                ++writesCount;
+            }
+            break;
+            }
+        }
+
+        if (writesCount > 0)
+        {
+            vkUpdateDescriptorSets(m_device, writesCount, descriptorSetWrites, 0, nullptr);
+        }
     }
 }
 
