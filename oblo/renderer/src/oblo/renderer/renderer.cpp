@@ -4,7 +4,6 @@
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/renderer/draw/descriptor_set_pool.hpp>
 #include <oblo/renderer/draw/instance_data_type_registry.hpp>
 #include <oblo/renderer/platform/renderer_platform.hpp>
 #include <oblo/renderer/renderer_module.hpp>

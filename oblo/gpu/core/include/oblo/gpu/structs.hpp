@@ -329,6 +329,15 @@ namespace oblo::gpu
         u64 size;
     };
 
+    struct buffer_memory_barrier
+    {
+        buffer_range bufferRange;
+        flags<pipeline_sync_stage> previousPipelines;
+        flags<memory_access_type> previousAccesses;
+        flags<pipeline_sync_stage> nextPipelines;
+        flags<memory_access_type> nextAccesses;
+    };
+
     struct image_state_transition
     {
         h32<image> image;
@@ -348,6 +357,7 @@ namespace oblo::gpu
 
     struct memory_barrier_descriptor
     {
+        std::span<const buffer_memory_barrier> buffers;
         std::span<const image_state_transition> images;
         std::span<const global_memory_barrier> memory;
     };

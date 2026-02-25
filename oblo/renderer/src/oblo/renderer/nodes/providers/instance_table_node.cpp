@@ -10,7 +10,7 @@ namespace oblo
 
     struct instance_data_table
     {
-        u64 bufferAddress[MaxInstanceBuffers];
+        h64<gpu::device_address> bufferAddress[MaxInstanceBuffers];
     };
 
     void instance_table_node::build(const frame_graph_build_context& ctx)
@@ -28,7 +28,7 @@ namespace oblo
                 .size = meshDatabaseData.size(),
                 .data = meshDatabaseData,
             },
-            buffer_usage::storage | buffer_usage::transfer_destination);
+            buffer_usage::storage_upload);
 
         const std::span drawCalls = drawRegistry.get_draw_calls();
         const auto numTables = drawCalls.size();

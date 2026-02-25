@@ -9,8 +9,8 @@
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
-#include <oblo/renderer/compiler/compiler_module.hpp>
 #include <oblo/renderer/draw/global_shader_options.hpp>
+#include <oblo/vulkan/compiler/compiler_module.hpp>
 
 namespace oblo::ecs
 {
@@ -27,7 +27,7 @@ namespace oblo
     bool renderer_module::startup(const module_initializer& initializer)
     {
         module_manager::get().load<options_module>();
-        module_manager::get().load<compiler_module>();
+        module_manager::get().load<vk::compiler_module>();
 
         option_proxy_struct<global_shader_options_proxy>::register_options(*initializer.services);
 

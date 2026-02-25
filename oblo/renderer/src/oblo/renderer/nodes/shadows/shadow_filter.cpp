@@ -87,7 +87,7 @@ namespace oblo
                 .depthSigma = ctx.access(inConfig).depthSigma,
             };
 
-            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
 
             ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 

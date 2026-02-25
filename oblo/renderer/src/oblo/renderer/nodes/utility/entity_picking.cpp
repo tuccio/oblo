@@ -7,7 +7,6 @@
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
-#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {
@@ -56,7 +55,7 @@ namespace oblo
             const vec2u screenPosition{u32(pickingConfiguration.coordinates.x + .5f),
                 u32(pickingConfiguration.coordinates.y + .5f)};
 
-            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&screenPosition, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&screenPosition, 1}));
 
             ctx.bind_descriptor_sets(bindingTable);
 

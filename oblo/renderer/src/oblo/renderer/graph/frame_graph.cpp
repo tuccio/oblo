@@ -42,14 +42,14 @@ namespace oblo
             return h32<frame_graph_pin_storage>{h.value};
         }
 
-        void build_pass_barriers(frame_graph_impl& impl, dynamic_array<VkBufferMemoryBarrier2>& memoryBarriers)
+        void build_pass_barriers(frame_graph_impl& impl, dynamic_array<gpu::buffer_memory_barrier>& memoryBarriers)
         {
             memoryBarriers.reserve(128);
 
             struct buffer_tracking
             {
-                VkPipelineStageFlags2 previousStages;
-                VkAccessFlags2 previousAccess;
+                flags<gpu::pipeline_sync_stage> previousStages;
+                flags<gpu::memory_access_type> previousAccess;
                 bool hasMemoryBarrier;
                 buffer_access_kind currentAccessKind;
                 usize currentBarrierIdx;
@@ -92,17 +92,17 @@ namespace oblo
                             "We don't support uploading to stable buffers currently, but if we did it would require a "
                             "barrier on the first frame");
 
-                        OBLO_ASSERT(tracking->previousStages == VK_PIPELINE_STAGE_2_NONE);
+                        OBLO_ASSERT(tracking->previousStages.is_empty());
 
-                        tracking->previousStages = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-                        tracking->previousAccess = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                        tracking->previousStages = gpu::pipeline_sync_stage::transfer;
+                        tracking->previousAccess = gpu::memory_access_type::any_write;
                     }
 
                     // If we don't have an actual usage, we just act like we are "forwarding"
-                    if (bufferUsage.stages != VK_PIPELINE_STAGE_2_NONE)
+                    if (!bufferUsage.stages.is_empty())
                     {
                         // The usage should be either read or write
-                        OBLO_ASSERT(bufferUsage.access != VK_ACCESS_2_NONE);
+                        OBLO_ASSERT(!bufferUsage.access.is_empty());
 
                         const bool isNewUsageRead = bufferUsage.accessKind == buffer_access_kind::read;
                         const bool isCurrentUsageRead =
@@ -114,8 +114,8 @@ namespace oblo
                             // When we already added a read barrier and we find another read usage, we can just add the
                             // stages and access to the previous barrier
                             auto& barrier = memoryBarriers[tracking->currentBarrierIdx];
-                            barrier.dstStageMask |= bufferUsage.stages;
-                            barrier.dstAccessMask |= bufferUsage.access;
+                            barrier.nextPipelines |= bufferUsage.stages;
+                            barrier.nextAccesses |= bufferUsage.access;
                         }
                         else
                         {
@@ -124,8 +124,8 @@ namespace oblo
                             if (tracking->hasMemoryBarrier)
                             {
                                 auto& barrier = memoryBarriers[tracking->currentBarrierIdx];
-                                tracking->previousStages = barrier.dstStageMask;
-                                tracking->previousAccess = barrier.dstAccessMask;
+                                tracking->previousStages = barrier.nextPipelines;
+                                tracking->previousAccess = barrier.nextAccesses;
                             }
 
                             // Here the current access might be none, or simply different from our new usage (e.g.
@@ -143,16 +143,11 @@ namespace oblo
                             // When there's no access yet, we can just add a new barrier (we might update access/stage
                             // of it later)
                             memoryBarriers.push_back({
-                                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-                                .srcStageMask = tracking->previousStages,
-                                .srcAccessMask = tracking->previousAccess,
-                                .dstStageMask = bufferUsage.stages,
-                                .dstAccessMask = bufferUsage.access,
-                                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                                .buffer = bufferPtr->buffer,
-                                .offset = bufferPtr->offset,
-                                .size = bufferPtr->size,
+                                .bufferRange = {bufferPtr->handle, bufferPtr->offset, bufferPtr->size},
+                                .previousPipelines = tracking->previousStages,
+                                .previousAccesses = tracking->previousAccess,
+                                .nextPipelines = bufferUsage.stages,
+                                .nextAccesses = bufferUsage.access,
                             });
                         }
                     }
@@ -174,8 +169,8 @@ namespace oblo
                     const auto& barrier = memoryBarriers[tracking->currentBarrierIdx];
 
                     impl.resourcePool.store_buffer_tracking(stableBufferId,
-                        barrier.dstStageMask,
-                        barrier.dstAccessMask,
+                        barrier.nextPipelines,
+                        barrier.nextAccesses,
                         tracking->currentAccessKind);
                 }
             }
@@ -546,10 +541,10 @@ namespace oblo
     {
         OBLO_PROFILE_SCOPE("Frame Graph Build");
 
-        gpu::gpu_instance& queueCtx = args.r.get_gpu_instance();
+        gpu::gpu_instance& gpu = args.r.get_gpu_instance();
 
         // Free retained textures if the user destroyed some subgraphs that owned some
-        m_impl->free_pending_textures(queueCtx);
+        m_impl->free_pending_textures(gpu);
 
         m_impl->dynamicAllocator.restore_all();
 
@@ -564,7 +559,10 @@ namespace oblo
         // We use pass with index 0 as invalid
         m_impl->passes.assign_default(1);
 
-        frame_graph_build_state buildState;
+        frame_graph_build_state buildState{
+            .gpu = &gpu,
+        };
+
         const frame_graph_build_context buildCtx{*m_impl, buildState, args};
 
         // Clearing these is required for certain operations that query created textures during the build process (e.g.
@@ -642,7 +640,7 @@ namespace oblo
             m_impl->end_pass_build(buildState);
         }
 
-        m_impl->resourcePool.end_build(queueCtx);
+        m_impl->resourcePool.end_build(gpu);
 
         auto& textureRegistry = args.textureRegistry;
 
@@ -751,14 +749,10 @@ namespace oblo
             });
 
         frame_graph_barriers barriers{
-            .bufferBarriers{dynamic_array<VkBufferMemoryBarrier2>{&m_impl->dynamicAllocator}},
-            .imageBarriers{dynamic_array<VkImageMemoryBarrier2>{&m_impl->dynamicAllocator}},
+            .bufferBarriers{dynamic_array<gpu::buffer_memory_barrier>{&m_impl->dynamicAllocator}},
         };
 
-        dynamic_array<VkBufferMemoryBarrier2> bufferBarriers{&m_impl->dynamicAllocator};
         build_pass_barriers(*m_impl, barriers.bufferBarriers);
-
-        barriers.imageBarriers.reserve(64);
 
         m_impl->barriers = &barriers;
 
@@ -889,6 +883,21 @@ namespace oblo
 
         const auto& pass = passes[passId.value];
 
+        flags<gpu::pipeline_sync_stage> stages{};
+
+        switch (pass.kind)
+        {
+        case pass_kind::transfer:
+            stages = gpu::pipeline_sync_stage::transfer;
+            break;
+        case pass_kind::raytracing:
+            stages = gpu::pipeline_sync_stage::raytracing;
+            break;
+        case pass_kind::graphics:
+            stages = gpu::pipeline_sync_stage::graphics;
+            break;
+        }
+
         // TODO: Can we also prepare these in advance?
         buffered_array<gpu::image_state_transition, 32> imageBarriers;
         imageBarriers.reserve(pass.textureTransitionEnd - pass.textureTransitionBegin);
@@ -897,23 +906,12 @@ namespace oblo
         {
             const auto& textureTransition = textureTransitions[i];
 
-            auto* const texture = pinStorage.try_find(textureTransition.texture);
-            OBLO_ASSERT(texture && texture->transientTexture);
+            const expected transition =
+                state.imageStateTracker.add_transition(textureTransition.texture, stages, textureTransition.newState);
 
-            const expected transition = state.imageStateTracker.add_transition(textureTransition.textures,
-                ,
-                pass.kind,
-                textureTransition.usage);
-
-            auto& barrier = imageBarriers.push_back_default();
-
-            if (!texture ||
-                !state.imageStateTracker.add_transition(barrier,
-                    texture->transientTexture,
-                    pass.kind,
-                    textureTransition.usage))
+            if (transition)
             {
-                imageBarriers.pop_back();
+                imageBarriers.push_back(*transition);
             }
         }
 
@@ -924,15 +922,11 @@ namespace oblo
 
         if (!bufferBarriers.empty() || !imageBarriers.empty())
         {
-            const VkDependencyInfo dependencyInfo{
-                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                .bufferMemoryBarrierCount = u32(bufferBarriers.size()),
-                .pBufferMemoryBarriers = bufferBarriers.data(),
-                .imageMemoryBarrierCount = u32(imageBarriers.size()),
-                .pImageMemoryBarriers = imageBarriers.data(),
-            };
-
-            vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(state.commandBuffer), &dependencyInfo);
+            state.gpu->cmd_apply_barriers(state.commandBuffer,
+                {
+                    .buffers = bufferBarriers,
+                    .images = imageBarriers,
+                });
         }
 
         state.currentPass = passId;
@@ -1101,10 +1095,10 @@ namespace oblo
         pinStorage.at(storage).transientTexture = transientTexture;
     }
 
-    void frame_graph_impl::add_resource_transition(pin::texture handle, texture_access usage)
+    void frame_graph_impl::add_resource_transition(pin::texture handle, gpu::image_resource_state newState)
     {
         const auto storage = to_storage_handle(handle);
-        textureTransitions.emplace_back(storage, usage);
+        textureTransitions.emplace_back(storage, newState);
     }
 
     h32<transient_texture_resource> frame_graph_impl::find_pool_index(pin::texture handle) const
@@ -1133,8 +1127,8 @@ namespace oblo
     }
 
     void frame_graph_impl::set_buffer_access(pin::buffer handle,
-        VkPipelineStageFlags2 pipelineStage,
-        VkAccessFlags2 access,
+        flags<gpu::pipeline_sync_stage> pipelineStage,
+        flags<gpu::memory_access_type> access,
         buffer_access_kind accessKind,
         bool uploadedTo)
     {

@@ -108,7 +108,7 @@ namespace oblo
                 };
 
                 ctx.bind_descriptor_sets(bindingTable);
-                ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&pcData, 1}));
+                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&pcData, 1}));
 
                 ctx.dispatch_compute(round_up_div(count, subgroupSize), 1, 1);
             }

@@ -32,7 +32,7 @@ namespace oblo::main_view
 {
     frame_graph_template create(const frame_graph_registry& registry, const config& cfg)
     {
-        vk::frame_graph_template graph;
+        frame_graph_template graph;
 
         graph.init(registry);
 
@@ -98,7 +98,7 @@ namespace oblo::main_view
             &visibility_pass::inMeshDatabase);
 
         // Connect inputs to visibility lighting
-        const auto connectShadingPass = [&]<typename T>(vk::frame_graph_template_vertex_handle shadingPass, h32<T>)
+        const auto connectShadingPass = [&]<typename T>(frame_graph_template_vertex_handle shadingPass, h32<T>)
         {
             graph.connect(viewBuffers, &view_buffers_node::outCameraBuffer, shadingPass, &T::inCameraBuffer);
             graph.connect(viewBuffers, &view_buffers_node::inResolution, shadingPass, &T::inResolution);
@@ -131,7 +131,7 @@ namespace oblo::main_view
         };
 
         const auto connectVisibilityShadingPass =
-            [&]<typename T>(vk::frame_graph_template_vertex_handle shadingPass, h32<T> h)
+            [&]<typename T>(frame_graph_template_vertex_handle shadingPass, h32<T> h)
         {
             connectShadingPass(shadingPass, h);
 
@@ -489,7 +489,7 @@ namespace oblo::scene_data
 {
     frame_graph_template create(const frame_graph_registry& registry)
     {
-        vk::frame_graph_template graph;
+        frame_graph_template graph;
 
         graph.init(registry);
 
@@ -534,7 +534,7 @@ namespace oblo::raytraced_shadow_view
 {
     frame_graph_template create(const frame_graph_registry& registry)
     {
-        vk::frame_graph_template graph;
+        frame_graph_template graph;
 
         graph.init(registry);
 
@@ -624,7 +624,7 @@ namespace oblo::swapchain_graph
 {
     struct swapchain_image_acquire
     {
-        pin::data<h32<texture>> inSwapchainImageTexture;
+        pin::data<h32<gpu::image>> inSwapchainImageTexture;
         pin::texture outSwapchainImageResource;
 
         void build(const frame_graph_build_context& ctx)
@@ -676,7 +676,7 @@ namespace oblo::swapchain_graph
 
     frame_graph_template create(const frame_graph_registry& registry)
     {
-        vk::frame_graph_template graph;
+        frame_graph_template graph;
 
         graph.init(registry);
 
@@ -702,7 +702,7 @@ namespace oblo::surfels_gi
 {
     frame_graph_template create(const frame_graph_registry& registry)
     {
-        vk::frame_graph_template graph;
+        frame_graph_template graph;
 
         graph.init(registry);
 
@@ -858,7 +858,7 @@ namespace oblo::surfels_gi
 
 namespace oblo
 {
-    vk::frame_graph_registry create_frame_graph_registry()
+    frame_graph_registry create_frame_graph_registry()
     {
         frame_graph_registry registry;
 

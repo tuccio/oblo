@@ -81,7 +81,7 @@ namespace oblo
             return;
         }
 
-        for (u32 offset = 0, index = 0; index < stagedData.size(); ++index)
+        for (u64 offset = 0, index = 0; index < stagedData.size(); ++index)
         {
             const auto& stagedSpan = stagedData[index];
 

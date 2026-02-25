@@ -24,28 +24,28 @@ namespace oblo
         // We only support the global TLAS for now, acceleration structures are not proper resources yet
         constexpr pin::acceleration_structure g_globalTLAS{1u};
 
-        gpu::image_usage convert_texture_access(texture_access usage)
+        gpu::image_usage convert_texture_access(gpu::image_resource_state usage)
         {
             switch (usage)
             {
-            case texture_access::depth_stencil_read:
-            case texture_access::depth_stencil_write:
+            case gpu::image_resource_state::depth_stencil_read:
+            case gpu::image_resource_state::depth_stencil_write:
                 return gpu::image_usage::depth_stencil;
 
-            case texture_access::render_target_write:
+            case gpu::image_resource_state::render_target_write:
                 return gpu::image_usage::color_attachment;
 
-            case texture_access::shader_read:
+            case gpu::image_resource_state::shader_read:
                 return gpu::image_usage::shader_sample;
 
-            case texture_access::transfer_destination:
+            case gpu::image_resource_state::transfer_destination:
                 return gpu::image_usage::transfer_destination;
 
-            case texture_access::transfer_source:
+            case gpu::image_resource_state::transfer_source:
                 return gpu::image_usage::transfer_source;
 
-            case texture_access::storage_read:
-            case texture_access::storage_write:
+            case gpu::image_resource_state::storage_read:
+            case gpu::image_resource_state::storage_write:
                 return gpu::image_usage::storage;
 
             default:
@@ -54,11 +54,11 @@ namespace oblo
             };
         }
 
-        flags<gpu::image_usage> convert_texture_access(flags<texture_access> usages)
+        flags<gpu::image_usage> convert_texture_access(flags<gpu::image_resource_state> usages)
         {
             flags<gpu::image_usage> r{};
 
-            for (const texture_access usage : flags_range{usages})
+            for (const gpu::image_resource_state usage : flags_range{usages})
             {
                 r |= convert_texture_access(usage);
             }
@@ -114,37 +114,37 @@ namespace oblo
 
         struct buffer_access_info
         {
-            VkPipelineStageFlags2 pipeline;
-            VkAccessFlags2 access;
+            flags<gpu::pipeline_sync_stage> pipeline;
+            flags<gpu::memory_access_type> access;
             buffer_access_kind accessKind;
         };
 
         buffer_access_info convert_for_sync2(pass_kind passKind, buffer_access usage)
         {
-            VkPipelineStageFlags2 pipelineStage{};
-            VkAccessFlags2 access{};
+            flags<gpu::pipeline_sync_stage> pipelineStage{};
+            flags<gpu::memory_access_type> access{};
             buffer_access_kind accessKind{};
 
             switch (passKind)
             {
             case pass_kind::none:
-                pipelineStage = VK_PIPELINE_STAGE_2_NONE;
+                pipelineStage = {};
                 break;
 
             case pass_kind::graphics:
-                pipelineStage = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+                pipelineStage = gpu::pipeline_sync_stage::graphics;
                 break;
 
             case pass_kind::compute:
-                pipelineStage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+                pipelineStage = gpu::pipeline_sync_stage::compute;
                 break;
 
             case pass_kind::raytracing:
-                pipelineStage = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+                pipelineStage = gpu::pipeline_sync_stage::raytracing;
                 break;
 
             case pass_kind::transfer:
-                pipelineStage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+                pipelineStage = gpu::pipeline_sync_stage::transfer;
                 break;
 
             default:
@@ -154,36 +154,35 @@ namespace oblo
             switch (usage)
             {
             case buffer_access::storage_read:
-                access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                access = gpu::memory_access_type::any_read;
                 accessKind = buffer_access_kind::read;
                 break;
             case buffer_access::storage_write: // We interpret write as RW (e.g. we may read uploaded data)
-                access = VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_READ_BIT |
-                    VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+                access = gpu::memory_access_type::any_read | gpu::memory_access_type::any_write;
                 accessKind = buffer_access_kind::write;
                 break;
             case buffer_access::storage_upload:
-                access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+                access = gpu::memory_access_type::any_write;
                 accessKind = buffer_access_kind::write;
                 break;
 
             case buffer_access::download:
-                access = VK_ACCESS_2_TRANSFER_READ_BIT;
+                access = gpu::memory_access_type::any_read;
                 accessKind = buffer_access_kind::read;
                 break;
 
             case buffer_access::uniform:
-                access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
+                access = gpu::memory_access_type::any_read;
                 accessKind = buffer_access_kind::read;
                 break;
 
             case buffer_access::indirect:
-                access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+                access = gpu::memory_access_type::any_read;
                 accessKind = buffer_access_kind::read;
                 break;
 
             case buffer_access::index:
-                access = VK_ACCESS_2_INDEX_READ_BIT;
+                access = gpu::memory_access_type::any_read;
                 accessKind = buffer_access_kind::read;
                 break;
 
@@ -194,39 +193,41 @@ namespace oblo
             return {pipelineStage, access, accessKind};
         }
 
-        void add_texture_accesss(
-            resource_pool& resourcePool, frame_graph_impl& frameGraph, pin::texture texture, texture_access usage)
+        void add_texture_accesss(resource_pool& resourcePool,
+            frame_graph_impl& frameGraph,
+            pin::texture texture,
+            gpu::image_resource_state usage)
         {
             switch (usage)
             {
-            case texture_access::transfer_destination:
+            case gpu::image_resource_state::transfer_destination:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     gpu::image_usage::transfer_destination);
                 break;
 
-            case texture_access::transfer_source:
+            case gpu::image_resource_state::transfer_source:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     gpu::image_usage::transfer_source);
                 break;
 
-            case texture_access::shader_read:
+            case gpu::image_resource_state::shader_read:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     gpu::image_usage::shader_sample);
                 break;
 
-            case texture_access::storage_read:
-            case texture_access::storage_write:
+            case gpu::image_resource_state::storage_read:
+            case gpu::image_resource_state::storage_write:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     gpu::image_usage::storage);
                 break;
 
-            case texture_access::render_target_write:
+            case gpu::image_resource_state::render_target_write:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     gpu::image_usage::color_attachment);
                 break;
 
-            case texture_access::depth_stencil_write:
-            case texture_access::depth_stencil_read:
+            case gpu::image_resource_state::depth_stencil_write:
+            case gpu::image_resource_state::depth_stencil_read:
                 resourcePool.add_transient_texture_usage(frameGraph.find_pool_index(texture),
                     gpu::image_usage::depth_stencil);
                 break;
@@ -391,7 +392,7 @@ namespace oblo
     }
 
     void frame_graph_build_context::create(
-        pin::texture texture, const texture_resource_initializer& initializer, texture_access usage) const
+        pin::texture texture, const texture_resource_initializer& initializer, gpu::image_resource_state usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -508,7 +509,7 @@ namespace oblo
     }
 
     h32<retained_texture> frame_graph_build_context::create_retained_texture(
-        const texture_resource_initializer& initializer, flags<texture_access> usages) const
+        const texture_resource_initializer& initializer, flags<gpu::image_resource_state> usages) const
     {
         const gpu::image_descriptor& imageInit = create_image_initializer(initializer, convert_texture_access(usages));
         const h32 storage = m_frameGraph.create_retained_texture(m_args.r.get_gpu_instance(), imageInit);
@@ -538,7 +539,7 @@ namespace oblo
         m_frameGraph.globalTLAS = accelerationStructure;
     }
 
-    void frame_graph_build_context::acquire(pin::texture texture, texture_access usage) const
+    void frame_graph_build_context::acquire(pin::texture texture, gpu::image_resource_state usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -546,7 +547,8 @@ namespace oblo
         add_texture_accesss(m_frameGraph.resourcePool, m_frameGraph, texture, usage);
     }
 
-    h32<resident_texture> frame_graph_build_context::acquire_bindless(pin::texture texture, texture_access usage) const
+    h32<resident_texture> frame_graph_build_context::acquire_bindless(pin::texture texture,
+        gpu::image_resource_state usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -955,6 +957,18 @@ namespace oblo
         m_state.gpu->cmd_bind_index_buffer(m_state.commandBuffer, b.handle, b.offset, indexType);
     }
 
+    gpu::buffer_range frame_graph_execute_context::access(pin::buffer handle) const
+    {
+        const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, handle);
+        return {b.handle, b.offset, b.size};
+    }
+
+    h32<gpu::image> frame_graph_execute_context::access(pin::texture handle) const
+    {
+        const frame_graph_texture_impl& t = access_storage_resource(m_frameGraph, handle);
+        return t.handle;
+    }
+
     pin::acceleration_structure frame_graph_execute_context::get_global_tlas() const
     {
         return g_globalTLAS;
@@ -991,7 +1005,7 @@ namespace oblo
         return m_frameGraph.frameCounter;
     }
 
-    void frame_graph_execute_context::upload(pin::buffer h, std::span<const byte> data, u32 bufferOffset) const
+    void frame_graph_execute_context::upload(pin::buffer h, std::span<const byte> data, u64 bufferOffset) const
     {
         OBLO_ASSERT(m_state.currentPass && m_frameGraph.passes[m_state.currentPass.value].kind == pass_kind::transfer);
 
@@ -1008,7 +1022,7 @@ namespace oblo
         stagingBuffer.upload(m_state.commandBuffer, *stagedData, b.handle, b.offset + bufferOffset);
     }
 
-    void frame_graph_execute_context::upload(pin::buffer h, const staging_buffer_span& data, u32 bufferOffset) const
+    void frame_graph_execute_context::upload(pin::buffer h, const staging_buffer_span& data, u64 bufferOffset) const
     {
         auto& stagingBuffer = m_args.stagingBuffer;
         const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, h);

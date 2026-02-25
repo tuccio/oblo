@@ -9,8 +9,6 @@
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
 #include <oblo/renderer/draw/raytracing_pass_initializer.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
-#include <oblo/renderer/loaded_functions.hpp>
-#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {
@@ -27,7 +25,7 @@ namespace oblo
             .hitGroups =
                 {
                     {
-                        .type = raytracing_hit_type::triangle,
+                        .type = gpu::raytracing_hit_type::triangle,
                         .shaders = {"./vulkan/shaders/raytracing_debug/rtdebug.rchit"},
                     },
                 },
@@ -44,7 +42,7 @@ namespace oblo
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = texture_format::r16g16b16a16_sfloat,
+                .format = gpu::image_format::r16g16b16a16_sfloat,
             },
             texture_usage::storage_write);
 

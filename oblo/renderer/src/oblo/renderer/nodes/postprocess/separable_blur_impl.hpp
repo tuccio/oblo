@@ -53,12 +53,12 @@ namespace oblo
 
         switch (sourceInitializer->format)
         {
-        case texture_format::r8_unorm:
+        case gpu::image_format::r8_unorm:
             imageFormat = "BLUR_IMAGE_FORMAT r8"_hsv;
             imageChannels.format("BLUR_IMAGE_CHANNELS 1");
             break;
 
-        case texture_format::r8g8_unorm:
+        case gpu::image_format::r8g8_unorm:
             imageFormat = "BLUR_IMAGE_FORMAT rg8"_hsv;
             imageChannels.format("BLUR_IMAGE_CHANNELS 2");
             break;

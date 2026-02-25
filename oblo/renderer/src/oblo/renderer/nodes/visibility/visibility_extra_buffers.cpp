@@ -63,7 +63,7 @@ namespace oblo
                 {
                     .width = imageInitializer->width,
                     .height = imageInitializer->height,
-                    .format = texture_format::r16g16_sfloat,
+                    .format = gpu::image_format::r16g16_sfloat,
                 },
                 texture_usage::storage_write);
         }
@@ -74,7 +74,7 @@ namespace oblo
                 {
                     .width = imageInitializer->width,
                     .height = imageInitializer->height,
-                    .format = texture_format::r8_unorm,
+                    .format = gpu::image_format::r8_unorm,
                 },
                 texture_usage::storage_write);
         }

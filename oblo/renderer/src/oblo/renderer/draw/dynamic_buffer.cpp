@@ -1,7 +1,6 @@
-#include <oblo/vulkan/dynamic_buffer.hpp>
+#include <oblo/renderer/draw/dynamic_buffer.hpp>
 
 #include <oblo/core/debug.hpp>
-#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 
 namespace oblo
@@ -77,7 +76,7 @@ namespace oblo
 
         const h32 oldBuffer = m_buffer;
 
-        auto& gpu = m_ctx->get_instance();
+        auto& gpu = *m_ctx;
 
         const expected newBuffer = gpu.create_buffer({
             .size = size,

@@ -1,15 +1,13 @@
 #include <oblo/renderer/nodes/visibility/visibility_pass.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/draw_buffer_data.hpp>
 #include <oblo/renderer/data/picking_configuration.hpp>
 #include <oblo/renderer/draw/render_pass_initializer.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
-#include <oblo/renderer/graph/render_pass.hpp>
-#include <oblo/renderer/loaded_functions.hpp>
 #include <oblo/renderer/nodes/drawing/frustum_culling.hpp>
-#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {
@@ -17,41 +15,40 @@ namespace oblo
     {
         renderPass = ctx.register_render_pass({
             .name = "Visibility Pass",
-            .stages =
+            .stages = make_span_initializer<render_pass_stage>({
                 {
-                    {
-                        .stage = pipeline_stages::mesh,
-                        .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.mesh",
-                    },
-                    {
-                        .stage = pipeline_stages::fragment,
-                        .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.frag",
-                    },
+                    .stage = gpu::shader_stage::mesh,
+                    .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.mesh",
                 },
+                {
+                    .stage = gpu::shader_stage::fragment,
+                    .shaderSourcePath = "./vulkan/shaders/visibility/visibility_pass.frag",
+                },
+            }),
         });
     }
 
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
-        constexpr auto visibilityBufferFormat = texture_format::r32g32_uint;
+        constexpr auto visibilityBufferFormat = gpu::image_format::r32g32_uint;
 
         passInstance = ctx.render_pass(renderPass,
             {
                 .renderTargets =
                     {
-                        .colorAttachmentFormats = {visibilityBufferFormat},
-                        .depthFormat = texture_format::d24_unorm_s8_uint,
-                        .blendStates = {{.enable = false}},
+                        .colorAttachmentFormats = make_span_initializer<gpu::image_format>({visibilityBufferFormat}),
+                        .depthFormat = gpu::image_format::d24_unorm_s8_uint,
+                        .blendStates = make_span_initializer<gpu::color_blend_attachment_state>({{.enable = false}}),
                     },
                 .depthStencilState =
                     {
                         .depthTestEnable = true,
                         .depthWriteEnable = true,
-                        .depthCompareOp = compare_op::greater, // We use reverse depth
+                        .depthCompareOp = gpu::compare_op::greater, // We use reverse depth
                     },
                 .rasterizationState =
                     {
-                        .polygonMode = polygon_mode::fill,
+                        .polygonMode = gpu::polygon_mode::fill,
                         .cullMode = {},
                         .lineWidth = 1.f,
                     },
@@ -83,7 +80,7 @@ namespace oblo
                 {
                     .width = resolution.x,
                     .height = resolution.y,
-                    .format = texture_format::d24_unorm_s8_uint,
+                    .format = gpu::image_format::d24_unorm_s8_uint,
                     .isStable = true,
                 },
                 texture_usage::depth_stencil_write);
@@ -92,7 +89,7 @@ namespace oblo
                 {
                     .width = resolution.x,
                     .height = resolution.y,
-                    .format = texture_format::d24_unorm_s8_uint,
+                    .format = gpu::image_format::d24_unorm_s8_uint,
                     .isStable = true,
                 },
                 texture_usage::depth_stencil_read);
@@ -133,21 +130,21 @@ namespace oblo
 
         const std::span drawData = ctx.access(inDrawData);
 
-        const render_attachment colorAttachments[] = {
+        const gpu::graphics_attachment colorAttachments[] = {
             {
-                .texture = outVisibilityBuffer,
-                .loadOp = attachment_load_op::clear,
-                .storeOp = attachment_store_op::store,
+                .image = ctx.access(outVisibilityBuffer),
+                .loadOp = gpu::attachment_load_op::clear,
+                .storeOp = gpu::attachment_store_op::store,
             },
         };
 
-        const render_attachment depthAttachment{
-            .texture = outDepthBuffer,
-            .loadOp = attachment_load_op::clear,
-            .storeOp = attachment_store_op::store,
+        const gpu::graphics_attachment depthAttachment{
+            .image = ctx.access(outDepthBuffer),
+            .loadOp = gpu::attachment_load_op::clear,
+            .storeOp = gpu::attachment_store_op::store,
         };
 
-        const render_pass_config cfg{
+        const gpu::graphics_pass_descriptor cfg{
             .renderResolution = ctx.get_resolution(outVisibilityBuffer),
             .colorAttachments = colorAttachments,
             .depthAttachment = depthAttachment,
@@ -188,7 +185,7 @@ namespace oblo
             };
 
             ctx.bind_descriptor_sets(bindingTables);
-            ctx.push_constants(shader_stage::mesh, 0, as_bytes(std::span{&pushConstants, 1}));
+            ctx.push_constants(gpu::shader_stage::mesh, 0, as_bytes(std::span{&pushConstants, 1}));
 
             ctx.draw_mesh_tasks_indirect_count(drawCallBufferSpan[drawCallIndex],
                 0,

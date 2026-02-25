@@ -65,13 +65,13 @@ namespace oblo
         const gpu::image_descriptor& get_initializer(h32<transient_texture_resource> id) const;
 
         void fetch_buffer_tracking(h32<transient_buffer_resource> id,
-            VkPipelineStageFlags2* stages,
-            VkAccessFlags2* access,
+            flags<gpu::pipeline_sync_stage>* stages,
+            flags<gpu::memory_access_type>* access,
             buffer_access_kind* accessKind) const;
 
         void store_buffer_tracking(h32<transient_buffer_resource> id,
-            VkPipelineStageFlags2 stages,
-            VkAccessFlags2 access,
+            flags<gpu::pipeline_sync_stage> stages,
+            flags<gpu::memory_access_type> access,
             buffer_access_kind accessKind);
 
     private:

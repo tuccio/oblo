@@ -3,9 +3,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
-#include <oblo/renderer/gpu_temporary_aliases.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
-#include <oblo/renderer/texture.hpp>
 
 namespace oblo
 {
@@ -29,7 +27,7 @@ namespace oblo
             texture_resource_initializer{
                 .width = hdrInit.width,
                 .height = hdrInit.height,
-                .format = texture_format::r8g8b8a8_unorm,
+                .format = gpu::image_format::r8g8b8a8_unorm,
             },
             texture_usage::storage_write);
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/forward.hpp>
 
 namespace oblo
 {
@@ -17,17 +18,6 @@ namespace oblo
         enum_max,
     };
 
-    enum class texture_access : u8
-    {
-        render_target_write,
-        depth_stencil_read,
-        depth_stencil_write,
-        shader_read,
-        storage_read,
-        storage_write,
-        transfer_source,
-        transfer_destination,
-        present,
-        enum_max,
-    };
+    using buffer_usage = buffer_access;
+    using texture_usage = gpu::image_resource_state;
 }

@@ -48,8 +48,8 @@ namespace oblo
     struct frame_graph_buffer_usage
     {
         h32<frame_graph_pin_storage> pinStorage;
-        VkPipelineStageFlags2 stages;
-        VkAccessFlags2 access;
+        flags<gpu::pipeline_sync_stage> stages;
+        flags<gpu::memory_access_type> access;
         buffer_access_kind accessKind;
         bool uploadedTo;
     };
@@ -132,7 +132,7 @@ namespace oblo
     struct frame_graph_texture_transition
     {
         h32<frame_graph_pin_storage> texture;
-        texture_access usage;
+        gpu::image_resource_state newState;
     };
 
     struct frame_graph_buffer_barrier
@@ -232,8 +232,7 @@ namespace oblo
 
     struct frame_graph_barriers
     {
-        dynamic_array<VkBufferMemoryBarrier2> bufferBarriers;
-        dynamic_array<VkImageMemoryBarrier2> imageBarriers;
+        dynamic_array<gpu::buffer_memory_barrier> bufferBarriers;
     };
 
     struct frame_graph_pin_reroute
@@ -330,7 +329,7 @@ namespace oblo
         void* access_storage(h32<frame_graph_pin_storage> handle) const;
 
         void add_transient_resource(pin::texture handle, h32<transient_texture_resource> transientTexture);
-        void add_resource_transition(pin::texture handle, texture_access usage);
+        void add_resource_transition(pin::texture handle, gpu::image_resource_state usage);
 
         h32<transient_texture_resource> find_pool_index(pin::texture handle) const;
         h32<transient_buffer_resource> find_pool_index(pin::buffer handle) const;
@@ -339,8 +338,8 @@ namespace oblo
             pin::buffer handle, h32<transient_buffer_resource> transientBuffer, const gpu::staging_buffer_span* upload);
 
         void set_buffer_access(pin::buffer handle,
-            VkPipelineStageFlags2 pipelineStage,
-            VkAccessFlags2 access,
+            flags<gpu::pipeline_sync_stage> pipelineStage,
+            flags<gpu::memory_access_type> access,
             buffer_access_kind,
             bool uploadedTo);
 
@@ -377,6 +376,7 @@ namespace oblo
 
     struct frame_graph_build_state
     {
+        gpu::gpu_instance* gpu{};
         h32<frame_graph_pass> currentPass;
     };
 

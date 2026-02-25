@@ -1293,9 +1293,9 @@ namespace oblo
         return m_meshDatabaseData;
     }
 
-    VkAccelerationStructureKHR draw_registry::get_tlas() const
+    h32<gpu::acceleration_structure> draw_registry::get_tlas() const
     {
-        return m_tlas.accelerationStructure;
+        return m_tlas.handle;
     }
 
     ecs::entity_registry& draw_registry::get_entity_registry() const

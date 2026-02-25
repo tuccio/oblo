@@ -11,7 +11,7 @@ namespace oblo
         pin::data<raytraced_shadow_config> inConfig;
 
         pin::texture outShadow;
-        data_sink<light_visibility_event> outShadowSink;
+        pin::data_sink<light_visibility_event> outShadowSink;
 
         void build(const frame_graph_build_context& builder);
     };

@@ -16,12 +16,11 @@
 #include <oblo/options/option_traits.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
+#include <oblo/renderer/renderer.hpp>
+#include <oblo/renderer/renderer_module.hpp>
+#include <oblo/renderer/templates/graph_templates.hpp>
 #include <oblo/trace/profile.hpp>
 #include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/templates/graph_templates.hpp>
-#include <oblo/vulkan/texture.hpp>
 #include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo

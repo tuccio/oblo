@@ -10,7 +10,6 @@
 #include <oblo/renderer/data/picking_configuration.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
-#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {
@@ -43,7 +42,7 @@ namespace oblo
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = texture_format::r16g16b16a16_sfloat,
+                .format = gpu::image_format::r16g16b16a16_sfloat,
             },
             texture_usage::storage_write);
 
@@ -197,7 +196,7 @@ namespace oblo
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = texture_format::r8g8b8a8_unorm,
+                .format = gpu::image_format::r8g8b8a8_unorm,
             },
             texture_usage::storage_write);
 

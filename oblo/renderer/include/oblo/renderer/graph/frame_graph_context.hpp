@@ -70,14 +70,16 @@ namespace oblo
 
         h32<empty_pass_instance> empty_pass() const;
 
-        void create(pin::texture texture, const texture_resource_initializer& initializer, texture_access usage) const;
+        void create(pin::texture texture,
+            const texture_resource_initializer& initializer,
+            gpu::image_resource_state usage) const;
 
         void create(pin::buffer buffer, const buffer_resource_initializer& initializer, buffer_access usage) const;
 
         void create(pin::buffer buffer, const staging_buffer_span& stagedData, buffer_access usage) const;
 
         h32<retained_texture> create_retained_texture(const texture_resource_initializer& initializer,
-            flags<texture_access> usages) const;
+            flags<gpu::image_resource_state> usages) const;
 
         void destroy_retained_texture(h32<retained_texture> handle) const;
 
@@ -88,9 +90,9 @@ namespace oblo
         // Temporary solution until the acceleration structure is a proper resource.
         void register_global_tlas(h32<gpu::acceleration_structure> accelerationStructure) const;
 
-        void acquire(pin::texture texture, texture_access usage) const;
+        void acquire(pin::texture texture, gpu::image_resource_state usage) const;
 
-        h32<resident_texture> acquire_bindless(pin::texture texture, texture_access usage) const;
+        h32<resident_texture> acquire_bindless(pin::texture texture, gpu::image_resource_state usage) const;
 
         h32<resident_texture> load_resource(const resource_ptr<texture>& texture) const;
 
@@ -209,6 +211,9 @@ namespace oblo
 
         void bind_index_buffer(pin::buffer buffer, u32 bufferOffset, gpu::mesh_index_type indexType) const;
 
+        gpu::buffer_range access(pin::buffer handle) const;
+        h32<gpu::image> access(pin::texture handle) const;
+
         template <typename T>
         T& access(pin::data<T> data) const
         {
@@ -245,9 +250,9 @@ namespace oblo
 
         // TODO: This should probably be deprecated, it would be hard to make this thread-safe, staging should happen
         // when building instead.
-        void upload(pin::buffer h, std::span<const byte> data, u32 bufferOffset = 0) const;
+        void upload(pin::buffer h, std::span<const byte> data, u64 bufferOffset = 0) const;
 
-        void upload(pin::buffer h, const staging_buffer_span& data, u32 bufferOffset = 0) const;
+        void upload(pin::buffer h, const staging_buffer_span& data, u64 bufferOffset = 0) const;
 
         void upload(pin::texture h, const staging_buffer_span& data) const;
 

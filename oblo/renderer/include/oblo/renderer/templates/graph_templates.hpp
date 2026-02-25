@@ -169,5 +169,5 @@ namespace oblo::swapchain_graph
 
 namespace oblo
 {
-    vk::frame_graph_registry create_frame_graph_registry();
+    frame_graph_registry create_frame_graph_registry();
 }

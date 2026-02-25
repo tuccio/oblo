@@ -17,7 +17,7 @@ namespace oblo
             .hitGroups =
                 {
                     {
-                        .type = raytracing_hit_type::triangle,
+                        .type = gpu::raytracing_hit_type::triangle,
                         .shaders = {"./vulkan/shaders/ao/rtao.rchit"},
                     },
                 },
@@ -37,7 +37,7 @@ namespace oblo
             {
                 .width = visBufferInit.width,
                 .height = visBufferInit.height,
-                .format = texture_format::r8_unorm,
+                .format = gpu::image_format::r8_unorm,
             },
             texture_usage::storage_write);
 
@@ -45,7 +45,7 @@ namespace oblo
             {
                 .width = visBufferInit.width,
                 .height = visBufferInit.height,
-                .format = texture_format::r8_unorm,
+                .format = gpu::image_format::r8_unorm,
                 .isStable = true,
             },
             texture_usage::storage_read);
@@ -54,7 +54,7 @@ namespace oblo
             {
                 .width = visBufferInit.width,
                 .height = visBufferInit.height,
-                .format = texture_format::r8_uint,
+                .format = gpu::image_format::r8_uint,
                 .isStable = true,
             },
             texture_usage::storage_write);
@@ -109,7 +109,7 @@ namespace oblo
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.push_constants(shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
 
             ctx.trace_rays(resolution.x, resolution.y, 1);
 

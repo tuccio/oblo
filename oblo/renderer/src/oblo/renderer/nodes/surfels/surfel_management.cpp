@@ -275,7 +275,7 @@ namespace oblo
         const u32 maxSurfels = ctx.access(inMaxSurfels);
         const auto groups = round_up_div(maxSurfels, subgroupSize);
 
-        ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span(&maxSurfels, 1)));
+        ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&maxSurfels, 1)));
 
         ctx.dispatch_compute(groups, 1, 1);
 
@@ -371,7 +371,7 @@ namespace oblo
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&randomSeed, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&randomSeed, 1}));
 
             ctx.dispatch_compute(tilesX, tilesY, 1);
 
@@ -469,7 +469,7 @@ namespace oblo
                 .currentTimestamp = ctx.get_current_frames_count(),
             };
 
-            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
 
             const u32 groups = round_up_div(tileCoverage.elements, subgroupSize);
 
@@ -665,7 +665,7 @@ namespace oblo
 
             const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
 
-            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
             ctx.dispatch_compute(groupsX, 1, 1);
 
             ctx.end_pass();
@@ -688,7 +688,7 @@ namespace oblo
                 .currentTimestamp = ctx.get_current_frames_count(),
             };
 
-            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
 
             const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);
@@ -811,7 +811,7 @@ namespace oblo
                 .inElements = subpass.inputSurfels,
             };
 
-            ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
 
             const u32 groups = round_up_div(constants.inElements, reductionGroupSize);
 
@@ -844,7 +844,7 @@ namespace oblo
                     .inElements = subpass.inputSurfels,
                 };
 
-                ctx.push_constants(shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
 
                 const u32 groups = round_up_div(constants.inElements, reductionGroupSize);
 
@@ -868,7 +868,7 @@ namespace oblo
             .hitGroups =
                 {
                     {
-                        .type = raytracing_hit_type::triangle,
+                        .type = gpu::raytracing_hit_type::triangle,
                         .shaders = {"./vulkan/shaders/surfels/surfel_rayhit.rchit"},
                     },
                 },
@@ -964,7 +964,7 @@ namespace oblo
             };
 
             ctx.bind_descriptor_sets(bindingTable);
-            ctx.push_constants(shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
 
             ctx.trace_rays(maxSurfels, 1, 1);
 

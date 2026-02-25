@@ -6,7 +6,7 @@ namespace oblo::gpu
 {
     struct image_state_tracker::tracked_state
     {
-        pipeline_sync_stage pipeline;
+        flags<pipeline_sync_stage> pipeline;
         image_resource_state state;
     };
 
@@ -15,7 +15,7 @@ namespace oblo::gpu
     image_state_tracker::~image_state_tracker() = default;
 
     void image_state_tracker::add_tracking(
-        h32<image> handle, pipeline_sync_stage initialPipeline, image_resource_state initialState)
+        h32<image> handle, flags<pipeline_sync_stage> initialPipeline, image_resource_state initialState)
     {
         m_state.emplace(handle, tracked_state{initialPipeline, initialState});
     }
@@ -26,7 +26,7 @@ namespace oblo::gpu
     }
 
     expected<image_state_transition> image_state_tracker::add_transition(
-        h32<image> handle, pipeline_sync_stage newPipeline, image_resource_state newState)
+        h32<image> handle, flags<pipeline_sync_stage> newPipeline, image_resource_state newState)
     {
         tracked_state* const prev = m_state.try_find(handle);
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/renderer/data/render_world.hpp>
+#include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 

@@ -10,8 +10,6 @@
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/raytracing_pass_initializer.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
-#include <oblo/renderer/loaded_functions.hpp>
-#include <oblo/renderer/utility.hpp>
 
 namespace oblo
 {
@@ -24,7 +22,7 @@ namespace oblo
             .hitGroups =
                 {
                     {
-                        .type = raytracing_hit_type::triangle,
+                        .type = gpu::raytracing_hit_type::triangle,
                         .shaders = {"./vulkan/shaders/shadows/rtshadows.rchit"},
                     },
                 },
@@ -51,7 +49,7 @@ namespace oblo
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = texture_format::r8_unorm,
+                .format = gpu::image_format::r8_unorm,
             },
             texture_usage::storage_write);
 
@@ -99,7 +97,7 @@ namespace oblo
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.push_constants(shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
 
             ctx.trace_rays(resolution.x, resolution.y, 1);
 

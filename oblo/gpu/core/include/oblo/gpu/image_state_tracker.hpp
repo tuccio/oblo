@@ -1,8 +1,10 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/forward.hpp>
 
 namespace oblo::gpu
@@ -18,11 +20,12 @@ namespace oblo::gpu
 
         ~image_state_tracker();
 
-        void add_tracking(h32<image> handle, pipeline_sync_stage initialPipeline, image_resource_state initialState);
+        void add_tracking(
+            h32<image> handle, flags<pipeline_sync_stage> initialPipeline, image_resource_state initialState);
         void remove_tracking(h32<image> handle);
 
         expected<image_state_transition> add_transition(
-            h32<image> handle, pipeline_sync_stage newPipeline, image_resource_state newState);
+            h32<image> handle, flags<pipeline_sync_stage> newPipeline, image_resource_state newState);
 
         void clear();
 

@@ -48,7 +48,6 @@ namespace oblo
     struct frame_graph_texture;
 
     enum class buffer_access : u8;
-    enum class texture_access : u8;
 
     using async_download = future<dynamic_array<byte>>;
     using async_download_promise = promise<dynamic_array<byte>>;

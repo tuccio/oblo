@@ -67,7 +67,7 @@ namespace oblo
 
     struct resource_pool::stable_texture
     {
-        h32<gpu::image> allocatedImage;
+        h32<gpu::image> allocatedImage{};
         VkImage image;
         VkImageView imageView;
         u32 creationTime;
@@ -76,12 +76,12 @@ namespace oblo
 
     struct resource_pool::stable_buffer
     {
-        h32<gpu::buffer> allocatedBuffer;
+        h32<gpu::buffer> allocatedBuffer{};
         u32 creationTime;
         u32 lastUsedTime;
 
-        VkPipelineStageFlags2 previousStages = VK_PIPELINE_STAGE_2_NONE;
-        VkAccessFlags2 previousAccess = VK_ACCESS_2_NONE;
+        flags<gpu::pipeline_sync_stage> previousStages{};
+        flags<gpu::memory_access_type> previousAccess{};
 
         buffer_access_kind previousAccessKind{};
     };
@@ -315,8 +315,8 @@ namespace oblo
     }
 
     void resource_pool::fetch_buffer_tracking(h32<transient_buffer_resource> id,
-        VkPipelineStageFlags2* stages,
-        VkAccessFlags2* access,
+        flags<gpu::pipeline_sync_stage>* stages,
+        flags<gpu::memory_access_type>* access,
         buffer_access_kind* accessKind) const
     {
         OBLO_ASSERT(id);
@@ -335,8 +335,8 @@ namespace oblo
     }
 
     void resource_pool::store_buffer_tracking(h32<transient_buffer_resource> id,
-        VkPipelineStageFlags2 stages,
-        VkAccessFlags2 access,
+        flags<gpu::pipeline_sync_stage> stages,
+        flags<gpu::memory_access_type> access,
         buffer_access_kind accessKind)
     {
         OBLO_ASSERT(id);

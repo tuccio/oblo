@@ -2433,14 +2433,36 @@ namespace oblo::gpu::vk
             deduce_barrier(barrier, transition);
         }
 
+        const bool hasBufferBarriers = !descriptor.buffers.empty();
+
         buffered_array<VkMemoryBarrier2, 4> memoryBarriers;
-        memoryBarriers.reserve(descriptor.memory.size());
+        memoryBarriers.reserve(descriptor.memory.size() + u32{hasBufferBarriers});
 
         for (const global_memory_barrier& memoryBarrier : descriptor.memory)
         {
             VkMemoryBarrier2& barrier = memoryBarriers.emplace_back();
             barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
             deduce_barrier(barrier, memoryBarrier);
+        }
+
+        // Very low effort, we just make a global memory barrier out of the buffer barriers for now
+        // It does not matter much, especially as long as we use 1 queue
+
+        if (hasBufferBarriers)
+        {
+            global_memory_barrier globalBarrier{};
+
+            for (const buffer_memory_barrier& bufferBarrier : descriptor.buffers)
+            {
+                globalBarrier.previousPipelines |= bufferBarrier.previousPipelines;
+                globalBarrier.previousAccesses |= bufferBarrier.previousAccesses;
+                globalBarrier.nextPipelines |= bufferBarrier.nextPipelines;
+                globalBarrier.nextAccesses |= bufferBarrier.nextAccesses;
+            }
+
+            VkMemoryBarrier2& barrier = memoryBarriers.emplace_back();
+            barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+            deduce_barrier(barrier, globalBarrier);
         }
 
         const VkDependencyInfo dependencyInfo{
