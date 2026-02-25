@@ -70,7 +70,7 @@ namespace oblo
     {
         m_frameGraph.shutdown(*m_gpu);
 
-        m_platform->passManager.shutdown(*m_gpu);
+        m_platform->passManager.shutdown();
 
         m_platform->textureRegistry.shutdown();
         m_stagingBuffer.shutdown();
@@ -105,7 +105,7 @@ namespace oblo
             .textureRegistry = m_platform->textureRegistry,
             .resourceCache = m_platform->resourceCache,
             .passManager = m_platform->passManager,
-            .renderer = *this,
+            .r = *this,
         };
 
         m_frameGraph.build(buildArgs);
@@ -118,7 +118,8 @@ namespace oblo
             .textureRegistry = m_platform->textureRegistry,
             .resourceCache = m_platform->resourceCache,
             .passManager = m_platform->passManager,
-            .renderer = *this,
+            .stagingBuffer = m_stagingBuffer,
+            .r = *this,
         };
 
         m_frameGraph.execute(executeArgs);

@@ -906,8 +906,11 @@ namespace oblo
         {
             const auto& textureTransition = textureTransitions[i];
 
+            auto* const impl =
+                reinterpret_cast<const frame_graph_texture_impl*>(access_storage(textureTransition.texture));
+
             const expected transition =
-                state.imageStateTracker.add_transition(textureTransition.texture, stages, textureTransition.newState);
+                state.imageStateTracker.add_transition(impl->handle, stages, textureTransition.newState);
 
             if (transition)
             {

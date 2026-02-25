@@ -33,8 +33,8 @@ namespace oblo
         texture_registry& textureRegistry;
         resource_cache& resourceCache;
         pass_manager& passManager;
-        renderer& r;
         const gpu::staging_buffer& stagingBuffer;
+        renderer& r;
     };
 
     struct frame_graph_texture_impl

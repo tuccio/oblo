@@ -4,9 +4,6 @@
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
-#include <oblo/renderer/draw/pass_manager.hpp>
-#include <oblo/renderer/draw/resource_cache.hpp>
-#include <oblo/renderer/draw/texture_registry.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
 
 namespace oblo
@@ -45,9 +42,6 @@ namespace oblo
         frame_graph& get_frame_graph();
 
         bool is_ray_tracing_enabled() const;
-
-        /// @brief Returns a handle to private platform-specific data.
-        renderer_platform* get_renderer_platform();
 
         // TODO: Get rid of the global command buffer
         hptr<gpu::command_buffer> get_active_command_buffer();
