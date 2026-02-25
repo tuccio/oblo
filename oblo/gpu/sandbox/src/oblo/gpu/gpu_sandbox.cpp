@@ -316,8 +316,8 @@ namespace oblo
                         .image = swapchainImage,
                         .previousState = gpu::image_resource_state::undefined,
                         .nextState = gpu::image_resource_state::render_target_write,
-                        .previousPipeline = gpu::pipeline_sync_stage::top_of_pipeline,
-                        .nextPipeline = gpu::pipeline_sync_stage::graphics,
+                        .previousPipelines = gpu::pipeline_sync_stage::top_of_pipeline,
+                        .nextPipelines = gpu::pipeline_sync_stage::graphics,
                     },
                 };
 
@@ -363,8 +363,8 @@ namespace oblo
                         .image = swapchainImage,
                         .previousState = gpu::image_resource_state::render_target_write,
                         .nextState = gpu::image_resource_state::present,
-                        .previousPipeline = gpu::pipeline_sync_stage::graphics,
-                        .nextPipeline = gpu::pipeline_sync_stage::bottom_of_pipeline,
+                        .previousPipelines = gpu::pipeline_sync_stage::graphics,
+                        .nextPipelines = gpu::pipeline_sync_stage::bottom_of_pipeline,
                     },
                 };
 

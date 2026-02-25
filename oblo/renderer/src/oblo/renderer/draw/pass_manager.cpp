@@ -1946,7 +1946,7 @@ namespace oblo
             global_shader_options shaderCompilerConfig{};
             m_impl->shaderCompilerOptions.read(*m_impl->optionsManager, shaderCompilerConfig);
 
-            shader_compiler* const compilers[2] = {m_impl->glslcCompiler.get(), m_impl->glslangCompiler.get()};
+            vk::shader_compiler* const compilers[2] = {m_impl->glslcCompiler.get(), m_impl->glslangCompiler.get()};
             const u32 preferred = u32{shaderCompilerConfig.preferGlslang};
 
             auto* const chosenCompiler = compilers[preferred] ? compilers[preferred] : compilers[1 - preferred];
@@ -1973,76 +1973,31 @@ namespace oblo
         }
 
         m_impl->propagate_pipeline_invalidation();
-
-#ifdef TRACY_ENABLE
-        if (m_impl->enableProfilingThisFrame)
-        {
-            TracyVkCollect(m_impl->tracyCtx, commandBuffer);
-        }
-
-        m_impl->enableProfilingThisFrame = m_impl->enableProfiling && tracy::GetProfiler().IsConnected();
-#endif
-
-        m_impl->descriptorSetPool.begin_frame();
-        m_impl->texturesDescriptorSetPool.begin_frame();
     }
 
-    void pass_manager::end_frame()
-    {
-        m_impl->descriptorSetPool.end_frame();
-        m_impl->texturesDescriptorSetPool.end_frame();
-    }
+    void pass_manager::end_frame() {}
 
     void pass_manager::update_global_descriptor_sets()
     {
-        const auto debugUtils = m_impl->vkCtx->get_debug_utils_object();
-
-        const std::span textures2DInfo = m_impl->textureRegistry->get_textures2d_info();
-
-        if (!textures2DInfo.empty())
+        if (const u32 bindlessTexturesCount = m_impl->textureRegistry->get_used_textures_slots();
+            bindlessTexturesCount > 0)
         {
-            // Update the Texture 2D descriptor set
-            const u32 maxTextureDescriptorId = u32(textures2DInfo.size());
+            m_impl->textureRegistry->update_texture_bind_groups();
 
-            VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
-                .descriptorSetCount = 1,
-                .pDescriptorCounts = &maxTextureDescriptorId,
-            };
+            const expected r = m_impl->gpu->acquire_transient_bindless_images_bind_group(m_impl->textures2DSetLayout,
+                Textures2DBinding,
+                bindlessTexturesCount);
 
-            const VkDescriptorSet texture2dDescriptorSet =
-                m_impl->texturesDescriptorSetPool.acquire(m_impl->textures2DSetLayout, &countInfo);
-
-            debugUtils.set_object_name(m_impl->device, texture2dDescriptorSet, "Textures 2D Descriptor Set");
-
-            const VkWriteDescriptorSet descriptorSetWrites[] = {
-                {
-                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                    .dstSet = texture2dDescriptorSet,
-                    .dstBinding = Textures2DBinding,
-                    .dstArrayElement = 0,
-                    .descriptorCount = u32(textures2DInfo.size()),
-                    .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-                    .pImageInfo = textures2DInfo.data(),
-                },
-            };
-
-            vkUpdateDescriptorSets(m_impl->device, array_size32(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
-
-            m_impl->currentTextures2DDescriptor = texture2dDescriptorSet;
+            m_impl->currentTextures2DDescriptor = r.assert_value_or({});
         }
         else
         {
-            m_impl->currentTextures2DDescriptor = nullptr;
+            m_impl->currentTextures2DDescriptor = {};
         }
 
         // Sampler descriptors are immutable and require no update
-        const VkDescriptorSet samplerDescriptorSet =
-            m_impl->texturesDescriptorSetPool.acquire(m_impl->samplersSetLayout);
-
-        debugUtils.set_object_name(m_impl->device, samplerDescriptorSet, "Sampler Descriptor Set");
-
-        m_impl->currentSamplersDescriptor = samplerDescriptorSet;
+        const expected samplers = m_impl->gpu->acquire_transient_bind_group(m_impl->samplersSetLayout, {});
+        m_impl->currentSamplersDescriptor = samplers.assert_value_or({});
     }
 
     bool pass_manager::is_profiling_enabled() const

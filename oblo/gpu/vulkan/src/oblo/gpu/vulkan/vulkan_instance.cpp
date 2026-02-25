@@ -22,6 +22,9 @@ namespace oblo::gpu::vk
 {
     namespace
     {
+        // We probably want to make this configurable instead
+        constexpr u32 max_bindless_images = 2048;
+
         constexpr h32<queue> universal_queue_id{1u};
 
         constexpr flags descriptor_pool_general_kinds = resource_binding_kind::uniform |
@@ -309,6 +312,11 @@ namespace oblo::gpu::vk
     {
         shutdown_tracked_queue_context();
 
+        if (m_dummySampler)
+        {
+            destroy(m_dummySampler);
+        }
+
         m_perFrameSetPool.shutdown();
         m_allocator.shutdown();
 
@@ -530,9 +538,11 @@ namespace oblo::gpu::vk
             1u, // This is just because we only need one
             VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
             make_span_initializer<VkDescriptorPoolSize>({
-                {VK_DESCRIPTOR_TYPE_SAMPLER, 32},         // We might want to expose or let users configure these limits
-                {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 2048}, // We may want to match this number with texture_registry
+                {VK_DESCRIPTOR_TYPE_SAMPLER, 32}, // We might want to expose or let users configure these limits
+                {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, max_bindless_images},
             }));
+
+        m_bindlessImages.resize(max_bindless_images);
 
         return init_tracked_queue_context();
     }
@@ -842,29 +852,61 @@ namespace oblo::gpu::vk
     result<hptr<bind_group>> vulkan_instance::acquire_transient_bind_group(h32<bind_group_layout> handle,
         std::span<const bind_group_data> data)
     {
-        const bind_group_layout_impl& bindGroup = m_bindGroupLayouts.at(handle);
-        const VkDescriptorSetLayout layout = bindGroup.descriptorSetLayout;
+        const bind_group_layout_impl& layoutImpl = m_bindGroupLayouts.at(handle);
+        const VkDescriptorSetLayout layout = layoutImpl.descriptorSetLayout;
 
         const result r =
-            m_perFrameSetPool.acquire(bindGroup.resourceKinds, get_last_finished_submit(), layout, nullptr);
+            m_perFrameSetPool.acquire(layoutImpl.resourceKinds, get_last_finished_submit(), layout, nullptr);
 
         if (!r)
         {
             return r.error();
         }
 
-        label_vulkan_object(*r, bindGroup.debugLabel);
+        label_vulkan_object(*r, layoutImpl.debugLabel);
 
         initialize_descriptor_set(*r, data);
 
         return wrap_handle<bind_group>(*r);
     }
 
-    result<hptr<bind_group>> vulkan_instance::acquire_transient_variable_bind_group(
-        h32<bind_group_layout> handle, std::span<const bind_group_data> data, u32 count)
+    u32 vulkan_instance::get_max_bindless_images() const
     {
-        const bind_group_layout_impl& bindGroup = m_bindGroupLayouts.at(handle);
-        const VkDescriptorSetLayout layout = bindGroup.descriptorSetLayout;
+        return max_bindless_images;
+    }
+
+    result<> vulkan_instance::set_bindless_images(std::span<const bindless_image_descriptor> images, u32 first)
+    {
+        if (first + images.size() > m_bindlessImages.size())
+        {
+            return error::invalid_usage;
+        }
+
+        const VkSampler anySampler = get_or_create_dummy_sampler();
+
+        u32 currentIdx = first;
+
+        for (const auto& desc : images)
+        {
+            const auto& imageImpl = m_images.at(desc.image);
+            const auto layout = deduce_layout(desc.state);
+
+            m_bindlessImages[currentIdx] = {
+                .sampler = anySampler,
+                .imageView = imageImpl.view,
+                .imageLayout = layout,
+            };
+
+            ++currentIdx;
+        }
+
+        return no_error;
+    }
+
+    result<hptr<bind_group>> vulkan_instance::acquire_transient_bindless_images_bind_group(
+        h32<bind_group_layout> handle, u32 binding, u32 count)
+    {
+        const bind_group_layout_impl& layoutImpl = m_bindGroupLayouts.at(handle);
 
         VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
@@ -872,17 +914,31 @@ namespace oblo::gpu::vk
             .pDescriptorCounts = &count,
         };
 
-        const result r =
-            m_perFrameSetPool.acquire(bindGroup.resourceKinds, get_last_finished_submit(), layout, nullptr);
+        const result<VkDescriptorSet> r = m_perFrameSetPool.acquire(layoutImpl.resourceKinds,
+            get_last_finished_submit(),
+            layoutImpl.descriptorSetLayout,
+            &countInfo);
 
         if (!r)
         {
             return r.error();
         }
 
-        label_vulkan_object(*r, bindGroup.debugLabel);
+        label_vulkan_object(*r, layoutImpl.debugLabel);
 
-        initialize_descriptor_set(*r, data);
+        const VkWriteDescriptorSet descriptorSetWrites[] = {
+            {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = *r,
+                .dstBinding = binding,
+                .dstArrayElement = 0,
+                .descriptorCount = count,
+                .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                .pImageInfo = m_bindlessImages.data(),
+            },
+        };
+
+        vkUpdateDescriptorSets(m_device, array_size32(descriptorSetWrites), descriptorSetWrites, 0, nullptr);
 
         return wrap_handle<bind_group>(*r);
     }
@@ -1056,10 +1112,12 @@ namespace oblo::gpu::vk
         return error::invalid_usage;
     }
 
-    void vulkan_instance::destroy(h32<acceleration_structure> handle) 
+    void vulkan_instance::destroy(h32<acceleration_structure> handle)
     {
         auto& asImpl = m_accelerationStructures.at(handle);
-        m_loadedFunctions.vkDestroyAccelerationStructureKHR(m_device, asImpl.vkAccelerationStructure, m_allocator.get_allocation_callbacks());
+        m_loadedFunctions.vkDestroyAccelerationStructureKHR(m_device,
+            asImpl.vkAccelerationStructure,
+            m_allocator.get_allocation_callbacks());
         m_accelerationStructures.erase(handle);
     }
 
@@ -2679,7 +2737,7 @@ namespace oblo::gpu::vk
         VkWriteDescriptorSetAccelerationStructureKHR asSetWrites[MaxWrites];
 
         // We need a sampler even for bindless textures
-        VkSampler const anySampler = m_samplers.empty() ? nullptr : m_samplers.values().front().vkSampler;
+        const VkSampler anySampler = get_or_create_dummy_sampler();
 
         for (const bind_group_data& bindingData : data)
         {
@@ -2775,6 +2833,23 @@ namespace oblo::gpu::vk
         {
             vkUpdateDescriptorSets(m_device, writesCount, descriptorSetWrites, 0, nullptr);
         }
+    }
+
+    VkSampler vulkan_instance::get_or_create_dummy_sampler()
+    {
+        if (!m_dummySampler)
+        {
+            const expected newSampler = create_sampler({});
+
+            if (!newSampler)
+            {
+                return nullptr;
+            }
+
+            m_dummySampler = *newSampler;
+        }
+
+        return m_samplers.at(m_dummySampler).vkSampler;
     }
 }
 

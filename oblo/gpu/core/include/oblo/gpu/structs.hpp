@@ -45,6 +45,11 @@ namespace oblo::gpu
         u32 numCommandBuffers;
     };
 
+    struct bindless_image_descriptor
+    {
+        h32<image> image;
+        image_resource_state state;
+    };
     struct buffer_copy_descriptor
     {
         u64 srcOffset;
@@ -330,8 +335,8 @@ namespace oblo::gpu
         h32<image> image;
         image_resource_state previousState;
         image_resource_state nextState;
-        pipeline_sync_stage previousPipeline;
-        pipeline_sync_stage nextPipeline;
+        flags<pipeline_sync_stage> previousPipelines;
+        flags<pipeline_sync_stage> nextPipelines;
     };
 
     struct global_memory_barrier

@@ -190,9 +190,7 @@ namespace oblo::gpu::vk
             case pipeline_sync_stage::compute:
                 return VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
             case pipeline_sync_stage::graphics:
-                // We could actually check in which stage a texture is read using reflection and pass this info, for now
-                // we'd need to add all stages we may access a texture from
-                return VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+                return VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
             case pipeline_sync_stage::transfer:
                 return VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             case pipeline_sync_stage::raytracing:
@@ -202,12 +200,24 @@ namespace oblo::gpu::vk
             }
         }
 
+        VkPipelineStageFlags2 deduce_stage_mask(flags<pipeline_sync_stage> newPass)
+        {
+            VkPipelineStageFlags2 flags{};
+
+            for (const pipeline_sync_stage stage : flags_range{newPass})
+            {
+                flags |= deduce_stage_mask(stage);
+            }
+
+            return flags;
+        }
+
         template <bool WithPipeline>
         void deduce_barrier(VkImageLayout& outLayout,
             [[maybe_unused]] VkAccessFlags2& outAccessMask,
             [[maybe_unused]] VkPipelineStageFlags2& outStageMask,
             image_resource_state state,
-            [[maybe_unused]] pipeline_sync_stage pipeline)
+            [[maybe_unused]] flags<pipeline_sync_stage> pipelines)
         {
             // Mind that we use this function in deduce_layout too
             switch (state)
@@ -217,7 +227,7 @@ namespace oblo::gpu::vk
 
                 if constexpr (WithPipeline)
                 {
-                    outStageMask = deduce_stage_mask(pipeline);
+                    outStageMask = deduce_stage_mask(pipelines);
                 }
 
                 break;
@@ -259,7 +269,7 @@ namespace oblo::gpu::vk
                 if constexpr (WithPipeline)
                 {
                     outAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-                    outStageMask = deduce_stage_mask(pipeline);
+                    outStageMask = deduce_stage_mask(pipelines);
                 }
                 break;
 
@@ -268,7 +278,7 @@ namespace oblo::gpu::vk
                 if constexpr (WithPipeline)
                 {
                     outAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-                    outStageMask = deduce_stage_mask(pipeline);
+                    outStageMask = deduce_stage_mask(pipelines);
                 }
                 break;
 
@@ -277,7 +287,7 @@ namespace oblo::gpu::vk
                 if constexpr (WithPipeline)
                 {
                     outAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-                    outStageMask = deduce_stage_mask(pipeline);
+                    outStageMask = deduce_stage_mask(pipelines);
                 }
                 break;
 
@@ -285,7 +295,7 @@ namespace oblo::gpu::vk
                 outLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
                 if constexpr (WithPipeline)
                 {
-                    OBLO_ASSERT(pipeline == pipeline_sync_stage::transfer);
+                    OBLO_ASSERT(pipelines.contains(pipeline_sync_stage::transfer));
                     outAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
                     outStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
                 }
@@ -295,7 +305,7 @@ namespace oblo::gpu::vk
                 outLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
                 if constexpr (WithPipeline)
                 {
-                    OBLO_ASSERT(pipeline == pipeline_sync_stage::transfer);
+                    OBLO_ASSERT(pipelines.contains(pipeline_sync_stage::transfer));
                     outAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                     outStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
                 }
@@ -322,46 +332,36 @@ namespace oblo::gpu::vk
             outBarrier.srcAccessMask,
             outBarrier.srcStageMask,
             transition.previousState,
-            transition.previousPipeline);
+            transition.previousPipelines);
 
         deduce_barrier<true>(outBarrier.newLayout,
             outBarrier.dstAccessMask,
             outBarrier.dstStageMask,
             transition.nextState,
-            transition.nextPipeline);
+            transition.nextPipelines);
     }
 
     void deduce_barrier(VkMemoryBarrier2& outBarrier, const global_memory_barrier& memoryBarrier)
     {
         VkAccessFlags2 srcAccess{};
         VkAccessFlags2 dstAccess{};
-        VkPipelineStageFlags2 srcStage{};
-        VkPipelineStageFlags2 dstStage{};
-
-        for (const auto access : flags_range{memoryBarrier.nextAccesses})
-        {
-            dstAccess |= deduce_memory_access(access);
-        }
+        const VkPipelineStageFlags2 srcStage = deduce_stage_mask(memoryBarrier.previousPipelines);
+        const VkPipelineStageFlags2 dstStage = deduce_stage_mask(memoryBarrier.nextPipelines);
 
         for (const auto access : flags_range{memoryBarrier.previousAccesses})
         {
             srcAccess |= deduce_memory_access(access);
         }
 
-        for (const auto pipeline : flags_range{memoryBarrier.nextPipelines})
+        for (const auto access : flags_range{memoryBarrier.nextAccesses})
         {
-            dstStage |= deduce_stage_mask(pipeline);
+            dstAccess |= deduce_memory_access(access);
         }
 
-        for (const auto pipeline : flags_range{memoryBarrier.previousPipelines})
-        {
-            srcStage |= deduce_stage_mask(pipeline);
-        }
-
-        outBarrier.dstAccessMask = dstAccess;
-        outBarrier.dstStageMask = dstStage;
         outBarrier.srcAccessMask = srcAccess;
         outBarrier.srcStageMask = srcStage;
+        outBarrier.dstAccessMask = dstAccess;
+        outBarrier.dstStageMask = dstStage;
     }
 
     VkImageLayout deduce_layout(image_resource_state state)

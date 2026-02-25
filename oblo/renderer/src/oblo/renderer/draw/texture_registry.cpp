@@ -3,6 +3,7 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
@@ -42,15 +43,6 @@ namespace oblo
         };
     }
 
-    struct resident_texture
-    {
-        // Only set if the image is owned.
-        h32<gpu::image> handle;
-
-        VkImage image;
-        VkImageView imageView;
-    };
-
     struct texture_registry::pending_texture_upload
     {
         h32<gpu::image> handle;
@@ -64,14 +56,16 @@ namespace oblo
 
     texture_registry::~texture_registry() = default;
 
-    bool texture_registry::init(gpu::vk::vulkan_instance& vkCtx, gpu::staging_buffer& staging)
+    bool texture_registry::init(gpu::gpu_instance& gpu, gpu::staging_buffer& staging)
     {
-        const u32 maxDescriptorCount = get_max_descriptor_count();
+        const u32 maxDescriptorCount = gpu.get_max_bindless_images();
 
-        m_imageInfo.reserve(maxDescriptorCount);
-        m_textures.reserve(maxDescriptorCount);
+        // Zero-initialize to set isOwned to false on all slots
+        m_textures.resize(maxDescriptorCount);
+        m_isOwned.resize(maxDescriptorCount);
+        m_usedSlots = 0;
 
-        m_gpu = &vkCtx;
+        m_gpu = &gpu;
         m_staging = &staging;
 
         return true;
@@ -81,15 +75,15 @@ namespace oblo
     {
         const auto submitIndex = m_gpu->get_submit_index();
 
-        for (const auto& t : m_textures)
+        for (u32 i = 0; i < m_usedSlots; ++i)
         {
-            if (!t.handle)
+            if (!m_isOwned[i])
             {
                 // The dummy will be present multiple times here, but only one occurrence is owning the allocation
                 continue;
             }
 
-            m_gpu->destroy_deferred(t.handle, submitIndex);
+            m_gpu->destroy_deferred(m_textures[i].image, submitIndex);
         }
     }
 
@@ -98,7 +92,7 @@ namespace oblo
         texture_resource dummy;
 
         // TODO: Make it a more recognizable texture, since sampling it should only happen by mistake
-        resident_texture residentTexture;
+        gpu::bindless_image_descriptor residentTexture;
 
         if (!dummy.allocate({
                 .vkFormat = oblo::texture_format::r8g8b8a8_unorm,
@@ -111,101 +105,78 @@ namespace oblo
                 .numFaces = 1,
                 .isArray = false,
             }) ||
-            !create(dummy, residentTexture, {"dummy_fallback_texture"}))
+            !create_texture(dummy, residentTexture, {"dummy_fallback_texture"}))
         {
             log::error("Failed to allocate fallback taxture");
             return;
         }
 
-        const VkDescriptorImageInfo dummyInfo{
-            .imageView = residentTexture.imageView,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        };
-
-        m_imageInfo.assign(1, dummyInfo);
-        m_textures.assign(1, residentTexture);
+        set_texture_impl({}, residentTexture, true);
     }
 
     h32<resident_texture> texture_registry::acquire()
     {
-        h32<resident_texture> res{};
-        res = h32<resident_texture>{m_handlePool.acquire()};
-        OBLO_ASSERT(res.value != 0);
+        const h32<resident_texture> h{m_handlePool.acquire()};
+        OBLO_ASSERT(h.value != 0);
 
         // Initialize to dummy texture to make it easier to debug
-        resident_texture texture = m_textures[0];
-
         // We give out a non-owning reference, to make sure it's not double-deleted
-        texture.handle = {};
+        const gpu::bindless_image_descriptor residentTexture = m_textures[0];
 
-        set_texture(res, texture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        set_texture_impl(h, residentTexture, false);
 
-        return res;
+        return h;
     }
 
     bool texture_registry::set_texture(
         h32<resident_texture> h, const texture_resource& texture, const debug_label& debugName)
     {
-        resident_texture residentTexture;
+        gpu::bindless_image_descriptor residentTexture;
 
-        if (!create(texture, residentTexture, debugName))
+        if (!create_texture(texture, residentTexture, debugName))
         {
             return false;
         }
 
-        set_texture(h, residentTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        set_texture_impl(h, residentTexture, true);
         return true;
     }
 
-    void texture_registry::set_texture(h32<resident_texture> h, VkImageView view, VkImageLayout layout)
+    void texture_registry::set_external_texture(
+        h32<resident_texture> h, h32<gpu::image> image, gpu::image_resource_state state)
     {
-        const resident_texture residentTexture{
-            .imageView = view,
+        const gpu::bindless_image_descriptor residentTexture{
+            .image = image,
+            .state = state,
         };
 
-        set_texture(h, residentTexture, layout);
+        set_texture_impl(h, residentTexture, false);
     }
 
-    void texture_registry::set_texture(
-        h32<resident_texture> h, const resident_texture& residentTexture, VkImageLayout layout)
+    void texture_registry::set_texture_impl(
+        h32<resident_texture> h, const gpu::bindless_image_descriptor& residentTexture, bool isOwned)
     {
-        OBLO_ASSERT(h.value != 0);
+        const u32 index = m_handlePool.get_index(h.value);
 
-        const auto index = m_handlePool.get_index(h.value);
+        m_usedSlots = max(index + 1, m_usedSlots);
 
-        if (index >= m_imageInfo.size())
-        {
-            const auto newSize = index + 1;
-
-            m_imageInfo.reserve_exponential(newSize);
-            m_textures.reserve_exponential(newSize);
-
-            m_imageInfo.resize(newSize);
-            m_textures.resize(newSize);
-        }
-
-        OBLO_ASSERT(m_imageInfo[index].imageView == m_imageInfo[0].imageView || m_imageInfo[index].imageView == nullptr,
-            "Replacing a different texture here would require destroying it");
-
-        m_imageInfo[index] = {
-            .imageView = residentTexture.imageView,
-            .imageLayout = layout,
-        };
+        OBLO_ASSERT(!m_isOwned[index], "Replacing an owned texture here would require destroying it");
 
         m_textures[index] = residentTexture;
+        m_isOwned[index] = isOwned;
     }
 
     h32<resident_texture> texture_registry::add(const texture_resource& texture, const debug_label& debugName)
     {
-        resident_texture residentTexture;
+        gpu::bindless_image_descriptor residentTexture;
 
-        if (!create(texture, residentTexture, debugName))
+        if (!create_texture(texture, residentTexture, debugName))
         {
             return {};
         }
 
         const auto h = acquire();
-        set_texture(h, residentTexture, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        set_texture_impl(h, residentTexture, true);
         return h;
     }
 
@@ -214,42 +185,29 @@ namespace oblo
         // Destroy the texture, fill the hole with the dummy
 
         auto index = m_handlePool.get_index(texture.value);
-        OBLO_ASSERT(index != 0 && index < m_imageInfo.size());
+        OBLO_ASSERT(index != 0 && index < m_textures.size());
 
         auto& t = m_textures[index];
 
-        if (t.handle)
+        if (t.image)
         {
             const auto submitIndex = m_gpu->get_submit_index();
-            m_gpu->destroy_deferred(t.handle, submitIndex);
+            m_gpu->destroy_deferred(t.image, submitIndex);
         }
 
         // Reset to the dummy
         t = m_textures[0];
-        t.handle = {};
+        t.image = {};
 
-        m_imageInfo[index] = m_imageInfo[0];
+        m_textures[index] = m_textures[0];
+        m_isOwned[index] = false;
 
         m_handlePool.release(texture.value);
-    }
-
-    std::span<const VkDescriptorImageInfo> texture_registry::get_textures2d_info() const
-    {
-        return m_imageInfo;
-    }
-
-    u32 texture_registry::get_max_descriptor_count() const
-    {
-        return 2048;
     }
 
     void texture_registry::flush_uploads(hptr<gpu::command_buffer> commandBuffer)
     {
         buffered_array<gpu::buffer_image_copy_descriptor, 16> copies;
-
-        constexpr auto initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        constexpr auto finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        constexpr auto aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
         for (const auto& upload : m_pendingUploads)
         {
@@ -283,40 +241,56 @@ namespace oblo
                 lastCopy.imageSubresource.mipLevel = levelIndex;
             }
 
-            const VkImageSubresourceRange pipelineRange{
-                .aspectMask = aspectMask,
-                .baseMipLevel = 0,
-                .levelCount = upload.levels.size32(),
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            };
-
-            const VkImage vkImage = m_gpu->unwrap_image(upload.handle);
-            const VkCommandBuffer vkCmdBuffer = m_gpu->unwrap_command_buffer(commandBuffer);
-
-            gpu::vk::add_pipeline_barrier_cmd(vkCmdBuffer,
-                initialImageLayout,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                vkImage,
-                VkFormat(upload.format),
-                pipelineRange);
+            m_gpu->cmd_apply_barriers(commandBuffer,
+                gpu::memory_barrier_descriptor{
+                    .images = make_span_initializer<gpu::image_state_transition>({
+                        {
+                            .image = upload.handle,
+                            .previousState = gpu::image_resource_state::undefined,
+                            .nextState = gpu::image_resource_state::transfer_destination,
+                            .previousPipelines = gpu::pipeline_sync_stage::bottom_of_pipeline,
+                            .nextPipelines = gpu::pipeline_sync_stage::transfer,
+                        },
+                    }),
+                });
 
             m_staging->upload(commandBuffer, upload.handle, copies);
 
-            gpu::vk::add_pipeline_barrier_cmd(vkCmdBuffer,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                finalImageLayout,
-                vkImage,
-                VkFormat(upload.format),
-                pipelineRange);
+            m_gpu->cmd_apply_barriers(commandBuffer,
+                gpu::memory_barrier_descriptor{
+                    .images = make_span_initializer<gpu::image_state_transition>({
+                        {
+                            .image = upload.handle,
+                            .previousState = gpu::image_resource_state::transfer_destination,
+                            .nextState = gpu::image_resource_state::shader_read,
+                            .previousPipelines = gpu::pipeline_sync_stage::transfer,
+                            .nextPipelines = gpu::pipeline_sync_stage::graphics | gpu::pipeline_sync_stage::compute |
+                                gpu::pipeline_sync_stage::raytracing,
+                        },
+                    }),
+                });
         }
 
         m_pendingUploads.clear();
     }
 
-    bool texture_registry::create(const texture_resource& texture, resident_texture& out, const debug_label& debugName)
+    void texture_registry::update_texture_bind_groups() const
     {
-        out = resident_texture{};
+        if (m_usedSlots > 0)
+        {
+            m_gpu->set_bindless_images(std::span{m_textures}.subspan(0, m_usedSlots), 0).assert_value();
+        }
+    }
+
+    u32 texture_registry::get_used_textures_slots() const
+    {
+        return m_usedSlots;
+    }
+
+    bool texture_registry::create_texture(
+        const texture_resource& texture, gpu::bindless_image_descriptor& out, const debug_label& debugName)
+    {
+        out = {};
 
         const auto desc = texture.get_description();
 
@@ -349,8 +323,12 @@ namespace oblo
             return false;
         }
 
+        // After upload it will be in shader read stage, so we set it right away
+        out.state = gpu::image_resource_state::shader_read;
+        out.image = *image;
+
         auto& textureUpload = m_pendingUploads.push_back({
-            .handle = out.handle,
+            .handle = out.image,
             .format = srcFormat,
             .width = desc.width,
             .height = desc.height,
@@ -361,7 +339,7 @@ namespace oblo
         const auto cleanupAfterFailure = [this, &image]
         {
             m_pendingUploads.pop_back();
-            m_gpu->destroy_image(*image);
+            m_gpu->destroy(*image);
         };
 
         const u32 texelSize = texture.get_element_size();

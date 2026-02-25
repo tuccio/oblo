@@ -29,6 +29,7 @@ namespace oblo::gpu
     struct swapchain;
 
     struct acceleration_structure_descriptor;
+    struct bindless_image_descriptor;
     struct bind_group_descriptor;
     struct bind_group_layout_descriptor;
     struct buffer_copy_descriptor;

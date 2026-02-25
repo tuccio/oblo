@@ -59,8 +59,12 @@ namespace oblo::gpu::vk
         result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle,
             std::span<const bind_group_data> data) override;
 
-        result<hptr<bind_group>> acquire_transient_variable_bind_group(
-            h32<bind_group_layout> handle, std::span<const bind_group_data> data, u32 count) override;
+        u32 get_max_bindless_images() const override;
+
+        result<> set_bindless_images(std::span<const bindless_image_descriptor> images, u32 first) override;
+
+        result<hptr<bind_group>> acquire_transient_bindless_images_bind_group(
+            h32<bind_group_layout> handle, u32 binding, u32 count) override;
 
         result<h32<command_buffer_pool>> create_command_buffer_pool(
             const command_buffer_pool_descriptor& descriptor) override;
@@ -266,12 +270,15 @@ namespace oblo::gpu::vk
 
         void initialize_descriptor_set(VkDescriptorSet descriptorSet, std::span<const bind_group_data> data);
 
+        VkSampler get_or_create_dummy_sampler();
+
     private:
         VkInstance m_instance{};
         VkPhysicalDevice m_physicalDevice{};
         VkDevice m_device{};
         gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
+        h32<sampler> m_dummySampler{};
 
         // Lazy approach with all these maps, we don't iterate over them so another solution would be preferrable
         h32_flat_pool_dense_map<acceleration_structure, acceleration_structure_impl> m_accelerationStructures;
@@ -288,6 +295,8 @@ namespace oblo::gpu::vk
         h32_flat_pool_dense_map<graphics_pipeline, graphics_pipeline_impl> m_renderPipelines;
         h32_flat_pool_dense_map<compute_pipeline, compute_pipeline_impl> m_computePipelines;
         h32_flat_pool_dense_map<raytracing_pipeline, raytracing_pipeline_impl> m_raytracingPipelines;
+
+        dynamic_array<VkDescriptorImageInfo> m_bindlessImages;
 
         descriptor_set_pool m_perFrameSetPool;
 
