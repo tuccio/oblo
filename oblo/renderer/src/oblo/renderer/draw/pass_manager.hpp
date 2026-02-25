@@ -10,8 +10,6 @@
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/forward.hpp>
 
-#include <vulkan/vulkan_core.h>
-
 #include <span>
 
 namespace oblo
@@ -79,7 +77,7 @@ namespace oblo
 
         [[nodiscard]] expected<render_pass_context> begin_render_pass(hptr<gpu::command_buffer> commandBuffer,
             h32<render_pipeline> pipeline,
-            const VkRenderingInfo& renderingInfo) const;
+            const gpu::graphics_pass_descriptor& renderingInfo) const;
 
         void end_render_pass(const render_pass_context& context) const;
 
@@ -134,12 +132,14 @@ namespace oblo
     struct render_pass_context
     {
         hptr<gpu::command_buffer> commandBuffer;
+        hptr<gpu::graphics_pass> pass;
         const render_pipeline* internalPipeline;
     };
 
     struct compute_pass_context
     {
         hptr<gpu::command_buffer> commandBuffer;
+        hptr<gpu::compute_pass> pass;
         const compute_pipeline* internalPipeline;
     };
 

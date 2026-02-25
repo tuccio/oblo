@@ -571,10 +571,12 @@ namespace oblo
             return {};
         }
 
-        gpu->create_shader_module({
-            .format = gpu::shader_module_format::spirv,
-            .data = as_bytes(result.get_spirv()),
-        });
+        return gpu
+            ->create_shader_module({
+                .format = gpu::shader_module_format::spirv,
+                .data = as_bytes(result.get_spirv()),
+            })
+            .value_or({});
     }
 
     bool pass_manager::impl::create_layout_from_reflection(base_pipeline& newPipeline,
@@ -1128,7 +1130,7 @@ namespace oblo
         m_impl->shaderCache.init("./spirv");
 
         {
-            constexpr gpu::sampler_descriptor samplerInfo{
+            const gpu::sampler_descriptor samplerInfo{
                 .magFilter = gpu::sampler_filter::linear,
                 .minFilter = gpu::sampler_filter::linear,
                 .mipmapMode = gpu::sampler_mipmap_mode::linear,
@@ -1148,7 +1150,7 @@ namespace oblo
             m_impl->samplers[u32(sampler::linear_repeat)] = gpu.create_sampler(samplerInfo).value_or({});
         }
         {
-            constexpr gpu::sampler_descriptor samplerInfo{
+            const gpu::sampler_descriptor samplerInfo{
                 .magFilter = gpu::sampler_filter::linear,
                 .minFilter = gpu::sampler_filter::linear,
                 .mipmapMode = gpu::sampler_mipmap_mode::linear,
@@ -1169,7 +1171,7 @@ namespace oblo
         }
 
         {
-            constexpr gpu::sampler_descriptor samplerInfo{
+            const gpu::sampler_descriptor samplerInfo{
                 .magFilter = gpu::sampler_filter::linear,
                 .minFilter = gpu::sampler_filter::linear,
                 .mipmapMode = gpu::sampler_mipmap_mode::linear,
@@ -1190,7 +1192,7 @@ namespace oblo
         }
 
         {
-            constexpr gpu::sampler_descriptor samplerInfo{
+            const gpu::sampler_descriptor samplerInfo{
                 .magFilter = gpu::sampler_filter::linear,
                 .minFilter = gpu::sampler_filter::linear,
                 .mipmapMode = gpu::sampler_mipmap_mode::linear,
@@ -1211,7 +1213,7 @@ namespace oblo
         }
 
         {
-            constexpr gpu::sampler_descriptor samplerInfo{
+            const gpu::sampler_descriptor samplerInfo{
                 .magFilter = gpu::sampler_filter::nearest,
                 .minFilter = gpu::sampler_filter::nearest,
                 .mipmapMode = gpu::sampler_mipmap_mode::nearest,
@@ -1231,7 +1233,7 @@ namespace oblo
         }
 
         {
-            constexpr gpu::sampler_descriptor samplerInfo{
+            const gpu::sampler_descriptor samplerInfo{
                 .magFilter = gpu::sampler_filter::linear,
                 .minFilter = gpu::sampler_filter::linear,
                 .mipmapMode = gpu::sampler_mipmap_mode::linear,
@@ -1267,7 +1269,7 @@ namespace oblo
         const expected bindlessTexturesLayout = gpu.create_bind_group_layout({
             .bindings = make_span_initializer<gpu::bind_group_binding>({{
                 .binding = Textures2DBinding,
-                .count = textureRegistry.get_max_descriptor_count(),
+                .count = gpu.get_max_bindless_images(),
                 .bindingKind = gpu::resource_binding_kind::sampled_image,
                 .shaderStages = flags<gpu::shader_stage>::all(),
             }}),
@@ -2012,7 +2014,7 @@ namespace oblo
 
     expected<render_pass_context> pass_manager::begin_render_pass(hptr<gpu::command_buffer> commandBuffer,
         h32<render_pipeline> pipelineHandle,
-        const VkRenderingInfo& renderingInfo) const
+        const gpu::graphics_pass_descriptor& renderingInfo) const
     {
         const auto* pipeline = m_impl->renderPipelines.try_find(pipelineHandle);
 
@@ -2021,46 +2023,41 @@ namespace oblo
             return "Render pipeline not found"_err;
         }
 
-        const render_pass_context renderPassContext{
-            .commandBuffer = commandBuffer,
-            .internalCtx = m_impl->begin_pass(commandBuffer, *pipeline),
-            .internalPipeline = pipeline,
-        };
-
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->pipeline);
-        vkCmdBeginRendering(commandBuffer, &renderingInfo);
-
         if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)
         {
-            vkCmdBindDescriptorSets(commandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipeline->pipelineLayout,
+            m_impl->gpu->cmd_bind_groups(commandBuffer,
+                pipeline->pipeline,
                 TextureSamplerDescriptorSet,
-                1,
-                &m_impl->currentSamplersDescriptor,
-                0,
-                nullptr);
+                {&m_impl->currentSamplersDescriptor, 1u});
         }
 
         if (pipeline->requiresTextures2D && m_impl->currentTextures2DDescriptor)
         {
-            vkCmdBindDescriptorSets(commandBuffer,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipeline->pipelineLayout,
+            m_impl->gpu->cmd_bind_groups(commandBuffer,
+                pipeline->pipeline,
                 Textures2DDescriptorSet,
-                1,
-                &m_impl->currentTextures2DDescriptor,
-                0,
-                nullptr);
+                {&m_impl->currentTextures2DDescriptor, 1u});
         }
+
+        const auto pass = m_impl->gpu->begin_graphics_pass(commandBuffer, pipeline->pipeline, renderingInfo);
+
+        if (!pass)
+        {
+            return "Failed to begin pass"_err;
+        }
+
+        const render_pass_context renderPassContext{
+            .commandBuffer = commandBuffer,
+            .pass = *pass,
+            .internalPipeline = pipeline,
+        };
 
         return renderPassContext;
     }
 
     void pass_manager::end_render_pass(const render_pass_context& context) const
     {
-        vkCmdEndRendering(context.commandBuffer);
-        m_impl->end_pass(context.commandBuffer, context.internalCtx);
+        m_impl->gpu->end_graphics_pass(context.commandBuffer, context.pass);
     }
 
     expected<compute_pass_context> pass_manager::begin_compute_pass(hptr<gpu::command_buffer> commandBuffer,
@@ -2073,44 +2070,41 @@ namespace oblo
             return "Compute pipeline not found"_err;
         }
 
-        const compute_pass_context computePassContext{
-            .commandBuffer = commandBuffer,
-            .internalCtx = m_impl->begin_pass(commandBuffer, *pipeline),
-            .internalPipeline = pipeline,
-        };
-
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline);
-
         if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)
         {
-            vkCmdBindDescriptorSets(commandBuffer,
-                VK_PIPELINE_BIND_POINT_COMPUTE,
-                pipeline->pipelineLayout,
+            m_impl->gpu->cmd_bind_groups(commandBuffer,
+                pipeline->pipeline,
                 TextureSamplerDescriptorSet,
-                1,
-                &m_impl->currentSamplersDescriptor,
-                0,
-                nullptr);
+                {&m_impl->currentSamplersDescriptor, 1u});
         }
 
         if (pipeline->requiresTextures2D && m_impl->currentTextures2DDescriptor)
         {
-            vkCmdBindDescriptorSets(commandBuffer,
-                VK_PIPELINE_BIND_POINT_COMPUTE,
-                pipeline->pipelineLayout,
+            m_impl->gpu->cmd_bind_groups(commandBuffer,
+                pipeline->pipeline,
                 Textures2DDescriptorSet,
-                1,
-                &m_impl->currentTextures2DDescriptor,
-                0,
-                nullptr);
+                {&m_impl->currentTextures2DDescriptor, 1u});
         }
+
+        const auto pass = m_impl->gpu->begin_compute_pass(commandBuffer, pipeline->pipeline);
+
+        if (!pass)
+        {
+            return "Failed to begin pass"_err;
+        }
+
+        const compute_pass_context computePassContext{
+            .commandBuffer = commandBuffer,
+            .pass = *pass,
+            .internalPipeline = pipeline,
+        };
 
         return computePassContext;
     }
 
     void pass_manager::end_compute_pass(const compute_pass_context& context) const
     {
-        m_impl->end_pass(context.commandBuffer, context.internalCtx);
+        m_impl->gpu->end_compute_pass(context.commandBuffer, context.pass);
     }
 
     expected<raytracing_pass_context> pass_manager::begin_raytracing_pass(hptr<gpu::command_buffer> commandBuffer,
@@ -2126,7 +2120,7 @@ namespace oblo
         if (pipeline->requiresTextures2D && m_impl->currentSamplersDescriptor)
         {
             m_impl->gpu->cmd_bind_groups(commandBuffer,
-                pipelineHandle,
+                pipeline->pipeline,
                 TextureSamplerDescriptorSet,
                 {&m_impl->currentSamplersDescriptor, 1u});
         }
@@ -2134,7 +2128,7 @@ namespace oblo
         if (pipeline->requiresTextures2D && m_impl->currentTextures2DDescriptor)
         {
             m_impl->gpu->cmd_bind_groups(commandBuffer,
-                pipelineHandle,
+                pipeline->pipeline,
                 Textures2DDescriptorSet,
                 {&m_impl->currentTextures2DDescriptor, 1u});
         }
