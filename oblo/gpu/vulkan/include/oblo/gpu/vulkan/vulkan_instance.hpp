@@ -160,6 +160,8 @@ namespace oblo::gpu::vk
             h32<image> dst,
             std::span<const buffer_image_copy_descriptor> copies) override;
 
+        void cmd_blit(hptr<command_buffer> cmd, h32<image> src, h32<image> dst, gpu::sampler_filter filter) override;
+
         // Barriers and synchronization
 
         void cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor) override;
@@ -168,6 +170,20 @@ namespace oblo::gpu::vk
 
         void cmd_draw(
             hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance) override;
+
+        void cmd_draw_indexed(hptr<command_buffer> cmd,
+            u32 indexCount,
+            u32 instanceCount,
+            u32 firstIndex,
+            u32 vertexOffset,
+            u32 firstInstance) override;
+
+        void cmd_draw_mesh_tasks_indirect_count(hptr<command_buffer> cmd,
+            h32<buffer> drawBuffer,
+            u64 drawOffset,
+            h32<buffer> countBuffer,
+            u64 countOffset,
+            u32 maxDrawCount) override;
 
         void cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ) override;
 
@@ -236,6 +252,11 @@ namespace oblo::gpu::vk
         debug_utils::object get_object_labeler() const;
 
         const loaded_functions& get_loaded_functions() const;
+
+        // Very hacky, it's just here as a temporary solution to get things running without support for acceleration
+        // structures
+        h32<gpu::acceleration_structure> register_acceleration_structure(
+            VkAccelerationStructureKHR accelerationStructure);
 
     private:
         struct acceleration_structure_impl;

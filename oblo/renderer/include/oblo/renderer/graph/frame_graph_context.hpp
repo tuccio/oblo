@@ -8,15 +8,13 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
-#include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/forward.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/frame_graph_resources.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 
 #include <span>
-
-#include <vulkan/vulkan_core.h>
 
 namespace oblo
 {
@@ -88,7 +86,7 @@ namespace oblo
         void register_texture(pin::texture resource, h32<gpu::image> externalTexture) const;
 
         // Temporary solution until the acceleration structure is a proper resource.
-        void register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const;
+        void register_global_tlas(h32<gpu::acceleration_structure> accelerationStructure) const;
 
         void acquire(pin::texture texture, texture_access usage) const;
 
@@ -197,7 +195,7 @@ namespace oblo
 
         expected<> begin_pass(h32<compute_pass_instance> handle) const;
 
-        expected<> begin_pass(h32<render_pass_instance> handle, const render_pass_config& cfg) const;
+        expected<> begin_pass(h32<render_pass_instance> handle, const gpu::graphics_pass_descriptor& cfg) const;
 
         expected<> begin_pass(h32<raytracing_pass_instance> handle) const;
 
@@ -255,7 +253,7 @@ namespace oblo
 
         async_download download(pin::buffer h) const;
 
-        u64 get_device_address(pin::buffer buffer) const;
+        h64<gpu::device_address> get_device_address(pin::buffer buffer) const;
 
         template <typename T>
         bool has_event() const

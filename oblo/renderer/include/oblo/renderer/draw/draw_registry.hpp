@@ -99,6 +99,7 @@ namespace oblo
             VkAccelerationStructureKHR accelerationStructure;
             h64<gpu::device_address> deviceAddress;
             h32<gpu::buffer> buffer;
+            h32<gpu::acceleration_structure> handle;
         };
 
     private:

@@ -2,7 +2,6 @@
 
 #include <oblo/core/finally.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_instance.hpp>
 
 namespace oblo
 {
@@ -186,19 +185,19 @@ namespace oblo
 
         if (m_vertexBuffer)
         {
-            gpu.destroy_buffer(m_vertexBuffer);
+            gpu.destroy(m_vertexBuffer);
             m_vertexBuffer = {};
         }
 
         if (m_meshDataBuffer)
         {
-            gpu.destroy_buffer(m_meshDataBuffer);
+            gpu.destroy(m_meshDataBuffer);
             m_meshDataBuffer = {};
         }
 
         if (m_meshletsBuffer)
         {
-            gpu.destroy_buffer(m_meshletsBuffer);
+            gpu.destroy(m_meshletsBuffer);
             m_meshletsBuffer = {};
         }
 

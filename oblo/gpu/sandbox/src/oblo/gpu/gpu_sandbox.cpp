@@ -314,10 +314,10 @@ namespace oblo
                 const gpu::image_state_transition imageBarriers[] = {
                     {
                         .image = swapchainImage,
-                        .previousState = gpu::image_resource_state::undefined,
-                        .nextState = gpu::image_resource_state::render_target_write,
                         .previousPipelines = gpu::pipeline_sync_stage::top_of_pipeline,
+                        .previousState = gpu::image_resource_state::undefined,
                         .nextPipelines = gpu::pipeline_sync_stage::graphics,
+                        .nextState = gpu::image_resource_state::render_target_write,
                     },
                 };
 
@@ -361,10 +361,10 @@ namespace oblo
                 const gpu::image_state_transition imageBarriers[] = {
                     {
                         .image = swapchainImage,
-                        .previousState = gpu::image_resource_state::render_target_write,
-                        .nextState = gpu::image_resource_state::present,
                         .previousPipelines = gpu::pipeline_sync_stage::graphics,
+                        .previousState = gpu::image_resource_state::render_target_write,
                         .nextPipelines = gpu::pipeline_sync_stage::bottom_of_pipeline,
+                        .nextState = gpu::image_resource_state::present,
                     },
                 };
 

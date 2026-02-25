@@ -9,15 +9,16 @@
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/image_state_tracker.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/renderer/data/async_download.hpp>
 #include <oblo/renderer/draw/pass_manager.hpp>
 #include <oblo/renderer/graph/frame_graph_node_desc.hpp>
 #include <oblo/renderer/graph/frame_graph_template.hpp>
 #include <oblo/renderer/graph/frame_graph_vertex_kind.hpp>
-#include <oblo/renderer/graph/image_layout_tracker.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 #include <oblo/renderer/graph/resource_pool.hpp>
+#include <oblo/renderer/graph/types_internal.hpp>
 
 #include <iosfwd>
 #include <memory_resource>
@@ -192,7 +193,7 @@ namespace oblo
     {
         h32<resident_texture> resident;
         pin::texture texture;
-        texture_access usage;
+        gpu::image_resource_state state;
     };
 
     struct frame_graph_node_to_execute
@@ -314,7 +315,7 @@ namespace oblo
         std::unordered_set<type_id> emptyEvents;
 
         // Temporary until we make the acceleration structure a proper resource
-        VkAccelerationStructureKHR globalTLAS{};
+        h32<gpu::acceleration_structure> globalTLAS{};
 
     public: // Internals for frame graph execution
         void mark_active_nodes();
@@ -381,9 +382,10 @@ namespace oblo
 
     struct frame_graph_execution_state
     {
+        gpu::gpu_instance* gpu{};
         hptr<gpu::command_buffer> commandBuffer{};
         h32<frame_graph_pass> currentPass;
-        image_layout_tracker imageLayoutTracker;
+        gpu::image_state_tracker imageStateTracker;
         pass_kind passKind;
         const base_pipeline* basePipeline{};
 

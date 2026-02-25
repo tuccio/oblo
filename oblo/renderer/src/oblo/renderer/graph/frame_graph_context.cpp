@@ -5,18 +5,14 @@
 #include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/async_download.hpp>
-#include <oblo/renderer/draw/bindable_object.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
-#include <oblo/renderer/draw/descriptor_set_pool.hpp>
-#include <oblo/renderer/draw/shader_stage_utils.hpp>
-#include <oblo/renderer/draw/vk_type_conversions.hpp>
 #include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/frame_graph_impl.hpp>
-#include <oblo/renderer/graph/render_pass.hpp>
 #include <oblo/renderer/graph/resource_pool.hpp>
 #include <oblo/renderer/graph/types_internal.hpp>
 #include <oblo/renderer/renderer.hpp>
@@ -260,12 +256,12 @@ namespace oblo
             return *ptr;
         }
 
-        const frame_graph_texture_impl& access_storage(const frame_graph_impl& frameGraph, pin::texture h)
+        const frame_graph_texture_impl& access_storage_resource(const frame_graph_impl& frameGraph, pin::texture h)
         {
             return access_storage_as<frame_graph_texture_impl>(frameGraph, h);
         }
 
-        const frame_graph_buffer_impl& access_storage(const frame_graph_impl& frameGraph, pin::buffer h)
+        const frame_graph_buffer_impl& access_storage_resource(const frame_graph_impl& frameGraph, pin::buffer h)
         {
             return access_storage_as<frame_graph_buffer_impl>(frameGraph, h);
         }
@@ -294,94 +290,104 @@ namespace oblo
             return false;
         }
 
-        void bind_descriptor_sets(const frame_graph_impl& frameGraph,
-            const frame_graph_execute_args& args,
-            VkCommandBuffer commandBuffer,
-            VkPipelineBindPoint bindPoint,
-            [[maybe_unused]] h32<frame_graph_pass> currentPass,
-            const base_pipeline& pipeline,
-            const image_layout_tracker& imageLayoutTracker,
-            const binding_tables_span& bindingTables)
+        class binding_locator
         {
-            const auto& pm = args.passManager;
-            const auto& interner = args.r.get_string_interner();
+        public:
+            binding_locator(const frame_graph_impl& frameGraph,
+                const frame_graph_execute_args& args,
+                const gpu::image_state_tracker& imageStateTracker,
+                const binding_tables_span& bindingTables,
+                [[maybe_unused]] const base_pipeline& pipeline,
+                [[maybe_unused]] h32<frame_graph_pass> currentPass) :
+                m_frameGraph{frameGraph}, m_executeArgs{args}, m_interner{args.r.get_string_interner()},
+                m_imageStateTracker{imageStateTracker}, m_bindingTables{bindingTables}, m_pipeline{pipeline},
+                m_currentPass{currentPass}
+            {
+            }
 
-            pm.bind_descriptor_sets(commandBuffer,
-                bindPoint,
-                pipeline,
-                [&frameGraph,
-                    &pm,
-                    &pipeline,
-                    currentPass,
-                    bindingTables = bindingTables.span(),
-                    &interner,
-                    &imageLayoutTracker](const descriptor_binding& binding) -> bindable_object
+            gpu::bindable_object operator()(const named_shader_binding& binding) const
+            {
+                const hashed_string_view str = m_interner.h_str(binding.name);
+
+                for (const auto& bindingTable : m_bindingTables.span())
                 {
-                    const hashed_string_view str = hashed_string_view{interner.str(binding.name)};
+                    auto* const r = bindingTable->try_find(str);
 
-                    for (const auto& bindingTable : bindingTables)
+                    if (!r)
                     {
-                        auto* const r = bindingTable->try_find(str);
-
-                        if (!r)
-                        {
-                            continue;
-                        }
-
-                        switch (r->kind)
-                        {
-                        case bindable_resource_kind::acceleration_structure: {
-                            OBLO_ASSERT(r->accelerationStructure == g_globalTLAS,
-                                "Only the global TLAS is supported at the moment");
-
-                            return make_bindable_object(frameGraph.globalTLAS);
-                        }
-
-                        case bindable_resource_kind::buffer: {
-                            const frame_graph_buffer_impl& b = access_storage(frameGraph, r->buffer);
-
-#if OBLO_DEBUG
-                            const bool isReadOnlyBuffer =
-                                binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || binding.readOnly;
-
-                            if (!check_buffer_usage(frameGraph,
-                                    currentPass,
-                                    as_storage_handle(r->buffer),
-                                    isReadOnlyBuffer))
-                            {
-                                log::error("[{}] Missing or mismatching acquire for buffer {}",
-                                    pm.get_pass_name(pipeline),
-                                    str);
-                            }
-
-#endif
-                            return make_bindable_object(b.buffer, b.offset, b.size);
-                        }
-
-                        case bindable_resource_kind::texture: {
-                            const frame_graph_texture_impl& t = access_storage(frameGraph, r->texture);
-
-                            // The frame graph converts the pin storage handle to texture handle to use when keeping
-                            // track of textures
-                            const auto storage = as_storage_handle(r->texture);
-
-                            auto* const textureStorage = frameGraph.pinStorage.try_find(storage);
-                            OBLO_ASSERT(textureStorage && textureStorage->transientTexture);
-
-                            const auto layout = imageLayoutTracker.try_get_layout(textureStorage->transientTexture);
-                            layout.assert_value();
-
-                            return make_bindable_object(t.view, layout.value_or(VK_IMAGE_LAYOUT_UNDEFINED));
-                        }
-
-                        default:
-                            unreachable();
-                        }
+                        continue;
                     }
 
-                    return {};
-                });
-        }
+                    switch (r->kind)
+                    {
+                    case gpu::bindable_resource_kind::acceleration_structure: {
+                        OBLO_ASSERT(r->accelerationStructure == g_globalTLAS,
+                            "Only the global TLAS is supported at the moment");
+
+                        return gpu::make_bindable_object(m_frameGraph.globalTLAS);
+                    }
+
+                    case gpu::bindable_resource_kind::buffer: {
+                        const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, r->buffer);
+
+#if OBLO_DEBUG
+                        const bool isReadOnlyBuffer =
+                            binding.kind == gpu::resource_binding_kind::uniform || binding.readOnly;
+
+                        if (!check_buffer_usage(m_frameGraph,
+                                m_currentPass,
+                                as_storage_handle(r->buffer),
+                                isReadOnlyBuffer))
+                        {
+                            log::error("[{}] Missing or mismatching acquire for buffer {}",
+                                m_executeArgs.passManager.get_pass_name(m_pipeline),
+                                str);
+                        }
+
+#endif
+                        return gpu::make_bindable_object(gpu::bindable_buffer{
+                            .buffer = b.handle,
+                            .offset = b.offset,
+                            .size = b.size,
+                        });
+                    }
+
+                    case gpu::bindable_resource_kind::image: {
+                        const frame_graph_texture_impl& t = access_storage_resource(m_frameGraph, r->texture);
+
+                        // The frame graph converts the pin storage handle to texture handle to use when keeping
+                        // track of textures
+                        const auto storage = as_storage_handle(r->texture);
+
+                        gpu::image_resource_state state = gpu::image_resource_state::undefined;
+
+                        [[maybe_unused]] const bool hasState = m_imageStateTracker.try_get_state(t.handle, state);
+
+                        OBLO_ASSERT(hasState);
+
+                        return gpu::make_bindable_object(gpu::bindable_image{
+                            .image = t.handle,
+                            .state = state,
+                        });
+                    }
+
+                    default:
+                        unreachable();
+                    }
+                }
+
+                return {};
+            }
+
+        private:
+            const frame_graph_impl& m_frameGraph;
+            const string_interner& m_interner;
+            const gpu::image_state_tracker& m_imageStateTracker;
+            const binding_tables_span& m_bindingTables;
+            const frame_graph_execute_args& m_executeArgs;
+            [[maybe_unused]] const base_pipeline& m_pipeline;
+            [[maybe_unused]] h32<frame_graph_pass> m_currentPass;
+        };
     }
 
     void frame_graph_build_context::create(
@@ -522,11 +528,11 @@ namespace oblo
 
     void frame_graph_build_context::register_texture(pin::texture resource, h32<gpu::image> externalTexture) const
     {
-        const auto poolIndex = m_frameGraph.resourcePool.add_external_texture(externalTexture);
+        const auto poolIndex = m_frameGraph.resourcePool.add_external_texture(*m_state.gpu, externalTexture);
         m_frameGraph.add_transient_resource(resource, poolIndex);
     }
 
-    void frame_graph_build_context::register_global_tlas(VkAccelerationStructureKHR accelerationStructure) const
+    void frame_graph_build_context::register_global_tlas(h32<gpu::acceleration_structure> accelerationStructure) const
     {
         OBLO_ASSERT(!m_frameGraph.globalTLAS);
         m_frameGraph.globalTLAS = accelerationStructure;
@@ -624,7 +630,7 @@ namespace oblo
     }
 
     pin::buffer frame_graph_build_context::create_dynamic_buffer(const buffer_resource_initializer& initializer,
-        buffer_usage usage) const
+        buffer_access usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -637,7 +643,7 @@ namespace oblo
     }
 
     pin::buffer frame_graph_build_context::create_dynamic_buffer(const staging_buffer_span& stagedData,
-        buffer_usage usage) const
+        buffer_access usage) const
     {
         OBLO_ASSERT(m_state.currentPass);
 
@@ -803,24 +809,8 @@ namespace oblo
         return no_error;
     }
 
-    namespace
-    {
-        VkRenderingAttachmentInfo make_rendering_attachment_info(
-            VkImageView imageView, VkImageLayout layout, const render_attachment& attachment)
-        {
-            return {
-                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                .imageView = imageView,
-                .imageLayout = layout,
-                .loadOp = convert_to_vk(attachment.loadOp),
-                .storeOp = convert_to_vk(attachment.storeOp),
-                .clearValue = {std::bit_cast<VkClearColorValue>(attachment.clearValue)},
-            };
-        }
-    }
-
     expected<> frame_graph_execute_context::begin_pass(h32<render_pass_instance> handle,
-        const render_pass_config& cfg) const
+        const gpu::graphics_pass_descriptor& cfg) const
     {
         OBLO_ASSERT(handle);
         OBLO_ASSERT(m_frameGraph.passes[handle.value].kind == pass_kind::graphics);
@@ -830,56 +820,8 @@ namespace oblo
 
         auto& pm = m_args.passManager;
 
-        buffered_array<VkRenderingAttachmentInfo, 2> colorAttachments;
-
-        for (const auto& colorAttachment : cfg.colorAttachments)
-        {
-            const auto& vkTexture = access(colorAttachment.texture);
-
-            colorAttachments.push_back(make_rendering_attachment_info(vkTexture.view,
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                colorAttachment));
-        }
-
-        std::optional<VkRenderingAttachmentInfo> depthAttachment;
-
-        if (cfg.depthAttachment)
-        {
-            const auto& vkTexture = access(cfg.depthAttachment->texture);
-
-            depthAttachment = make_rendering_attachment_info(vkTexture.view,
-                VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-                *cfg.depthAttachment);
-        }
-
-        std::optional<VkRenderingAttachmentInfo> stencilAttachment;
-
-        if (cfg.stencilAttachment)
-        {
-            const auto& vkTexture = access(cfg.stencilAttachment->texture);
-
-            stencilAttachment = make_rendering_attachment_info(vkTexture.view,
-                VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
-                *cfg.stencilAttachment);
-        }
-
-        const VkRenderingInfo renderingInfo{
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-            .renderArea =
-                {
-                    .offset = {cfg.renderOffset.x, cfg.renderOffset.y},
-                    .extent = {cfg.renderResolution.x, cfg.renderResolution.y},
-                },
-            .layerCount = 1,
-            .viewMask = 0,
-            .colorAttachmentCount = colorAttachments.size32(),
-            .pColorAttachments = colorAttachments.data(),
-            .pDepthAttachment = depthAttachment ? &*depthAttachment : nullptr,
-            .pStencilAttachment = stencilAttachment ? &*stencilAttachment : nullptr,
-        };
-
         const auto pipeline = m_frameGraph.passes[handle.value].renderPipeline;
-        const auto renderCtx = pm.begin_render_pass(m_state.commandBuffer, pipeline, renderingInfo);
+        const auto renderCtx = pm.begin_render_pass(m_state.commandBuffer, pipeline, cfg);
 
         if (!renderCtx)
         {
@@ -980,40 +922,37 @@ namespace oblo
 
     void frame_graph_execute_context::bind_descriptor_sets(binding_tables_span bindingTables) const
     {
-        VkPipelineBindPoint bindPoint;
+        const binding_locator locator(m_frameGraph,
+            m_args,
+            m_state.imageStateTracker,
+            bindingTables,
+            *m_state.basePipeline,
+            m_state.currentPass);
 
         switch (m_state.passKind)
         {
         case pass_kind::raytracing:
-            bindPoint = VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
+            m_args.passManager.bind_descriptor_sets(m_state.rtCtx, locator);
             break;
+
         case pass_kind::graphics:
-            bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            m_args.passManager.bind_descriptor_sets(m_state.renderCtx, locator);
             break;
+
         case pass_kind::compute:
-            bindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+            m_args.passManager.bind_descriptor_sets(m_state.computeCtx, locator);
             break;
+
         default:
             unreachable();
         }
-
-        vk::bind_descriptor_sets(m_frameGraph,
-            m_args,
-            m_state.commandBuffer,
-            bindPoint,
-            m_state.currentPass,
-            *m_state.basePipeline,
-            m_state.imageLayoutTracker,
-            bindingTables);
     }
 
     void frame_graph_execute_context::bind_index_buffer(
         pin::buffer buffer, u32 bufferOffset, gpu::mesh_index_type indexType) const
     {
-        const auto vkIndexType = convert_to_vk(indexType);
-
-        const frame_graph_buffer_impl& b = oblo::access_storage(m_frameGraph, buffer);
-        vkCmdBindIndexBuffer(m_state.commandBuffer, b.buffer, b.offset + bufferOffset, vkIndexType);
+        const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, buffer);
+        m_state.gpu->cmd_bind_index_buffer(m_state.commandBuffer, b.handle, b.offset, indexType);
     }
 
     pin::acceleration_structure frame_graph_execute_context::get_global_tlas() const
@@ -1065,25 +1004,25 @@ namespace oblo
             return;
         }
 
-        const auto b = access(h);
-        stagingBuffer.upload(m_state.commandBuffer, *stagedData, b.buffer, b.offset + bufferOffset);
+        const auto b = access_storage_resource(m_frameGraph, h);
+        stagingBuffer.upload(m_state.commandBuffer, *stagedData, b.handle, b.offset + bufferOffset);
     }
 
     void frame_graph_execute_context::upload(pin::buffer h, const staging_buffer_span& data, u32 bufferOffset) const
     {
         auto& stagingBuffer = m_args.stagingBuffer;
-        const auto b = access(h);
+        const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, h);
 
         // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
-        stagingBuffer.upload(m_state.commandBuffer, data, b.buffer, b.offset + bufferOffset);
+        stagingBuffer.upload(m_state.commandBuffer, data, b.handle, b.offset + bufferOffset);
     }
 
     void frame_graph_execute_context::upload(pin::texture h, const staging_buffer_span& data) const
     {
         auto& stagingBuffer = m_args.stagingBuffer;
-        const auto t = access(h);
+        const frame_graph_texture_impl& t = access_storage_resource(m_frameGraph, h);
 
-        VkBufferImageCopy fullCopy[2]{};
+        gpu::buffer_image_copy_descriptor fullCopy[2]{};
 
         u32 copies = 0;
 
@@ -1097,13 +1036,14 @@ namespace oblo
                     .bufferOffset = segment.begin,
                     .imageSubresource =
                         {
-                            .aspectMask = gpu::vk::image_utils::deduce_aspect_mask(t.initializer.format),
                             .mipLevel = levelIndex,
                             .baseArrayLayer = 0,
                             .layerCount = 1,
                         },
-                    .imageOffset = VkOffset3D{},         // Zero because we do a full copy
-                    .imageExtent = t.initializer.extent, // Full extent because we assume level index 0 too
+                    .imageOffset = {}, // Zero because we do a full copy
+                    .imageExtent = {t.descriptor.width,
+                        t.descriptor.height,
+                        t.descriptor.depth}, // Full extent because we assume level index 0 too
                 };
 
                 ++copies;
@@ -1113,7 +1053,7 @@ namespace oblo
         if (copies > 0)
         {
             // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
-            stagingBuffer.upload(m_state.commandBuffer, t.image, {fullCopy, copies});
+            stagingBuffer.upload(m_state.commandBuffer, t.handle, {fullCopy, copies});
         }
     }
 
@@ -1133,9 +1073,9 @@ namespace oblo
             {
                 auto& pendingDownload = m_frameGraph.pendingDownloads[download.pendingDownloadId];
 
-                const auto b = access(h);
+                const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, h);
                 m_frameGraph.downloadStaging.download(m_state.commandBuffer,
-                    b.buffer,
+                    b.handle,
                     b.offset,
                     pendingDownload.stagedSpan);
 
@@ -1147,16 +1087,10 @@ namespace oblo
         return async_download{};
     }
 
-    u64 frame_graph_execute_context::get_device_address(pin::buffer buffer) const
+    h64<gpu::device_address> frame_graph_execute_context::get_device_address(pin::buffer buffer) const
     {
-        const auto& b = access(buffer);
-
-        const VkBufferDeviceAddressInfo info{
-            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
-            .buffer = b.buffer,
-        };
-
-        return vkGetBufferDeviceAddress(m_args.vkCtx.get_device(), &info) + b.offset;
+        const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, buffer);
+        return m_state.gpu->get_device_address({b.handle, b.offset, b.size});
     }
 
     const gpu_info& frame_graph_execute_context::get_gpu_info() const
@@ -1166,45 +1100,61 @@ namespace oblo
 
     void frame_graph_execute_context::set_viewport(u32 w, u32 h, f32 minDepth, f32 maxDepth) const
     {
-        const VkViewport viewport{
-            .width = f32(w),
-            .height = f32(h),
-            .minDepth = minDepth,
-            .maxDepth = maxDepth,
+        const gpu::rectangle viewport{
+            .width = w,
+            .height = h,
         };
 
-        vkCmdSetViewport(m_state.commandBuffer, 0, 1, &viewport);
+        m_state.gpu->cmd_set_viewport(m_state.commandBuffer, 0, {&viewport, 1}, minDepth, maxDepth);
     }
 
     void frame_graph_execute_context::set_scissor(i32 x, i32 y, u32 w, u32 h) const
     {
-        const VkRect2D scissor{
-            .offset = {.x = x, .y = y},
-            .extent = {.width = w, .height = h},
+        const gpu::rectangle scissor{
+            .x = x,
+            .y = y,
+            .width = w,
+            .height = h,
         };
 
-        vkCmdSetScissor(m_state.commandBuffer, 0, 1, &scissor);
+        m_state.gpu->cmd_set_scissor(m_state.commandBuffer, 0, {&scissor, 1});
     }
 
     void frame_graph_execute_context::push_constants(
-        flags<shader_stage> stages, u32 offset, std::span<const byte> bytes) const
+        flags<gpu::shader_stage> stages, u32 offset, std::span<const byte> bytes) const
     {
         auto& pm = m_args.passManager;
 
-        VkShaderStageFlags vkShaderFlags{};
-
-        for (const auto flag : flags_range{stages})
+        switch (m_state.passKind)
         {
-            vkShaderFlags |= to_vk_shader_stage(flag);
-        }
+        case pass_kind::compute:
+            pm.push_constants(m_state.computeCtx, stages, offset, bytes);
+            break;
 
-        pm.push_constants(m_state.commandBuffer, *m_state.basePipeline, vkShaderFlags, offset, bytes);
+        case pass_kind::graphics:
+            pm.push_constants(m_state.renderCtx, stages, offset, bytes);
+            break;
+
+        case pass_kind::raytracing:
+            pm.push_constants(m_state.rtCtx, stages, offset, bytes);
+            break;
+
+        case pass_kind::transfer:
+            break;
+
+        case pass_kind::none:
+            break;
+
+        default:
+            OBLO_ASSERT(false);
+            break;
+        }
     }
 
     void frame_graph_execute_context::dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const
     {
         OBLO_ASSERT(m_state.passKind == pass_kind::compute);
-        vkCmdDispatch(m_state.commandBuffer, groupsX, groupsY, groupsZ);
+        m_state.gpu->cmd_dispatch_compute(m_state.commandBuffer, groupsX, groupsY, groupsZ);
     }
 
     void frame_graph_execute_context::trace_rays(u32 x, u32 y, u32 z) const
@@ -1217,7 +1167,12 @@ namespace oblo
     void frame_graph_execute_context::draw_indexed(
         u32 indexCount, u32 instanceCount, u32 firstIndex, u32 vertexOffset, u32 firstInstance) const
     {
-        vkCmdDrawIndexed(m_state.commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        m_state.gpu->cmd_draw_indexed(m_state.commandBuffer,
+            indexCount,
+            instanceCount,
+            firstIndex,
+            vertexOffset,
+            firstInstance);
     }
 
     void frame_graph_execute_context::draw_mesh_tasks_indirect_count(pin::buffer drawCallBuffer,
@@ -1226,76 +1181,29 @@ namespace oblo
         u32 drawCallCountBufferOffset,
         u32 maxDrawCount) const
     {
-        const auto& drawCallVkBuf = access(drawCallBuffer);
-        const auto& drawCountVkBuf = access(drawCallCountBuffer);
+        const frame_graph_buffer_impl& drawCallBuf = access_storage_resource(m_frameGraph, drawCallBuffer);
+        const frame_graph_buffer_impl& drawCountBuf = access_storage_resource(m_frameGraph, drawCallCountBuffer);
 
-        const auto vkCmdDrawMeshTasksIndirectCount =
-            m_args.vkCtx.get_loaded_functions().vkCmdDrawMeshTasksIndirectCountEXT;
-
-        vkCmdDrawMeshTasksIndirectCount(m_state.commandBuffer,
-            drawCallVkBuf.buffer,
-            drawCallVkBuf.offset + drawCallBufferOffset,
-            drawCountVkBuf.buffer,
-            drawCountVkBuf.offset + drawCallCountBufferOffset,
-            maxDrawCount,
-            sizeof(VkDrawMeshTasksIndirectCommandEXT));
+        m_state.gpu->cmd_draw_mesh_tasks_indirect_count(m_state.commandBuffer,
+            drawCallBuf.handle,
+            drawCallBufferOffset + drawCallBuf.offset,
+            drawCountBuf.handle,
+            drawCallCountBufferOffset + drawCountBuf.offset,
+            maxDrawCount);
     }
 
     void frame_graph_execute_context::blit_color(pin::texture srcTexture, pin::texture dstTexture) const
     {
-        const texture src = access(srcTexture);
-        const texture dst = access(dstTexture);
+        const frame_graph_texture_impl& src = access_storage_resource(m_frameGraph, srcTexture);
+        const frame_graph_texture_impl& dst = access_storage_resource(m_frameGraph, dstTexture);
 
-        OBLO_ASSERT(src.image);
-        OBLO_ASSERT(dst.image);
-
-        VkImageBlit regions[1] = {
-            {
-                .srcSubresource =
-                    {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .layerCount = 1,
-                    },
-                .srcOffsets =
-                    {
-                        {0, 0, 0},
-                        {
-                            i32(src.initializer.extent.width),
-                            i32(src.initializer.extent.height),
-                            i32(src.initializer.extent.depth),
-                        },
-                    },
-                .dstSubresource =
-                    {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .layerCount = 1,
-                    },
-                .dstOffsets =
-                    {
-                        {0, 0, 0},
-                        {
-                            i32(dst.initializer.extent.width),
-                            i32(dst.initializer.extent.height),
-                            i32(dst.initializer.extent.depth),
-                        },
-                    },
-            },
-        };
-
-        vkCmdBlitImage(m_state.commandBuffer,
-            src.image,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            dst.image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            regions,
-            VK_FILTER_LINEAR);
+        m_state.gpu->cmd_blit(m_state.commandBuffer, src.handle, dst.handle, gpu::sampler_filter::linear);
     }
 
     vec2u frame_graph_execute_context::get_resolution(pin::texture h) const
     {
-        const auto extent = access(h).initializer.extent;
-        return {extent.width, extent.height};
+        const frame_graph_texture_impl& t = access_storage_resource(m_frameGraph, h);
+        return {t.descriptor.width, t.descriptor.height};
     }
 
     bool frame_graph_execute_context::is_recording_metrics() const

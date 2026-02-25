@@ -1,7 +1,7 @@
 #pragma once
 
-#include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
 
 namespace oblo::vk
@@ -13,8 +13,7 @@ namespace oblo::vk
     using image_initializer = gpu::vk::allocated_image_initializer;
     using memory_usage = gpu::vk::allocated_memory_usage;
 
-    using gpu::texture_format;
-    using gpu::texture_usage;
+    using texture_format = gpu::image_format;
 
     using gpu::attachment_load_op;
     using gpu::attachment_store_op;

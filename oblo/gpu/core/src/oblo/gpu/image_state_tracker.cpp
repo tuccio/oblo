@@ -37,10 +37,10 @@ namespace oblo::gpu
 
         const image_state_transition r{
             .image = handle,
+            .previousPipelines = prev->pipeline,
             .previousState = prev->state,
+            .nextPipelines = newPipeline,
             .nextState = newState,
-            .previousPipeline = prev->pipeline,
-            .nextPipeline = newPipeline,
         };
 
         prev->pipeline = newPipeline;
@@ -52,5 +52,18 @@ namespace oblo::gpu
     void image_state_tracker::clear()
     {
         m_state.clear();
+    }
+
+    bool image_state_tracker::try_get_state(h32<image> handle, image_resource_state& state) const
+    {
+        auto* const tracked = m_state.try_find(handle);
+
+        if (!tracked)
+        {
+            return false;
+        }
+
+        state = tracked->state;
+        return true;
     }
 }

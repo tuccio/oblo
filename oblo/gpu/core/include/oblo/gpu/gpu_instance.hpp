@@ -183,6 +183,8 @@ namespace oblo::gpu
             h32<image> dst,
             std::span<const buffer_image_copy_descriptor> copies) = 0;
 
+        virtual void cmd_blit(hptr<command_buffer> cmd, h32<image> src, h32<image> dst, gpu::sampler_filter filter) = 0;
+
         // Barriers and synchronization
 
         virtual void cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor) = 0;
@@ -191,6 +193,20 @@ namespace oblo::gpu
 
         virtual void cmd_draw(
             hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance) = 0;
+
+        virtual void cmd_draw_indexed(hptr<command_buffer> cmd,
+            u32 indexCount,
+            u32 instanceCount,
+            u32 firstIndex,
+            u32 vertexOffset,
+            u32 firstInstance) = 0;
+
+        virtual void cmd_draw_mesh_tasks_indirect_count(hptr<command_buffer> cmd,
+            h32<buffer> drawBuffer,
+            u64 drawOffset,
+            h32<buffer> countBuffer,
+            u64 countOffset,
+            u32 maxDrawCount) = 0;
 
         virtual void cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ) = 0;
 
@@ -220,6 +236,9 @@ namespace oblo::gpu
             h32<raytracing_pipeline> pipeline,
             u32 firstGroup,
             std::span<const hptr<bind_group>> bindGroups) = 0;
+
+        virtual void cmd_bind_index_buffer(
+            hptr<command_buffer> cmd, h32<buffer> buffer, u64 offset, gpu::mesh_index_type format) = 0;
 
         virtual void cmd_push_constants(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,

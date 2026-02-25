@@ -485,6 +485,7 @@ namespace oblo::gpu
         raytracing,
         transfer,
         bottom_of_pipeline,
+        all_commands,
         enum_max,
     };
 

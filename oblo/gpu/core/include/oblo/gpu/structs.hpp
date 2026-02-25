@@ -59,7 +59,6 @@ namespace oblo::gpu
 
     struct image_subresource_descriptor
     {
-        flags<image_aspect> aspectMask;
         u32 mipLevel;
         u32 baseArrayLayer;
         u32 layerCount;
@@ -333,17 +332,17 @@ namespace oblo::gpu
     struct image_state_transition
     {
         h32<image> image;
-        image_resource_state previousState;
-        image_resource_state nextState;
         flags<pipeline_sync_stage> previousPipelines;
+        image_resource_state previousState;
         flags<pipeline_sync_stage> nextPipelines;
+        image_resource_state nextState;
     };
 
     struct global_memory_barrier
     {
         flags<pipeline_sync_stage> previousPipelines;
-        flags<pipeline_sync_stage> nextPipelines;
         flags<memory_access_type> previousAccesses;
+        flags<pipeline_sync_stage> nextPipelines;
         flags<memory_access_type> nextAccesses;
     };
 

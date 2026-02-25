@@ -2327,20 +2327,25 @@ namespace oblo::gpu::vk
     void vulkan_instance::cmd_copy_buffer_to_image(
         hptr<command_buffer> cmd, h32<buffer> src, h32<image> dst, std::span<const buffer_image_copy_descriptor> copies)
     {
+        auto& imageImpl = m_images.at(dst);
+
         const VkCommandBuffer vkCmd = unwrap_handle<VkCommandBuffer>(cmd);
 
         buffered_array<VkBufferImageCopy, 8> regions;
         regions.reserve(copies.size());
 
+        const auto aspectMask = image_utils::deduce_aspect_mask(convert_enum(imageImpl.descriptor.format));
+
         for (const auto& copy : copies)
         {
+
             regions.push_back({
                 .bufferOffset = copy.bufferOffset,
                 .bufferRowLength = copy.bufferRowLength,
                 .bufferImageHeight = copy.bufferImageHeight,
                 .imageSubresource =
                     {
-                        .aspectMask = convert_enum_flags(copy.imageSubresource.aspectMask),
+                        .aspectMask = aspectMask,
                         .mipLevel = copy.imageSubresource.mipLevel,
                         .baseArrayLayer = copy.imageSubresource.baseArrayLayer,
                         .layerCount = copy.imageSubresource.layerCount,
@@ -2352,10 +2357,58 @@ namespace oblo::gpu::vk
 
         vkCmdCopyBufferToImage(vkCmd,
             m_buffers.at(src).buffer,
-            m_images.at(dst).image,
+            imageImpl.image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             regions.size32(),
             regions.data());
+    }
+
+    void vulkan_instance::cmd_blit(hptr<command_buffer> cmd, h32<image> src, h32<image> dst, gpu::sampler_filter filter)
+    {
+        const auto& srcImpl = m_images.at(src);
+        const auto& dstImpl = m_images.at(dst);
+
+        VkImageBlit regions[1] = {
+            {
+                .srcSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .layerCount = 1,
+                    },
+                .srcOffsets =
+                    {
+                        {0, 0, 0},
+                        {
+                            i32(srcImpl.descriptor.width),
+                            i32(srcImpl.descriptor.width),
+                            i32(srcImpl.descriptor.depth),
+                        },
+                    },
+                .dstSubresource =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .layerCount = 1,
+                    },
+                .dstOffsets =
+                    {
+                        {0, 0, 0},
+                        {
+                            i32(dstImpl.descriptor.width),
+                            i32(dstImpl.descriptor.width),
+                            i32(dstImpl.descriptor.depth),
+                        },
+                    },
+            },
+        };
+
+        vkCmdBlitImage(unwrap_handle<VkCommandBuffer>(cmd),
+            srcImpl.image,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            dstImpl.image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            regions,
+            convert_enum(filter));
     }
 
     void vulkan_instance::cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor)
@@ -2405,6 +2458,40 @@ namespace oblo::gpu::vk
         hptr<command_buffer> cmd, u32 vertexCount, u32 instanceCount, u32 firstVertex, u32 firstInstance)
     {
         vkCmdDraw(unwrap_handle<VkCommandBuffer>(cmd), vertexCount, instanceCount, firstVertex, firstInstance);
+    }
+
+    void vulkan_instance::cmd_draw_indexed(hptr<command_buffer> cmd,
+        u32 indexCount,
+        u32 instanceCount,
+        u32 firstIndex,
+        u32 vertexOffset,
+        u32 firstInstance)
+    {
+        vkCmdDrawIndexed(unwrap_handle<VkCommandBuffer>(cmd),
+            indexCount,
+            instanceCount,
+            firstIndex,
+            vertexOffset,
+            firstInstance);
+    }
+
+    void vulkan_instance::cmd_draw_mesh_tasks_indirect_count(hptr<command_buffer> cmd,
+        h32<buffer> drawBuffer,
+        u64 drawOffset,
+        h32<buffer> countBuffer,
+        u64 countOffset,
+        u32 maxDrawCount)
+    {
+        const auto& drawBufferImpl = m_buffers.at(drawBuffer);
+        const auto& countBufferImpl = m_buffers.at(countBuffer);
+
+        m_loadedFunctions.vkCmdDrawMeshTasksIndirectCountEXT(unwrap_handle<VkCommandBuffer>(cmd),
+            drawBufferImpl.buffer,
+            drawOffset,
+            countBufferImpl.buffer,
+            countOffset,
+            maxDrawCount,
+            sizeof(VkDrawMeshTasksIndirectCommandEXT));
     }
 
     void vulkan_instance::cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ)
@@ -2645,6 +2732,14 @@ namespace oblo::gpu::vk
     const loaded_functions& vulkan_instance::get_loaded_functions() const
     {
         return m_loadedFunctions;
+    }
+
+    h32<gpu::acceleration_structure> vulkan_instance::register_acceleration_structure(
+        VkAccelerationStructureKHR accelerationStructure)
+    {
+        auto [it, handle] = m_accelerationStructures.emplace();
+        it->vkAccelerationStructure = accelerationStructure;
+        return handle;
     }
 
     h32<image> vulkan_instance::register_image(

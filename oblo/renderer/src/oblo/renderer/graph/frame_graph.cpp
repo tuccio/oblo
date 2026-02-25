@@ -8,6 +8,7 @@
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unreachable.hpp>
@@ -492,15 +493,13 @@ namespace oblo
         }
     }
 
-    bool frame_graph::init(gpu::gpu_instance& ctx)
+    bool frame_graph::init(gpu::gpu_instance& gpu)
     {
         // Just arbitrary fixed size for now
         constexpr u32 maxAllocationSize{64u << 20};
 
         m_impl = allocate_unique<frame_graph_impl>();
         m_impl->rng.seed(42);
-
-        gpu::gpu_instance& gpu = ctx.get_instance();
 
         const gpu::device_info deviceInfo = gpu.get_device_info();
         m_impl->gpuInfo.subgroupSize = deviceInfo.subgroupSize;
@@ -653,8 +652,7 @@ namespace oblo
             const auto transientTexture = m_impl->pinStorage.at(storage).transientTexture;
 
             const auto& t = m_impl->resourcePool.get_transient_texture(transientTexture);
-
-            textureRegistry.set_texture(texture.resident, t.view, image_layout_tracker::deduce_layout(texture.usage));
+            textureRegistry.set_external_texture(texture.resident, t.handle, texture.state);
         }
     }
 
@@ -662,11 +660,11 @@ namespace oblo
     {
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
-        gpu::gpu_instance& queueCtx = args.r.get_gpu_instance();
+        gpu::gpu_instance& gpu = args.r.get_gpu_instance();
         const hptr<gpu::command_buffer> commandBuffer = args.r.get_active_command_buffer();
         auto& resourcePool = m_impl->resourcePool;
 
-        m_impl->downloadStaging.begin_frame(queueCtx.get_submit_index());
+        m_impl->downloadStaging.begin_frame(gpu.get_submit_index());
 
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
@@ -706,23 +704,28 @@ namespace oblo
             }
 
             // This only works as long as we submit once per frame
-            download.submitIndex = queueCtx.get_submit_index();
+            download.submitIndex = gpu.get_submit_index();
             download.stagedSpan = *staging;
             download.promise.init(get_global_allocator());
         }
 
-        frame_graph_execution_state executionState{.commandBuffer = commandBuffer};
+        frame_graph_execution_state executionState{
+            .gpu = &gpu,
+            .commandBuffer = commandBuffer,
+        };
+
         const frame_graph_execute_context executeCtx{*m_impl, executionState, args};
 
-        auto& imageLayoutTracker = executionState.imageLayoutTracker;
+        auto& imageStateTracker = executionState.imageStateTracker;
 
         for (const auto [resource, transientTextureHandle] : m_impl->transientTextures)
         {
             const auto t = resourcePool.get_transient_texture(transientTextureHandle);
 
-            // We use the pin storage id as texture id because it's unique per texture
-            // The frame graph context also assumes this is the case when reading the layout
-            imageLayoutTracker.start_tracking(transientTextureHandle, t);
+            // TODO: Need to figure out how to get the initial state
+            imageStateTracker.add_tracking(t.handle,
+                gpu::pipeline_sync_stage::top_of_pipeline,
+                gpu::image_resource_state::undefined);
 
             auto& storage = m_impl->pinStorage.at(resource);
 
@@ -734,24 +737,18 @@ namespace oblo
             }
         }
 
-        {
-            // Global memory barrier to cover all uploads we just flushed
-            const VkMemoryBarrier2 uploadMemoryBarrier{
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
-            };
-
-            const VkDependencyInfo dependencyInfo{
-                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                .memoryBarrierCount = 1,
-                .pMemoryBarriers = &uploadMemoryBarrier,
-            };
-
-            vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBuffer), &dependencyInfo);
-        }
+        // Global memory barrier to cover all uploads we just flushed
+        gpu.cmd_apply_barriers(commandBuffer,
+            {
+                .memory = make_span_initializer<gpu::global_memory_barrier>({
+                    {
+                        .previousPipelines = gpu::pipeline_sync_stage::transfer,
+                        .previousAccesses = gpu::memory_access_type::any_write,
+                        .nextPipelines = gpu::pipeline_sync_stage::all_commands,
+                        .nextAccesses = gpu::memory_access_type::any_read,
+                    },
+                }),
+            });
 
         frame_graph_barriers barriers{
             .bufferBarriers{dynamic_array<VkBufferMemoryBarrier2>{&m_impl->dynamicAllocator}},
@@ -837,7 +834,7 @@ namespace oblo
 
         m_impl->downloadStaging.end_frame();
 
-        m_impl->flush_downloads(queueCtx);
+        m_impl->flush_downloads(gpu);
 
         m_impl->finish_frame();
     }
@@ -893,7 +890,7 @@ namespace oblo
         const auto& pass = passes[passId.value];
 
         // TODO: Can we also prepare these in advance?
-        buffered_array<VkImageMemoryBarrier2, 32> imageBarriers;
+        buffered_array<gpu::image_state_transition, 32> imageBarriers;
         imageBarriers.reserve(pass.textureTransitionEnd - pass.textureTransitionBegin);
 
         for (u32 i = pass.textureTransitionBegin; i != pass.textureTransitionEnd; ++i)
@@ -903,10 +900,15 @@ namespace oblo
             auto* const texture = pinStorage.try_find(textureTransition.texture);
             OBLO_ASSERT(texture && texture->transientTexture);
 
+            const expected transition = state.imageStateTracker.add_transition(textureTransition.textures,
+                ,
+                pass.kind,
+                textureTransition.usage);
+
             auto& barrier = imageBarriers.push_back_default();
 
             if (!texture ||
-                !state.imageLayoutTracker.add_transition(barrier,
+                !state.imageStateTracker.add_transition(barrier,
                     texture->transientTexture,
                     pass.kind,
                     textureTransition.usage))

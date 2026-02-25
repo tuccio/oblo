@@ -26,6 +26,8 @@ namespace oblo::gpu
 
         void clear();
 
+        [[nodiscard]] bool try_get_state(h32<image> handle, image_resource_state& state) const;
+
     private:
         struct tracked_state;
 

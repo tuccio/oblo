@@ -34,6 +34,7 @@ namespace oblo
         resource_cache& resourceCache;
         pass_manager& passManager;
         renderer& r;
+        const gpu::staging_buffer& stagingBuffer;
     };
 
     struct frame_graph_texture_impl

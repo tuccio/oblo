@@ -223,7 +223,6 @@ namespace oblo
                     .bufferOffset = segment.begin,
                     .imageSubresource =
                         {
-                            .aspectMask = gpu::image_aspect::color,
                             .mipLevel = levelIndex,
                             .baseArrayLayer = 0,
                             .layerCount = 1,
@@ -246,10 +245,10 @@ namespace oblo
                     .images = make_span_initializer<gpu::image_state_transition>({
                         {
                             .image = upload.handle,
+                            .previousPipelines = gpu::pipeline_sync_stage::all_commands,
                             .previousState = gpu::image_resource_state::undefined,
-                            .nextState = gpu::image_resource_state::transfer_destination,
-                            .previousPipelines = gpu::pipeline_sync_stage::bottom_of_pipeline,
                             .nextPipelines = gpu::pipeline_sync_stage::transfer,
+                            .nextState = gpu::image_resource_state::transfer_destination,
                         },
                     }),
                 });
@@ -261,11 +260,10 @@ namespace oblo
                     .images = make_span_initializer<gpu::image_state_transition>({
                         {
                             .image = upload.handle,
-                            .previousState = gpu::image_resource_state::transfer_destination,
-                            .nextState = gpu::image_resource_state::shader_read,
                             .previousPipelines = gpu::pipeline_sync_stage::transfer,
-                            .nextPipelines = gpu::pipeline_sync_stage::graphics | gpu::pipeline_sync_stage::compute |
-                                gpu::pipeline_sync_stage::raytracing,
+                            .previousState = gpu::image_resource_state::transfer_destination,
+                            .nextPipelines = gpu::pipeline_sync_stage::all_commands,
+                            .nextState = gpu::image_resource_state::shader_read,
                         },
                     }),
                 });

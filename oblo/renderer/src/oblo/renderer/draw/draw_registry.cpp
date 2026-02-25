@@ -283,7 +283,7 @@ namespace oblo
         for (auto& blas : m_meshToBlas.values())
         {
             release(blas.as);
-            m_vk->destroy_buffer(blas.fullIndexBuffer);
+            m_vk->destroy(blas.fullIndexBuffer);
         }
 
         m_meshToBlas.clear();
@@ -504,14 +504,10 @@ namespace oblo
 
     void draw_registry::release(rt_acceleration_structure& as)
     {
-        // TODO: Actually free
-
-#if 0
-        if (as.accelerationStructure)
+        if (as.handle)
         {
-            m_ctx->destroy_deferred(as.accelerationStructure, m_ctx->get_submit_index());
+            m_ctx->destroy_deferred(as.handle, m_ctx->get_submit_index());
         }
-#endif
 
         if (as.buffer)
         {
@@ -901,7 +897,7 @@ namespace oblo
                             &blas->as.accelerationStructure) != VK_SUCCESS)
                     {
                         log::error("Failed to create blas for mesh {}", mesh.mesh.value);
-                        m_vk->destroy_buffer(blasBuffer);
+                        m_vk->destroy(blasBuffer);
 
                         // Free the index buffer we allocated as well
                         const auto submitIndex = m_ctx->get_submit_index();
@@ -910,6 +906,9 @@ namespace oblo
 
                         continue;
                     }
+
+                    // TODO: This is just a temporary solution not to integrate acceleration structures
+                    blas->as.handle = m_vk->register_acceleration_structure(blas->as.accelerationStructure);
 
                     const VkAccelerationStructureDeviceAddressInfoKHR asAddrInfo{
                         .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,

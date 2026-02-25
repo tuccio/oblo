@@ -49,7 +49,7 @@ namespace oblo
         h32<transient_texture_resource> add_external_texture(const frame_graph_texture_impl& t);
 
         h32<transient_buffer_resource> add_transient_buffer(
-            u32 size, flags<gpu::buffer_usage> usage, h32<stable_buffer_resource> stableId);
+            u64 size, flags<gpu::buffer_usage> usage, h32<stable_buffer_resource> stableId);
 
         void add_transient_texture_usage(h32<transient_texture_resource> transientTexture, gpu::image_usage usage);
         void add_transient_buffer_usage(h32<transient_buffer_resource> transientBuffer, gpu::buffer_usage usage);

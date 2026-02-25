@@ -164,7 +164,7 @@ namespace oblo
         {
             if (bufferPools.handle)
             {
-                m_gpu->destroy_buffer(bufferPools.handle);
+                m_gpu->destroy(bufferPools.handle);
                 bufferPools = {};
             }
         }

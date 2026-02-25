@@ -5,7 +5,6 @@
 #include <oblo/core/reflection/struct_hash.hpp>
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/utility/convert_enum.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
@@ -179,7 +178,7 @@ namespace oblo
         // simply free the objects from last frame
         free_last_frame_resources(ctx);
 
-        auto& vk = static_cast<gpu::vk::vulkan_instance&>(ctx.get_instance());
+        auto& vk = static_cast<gpu::vk::vulkan_instance&>(ctx);
 
         create_textures(vk);
         create_buffers(vk);
@@ -236,7 +235,7 @@ namespace oblo
     }
 
     h32<transient_buffer_resource> resource_pool::add_transient_buffer(
-        u32 size, flags<gpu::buffer_usage> usage, h32<stable_buffer_resource> stableId)
+        u64 size, flags<gpu::buffer_usage> usage, h32<stable_buffer_resource> stableId)
     {
         const auto id = u32(m_bufferResources.size());
 

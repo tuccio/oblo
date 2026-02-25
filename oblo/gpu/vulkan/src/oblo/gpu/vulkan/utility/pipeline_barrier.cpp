@@ -195,7 +195,15 @@ namespace oblo::gpu::vk
                 return VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             case pipeline_sync_stage::raytracing:
                 return VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+            case pipeline_sync_stage::all_commands:
+                return VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+            case pipeline_sync_stage::bottom_of_pipeline:
+                return VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+            case pipeline_sync_stage::top_of_pipeline:
+                return VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+
             default:
+                OBLO_ASSERT(false);
                 return 0;
             }
         }
