@@ -366,6 +366,7 @@ namespace oblo
             if (textureResource.stableId)
             {
                 acquire_from_pool(gpu, textureResource);
+                OBLO_ASSERT(textureResource.handle);
                 continue;
             }
 
@@ -400,11 +401,14 @@ namespace oblo
 
             if (textureResource.stableId || textureResource.isExternal)
             {
+                OBLO_ASSERT(textureResource.handle);
                 continue;
             }
 
             textureResource.handle = images[imageIdx];
             ++imageIdx;
+
+            OBLO_ASSERT(textureResource.handle);
         }
     }
 
@@ -474,6 +478,7 @@ namespace oblo
         }
 
         resource.framesAlive = m_frame - it->second.creationTime;
+        resource.handle = it->second.allocatedImage;
 
         it->second.lastUsedTime = m_frame;
     }
