@@ -30,7 +30,7 @@ namespace oblo::test
             {
                 // Load the runtime, which will be queried for required vulkan features
                 auto& mm = module_manager::get();
-                vulkan_engine_module* vkEngine = mm.load<vulkan_engine_module>();
+                auto* const vkEngine = mm.load<vk::vulkan_engine_module>();
 
                 if (!mm.finalize())
                 {

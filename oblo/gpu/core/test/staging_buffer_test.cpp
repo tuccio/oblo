@@ -68,7 +68,7 @@ namespace oblo::gpu
         {
             buffers[index] = gpu->create_buffer({
                                                     .size = bufferSize,
-                                                    .memoryFlags = memory_usage::gpu_to_cpu,
+                                                    .memoryProperties = {memory_usage::gpu_to_cpu},
                                                     .usages = buffer_usage::transfer_destination,
                                                 })
                                  .value_or({});
@@ -84,13 +84,13 @@ namespace oblo::gpu
             {
                 ASSERT_TRUE(gpu->wait_idle());
 
-                gpu->destroy_command_buffer_pool(pool);
-                gpu->destroy_fence(fence);
+                gpu->destroy(pool);
+                gpu->destroy(fence);
 
                 for (auto buffer : buffers)
                 {
                     ASSERT_TRUE(gpu->memory_unmap(buffer));
-                    gpu->destroy_buffer(buffer);
+                    gpu->destroy(buffer);
                 }
             });
 
