@@ -20,9 +20,7 @@ namespace oblo::gpu::vk::image_utils
         case VK_FORMAT_D16_UNORM_S8_UINT:
         case VK_FORMAT_D24_UNORM_S8_UINT:
         case VK_FORMAT_D32_SFLOAT_S8_UINT:
-            // These have the stencil bit as well, but we cannot create a view for both
-            // see VUID-VkDescriptorImageInfo-imageView-01976
-            return VK_IMAGE_ASPECT_DEPTH_BIT;
+            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
         default:
             return VK_IMAGE_ASPECT_COLOR_BIT;
@@ -44,7 +42,8 @@ namespace oblo::gpu::vk::image_utils
             .format = format,
             .subresourceRange =
                 {
-                    .aspectMask = deduce_aspect_mask(format),
+                    // We can't create a view for both depth and stencil, see VUID-VkDescriptorImageInfo-imageView-01976
+                    .aspectMask = deduce_aspect_mask(format) & ~VK_IMAGE_ASPECT_STENCIL_BIT,
                     .baseMipLevel = 0,
                     .levelCount = 1,
                     .baseArrayLayer = 0,
