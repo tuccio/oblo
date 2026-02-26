@@ -9,6 +9,7 @@
 namespace oblo
 {
     class instance_data_type_registry;
+    class resource_cache;
     struct renderer_platform;
 
     class renderer
@@ -46,6 +47,8 @@ namespace oblo
         hptr<gpu::command_buffer> get_active_command_buffer();
 
         hptr<gpu::command_buffer> finalize_command_buffer_for_submission();
+
+        resource_cache& get_resource_cache();
 
         // An opaque handle for frame graph arguments, it's only really here for unit testing purposing
         renderer_platform& get_renderer_platform();

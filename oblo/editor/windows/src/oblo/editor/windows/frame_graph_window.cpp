@@ -6,9 +6,10 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/window_update_context.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/graph/pins.hpp>
-#include <oblo/vulkan/texture.hpp>
+#include <oblo/gpu/structs.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
+#include <oblo/renderer/graph/frame_graph_resources_impl.hpp>
+#include <oblo/renderer/graph/pins.hpp>
 
 #include <imgui.h>
 
@@ -16,12 +17,12 @@ namespace oblo::editor
 {
     struct frame_graph_window::impl
     {
-        vk::frame_graph* frameGraph{};
+        frame_graph* frameGraph{};
 
-        deque<h32<vk::frame_graph_subgraph>> subgraphs;
-        deque<vk::frame_graph_output_desc> subgraphOutputs;
+        deque<h32<frame_graph_subgraph>> subgraphs;
+        deque<frame_graph_output_desc> subgraphOutputs;
 
-        h32<vk::frame_graph_subgraph> selectedGraph{};
+        h32<frame_graph_subgraph> selectedGraph{};
         u32 selectedOutputIndex{};
 
         type_id selectedOutputType{};
@@ -38,7 +39,7 @@ namespace oblo::editor
     void frame_graph_window::init(const window_update_context& ctx)
     {
         m_impl = allocate_unique<impl>();
-        m_impl->frameGraph = ctx.services.find<vk::frame_graph>();
+        m_impl->frameGraph = ctx.services.find<frame_graph>();
         OBLO_ASSERT(m_impl->frameGraph);
     }
 
@@ -126,16 +127,16 @@ namespace oblo::editor
             return;
         }
 
-        if (selectedOutputType == get_type_id<vk::texture>())
+        if (selectedOutputType == get_type_id<frame_graph_texture_impl>())
         {
             const auto imageId = imgui::add_image(selectedGraph, selectedOutputName);
 
             ImVec2 imageSize{};
 
-            if (auto t = frameGraph->get_output<vk::texture>(selectedGraph, selectedOutputName))
+            if (auto t = frameGraph->get_output<frame_graph_texture_impl>(selectedGraph, selectedOutputName))
             {
-                const auto [w, h, d] = (*t)->initializer.extent;
-                imageSize = {f32(w), f32(h)};
+                const gpu::image_descriptor& descriptor = (*t)->descriptor;
+                imageSize = {f32(descriptor.width), f32(descriptor.height)};
             }
 
             if (imageSize.x == 0 || imageSize.y == 0)

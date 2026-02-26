@@ -7,23 +7,20 @@
 
 namespace oblo
 {
-    namespace vk
-    {
-        struct resident_texture;
-    }
+    struct resident_texture;
 
     struct gpu_material
     {
         vec3 albedo;
-        h32<vk::resident_texture> albedoTexture;
+        h32<resident_texture> albedoTexture;
         f32 metalness;
         f32 roughness;
-        h32<vk::resident_texture> metalnessRoughnessTexture;
-        h32<vk::resident_texture> normalMapTexture;
+        h32<resident_texture> metalnessRoughnessTexture;
+        h32<resident_texture> normalMapTexture;
         f32 ior;
         u32 _padding[3];
         vec3 emissive;
-        h32<vk::resident_texture> emissiveTexture;
+        h32<resident_texture> emissiveTexture;
     } OBLO_COMPONENT("21c3e674-1189-4360-87ba-2fd95ae49cd5", GpuComponent = "i_MaterialBuffer", Transient);
 
     static_assert(sizeof(gpu_material) % 16 == 0);

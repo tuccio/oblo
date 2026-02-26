@@ -384,6 +384,7 @@ namespace oblo::editor
                     .isMaximized = true,
                     .isBorderless = true,
                 },
+                m_impl->m_vkEngine->get_frame_graph(),
                 {
                     .configFile = imguiIni.c_str(),
                     .useMultiViewport = true,
@@ -645,9 +646,9 @@ namespace oblo::editor
 
         auto& globalRegistry = m_windowManager.get_global_service_registry();
 
-        globalRegistry.add<vk::vulkan_context>().externally_owned(&m_vkEngine->get_vulkan_context());
-        globalRegistry.add<vk::renderer>().externally_owned(&m_vkEngine->get_renderer());
-        globalRegistry.add<vk::frame_graph>().externally_owned(&m_vkEngine->get_frame_graph());
+        globalRegistry.add<gpu::gpu_instance>().externally_owned(&m_vkEngine->get_gpu_instance());
+        globalRegistry.add<renderer>().externally_owned(&m_vkEngine->get_renderer());
+        globalRegistry.add<frame_graph>().externally_owned(&m_vkEngine->get_frame_graph());
         globalRegistry.add<const resource_registry>().externally_owned(&m_runtimeRegistry.get_resource_registry());
         globalRegistry.add<asset_registry>().externally_owned(&m_assetRegistry);
         globalRegistry.add<const property_registry>().externally_owned(&m_runtimeRegistry.get_property_registry());

@@ -21,6 +21,7 @@
 #include <oblo/renderer/data/components.hpp>
 #include <oblo/renderer/data/gpu_aabb.hpp>
 #include <oblo/renderer/data/tags_internal.hpp>
+#include <oblo/renderer/draw/dynamic_buffer.hpp>
 #include <oblo/renderer/draw/instance_data_type_registry.hpp>
 #include <oblo/renderer/draw/mesh_table.hpp>
 #include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
@@ -119,6 +120,22 @@ namespace oblo
         }
     }
 
+    struct draw_registry::rt_acceleration_structure
+    {
+        VkAccelerationStructureKHR accelerationStructure;
+        h64<gpu::device_address> deviceAddress;
+        h32<gpu::buffer> buffer;
+        h32<gpu::acceleration_structure> handle;
+    };
+
+    struct draw_registry::rt_data
+    {
+        dynamic_buffer scratchBuffer;
+        dynamic_buffer instanceBuffer;
+
+        rt_acceleration_structure tlas{};
+    };
+
     struct draw_registry::blas
     {
         rt_acceleration_structure as;
@@ -157,6 +174,7 @@ namespace oblo
         m_entities = &entities;
         m_typeRegistry = &m_entities->get_type_registry();
         m_resourceRegistry = &resourceRegistry;
+        m_rt = allocate_unique<rt_data>();
 
         mesh_attribute_description attributes[u32(vertex_attributes::enum_max)]{};
 
@@ -239,11 +257,11 @@ namespace oblo
 
         OBLO_ASSERT(meshDbInit);
 
-        m_rtScratchBuffer.init(*m_ctx,
+        m_rt->scratchBuffer.init(*m_ctx,
             gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
             {flags{gpu::memory_requirement::device_local}});
 
-        m_rtInstanceBuffer.init(*m_ctx,
+        m_rt->instanceBuffer.init(*m_ctx,
             gpu::buffer_usage::acceleration_structure_build_input | gpu::buffer_usage::device_address |
                 gpu::buffer_usage::transfer_destination,
             {flags{gpu::memory_requirement::device_local}});
@@ -277,8 +295,8 @@ namespace oblo
         m_vk->wait_idle().assert_value();
 
         m_meshes.shutdown();
-        m_rtScratchBuffer.shutdown();
-        m_rtInstanceBuffer.shutdown();
+        m_rt->scratchBuffer.shutdown();
+        m_rt->instanceBuffer.shutdown();
 
         for (auto& blas : m_meshToBlas.values())
         {
@@ -288,7 +306,9 @@ namespace oblo
 
         m_meshToBlas.clear();
 
-        release(m_tlas);
+        release(m_rt->tlas);
+
+        m_rt.reset();
     }
 
     h32<draw_mesh> draw_registry::try_get_mesh(const resource_ref<mesh>& resourceId) const
@@ -1097,12 +1117,12 @@ namespace oblo
         }
 
         // Temporarily we just destroy the TLAS every frame and recreate it
-        release(m_tlas);
+        release(m_rt->tlas);
 
         // Finally build the TLAS
-        m_rtInstanceBuffer.resize_discard(max(1u << 14, u32(instances.size_bytes())));
+        m_rt->instanceBuffer.resize_discard(max(1u << 14, u32(instances.size_bytes())));
 
-        const auto instanceBuffer = m_rtInstanceBuffer.get_buffer();
+        const auto instanceBuffer = m_rt->instanceBuffer.get_buffer();
         const h64 instanceBufferDeviceAddress =
             gpu::offset_device_address(m_vk->get_device_address(instanceBuffer.buffer), instanceBuffer.offset);
 
@@ -1197,17 +1217,17 @@ namespace oblo
             &instanceCount,
             &sizeInfo);
 
-        m_tlas.buffer = m_vk->create_buffer({
-                                                .size = narrow_cast<u32>(sizeInfo.accelerationStructureSize),
-                                                .memoryProperties = {gpu::memory_usage::gpu_only},
-                                                .usages = gpu::buffer_usage::acceleration_structure_storage |
-                                                    gpu::buffer_usage::device_address,
-                                            })
-                            .assert_value_or({});
+        m_rt->tlas.buffer = m_vk->create_buffer({
+                                                    .size = narrow_cast<u32>(sizeInfo.accelerationStructureSize),
+                                                    .memoryProperties = {gpu::memory_usage::gpu_only},
+                                                    .usages = gpu::buffer_usage::acceleration_structure_storage |
+                                                        gpu::buffer_usage::device_address,
+                                                })
+                                .assert_value_or({});
 
         const VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
-            .buffer = m_vk->unwrap_buffer(m_tlas.buffer),
+            .buffer = m_vk->unwrap_buffer(m_rt->tlas.buffer),
             .size = sizeInfo.accelerationStructureSize,
             .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
         };
@@ -1215,25 +1235,25 @@ namespace oblo
         vkFn.vkCreateAccelerationStructureKHR(m_vk->get_device(),
             &accelerationStructureCreateInfo,
             m_vk->get_allocator().get_allocation_callbacks(),
-            &m_tlas.accelerationStructure);
+            &m_rt->tlas.accelerationStructure);
 
         const VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
-            .accelerationStructure = m_tlas.accelerationStructure,
+            .accelerationStructure = m_rt->tlas.accelerationStructure,
         };
 
-        m_tlas.deviceAddress = {
+        m_rt->tlas.deviceAddress = {
             vkFn.vkGetAccelerationStructureDeviceAddressKHR(m_vk->get_device(), &accelerationDeviceAddressInfo)};
 
-        m_rtScratchBuffer.resize_discard(narrow_cast<u32>(sizeInfo.buildScratchSize));
-        const auto tlasScratchBuffer = m_rtScratchBuffer.get_buffer();
+        m_rt->scratchBuffer.resize_discard(narrow_cast<u32>(sizeInfo.buildScratchSize));
+        const auto tlasScratchBuffer = m_rt->scratchBuffer.get_buffer();
 
         const VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
             .type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
             .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR,
             .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
-            .dstAccelerationStructure = m_tlas.accelerationStructure,
+            .dstAccelerationStructure = m_rt->tlas.accelerationStructure,
             .geometryCount = 1,
             .pGeometries = &accelerationStructureGeometry,
             .scratchData =
@@ -1295,7 +1315,7 @@ namespace oblo
 
     h32<gpu::acceleration_structure> draw_registry::get_tlas() const
     {
-        return m_tlas.handle;
+        return m_rt->tlas.handle;
     }
 
     ecs::entity_registry& draw_registry::get_entity_registry() const

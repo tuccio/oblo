@@ -2,24 +2,22 @@
 
 #include <oblo/core/service_registry.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/renderer/draw/draw_registry.hpp>
+#include <oblo/renderer/renderer.hpp>
 
 namespace oblo
 {
     void draw_registry_system::first_update(const ecs::system_update_context& ctx)
     {
-        auto* const renderer = ctx.services->find<vk::renderer>();
-        m_isRayTracingEnabled = renderer->is_ray_tracing_enabled();
-        m_vulkanContext = &renderer->get_vulkan_context();
-        m_drawRegistry = ctx.services->find<vk::draw_registry>();
+        m_renderer = ctx.services->find<renderer>();
+        m_isRayTracingEnabled = m_renderer->is_ray_tracing_enabled();
+        m_drawRegistry = ctx.services->find<draw_registry>();
         update(ctx);
     }
 
     void draw_registry_system::update(const ecs::system_update_context& ctx)
     {
-        auto&& commandBuffer = m_vulkanContext->get_active_command_buffer();
+        const hptr commandBuffer = m_renderer->get_active_command_buffer();
         m_drawRegistry->flush_uploads(commandBuffer);
 
         m_drawRegistry->generate_mesh_database(*ctx.frameAllocator);

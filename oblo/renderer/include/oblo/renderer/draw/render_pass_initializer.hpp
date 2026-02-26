@@ -6,6 +6,7 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/structs.hpp>
 
 #include <span>
 

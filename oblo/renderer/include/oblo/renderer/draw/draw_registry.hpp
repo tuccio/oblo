@@ -2,21 +2,17 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
-#include <oblo/renderer/draw/dynamic_buffer.hpp>
 #include <oblo/renderer/draw/mesh_database.hpp>
-#include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
 
 #include <array>
 #include <span>
 #include <unordered_map>
-#include <vector>
-
-#include <vulkan/vulkan_core.h>
 
 namespace oblo
 {
@@ -94,13 +90,8 @@ namespace oblo
         struct pending_mesh_upload;
         struct instance_data_type_info;
 
-        struct rt_acceleration_structure
-        {
-            VkAccelerationStructureKHR accelerationStructure;
-            h64<gpu::device_address> deviceAddress;
-            h32<gpu::buffer> buffer;
-            h32<gpu::acceleration_structure> handle;
-        };
+        struct rt_acceleration_structure;
+        struct rt_data;
 
     private:
         void create_instances();
@@ -142,9 +133,6 @@ namespace oblo
 
         h32_flat_extpool_dense_map<draw_mesh, blas> m_meshToBlas;
 
-        dynamic_buffer m_rtScratchBuffer;
-        dynamic_buffer m_rtInstanceBuffer;
-
-        rt_acceleration_structure m_tlas{};
+        unique_ptr<rt_data> m_rt;
     };
 }

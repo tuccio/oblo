@@ -221,6 +221,11 @@ namespace oblo
         return cmd;
     }
 
+    resource_cache& renderer::get_resource_cache()
+    {
+        return m_platform->resourceCache;
+    }
+
     renderer_platform& renderer::get_renderer_platform()
     {
         return *m_platform;

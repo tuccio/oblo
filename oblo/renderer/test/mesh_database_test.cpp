@@ -8,7 +8,7 @@
 #include <oblo/renderer/draw/mesh_database.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
-namespace oblo::vk::test
+namespace oblo::test
 {
     namespace
     {

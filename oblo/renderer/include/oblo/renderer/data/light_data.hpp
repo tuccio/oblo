@@ -6,7 +6,7 @@
 
 namespace oblo
 {
-    enum class light_type : u32
+    enum class gpu_light_type : u32
     {
         point,
         spot,
@@ -20,7 +20,7 @@ namespace oblo
         vec3 position;
         f32 invSqrRadius;
         vec3 direction;
-        light_type type;
+        gpu_light_type type;
         vec3 intensity;
         f32 lightAngleScale;
         f32 lightAngleOffset;

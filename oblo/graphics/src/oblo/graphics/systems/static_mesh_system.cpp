@@ -15,16 +15,16 @@
 #include <oblo/graphics/components/static_mesh_internal.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/renderer/data/components.hpp>
+#include <oblo/renderer/draw/draw_registry.hpp>
+#include <oblo/renderer/draw/resource_cache.hpp>
+#include <oblo/renderer/renderer.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
-#include <oblo/vulkan/data/components.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/draw/resource_cache.hpp>
-#include <oblo/vulkan/renderer.hpp>
 
 #include <span>
 
@@ -32,7 +32,7 @@ namespace oblo
 {
     namespace
     {
-        gpu_material convert(const resource_registry& resources, vk::resource_cache& cache, const material& m)
+        gpu_material convert(const resource_registry& resources, resource_cache& cache, const material& m)
         {
             gpu_material out{};
 
@@ -105,8 +105,8 @@ namespace oblo
         }
 
         void add_mesh(const resource_registry* resourceRegistry,
-            vk::resource_cache* resourceCache,
-            vk::draw_registry& drawRegistry,
+            resource_cache* resourceCache,
+            draw_registry& drawRegistry,
             ecs::entity entity,
             const static_mesh_component& meshComponent,
             ecs::deferred& deferred)
@@ -166,8 +166,8 @@ namespace oblo
             auto&& [gpuMaterial, pickingId, cachedRefs, gpuMeshComponent] = deferred.add<gpu_material,
                 entity_id_component,
                 processed_mesh_resources,
-                vk::draw_mesh_component,
-                vk::draw_raytraced_tag,
+                draw_mesh_component,
+                draw_raytraced_tag,
                 mesh_processed_tag>(entity);
 
             deferred.remove<mesh_resources>(entity);
@@ -185,13 +185,13 @@ namespace oblo
 
     void static_mesh_system::first_update(const ecs::system_update_context& ctx)
     {
-        m_drawRegistry = ctx.services->find<vk::draw_registry>();
+        m_drawRegistry = ctx.services->find<draw_registry>();
         OBLO_ASSERT(m_drawRegistry);
 
         m_resourceRegistry = ctx.services->find<const resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
 
-        m_resourceCache = ctx.services->find<vk::resource_cache>();
+        m_resourceCache = ctx.services->find<resource_cache>();
         OBLO_ASSERT(m_resourceCache);
 
         update(ctx);

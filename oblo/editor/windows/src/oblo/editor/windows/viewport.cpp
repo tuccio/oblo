@@ -23,6 +23,7 @@
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
+#include <oblo/renderer/templates/graph_templates.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/entity_hierarchy_component.hpp>
@@ -33,7 +34,6 @@
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
-#include <oblo/vulkan/templates/graph_templates.hpp>
 
 #include <imgui.h>
 

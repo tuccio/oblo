@@ -4,11 +4,8 @@
 
 namespace oblo
 {
-    namespace vk
-    {
-        class draw_registry;
-        class vulkan_context;
-    }
+    class draw_registry;
+    class renderer;
 
     class draw_registry_system
     {
@@ -18,7 +15,7 @@ namespace oblo
 
     private:
         bool m_isRayTracingEnabled{};
-        vk::vulkan_context* m_vulkanContext{};
-        vk::draw_registry* m_drawRegistry{};
+        draw_registry* m_drawRegistry{};
+        renderer* m_renderer{};
     };
 }

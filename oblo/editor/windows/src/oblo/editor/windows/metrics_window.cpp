@@ -8,7 +8,7 @@
 #include <oblo/metrics/async_metrics.hpp>
 #include <oblo/metrics/metrics.hpp>
 #include <oblo/properties/property_registry.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
 
 #include <imgui.h>
 
@@ -32,7 +32,7 @@ namespace oblo::editor
 
     struct metrics_window::impl
     {
-        vk::frame_graph* frameGraph{};
+        frame_graph* frameGraph{};
         const property_registry* propertyRegistry{};
         metrics_state state = metrics_state::idle;
         future<async_metrics> pendingMetrics;
@@ -173,7 +173,7 @@ namespace oblo::editor
     bool metrics_window::init(const window_update_context& ctx)
     {
         m_impl = allocate_unique<impl>();
-        m_impl->frameGraph = ctx.services.find<vk::frame_graph>();
+        m_impl->frameGraph = ctx.services.find<frame_graph>();
         m_impl->propertyRegistry = ctx.services.find<const property_registry>();
         auto* const reflection = ctx.services.find<const reflection::reflection_registry>();
 

@@ -14,7 +14,7 @@
 
 #include <gtest/gtest.h>
 
-namespace oblo::vk::test
+namespace oblo::test
 {
     namespace
     {

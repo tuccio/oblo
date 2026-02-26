@@ -18,7 +18,7 @@
 #include <oblo/scene/scene_module.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
+#include <oblo/renderer/draw/draw_registry.hpp>
 
 namespace oblo
 {

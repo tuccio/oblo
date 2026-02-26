@@ -6,24 +6,22 @@
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/overload.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/core/variant.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/renderer/draw/binding_table.hpp>
+#include <oblo/renderer/draw/render_pass_initializer.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
+#include <oblo/renderer/graph/frame_graph_registry.hpp>
+#include <oblo/renderer/graph/frame_graph_template.hpp>
+#include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/templates/graph_templates.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/draw/binding_table.hpp>
-#include <oblo/vulkan/draw/render_pass_initializer.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/graph/frame_graph_registry.hpp>
-#include <oblo/vulkan/graph/frame_graph_template.hpp>
-#include <oblo/vulkan/graph/node_common.hpp>
-#include <oblo/vulkan/graph/render_pass.hpp>
-#include <oblo/vulkan/templates/graph_templates.hpp>
-#include <oblo/vulkan/utility.hpp>
-#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 #include <imgui_impl_win32.h>
 
@@ -49,17 +47,17 @@ namespace oblo
             }
         }
 
-        vk::texture_format to_vk_format(ImTextureFormat format)
+        gpu::image_format to_gpu_format(ImTextureFormat format)
         {
             switch (format)
             {
             case ImTextureFormat_RGBA32:
-                return vk::texture_format::r8g8b8a8_unorm;
+                return gpu::image_format::r8g8b8a8_unorm;
             case ImTextureFormat_Alpha8:
-                return vk::texture_format::r8_unorm;
+                return gpu::image_format::r8_unorm;
             default:
                 OBLO_ASSERT("Unrecognized format");
-                return vk::texture_format::undefined;
+                return gpu::image_format::undefined;
             }
         }
 
@@ -97,21 +95,21 @@ namespace oblo
         struct imgui_render_userdata
         {
             graphics_window_context* windowContext{};
-            h32<vk::frame_graph_subgraph> graph;
+            h32<frame_graph_subgraph> graph;
             bool isOwned;
         };
 
-        using registered_texture = variant<resource_ptr<texture>, h32<vk::retained_texture>>;
+        using registered_texture = variant<resource_ptr<texture>, h32<retained_texture>>;
 
         struct imgui_render_backend
         {
             const resource_registry* resourceRegistry{};
             graphics_engine* graphicsEngine{};
-            vk::frame_graph* frameGraph{};
-            vk::frame_graph_registry nodeRegistry;
-            vk::frame_graph_template renderTemplate;
-            vk::frame_graph_template pushImageTemplate;
-            deque<h32<vk::frame_graph_subgraph>> pushImageSubgraphs;
+            frame_graph* frameGraph{};
+            frame_graph_registry nodeRegistry;
+            frame_graph_template renderTemplate;
+            frame_graph_template pushImageTemplate;
+            deque<h32<frame_graph_subgraph>> pushImageSubgraphs;
 
             std::unordered_map<resource_ref<texture>, usize, hash<resource_ref<texture>>> registeredTexturesMap;
             deque<registered_texture> registeredTextures;
@@ -173,7 +171,7 @@ namespace oblo
                 return newId;
             }
 
-            ImTextureID register_texture(h32<vk::retained_texture> retainedTexture)
+            ImTextureID register_texture(h32<retained_texture> retainedTexture)
             {
                 const auto newId = allocate_new_registered_texture();
                 registeredTextures[newId] = retainedTexture;
@@ -188,12 +186,12 @@ namespace oblo
                 free_registered_texture_id(id);
             }
 
-            h32<vk::retained_texture> get_retained_texture(ImTextureID id)
+            h32<retained_texture> get_retained_texture(ImTextureID id)
             {
-                return registeredTextures[id].as<h32<vk::retained_texture>>();
+                return registeredTextures[id].as<h32<retained_texture>>();
             }
 
-            ImTextureID register_subgraph_image(h32<vk::frame_graph_subgraph> subgraph)
+            ImTextureID register_subgraph_image(h32<frame_graph_subgraph> subgraph)
             {
                 const auto newId = ImTextureID{subgraph_image_bit | pushImageSubgraphs.size()};
                 pushImageSubgraphs.emplace_back(subgraph);
@@ -238,17 +236,17 @@ namespace oblo
 
         struct imgui_graph_image
         {
-            vk::resource<vk::texture> texture;
+            pin::texture texture;
             ImTextureID id;
         };
 
         struct imgui_graph_image_push_node
         {
-            vk::pin::data<ImTextureID> inId;
-            vk::resource<vk::texture> inTexture;
-            vk::data_sink<imgui_graph_image> outImageSink;
+            pin::data<ImTextureID> inId;
+            pin::texture inTexture;
+            pin::data_sink<imgui_graph_image> outImageSink;
 
-            void build(const vk::frame_graph_build_context& ctx)
+            void build(const frame_graph_build_context& ctx)
             {
                 if (ctx.has_source(inTexture))
                 {
@@ -260,51 +258,50 @@ namespace oblo
 
         struct imgui_render_node
         {
-            vk::pin::data<imgui_render_backend*> inBackend;
-            vk::pin::data<ImGuiViewport*> inViewport;
+            pin::data<imgui_render_backend*> inBackend;
+            pin::data<ImGuiViewport*> inViewport;
 
-            vk::resource<vk::texture> inOutRenderTarget;
+            pin::texture inOutRenderTarget;
 
-            vk::data_sink<imgui_graph_image> inImageSink;
+            pin::data_sink<imgui_graph_image> inImageSink;
 
-            vk::resource<vk::buffer> outVertexBuffer;
-            vk::resource<vk::buffer> outIndexBuffer;
+            pin::buffer outVertexBuffer;
+            pin::buffer outIndexBuffer;
 
-            h32<vk::transfer_pass_instance> transferPassInstance;
+            h32<transfer_pass_instance> transferPassInstance;
 
-            h32<vk::render_pass> renderPass;
-            h32<vk::render_pass_instance> renderPassInstance;
+            h32<render_pass> renderPass;
+            h32<render_pass_instance> renderPassInstance;
 
-            std::span<h32<vk::resident_texture>> registeredTextures;
-            std::span<h32<vk::resident_texture>> subgraphTextures;
+            std::span<h32<resident_texture>> registeredTextures;
+            std::span<h32<resident_texture>> subgraphTextures;
 
             struct pending_upload
             {
-                vk::resource<vk::texture> resource;
-                vk::staging_buffer_span staged;
+                pin::texture resource;
+                staging_buffer_span staged;
             };
 
             dynamic_array<pending_upload> uploads;
 
-            void init(const vk::frame_graph_init_context& ctx)
+            void init(const frame_graph_init_context& ctx)
             {
                 renderPass = ctx.register_render_pass({
                     .name = "ImGui",
-                    .stages =
+                    .stages = make_span_initializer<render_pass_stage>({
                         {
-                            {
-                                .stage = vk::pipeline_stages::vertex,
-                                .shaderSourcePath = "./imgui/shaders/imgui.vert",
-                            },
-                            {
-                                .stage = vk::pipeline_stages::fragment,
-                                .shaderSourcePath = "./imgui/shaders/imgui.frag",
-                            },
+                            .stage = gpu::shader_stage::vertex,
+                            .shaderSourcePath = "./imgui/shaders/imgui.vert",
                         },
+                        {
+                            .stage = gpu::shader_stage::fragment,
+                            .shaderSourcePath = "./imgui/shaders/imgui.frag",
+                        },
+                    }),
                 });
             }
 
-            void build(const vk::frame_graph_build_context& ctx)
+            void build(const frame_graph_build_context& ctx)
             {
                 transferPassInstance = {};
 
@@ -329,14 +326,13 @@ namespace oblo
                         switch (tex->Status)
                         {
                         case ImTextureStatus_WantCreate: {
-                            constexpr flags usages =
-                                vk::texture_usage::transfer_destination | vk::texture_usage::shader_read;
+                            constexpr flags usages = texture_usage::transfer_destination | texture_usage::shader_read;
 
                             const h32 newTexture = ctx.create_retained_texture(
                                 {
                                     .width = u32(tex->Width),
                                     .height = u32(tex->Height),
-                                    .format = to_vk_format(tex->Format),
+                                    .format = to_gpu_format(tex->Format),
                                     .debugLabel = "ImGui::ImTexture",
                                 },
                                 usages);
@@ -379,28 +375,26 @@ namespace oblo
                     }
                 }
 
-                const auto rtInitializer =
-                    ctx.get_current_initializer(inOutRenderTarget).value_or(vk::texture_init_desc{});
+                const auto rtInitializer = ctx.get_current_initializer(inOutRenderTarget).value_or(texture_init_desc{});
 
                 renderPassInstance = ctx.render_pass(renderPass,
                     {
                         .renderTargets =
                             {
-                                .colorAttachmentFormats = {vk::texture_format(rtInitializer.format)},
-                                .blendStates =
-                                    {
-                                        {
-                                            .enable = true,
-                                            .srcColorBlendFactor = vk::blend_factor::src_alpha,
-                                            .dstColorBlendFactor = vk::blend_factor::one_minus_src_alpha,
-                                            .colorBlendOp = vk::blend_op::add,
-                                            .srcAlphaBlendFactor = vk::blend_factor::one,
-                                            .dstAlphaBlendFactor = vk::blend_factor::one_minus_src_alpha,
-                                            .alphaBlendOp = vk::blend_op::add,
-                                            .colorWriteMask = vk::color_component::r | vk::color_component::g |
-                                                vk::color_component::b | vk::color_component::a,
-                                        },
+                                .colorAttachmentFormats = make_span_initializer({rtInitializer.format}),
+                                .blendStates = make_span_initializer({
+                                    gpu::color_blend_attachment_state{
+                                        .enable = true,
+                                        .srcColorBlendFactor = gpu::blend_factor::src_alpha,
+                                        .dstColorBlendFactor = gpu::blend_factor::one_minus_src_alpha,
+                                        .colorBlendOp = gpu::blend_op::add,
+                                        .srcAlphaBlendFactor = gpu::blend_factor::one,
+                                        .dstAlphaBlendFactor = gpu::blend_factor::one_minus_src_alpha,
+                                        .alphaBlendOp = gpu::blend_op::add,
+                                        .colorWriteMask = gpu::color_component::r | gpu::color_component::g |
+                                            gpu::color_component::b | gpu::color_component::a,
                                     },
+                                }),
                             },
                         .depthStencilState =
                             {
@@ -409,26 +403,26 @@ namespace oblo
                             },
                         .rasterizationState =
                             {
-                                .polygonMode = vk::polygon_mode::fill,
+                                .polygonMode = gpu::polygon_mode::fill,
                                 .cullMode = {},
                                 .lineWidth = 1.f,
                             },
                     });
 
-                registeredTextures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
+                registeredTextures = allocate_n_span<h32<resident_texture>>(ctx.get_frame_allocator(),
                     backend->registeredTextures.size());
 
-                subgraphTextures = allocate_n_span<h32<vk::resident_texture>>(ctx.get_frame_allocator(),
+                subgraphTextures = allocate_n_span<h32<resident_texture>>(ctx.get_frame_allocator(),
                     backend->pushImageSubgraphs.size());
 
                 for (usize i = 0; i < backend->registeredTextures.size(); ++i)
                 {
                     registeredTextures[i] = backend->registeredTextures[i].visit(overload{
                         [&ctx](const resource_ptr<texture>& t) { return ctx.load_resource(t); },
-                        [&ctx](h32<vk::retained_texture> t)
+                        [&ctx](h32<retained_texture> t)
                         {
                             const auto r = ctx.get_resource(t);
-                            return ctx.acquire_bindless(r, vk::texture_usage::shader_read);
+                            return ctx.acquire_bindless(r, texture_usage::shader_read);
                         },
                     });
                 }
@@ -437,11 +431,10 @@ namespace oblo
                 {
                     const auto textureId = backend->extract_subgraph_texture_index(graphImage.id);
 
-                    subgraphTextures[textureId] =
-                        ctx.acquire_bindless(graphImage.texture, vk::texture_usage::shader_read);
+                    subgraphTextures[textureId] = ctx.acquire_bindless(graphImage.texture, texture_usage::shader_read);
                 }
 
-                ctx.acquire(inOutRenderTarget, vk::texture_usage::render_target_write);
+                ctx.acquire(inOutRenderTarget, texture_usage::render_target_write);
 
                 const std::span vertices =
                     allocate_n_span<ImDrawVert>(ctx.get_frame_allocator(), usize(drawData->TotalVtxCount));
@@ -464,24 +457,22 @@ namespace oblo
                 }
 
                 ctx.create(outVertexBuffer,
-                    vk::buffer_resource_initializer{
+                    buffer_resource_initializer{
                         .size = u32(vertices.size_bytes()),
                         .data = as_bytes(vertices),
                     },
-                    vk::buffer_usage::storage_read);
+                    buffer_usage::storage_read);
 
                 ctx.create(outIndexBuffer,
-                    vk::buffer_resource_initializer{
+                    buffer_resource_initializer{
                         .size = u32(indices.size_bytes()),
                         .data = as_bytes(indices),
                     },
-                    vk::buffer_usage::index);
+                    buffer_usage::index);
             }
 
-            void execute(const vk::frame_graph_execute_context& ctx)
+            void execute(const frame_graph_execute_context& ctx)
             {
-                using namespace vk;
-
                 execute_uploads(ctx);
 
                 if (!renderPassInstance)
@@ -489,15 +480,15 @@ namespace oblo
                     return;
                 }
 
-                const render_attachment colorAttachments[] = {
+                const gpu::graphics_attachment colorAttachments[] = {
                     {
-                        .texture = inOutRenderTarget,
-                        .loadOp = attachment_load_op::clear,
-                        .storeOp = attachment_store_op::store,
+                        .image = ctx.access(inOutRenderTarget),
+                        .loadOp = gpu::attachment_load_op::clear,
+                        .storeOp = gpu::attachment_store_op::store,
                     },
                 };
 
-                const render_pass_config cfg{
+                const gpu::graphics_pass_descriptor cfg{
                     .renderResolution = ctx.get_resolution(inOutRenderTarget),
                     .colorAttachments = colorAttachments,
                 };
@@ -522,7 +513,7 @@ namespace oblo
 
                     ctx.bind_index_buffer(outIndexBuffer,
                         0,
-                        sizeof(ImDrawIdx) == 2 ? mesh_index_type::u16 : mesh_index_type::u32);
+                        sizeof(ImDrawIdx) == 2 ? gpu::mesh_index_type::u16 : gpu::mesh_index_type::u32);
 
                     ImGuiViewport* const viewport = ctx.access(inViewport);
                     OBLO_ASSERT(viewport);
@@ -540,7 +531,7 @@ namespace oblo
                         .translation = translation,
                     };
 
-                    ctx.push_constants(shader_stage::vertex | shader_stage::fragment,
+                    ctx.push_constants(gpu::shader_stage::vertex | gpu::shader_stage::fragment,
                         0,
                         as_bytes(std::span{&transformConstants, 1}));
 
@@ -580,7 +571,7 @@ namespace oblo
 
                             if (newImage != lastImage)
                             {
-                                h32<vk::resident_texture> residentTexture{};
+                                h32<resident_texture> residentTexture{};
 
                                 if (imgui_render_backend::is_subgraph_texture(newImage))
                                 {
@@ -594,7 +585,7 @@ namespace oblo
                                     residentTexture = registeredTextures[newImage];
                                 }
 
-                                ctx.push_constants(shader_stage::vertex | shader_stage::fragment,
+                                ctx.push_constants(gpu::shader_stage::vertex | gpu::shader_stage::fragment,
                                     sizeof(transform_constants),
                                     as_bytes(std::span{&residentTexture, 1}));
 
@@ -622,7 +613,7 @@ namespace oblo
             }
 
             void enqueue_upload(
-                const vk::frame_graph_build_context& ctx, h32<vk::retained_texture> texture, const ImTextureData& tex)
+                const frame_graph_build_context& ctx, h32<retained_texture> texture, const ImTextureData& tex)
             {
                 if (!transferPassInstance)
                 {
@@ -632,9 +623,9 @@ namespace oblo
                 // TODO: For updates, we could check which rects we need to upload, instead of uploading the whole
                 // thing, but this is good enough for now.
 
-                const vk::resource<vk::texture> resource = ctx.get_resource(texture);
+                const pin::texture resource = ctx.get_resource(texture);
 
-                ctx.acquire(resource, vk::texture_usage::transfer_destination);
+                ctx.acquire(resource, texture_usage::transfer_destination);
 
                 const std::span src = as_bytes(std::span{tex.Pixels, usize(tex.GetSizeInBytes())});
                 const auto staged = ctx.stage_upload_image(src, u32(tex.BytesPerPixel));
@@ -642,7 +633,7 @@ namespace oblo
                 uploads.emplace_back(resource, staged);
             }
 
-            void execute_uploads(const vk::frame_graph_execute_context& ctx)
+            void execute_uploads(const frame_graph_execute_context& ctx)
             {
                 if (!transferPassInstance)
                 {
@@ -674,7 +665,7 @@ namespace oblo
 
         void create_imgui_frame_graph_templates(imgui_render_backend& backend)
         {
-            vk::frame_graph_registry& registry = backend.nodeRegistry;
+            frame_graph_registry& registry = backend.nodeRegistry;
             registry.register_node<imgui_render_node>();
             registry.register_node<imgui_graph_image_push_node>();
 
@@ -732,15 +723,15 @@ namespace oblo
             IM_DELETE(rud);
         }
 
-        void connect_viewport(vk::frame_graph& frameGraph, ImGuiViewport* viewport)
+        void connect_viewport(frame_graph& frameGraph, ImGuiViewport* viewport)
         {
             auto* const rud = static_cast<imgui_render_userdata*>(viewport->RendererUserData);
             const auto swapchainGraph = rud->windowContext->get_swapchain_graph();
 
             if (swapchainGraph)
             {
-                frameGraph.connect(swapchainGraph, vk::swapchain_graph::OutAcquiredImage, rud->graph, g_InOutRT);
-                frameGraph.connect(rud->graph, g_InOutRT, swapchainGraph, vk::swapchain_graph::InRenderedImage);
+                frameGraph.connect(swapchainGraph, swapchain_graph::OutAcquiredImage, rud->graph, g_InOutRT);
+                frameGraph.connect(rud->graph, g_InOutRT, swapchainGraph, swapchain_graph::InRenderedImage);
             }
         }
     }
@@ -750,7 +741,7 @@ namespace oblo
         ImGuiContext* context{};
         imgui_render_backend backend{};
 
-        expected<> init(const graphics_window& window, const imgui_app_config& cfg)
+        expected<> init(const graphics_window& window, frame_graph& frameGraph, const imgui_app_config& cfg)
         {
             if (!window.is_ready())
             {
@@ -785,10 +776,10 @@ namespace oblo
                 return "Failed to initialize ImGui Windows implementation"_err;
             }
 
-            return init_render_backend(window);
+            return init_render_backend(window, frameGraph);
         }
 
-        expected<> init_render_backend(const graphics_window& window)
+        expected<> init_render_backend(const graphics_window& window, frame_graph& frameGraph)
         {
             auto& mm = module_manager::get();
 
@@ -799,18 +790,11 @@ namespace oblo
                 return "Graphics engine service not found"_err;
             }
 
-            auto* const vkEngine = mm.find<vk::vulkan_engine_module>();
-
-            if (!vkEngine)
-            {
-                return "Vulkan engine module not found"_err;
-            }
-
             ImGuiIO& io = ImGui::GetIO();
             OBLO_ASSERT(io.BackendRendererUserData == nullptr);
 
             backend.graphicsEngine = gfxEngine;
-            backend.frameGraph = &vkEngine->get_frame_graph();
+            backend.frameGraph = &frameGraph;
             create_imgui_frame_graph_templates(backend);
 
             io.BackendRendererUserData = &backend;
@@ -901,7 +885,8 @@ namespace oblo
 
     imgui_app::~imgui_app() = default;
 
-    expected<> imgui_app::init(const graphics_window_initializer& initializer, const imgui_app_config& cfg)
+    expected<> imgui_app::init(
+        const graphics_window_initializer& initializer, frame_graph& frameGraph, const imgui_app_config& cfg)
     {
         if (m_impl)
         {
@@ -916,7 +901,7 @@ namespace oblo
         m_eventProcessor.set_event_dispatcher({imgui_win32_dispatch_event});
 
         m_impl = allocate_unique<impl>();
-        return m_impl->init(m_mainWindow, cfg);
+        return m_impl->init(m_mainWindow, frameGraph, cfg);
     }
 
     void imgui_app::shutdown()
@@ -1012,7 +997,7 @@ namespace oblo::imgui
         return backend->register_texture(texture);
     }
 
-    ImTextureID add_image(h32<vk::frame_graph_subgraph> subgraph, string_view output)
+    ImTextureID add_image(h32<frame_graph_subgraph> subgraph, string_view output)
     {
         auto* viewport = ImGui::GetWindowViewport();
         OBLO_ASSERT(viewport);

@@ -4,13 +4,9 @@
 #include <oblo/ecs/forward.hpp>
 #include <oblo/ecs/utility/entity_map.hpp>
 
-namespace oblo::vk
-{
-    class renderer;
-}
-
 namespace oblo
 {
+    class renderer;
     class scene_renderer;
 
     class viewport_system
@@ -32,7 +28,7 @@ namespace oblo
         struct render_graph_data;
 
     private:
-        vk::renderer* m_renderer{};
+        renderer* m_renderer{};
         scene_renderer* m_sceneRenderer{};
         u32 m_frameIndex{};
 

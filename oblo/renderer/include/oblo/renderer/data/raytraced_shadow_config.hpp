@@ -4,12 +4,12 @@
 
 namespace oblo
 {
-    enum class light_type : u32;
+    enum class gpu_light_type : u32;
 
     struct raytraced_shadow_config
     {
         u32 lightIndex;
-        light_type type;
+        gpu_light_type type;
         f32 shadowPunctualRadius;
         f32 temporalAccumulationFactor;
         f32 depthSigma;

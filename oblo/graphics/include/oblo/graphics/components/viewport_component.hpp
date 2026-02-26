@@ -1,15 +1,13 @@
 #pragma once
 
 #include <oblo/core/handle.hpp>
-#include <oblo/reflection/codegen/annotations.hpp>
+#include <oblo/core/types.hpp>
 #include <oblo/math/vec2.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 
 namespace oblo
 {
-    namespace vk
-    {
-        struct frame_graph_subgraph;
-    }
+    struct frame_graph_subgraph;
 
     struct picking_request
     {
@@ -61,7 +59,7 @@ namespace oblo
 
         viewport_mode mode;
 
-        h32<vk::frame_graph_subgraph> graph;
+        h32<frame_graph_subgraph> graph;
 
         picking_request picking;
     } OBLO_COMPONENT("a856bf3e-92f1-4ece-9ea0-c97efbfb4c1f");

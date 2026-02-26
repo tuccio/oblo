@@ -15,21 +15,21 @@
 #include <oblo/math/quaternion.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/options/options_module.hpp>
+#include <oblo/renderer/data/blur_configs.hpp>
+#include <oblo/renderer/data/light_data.hpp>
+#include <oblo/renderer/data/raytraced_shadow_config.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
+#include <oblo/renderer/templates/graph_templates.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
-#include <oblo/vulkan/data/blur_configs.hpp>
-#include <oblo/vulkan/data/light_data.hpp>
-#include <oblo/vulkan/data/raytraced_shadow_config.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/templates/graph_templates.hpp>
 
 namespace oblo
 {
     struct lighting_system::shadow_directional
     {
         // Maps main view to shadow map graph
-        h32_flat_extpool_dense_map<vk::frame_graph_subgraph, h32<vk::frame_graph_subgraph>> shadowGraphs;
+        h32_flat_extpool_dense_map<frame_graph_subgraph, h32<frame_graph_subgraph>> shadowGraphs;
         i32 lightIndex;
         const light_component* light;
     };
@@ -67,7 +67,7 @@ namespace oblo
 
         m_sceneRenderer->ensure_setup(*ctx.entities);
 
-        m_rtShadows = vk::raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
+        m_rtShadows = raytraced_shadow_view::create(m_sceneRenderer->get_frame_graph_registry());
 
         update(ctx);
     }
@@ -86,7 +86,7 @@ namespace oblo
 
         const u32 lightsCount = lightsRange.count();
 
-        dynamic_array<vk::light_data> lightData{ctx.frameAllocator};
+        dynamic_array<light_data> lightData{ctx.frameAllocator};
         lightData.reserve(lightsCount);
 
         for (auto& shadow : m_shadows.values())
@@ -125,7 +125,7 @@ namespace oblo
                     .position = {position.x, position.y, position.z},
                     .invSqrRadius = 1.f / (light.radius * light.radius),
                     .direction = {direction.x, direction.y, direction.z},
-                    .type = vk::light_type(u32(light.type)),
+                    .type = gpu_light_type(u32(light.type)),
                     .intensity = light.color * light.intensity,
                     .lightAngleScale = angleScale,
                     .lightAngleOffset = angleOffset,
@@ -140,7 +140,7 @@ namespace oblo
 
         // TODO: (#57) We defer removal because we don't have a way to iterate and delete
         buffered_array<ecs::entity, 8> removedShadows{ctx.frameAllocator};
-        buffered_array<h32<vk::frame_graph_subgraph>, 4> lastFrameViews{ctx.frameAllocator};
+        buffered_array<h32<frame_graph_subgraph>, 4> lastFrameViews{ctx.frameAllocator};
 
         auto& frameGraph = m_sceneRenderer->get_frame_graph();
 
@@ -184,81 +184,81 @@ namespace oblo
                         const auto shadowMappingGraph = frameGraph.instantiate(m_rtShadows);
 
                         frameGraph.connect(m_sceneRenderer->get_scene_data_provider(),
-                            vk::scene_data::OutLightBuffer,
+                            scene_data::OutLightBuffer,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InLightBuffer);
+                            raytraced_shadow_view::InLightBuffer);
 
                         frameGraph.connect(sceneView,
-                            vk::main_view::OutCameraBuffer,
+                            main_view::OutCameraBuffer,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InCameraBuffer);
+                            raytraced_shadow_view::InCameraBuffer);
 
                         frameGraph.connect(sceneView,
-                            vk::main_view::OutResolution,
+                            main_view::OutResolution,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InResolution);
+                            raytraced_shadow_view::InResolution);
 
                         frameGraph.connect(sceneView,
-                            vk::main_view::OutDepthBuffer,
+                            main_view::OutDepthBuffer,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InDepthBuffer);
+                            raytraced_shadow_view::InDepthBuffer);
 
                         frameGraph.connect(sceneView,
-                            vk::main_view::OutVisibilityBuffer,
+                            main_view::OutVisibilityBuffer,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InVisibilityBuffer);
+                            raytraced_shadow_view::InVisibilityBuffer);
 
                         frameGraph.connect(sceneView,
-                            vk::main_view::OutDisocclusionMask,
+                            main_view::OutDisocclusionMask,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InDisocclusionMask);
+                            raytraced_shadow_view::InDisocclusionMask);
 
                         frameGraph.connect(sceneView,
-                            vk::main_view::OutMotionVectors,
+                            main_view::OutMotionVectors,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InMotionVectors);
+                            raytraced_shadow_view::InMotionVectors);
 
                         frameGraph.connect(shadowMappingGraph,
-                            vk::raytraced_shadow_view::OutShadowSink,
+                            raytraced_shadow_view::OutShadowSink,
                             sceneView,
-                            vk::main_view::InShadowSink);
+                            main_view::InShadowSink);
 
                         const auto sceneDataProvider = m_sceneRenderer->get_scene_data_provider();
 
                         frameGraph.connect(sceneDataProvider,
-                            vk::scene_data::OutInstanceTables,
+                            scene_data::OutInstanceTables,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InInstanceTables);
+                            raytraced_shadow_view::InInstanceTables);
                         frameGraph.connect(sceneDataProvider,
-                            vk::scene_data::OutInstanceBuffers,
+                            scene_data::OutInstanceBuffers,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InInstanceBuffers);
+                            raytraced_shadow_view::InInstanceBuffers);
 
                         frameGraph.connect(sceneDataProvider,
-                            vk::scene_data::OutMeshDatabase,
+                            scene_data::OutMeshDatabase,
                             shadowMappingGraph,
-                            vk::raytraced_shadow_view::InMeshDatabase);
+                            raytraced_shadow_view::InMeshDatabase);
 
                         const auto [it, ok] = shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
 
                         v = &*it;
                     }
 
-                    const vk::raytraced_shadow_config cfg{
+                    const raytraced_shadow_config cfg{
                         .lightIndex = u32(shadow.lightIndex),
-                        .type = vk::light_type(shadow.light->type),
+                        .type = gpu_light_type(shadow.light->type),
                         .shadowPunctualRadius = shadow.light->shadowPunctualRadius,
                         .temporalAccumulationFactor = shadow.light->shadowTemporalAccumulationFactor,
                         .depthSigma = shadow.light->shadowDepthSigma,
                         .hardShadows = shadow.light->hardShadows,
                     };
 
-                    frameGraph.set_input(*v, vk::raytraced_shadow_view::InConfig, cfg).assert_value();
+                    frameGraph.set_input(*v, raytraced_shadow_view::InConfig, cfg).assert_value();
 
                     frameGraph
                         .set_input(*v,
-                            vk::raytraced_shadow_view::InMeanFilterConfig,
-                            vk::gaussian_blur_config{
+                            raytraced_shadow_view::InMeanFilterConfig,
+                            gaussian_blur_config{
                                 .kernelSize = shadow.light->shadowMeanFilterSize,
                                 .sigma = shadow.light->shadowMeanFilterSigma,
                             })
