@@ -1164,23 +1164,20 @@ namespace oblo::gpu::vk
 
         label_vulkan_object(allocatedImage.image, descriptor.debugLabel);
 
-        const auto [it, h] = m_images.emplace(allocatedImage);
-
         const expected view = image_utils::create_image_view(m_device,
             allocatedImage.image,
             vk::convert_image_view_type(descriptor.type),
             vkFormat,
             m_allocator.get_allocation_callbacks());
 
-        it->descriptor = descriptor;
+        const h32 h =
+            register_image(allocatedImage.image, view.value_or(nullptr), allocatedImage.allocation, descriptor);
 
         if (!view)
         {
             destroy(h);
             return view.error();
         }
-
-        it->view = *view;
 
         label_vulkan_object(*view, descriptor.debugLabel);
 
@@ -1334,10 +1331,7 @@ namespace oblo::gpu::vk
 
             label_vulkan_object(*imageView, descriptor.debugLabel);
 
-            const auto [it, handle] = m_images.emplace();
-            it->image = t.image;
-            it->view = *imageView;
-
+            const h32 handle = register_image(t.image, *imageView, nullptr, descriptors[descriptorIdx]);
             images[descriptorIdx] = handle;
         }
 
