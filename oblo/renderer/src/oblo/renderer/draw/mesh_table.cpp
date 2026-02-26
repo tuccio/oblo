@@ -65,7 +65,10 @@ namespace oblo
         {
             const u64 meshDataBufferSize = compute_buffer_size(meshAttributes, numMeshes, alignment);
 
-            if (!!m_meshDataTable.init(0u, meshDataBufferSize, meshAttributes, numMeshes, alignment))
+            const expected meshAttributesRes =
+                m_meshDataTable.init(0u, meshDataBufferSize, meshAttributes, numMeshes, alignment);
+
+            if (!meshAttributesRes)
             {
                 return false;
             }
@@ -110,7 +113,10 @@ namespace oblo
                 },
             };
 
-            if (m_meshletsTable.init(0u, meshletsBufferSize, desc, numMeshlets, alignment))
+            const expected meshletsTableRes =
+                m_meshletsTable.init(0u, meshletsBufferSize, desc, numMeshlets, alignment);
+
+            if (!meshletsTableRes)
             {
                 return false;
             }
