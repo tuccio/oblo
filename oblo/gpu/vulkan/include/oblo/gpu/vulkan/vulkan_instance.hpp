@@ -198,6 +198,9 @@ namespace oblo::gpu::vk
 
         void cmd_set_scissor(hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) override;
 
+        void cmd_bind_index_buffer(
+            hptr<command_buffer> cmd, h32<buffer> buffer, u64 offset, gpu::mesh_index_type format) override;
+
         void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,
             u32 firstGroup,
@@ -237,6 +240,7 @@ namespace oblo::gpu::vk
         void cmd_label_end(hptr<command_buffer> cmd) override;
 
         // Vulkan specific
+        VkInstance get_instance() const;
         VkPhysicalDevice get_physical_device() const;
         VkDevice get_device() const;
         gpu_allocator& get_allocator();

@@ -114,11 +114,9 @@ namespace oblo
         m_platform->passManager.begin_frame(commandBuffer);
 
         const frame_graph_build_args buildArgs{
-            .vk = *static_cast<gpu::vk::vulkan_instance*>(m_gpu),
-            .textureRegistry = m_platform->textureRegistry,
-            .resourceCache = m_platform->resourceCache,
-            .passManager = m_platform->passManager,
-            .r = *this,
+            .rendererPlatform = *m_platform,
+            .gpu = *m_gpu,
+            .stagingBuffer = m_stagingBuffer,
         };
 
         m_frameGraph.build(buildArgs);
@@ -127,12 +125,10 @@ namespace oblo
         m_platform->passManager.update_global_descriptor_sets();
 
         const frame_graph_execute_args executeArgs{
-            .vk = *static_cast<gpu::vk::vulkan_instance*>(m_gpu),
-            .textureRegistry = m_platform->textureRegistry,
-            .resourceCache = m_platform->resourceCache,
-            .passManager = m_platform->passManager,
+            .rendererPlatform = *m_platform,
+            .gpu = *m_gpu,
+            .commandBuffer = get_active_command_buffer(),
             .stagingBuffer = m_stagingBuffer,
-            .r = *this,
         };
 
         m_frameGraph.execute(executeArgs);
@@ -207,5 +203,10 @@ namespace oblo
         m_currentCmdBuffer = {};
 
         return cmd;
+    }
+
+    renderer_platform& renderer::get_renderer_platform()
+    {
+        return *m_platform;
     }
 }

@@ -60,7 +60,6 @@ namespace oblo::gpu
     struct bindable_object;
     struct bind_group_data;
     struct device_info;
-    struct device_limits;
     struct global_memory_barrier;
     struct image_state_transition;
     struct memory_properties;

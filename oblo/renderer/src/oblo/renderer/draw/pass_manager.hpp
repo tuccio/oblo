@@ -122,6 +122,8 @@ namespace oblo
 
         string_view get_pass_name(const base_pipeline& pipeline) const;
 
+        const string_interner& get_string_interner() const;
+
     private:
         struct impl;
 

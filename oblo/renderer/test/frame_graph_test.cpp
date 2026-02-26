@@ -10,6 +10,7 @@
 #include <oblo/renderer/graph/frame_graph_template.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 #include <oblo/renderer/renderer.hpp>
+#include <oblo/vulkan/vulkan_engine_module.hpp>
 
 #include <gtest/gtest.h>
 
@@ -197,7 +198,7 @@ namespace oblo::vk::test
     TEST(frame_graph, frame_graph_mock_shadow)
     {
         module_manager mm;
-        auto* vkEngine = mm.load<vulkan_engine_module>();
+        auto* vkEngine = mm.load<vk::vulkan_engine_module>();
 
         ASSERT_TRUE(mm.finalize());
 
@@ -215,7 +216,7 @@ namespace oblo::vk::test
         const auto mainViewTemplate = fgt_create_main_view(registry);
 
         frame_graph frameGraph;
-        frameGraph.init(vkEngine->get_vulkan_context());
+        frameGraph.init(vkEngine->get_gpu_instance());
 
         const auto mainView = frameGraph.instantiate(mainViewTemplate);
         ASSERT_TRUE(mainView);
@@ -234,7 +235,13 @@ namespace oblo::vk::test
 
         auto& renderer = vkEngine->get_renderer();
 
-        frameGraph.build(renderer);
+        const frame_graph_build_args buildArgs{
+            .rendererPlatform = renderer.get_renderer_platform(),
+            .gpu = renderer.get_gpu_instance(),
+            .stagingBuffer = renderer.get_staging_buffer(),
+        };
+
+        frameGraph.build(buildArgs);
 
         // Order between gbuffer and shadow is not determined, but lighting has to run last
         ASSERT_EQ(executionLog.size(), 3);
@@ -245,7 +252,14 @@ namespace oblo::vk::test
 
         executionLog.clear();
 
-        frameGraph.execute(renderer);
+        const frame_graph_execute_args executeArgs{
+            .rendererPlatform = renderer.get_renderer_platform(),
+            .gpu = renderer.get_gpu_instance(),
+            .commandBuffer = renderer.get_active_command_buffer(),
+            .stagingBuffer = renderer.get_staging_buffer(),
+        };
+
+        frameGraph.execute(executeArgs);
 
         ASSERT_EQ(executionLog.size(), 3);
         ASSERT_TRUE(executionLog[1] != executionLog[0]);

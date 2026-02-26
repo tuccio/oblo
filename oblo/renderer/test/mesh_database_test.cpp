@@ -5,8 +5,7 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/vulkan/draw/mesh_database.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
+#include <oblo/renderer/draw/mesh_database.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
 namespace oblo::vk::test
@@ -38,30 +37,29 @@ namespace oblo::vk::test
                     return false;
                 }
 
-                auto& vkContext = vkEngine->get_vulkan_context();
+                auto& gpu = vkEngine->get_gpu_instance();
 
                 mesh_attribute_description attributes[] = {
                     {
-                        .name = h32<string>{u32(attributes::position)},
+                        .name = h32<buffer_table_name>{u32(attributes::position)},
                         .elementSize = sizeof(vec3),
                     },
                     {
-                        .name = h32<string>{u32(attributes::normal)},
+                        .name = h32<buffer_table_name>{u32(attributes::normal)},
                         .elementSize = sizeof(vec3),
                     },
                     {
-                        .name = h32<string>{u32(attributes::uv0)},
+                        .name = h32<buffer_table_name>{u32(attributes::uv0)},
                         .elementSize = sizeof(vec2),
                     },
                 };
 
                 return meshes.init({
-                    .allocator = vkContext.get_allocator(),
-                    .resourceManager = vkContext.get_resource_manager(),
+                    .gpu = gpu,
                     .attributes = attributes,
-                    .vertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                    .indexBufferUsage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                    .meshBufferUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                    .vertexBufferUsage = gpu::buffer_usage::vertex,
+                    .indexBufferUsage = gpu::buffer_usage::index,
+                    .meshBufferUsage = gpu::buffer_usage::storage,
                     .tableVertexCount = 3 * N,
                     .tableIndexCount = 3 * N,
                 });
@@ -92,7 +90,7 @@ namespace oblo::vk::test
         {
             handles[0 + 4 * i] = app.meshes.create_mesh(
                 (mesh_database_test::attributes::position | mesh_database_test::attributes::normal).data(),
-                mesh_index_type::none,
+                gpu::mesh_index_type::none,
                 3,
                 0,
                 0);
@@ -101,20 +99,20 @@ namespace oblo::vk::test
                 app.meshes.create_mesh((mesh_database_test::attributes::position |
                                            mesh_database_test::attributes::normal | mesh_database_test::attributes::uv0)
                                            .data(),
-                    mesh_index_type::none,
+                    gpu::mesh_index_type::none,
                     3,
                     0,
                     0);
 
             handles[2 + 4 * i] = app.meshes.create_mesh(
                 (mesh_database_test::attributes::position | mesh_database_test::attributes::uv0).data(),
-                mesh_index_type::u16,
+                gpu::mesh_index_type::u16,
                 3,
                 3,
                 0);
 
             handles[3 + 4 * i] = app.meshes.create_mesh(flags{mesh_database_test::attributes::position}.data(),
-                mesh_index_type::u32,
+                gpu::mesh_index_type::u32,
                 3,
                 3,
                 0);

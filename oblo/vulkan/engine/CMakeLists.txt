@@ -13,8 +13,8 @@ target_link_libraries(
     oblo::options
     PRIVATE
     oblo::app
+    oblo::gpu::vulkan
     oblo::log
     oblo::renderer
-    oblo::vulkan::core
     Vulkan::Headers
 )

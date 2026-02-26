@@ -4,10 +4,9 @@
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/gpu/structs.hpp>
+#include <oblo/renderer/graph/frame_graph_resources_impl.hpp>
 #include <oblo/renderer/graph/pins.hpp>
-
-// TODO: Just temporarily, we need to type erase frame_graph_buffer_impl and frame_graph_texture_impl
-#include <oblo/renderer/platform/renderer_platform.hpp>
 
 namespace oblo
 {

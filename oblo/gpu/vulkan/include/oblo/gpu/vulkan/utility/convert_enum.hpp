@@ -14,6 +14,27 @@ namespace oblo::gpu::vk
         return VkFormat(format);
     }
 
+    inline VkIndexType convert_enum(gpu::mesh_index_type indexType)
+    {
+        switch (indexType)
+        {
+        case gpu::mesh_index_type::none:
+            return VK_INDEX_TYPE_NONE_KHR;
+
+        case gpu::mesh_index_type::u8:
+            return VK_INDEX_TYPE_UINT8_KHR;
+
+        case gpu::mesh_index_type::u16:
+            return VK_INDEX_TYPE_UINT16;
+
+        case gpu::mesh_index_type::u32:
+            return VK_INDEX_TYPE_UINT32;
+
+        default:
+            unreachable();
+        }
+    }
+
     inline VkSampleCountFlagBits convert_enum(samples_count samples)
     {
         switch (samples)

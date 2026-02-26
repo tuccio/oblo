@@ -23,7 +23,6 @@ target_link_libraries(
     oblo::properties
     oblo::renderer
     oblo::scene
-    oblo::vulkan::core
     imgui::imgui
     iconfontcppheaders::iconfontcppheaders
     imguizmo::imguizmo

@@ -47,6 +47,9 @@ namespace oblo
 
         hptr<gpu::command_buffer> finalize_command_buffer_for_submission();
 
+        // An opaque handle for frame graph arguments, it's only really here for unit testing purposing
+        renderer_platform& get_renderer_platform();
+
     private:
         struct used_command_buffer_pool;
 

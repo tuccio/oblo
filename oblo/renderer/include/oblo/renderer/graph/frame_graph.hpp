@@ -123,4 +123,21 @@ namespace oblo
         string_view name;
         type_id type;
     };
+
+    struct renderer_platform;
+
+    struct frame_graph_build_args
+    {
+        renderer_platform& rendererPlatform;
+        gpu::gpu_instance& gpu;
+        gpu::staging_buffer& stagingBuffer;
+    };
+
+    struct frame_graph_execute_args
+    {
+        renderer_platform& rendererPlatform;
+        gpu::gpu_instance& gpu;
+        hptr<gpu::command_buffer> commandBuffer;
+        gpu::staging_buffer& stagingBuffer;
+    };
 }

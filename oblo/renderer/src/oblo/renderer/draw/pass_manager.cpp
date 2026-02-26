@@ -2245,4 +2245,9 @@ namespace oblo
     {
         return pipeline.label;
     }
+
+    const string_interner& pass_manager::get_string_interner() const
+    {
+        return *m_impl->interner;
+    }
 }

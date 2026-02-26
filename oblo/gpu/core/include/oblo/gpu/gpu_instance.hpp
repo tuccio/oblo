@@ -222,6 +222,9 @@ namespace oblo::gpu
         virtual void cmd_set_scissor(
             hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) = 0;
 
+        virtual void cmd_bind_index_buffer(
+            hptr<command_buffer> cmd, h32<buffer> buffer, u64 offset, gpu::mesh_index_type format) = 0;
+
         virtual void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,
             u32 firstGroup,
@@ -236,9 +239,6 @@ namespace oblo::gpu
             h32<raytracing_pipeline> pipeline,
             u32 firstGroup,
             std::span<const hptr<bind_group>> bindGroups) = 0;
-
-        virtual void cmd_bind_index_buffer(
-            hptr<command_buffer> cmd, h32<buffer> buffer, u64 offset, gpu::mesh_index_type format) = 0;
 
         virtual void cmd_push_constants(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,

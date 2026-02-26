@@ -558,6 +558,8 @@ namespace oblo::gpu::vk
 
         return {
             .subgroupSize = m_subgroupProperties.subgroupSize,
+            .minUniformBufferOffsetAlignment = limits.minUniformBufferOffsetAlignment,
+            .minStorageBufferOffsetAlignment = limits.minStorageBufferOffsetAlignment,
             .optimalBufferCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment,
             .optimalBufferCopyRowPitchAlignment = limits.optimalBufferCopyRowPitchAlignment,
         };
@@ -2577,6 +2579,13 @@ namespace oblo::gpu::vk
         vkCmdSetScissor(unwrap_handle<VkCommandBuffer>(cmd), firstScissor, vkRects.size32(), vkRects.data());
     }
 
+    void vulkan_instance::cmd_bind_index_buffer(
+        hptr<command_buffer> cmd, h32<buffer> buffer, u64 offset, gpu::mesh_index_type format)
+    {
+        auto& bufferImpl = m_buffers.at(buffer);
+        vkCmdBindIndexBuffer(unwrap_handle<VkCommandBuffer>(cmd), bufferImpl.buffer, offset, convert_enum(format));
+    }
+
     namespace
     {
         void bind_descriptor_sets(const pipeline_base& base,
@@ -2694,6 +2703,11 @@ namespace oblo::gpu::vk
     void vulkan_instance::cmd_label_end(hptr<command_buffer> cmd)
     {
         m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmd));
+    }
+
+    VkInstance vulkan_instance::get_instance() const
+    {
+        return m_instance;
     }
 
     VkPhysicalDevice vulkan_instance::get_physical_device() const

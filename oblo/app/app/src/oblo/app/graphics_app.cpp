@@ -60,7 +60,7 @@ namespace oblo
         m_eventProcessor.set_input_queue(inputQueue);
     }
 
-    void graphics_app::set_output(h32<vk::frame_graph_subgraph> sg, string_view output)
+    void graphics_app::set_output(h32<frame_graph_subgraph> sg, string_view output)
     {
         m_mainWindow.m_graphicsContext->set_output(sg, output);
     }

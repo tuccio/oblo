@@ -10,6 +10,7 @@
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/renderer/draw/monotonic_gbu_buffer.hpp>
+#include <oblo/renderer/graph/frame_graph_resources_impl.hpp>
 
 // For the sake of pooling textures, we ignore the debug labels
 template <>
@@ -39,10 +40,9 @@ namespace oblo
 
     struct resource_pool::texture_resource
     {
+        h32<gpu::image> handle{};
         gpu::image_descriptor descriptor;
         lifetime_range range;
-        VkImage image;
-        VkImageView imageView;
         h32<stable_texture_resource> stableId;
         u32 framesAlive;
         bool isExternal;
@@ -52,7 +52,6 @@ namespace oblo
     {
         u64 offset;
         u64 size;
-        VkBuffer vkBuffer;
         flags<gpu::buffer_usage> usage;
         h32<gpu::buffer> buffer;
         h32<stable_buffer_resource> stableId;
@@ -68,8 +67,6 @@ namespace oblo
     struct resource_pool::stable_texture
     {
         h32<gpu::image> allocatedImage{};
-        VkImage image;
-        VkImageView imageView;
         u32 creationTime;
         u32 lastUsedTime;
     };
@@ -92,17 +89,12 @@ namespace oblo
 
     bool resource_pool::init(gpu::gpu_instance& gpu)
     {
-        auto* const vk = dynamic_cast<gpu::vk::vulkan_instance*>(&gpu);
+        auto* const vk = dynamic_cast<gpu::gpu_instance*>(&gpu);
 
         if (!vk)
         {
             return false;
         }
-
-        const VkPhysicalDevice physicalDevice = vk->get_physical_device();
-
-        VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 
         constexpr u32 bufferChunkSize{1u << 20};
 
@@ -112,21 +104,23 @@ namespace oblo
             u8 alignment;
         };
 
+        const gpu::device_info info = gpu.get_device_info();
+
         const buffer_pool_desc descs[] = {
             {
                 .flags = gpu::buffer_usage::transfer_destination | gpu::buffer_usage::uniform,
-                .alignment = narrow_cast<u8>(properties.limits.minUniformBufferOffsetAlignment),
+                .alignment = narrow_cast<u8>(info.minUniformBufferOffsetAlignment),
             },
             {
                 .flags = gpu::buffer_usage::transfer_source | gpu::buffer_usage::transfer_destination |
                     gpu::buffer_usage::index | gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
-                .alignment = narrow_cast<u8>(properties.limits.minStorageBufferOffsetAlignment),
+                .alignment = narrow_cast<u8>(info.minStorageBufferOffsetAlignment),
             },
             {
                 .flags = gpu::buffer_usage::transfer_source | gpu::buffer_usage::transfer_destination |
                     gpu::buffer_usage::storage | gpu::buffer_usage::indirect,
-                .alignment = narrow_cast<u8>(
-                    properties.limits.minStorageBufferOffsetAlignment), // TODO: Is there a min indirect alignment?
+                .alignment =
+                    narrow_cast<u8>(info.minStorageBufferOffsetAlignment), // TODO: Is there a min indirect alignment?
             },
         };
 
@@ -172,19 +166,17 @@ namespace oblo
         m_bufferResources.clear();
     }
 
-    void resource_pool::end_build(gpu::gpu_instance& ctx)
+    void resource_pool::end_build(gpu::gpu_instance& gpu)
     {
         // TODO: Here we should check if we can reuse the allocation from last frame, instead for now we
         // simply free the objects from last frame
-        free_last_frame_resources(ctx);
+        free_last_frame_resources(gpu);
 
-        auto& vk = static_cast<gpu::vk::vulkan_instance&>(ctx);
+        create_textures(gpu);
+        create_buffers(gpu);
 
-        create_textures(vk);
-        create_buffers(vk);
-
-        free_stable_textures(ctx, FramesBeforeDeletingStableResources);
-        free_stable_buffers(ctx, FramesBeforeDeletingStableResources);
+        free_stable_textures(gpu, FramesBeforeDeletingStableResources);
+        free_stable_buffers(gpu, FramesBeforeDeletingStableResources);
     }
 
     h32<transient_texture_resource> resource_pool::add_transient_texture(
@@ -206,9 +198,8 @@ namespace oblo
         const auto id = m_textureResources.size32();
 
         m_textureResources.push_back({
+            .handle = t.handle,
             .descriptor = t.descriptor,
-            .image = t.image,
-            .imageView = t.view,
             .isExternal = isExternal,
         });
 
@@ -218,11 +209,8 @@ namespace oblo
     h32<transient_texture_resource> resource_pool::add_external_texture(gpu::gpu_instance& gpu,
         h32<gpu::image> externalImage)
     {
-        auto& vk = static_cast<gpu::vk::vulkan_instance&>(gpu);
-
         const frame_graph_texture_impl t{
-            .image = vk.unwrap_image(externalImage),
-            .view = vk.unwrap_image_view(externalImage),
+            .handle = externalImage,
             .descriptor = gpu.get_image_descriptor(externalImage),
         };
 
@@ -268,8 +256,7 @@ namespace oblo
         auto& resource = m_textureResources[id.value - 1];
 
         return {
-            .image = resource.image,
-            .view = resource.imageView,
+            .handle = resource.handle,
             .descriptor = resource.descriptor,
         };
     }
@@ -280,7 +267,7 @@ namespace oblo
         auto& resource = m_bufferResources[id.value - 1];
 
         return {
-            .buffer = resource.vkBuffer,
+            .handle = resource.buffer,
             .offset = resource.offset,
             .size = resource.size,
         };
@@ -365,7 +352,7 @@ namespace oblo
         }
     }
 
-    void resource_pool::create_textures(gpu::vk::vulkan_instance& gpu)
+    void resource_pool::create_textures(gpu::gpu_instance& gpu)
     {
         dynamic_array<gpu::image_descriptor> descriptors;
         descriptors.reserve(m_textureResources.size());
@@ -406,12 +393,11 @@ namespace oblo
                 continue;
             }
 
-            textureResource.image = gpu.unwrap_image(images[i]);
-            textureResource.imageView = gpu.unwrap_image_view(images[i]);
+            textureResource.handle = images[i];
         }
     }
 
-    void resource_pool::create_buffers(gpu::vk::vulkan_instance& ctx)
+    void resource_pool::create_buffers(gpu::gpu_instance& ctx)
     {
         for (auto& buffer : m_bufferResources)
         {
@@ -441,7 +427,6 @@ namespace oblo
                 buffer.buffer = r->buffer;
                 buffer.offset = r->offset;
                 buffer.size = r->size;
-                buffer.vkBuffer = ctx.unwrap_buffer(r->buffer);
             }
         }
     }
@@ -461,7 +446,7 @@ namespace oblo
         return struct_hash<std::hash>(key);
     }
 
-    void resource_pool::acquire_from_pool(gpu::vk::vulkan_instance& ctx, texture_resource& resource)
+    void resource_pool::acquire_from_pool(gpu::gpu_instance& ctx, texture_resource& resource)
     {
         OBLO_ASSERT(resource.stableId);
 
@@ -474,19 +459,15 @@ namespace oblo
             newImage.assert_value();
 
             it->second.allocatedImage = *newImage;
-            it->second.image = ctx.unwrap_image(*newImage);
-            it->second.imageView = ctx.unwrap_image_view(*newImage);
             it->second.creationTime = m_frame;
         }
 
-        resource.image = it->second.image;
-        resource.imageView = it->second.imageView;
         resource.framesAlive = m_frame - it->second.creationTime;
 
         it->second.lastUsedTime = m_frame;
     }
 
-    void resource_pool::acquire_from_pool(gpu::vk::vulkan_instance& ctx, buffer_resource& resource)
+    void resource_pool::acquire_from_pool(gpu::gpu_instance& ctx, buffer_resource& resource)
     {
         OBLO_ASSERT(resource.stableId);
         const auto [it, isNew] = m_stableBuffers.try_emplace(stable_buffer_key{
@@ -509,7 +490,6 @@ namespace oblo
 
         resource.buffer = it->second.allocatedBuffer;
         resource.offset = 0;
-        resource.vkBuffer = ctx.unwrap_buffer(resource.buffer);
         resource.framesAlive = m_frame - it->second.creationTime;
 
         it->second.lastUsedTime = m_frame;

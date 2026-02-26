@@ -19,6 +19,7 @@
 #include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/frame_graph_context.hpp>
 #include <oblo/renderer/graph/frame_graph_impl.hpp>
+#include <oblo/renderer/graph/frame_graph_resources_impl.hpp>
 #include <oblo/renderer/graph/frame_graph_template.hpp>
 #include <oblo/renderer/platform/renderer_platform.hpp>
 #include <oblo/renderer/renderer.hpp>
@@ -138,7 +139,7 @@ namespace oblo
                             const auto* const bufferPtr =
                                 static_cast<frame_graph_buffer_impl*>(impl.access_storage(bufferUsage.pinStorage));
 
-                            OBLO_ASSERT(bufferPtr && bufferPtr->buffer);
+                            OBLO_ASSERT(bufferPtr && bufferPtr->handle);
 
                             // When there's no access yet, we can just add a new barrier (we might update access/stage
                             // of it later)
@@ -541,7 +542,7 @@ namespace oblo
     {
         OBLO_PROFILE_SCOPE("Frame Graph Build");
 
-        gpu::gpu_instance& gpu = args.r.get_gpu_instance();
+        gpu::gpu_instance& gpu = args.gpu;
 
         // Free retained textures if the user destroyed some subgraphs that owned some
         m_impl->free_pending_textures(gpu);
@@ -642,7 +643,7 @@ namespace oblo
 
         m_impl->resourcePool.end_build(gpu);
 
-        auto& textureRegistry = args.textureRegistry;
+        auto& textureRegistry = args.rendererPlatform.textureRegistry;
 
         for (auto& texture : m_impl->bindlessTextures)
         {
@@ -658,8 +659,8 @@ namespace oblo
     {
         OBLO_PROFILE_SCOPE("Frame Graph Execute");
 
-        gpu::gpu_instance& gpu = args.r.get_gpu_instance();
-        const hptr<gpu::command_buffer> commandBuffer = args.r.get_active_command_buffer();
+        gpu::gpu_instance& gpu = args.gpu;
+        const hptr<gpu::command_buffer> commandBuffer = args.commandBuffer;
         auto& resourcePool = m_impl->resourcePool;
 
         m_impl->downloadStaging.begin_frame(gpu.get_submit_index());
@@ -682,7 +683,7 @@ namespace oblo
 
         if (!m_impl->pendingUploads.empty())
         {
-            m_impl->flush_uploads(commandBuffer, args.r.get_staging_buffer());
+            m_impl->flush_uploads(commandBuffer, args.stagingBuffer);
         }
 
         // Prepare the download buffers
@@ -817,7 +818,7 @@ namespace oblo
         m_impl->barriers = {};
         m_impl->currentNode = {};
 
-        auto& textureRegistry = args.textureRegistry;
+        auto& textureRegistry = args.rendererPlatform.textureRegistry;
 
         for (const auto& texture : m_impl->bindlessTextures)
         {
@@ -1175,16 +1176,13 @@ namespace oblo
             return {};
         }
 
-        auto& vk = static_cast<gpu::vk::vulkan_instance&>(gpu);
-
         const auto [storage, key] = pinStorage.emplace();
         const auto handle = h32<frame_graph_pin_storage>{key};
 
         frame_graph_texture_impl* const t =
             new (memoryPool.allocate(sizeof(frame_graph_texture_impl), alignof(frame_graph_texture_impl)))
                 frame_graph_texture_impl{
-                    .image = vk.unwrap_image(*newImage),
-                    .view = vk.unwrap_image_view(*newImage),
+                    .handle = *newImage,
                     .descriptor = initializer,
                 };
 

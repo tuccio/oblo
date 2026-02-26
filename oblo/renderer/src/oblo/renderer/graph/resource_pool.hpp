@@ -4,8 +4,6 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/structs.hpp>
-#include <oblo/gpu/vulkan/gpu_allocator.hpp>
-#include <oblo/renderer/platform/renderer_platform.hpp>
 
 #include <unordered_map>
 
@@ -24,6 +22,9 @@ namespace oblo
 
     struct stable_texture_resource;
     struct stable_buffer_resource;
+
+    struct frame_graph_buffer_impl;
+    struct frame_graph_texture_impl;
 
     class resource_pool
     {
@@ -86,11 +87,11 @@ namespace oblo
     private:
         void free_last_frame_resources(gpu::gpu_instance& ctx);
 
-        void create_textures(gpu::vk::vulkan_instance& gpu);
-        void create_buffers(gpu::vk::vulkan_instance& gpu);
+        void create_textures(gpu::gpu_instance& gpu);
+        void create_buffers(gpu::gpu_instance& gpu);
 
-        void acquire_from_pool(gpu::vk::vulkan_instance& gpu, texture_resource& resource);
-        void acquire_from_pool(gpu::vk::vulkan_instance& gpu, buffer_resource& resource);
+        void acquire_from_pool(gpu::gpu_instance& gpu, texture_resource& resource);
+        void acquire_from_pool(gpu::gpu_instance& gpu, buffer_resource& resource);
 
         void free_stable_textures(gpu::gpu_instance& ctx, u32 unusedFor);
         void free_stable_buffers(gpu::gpu_instance& ctx, u32 unusedFor);
