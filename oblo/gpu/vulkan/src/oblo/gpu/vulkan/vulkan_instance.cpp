@@ -2171,6 +2171,10 @@ namespace oblo::gpu::vk
         buffered_array<VkSemaphore, 8> waitSemaphores;
         buffered_array<VkSemaphore, 8> signalSemaphores;
         buffered_array<VkPipelineStageFlags, 8> waitStages;
+        buffered_array<u64, 8> signalSemaphoreValues;
+
+        const bool isMainQueue = queue == universal_queue_id;
+        const bool anyTimelineSemaphore = isMainQueue || !descriptor.signalSemaphoreValues.empty();
 
         if (!descriptor.waitSemaphores.empty())
         {
@@ -2185,22 +2189,54 @@ namespace oblo::gpu::vk
             }
         }
 
+        signalSemaphores.reserve(descriptor.signalSemaphores.size() + u32{isMainQueue});
+        signalSemaphoreValues.reserve(descriptor.signalSemaphores.size() + u32{isMainQueue});
+
+        signalSemaphoreValues.assign(descriptor.signalSemaphoreValues.begin(), descriptor.signalSemaphoreValues.end());
+
         if (!descriptor.signalSemaphores.empty())
         {
-            signalSemaphores.reserve(descriptor.signalSemaphores.size());
-
             for (const h32 h : descriptor.signalSemaphores)
             {
                 signalSemaphores.emplace_back(m_semaphores.at(h));
             }
         }
 
+        VkFence vkFence{};
+
+        OBLO_ASSERT(isMainQueue || !descriptor.signalFence,
+            "For the universal queue, we need to override with internal fence for tracking");
+
+        if (isMainQueue)
+        {
+            vkFence = m_fences.at(get_tracked_queue_fence());
+
+            const VkSemaphore timelineSemaphore = m_semaphores.at(m_timelineSemaphore);
+            signalSemaphores.emplace_back(timelineSemaphore);
+
+            signalSemaphoreValues.resize_default(signalSemaphores.size());
+            signalSemaphoreValues.back() = m_submitIndex;
+        }
+        else if (descriptor.signalFence)
+        {
+            vkFence = m_fences.at(descriptor.signalFence);
+        }
+
         auto* const commandBuffers = reinterpret_cast<const VkCommandBuffer* const>(descriptor.commandBuffers.data());
         const u32 commandBufferCount = u32(descriptor.commandBuffers.size());
 
+        const VkTimelineSemaphoreSubmitInfo timelineInfo{
+            .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .waitSemaphoreValueCount = 0,
+            .pWaitSemaphoreValues = nullptr,
+            .signalSemaphoreValueCount = signalSemaphoreValues.size32(),
+            .pSignalSemaphoreValues = signalSemaphoreValues.data(),
+        };
+
         const VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .pNext = nullptr,
+            .pNext = anyTimelineSemaphore ? &timelineInfo : nullptr,
             .waitSemaphoreCount = waitSemaphores.size32(),
             .pWaitSemaphores = waitSemaphores.data(),
             .pWaitDstStageMask = waitStages.data(),
@@ -2209,20 +2245,6 @@ namespace oblo::gpu::vk
             .signalSemaphoreCount = signalSemaphores.size32(),
             .pSignalSemaphores = signalSemaphores.data(),
         };
-
-        VkFence vkFence{};
-
-        OBLO_ASSERT(queue != universal_queue_id || !descriptor.signalFence,
-            "For the universal queue, we need to override with internal fence for tracking");
-
-        if (queue == universal_queue_id)
-        {
-            vkFence = m_fences.at(get_tracked_queue_fence());
-        }
-        else if (descriptor.signalFence)
-        {
-            vkFence = m_fences.at(descriptor.signalFence);
-        }
 
         const auto result = translate_result(vkQueueSubmit(get_queue(queue).queue, 1, &submitInfo, vkFence));
 

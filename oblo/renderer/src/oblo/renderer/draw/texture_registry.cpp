@@ -188,20 +188,18 @@ namespace oblo
         auto index = m_handlePool.get_index(texture.value);
         OBLO_ASSERT(index != 0 && index < m_textures.size());
 
-        auto& t = m_textures[index];
+        gpu::bindless_image_descriptor& image = m_textures[index];
+        bool& isOwned = m_isOwned[index];
 
-        if (t.image)
+        if (isOwned)
         {
             const auto submitIndex = m_gpu->get_submit_index();
-            m_gpu->destroy_deferred(t.image, submitIndex);
+            m_gpu->destroy_deferred(image.image, submitIndex);
         }
 
         // Reset to the dummy
-        t = m_textures[0];
-        t.image = {};
-
-        m_textures[index] = m_textures[0];
-        m_isOwned[index] = false;
+        image = m_textures[0];
+        isOwned = false;
 
         m_handlePool.release(texture.value);
     }

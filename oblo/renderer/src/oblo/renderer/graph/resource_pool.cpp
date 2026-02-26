@@ -410,6 +410,8 @@ namespace oblo
 
             OBLO_ASSERT(textureResource.handle);
         }
+
+        m_currentFramePool = *pool;
     }
 
     void resource_pool::create_buffers(gpu::gpu_instance& ctx)

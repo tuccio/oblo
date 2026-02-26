@@ -544,6 +544,16 @@ namespace oblo
 
         gpu::gpu_instance& gpu = args.gpu;
 
+        // Clear the bindless textures from last frame
+        auto& textureRegistry = args.rendererPlatform.textureRegistry;
+
+        for (const auto& texture : m_impl->bindlessTextures)
+        {
+            textureRegistry.remove(texture.resident);
+        }
+
+        m_impl->bindlessTextures.clear();
+
         // Free retained textures if the user destroyed some subgraphs that owned some
         m_impl->free_pending_textures(gpu);
 
@@ -642,17 +652,6 @@ namespace oblo
         }
 
         m_impl->resourcePool.end_build(gpu);
-
-        auto& textureRegistry = args.rendererPlatform.textureRegistry;
-
-        for (auto& texture : m_impl->bindlessTextures)
-        {
-            const h32 storage = to_storage_handle(texture.texture);
-            const h32 transientTexture = m_impl->pinStorage.at(storage).transientTexture;
-
-            const frame_graph_texture_impl& t = m_impl->resourcePool.get_transient_texture(transientTexture);
-            textureRegistry.set_external_texture(texture.resident, t.handle, texture.state);
-        }
     }
 
     void frame_graph::execute(const frame_graph_execute_args& args)
@@ -817,15 +816,6 @@ namespace oblo
 
         m_impl->barriers = {};
         m_impl->currentNode = {};
-
-        auto& textureRegistry = args.rendererPlatform.textureRegistry;
-
-        for (const auto& texture : m_impl->bindlessTextures)
-        {
-            textureRegistry.remove(texture.resident);
-        }
-
-        m_impl->bindlessTextures.clear();
 
         m_impl->downloadStaging.end_frame();
 

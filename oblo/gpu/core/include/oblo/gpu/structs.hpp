@@ -143,6 +143,7 @@ namespace oblo::gpu
         std::span<const h32<semaphore>> waitSemaphores;
         h32<fence> signalFence;
         std::span<const h32<semaphore>> signalSemaphores;
+        std::span<const u64> signalSemaphoreValues;
     };
 
     struct graphics_pipeline_stage

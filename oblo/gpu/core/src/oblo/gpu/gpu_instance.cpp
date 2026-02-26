@@ -111,7 +111,7 @@ namespace oblo::gpu
 
         auto& submitInfo = m_submitInfo[submitInfoIdx];
 
-        m_lastFinishedSubmit = read_timeline_semaphore(m_timelineSemaphore).value_or(m_lastFinishedSubmit);
+        m_lastFinishedSubmit = read_timeline_semaphore(m_timelineSemaphore).assert_value_or(m_lastFinishedSubmit);
 
         const std::span fences{&submitInfo.fence, 1};
 

@@ -52,6 +52,6 @@ namespace oblo
 
 #if defined(_MSC_VER)
     #define OBLO_DEBUGBREAK() __debugbreak()
-#else
-    #define OBLO_DEBUGBREAK() asm("int $3")
+#elif defined(__clang__)
+    #define OBLO_DEBUGBREAK() __builtin_debugtrap()
 #endif
