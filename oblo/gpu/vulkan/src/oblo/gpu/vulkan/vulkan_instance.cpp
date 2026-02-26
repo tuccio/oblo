@@ -768,7 +768,15 @@ namespace oblo::gpu::vk
 
             if (hasSamplers)
             {
-                samplers.reserve(binding.immutableSamplers.size());
+                const usize samplersCount = binding.immutableSamplers.size();
+                samplers.reserve(samplersCount);
+
+                for (usize i = 0; i < samplersCount; ++i)
+                {
+                    const h32 samplerHandle = binding.immutableSamplers[i];
+                    const VkSampler vkSampler = m_samplers.at(samplerHandle).vkSampler;
+                    samplers.emplace_back(vkSampler);
+                }
             }
 
             OBLO_ASSERT(binding.count > 0, "Probably forgot to set the count");

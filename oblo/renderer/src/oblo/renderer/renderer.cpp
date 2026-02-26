@@ -77,6 +77,16 @@ namespace oblo
         if (m_gpu)
         {
             m_frameGraph.shutdown(*m_gpu);
+
+            if (m_currentCmdBufferPool)
+            {
+                m_gpu->destroy(m_currentCmdBufferPool);
+
+                for (const auto& used : m_usedPools)
+                {
+                    m_gpu->destroy(used.pool);
+                }
+            }
         }
 
         if (m_platform)
