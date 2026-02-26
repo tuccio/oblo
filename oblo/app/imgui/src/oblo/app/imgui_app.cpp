@@ -415,7 +415,8 @@ namespace oblo
                 subgraphTextures = allocate_n_span<h32<resident_texture>>(ctx.get_frame_allocator(),
                     backend->pushImageSubgraphs.size());
 
-                for (usize i = 0; i < backend->registeredTextures.size(); ++i)
+                // Start from one because we treat 0 as null
+                for (usize i = ImTextureID_Invalid + 1; i < backend->registeredTextures.size(); ++i)
                 {
                     registeredTextures[i] = backend->registeredTextures[i].visit(overload{
                         [&ctx](const resource_ptr<texture>& t) { return ctx.load_resource(t); },

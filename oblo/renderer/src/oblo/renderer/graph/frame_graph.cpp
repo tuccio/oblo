@@ -652,6 +652,15 @@ namespace oblo
         }
 
         m_impl->resourcePool.end_build(gpu);
+
+        for (auto& texture : m_impl->bindlessTextures)
+        {
+            const h32 storage = to_storage_handle(texture.texture);
+            const h32 transientTexture = m_impl->pinStorage.at(storage).transientTexture;
+
+            const frame_graph_texture_impl& t = m_impl->resourcePool.get_transient_texture(transientTexture);
+            textureRegistry.set_external_texture(texture.resident, t.handle, texture.state);
+        }
     }
 
     void frame_graph::execute(const frame_graph_execute_args& args)
