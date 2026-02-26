@@ -357,16 +357,19 @@ namespace oblo
         void destroy_pipeline(gpu::gpu_instance& ctx, const render_pipeline& variant)
         {
             ctx.destroy_deferred(variant.pipeline, ctx.get_submit_index());
+            ctx.destroy_deferred(variant.descriptorSetLayout, ctx.get_submit_index());
         }
 
         void destroy_pipeline(gpu::gpu_instance& ctx, const compute_pipeline& variant)
         {
             ctx.destroy_deferred(variant.pipeline, ctx.get_submit_index());
+            ctx.destroy_deferred(variant.descriptorSetLayout, ctx.get_submit_index());
         }
 
         void destroy_pipeline(gpu::gpu_instance& ctx, const raytracing_pipeline& variant)
         {
             ctx.destroy_deferred(variant.pipeline, ctx.get_submit_index());
+            ctx.destroy_deferred(variant.descriptorSetLayout, ctx.get_submit_index());
         }
 
         template <typename Pass, typename Pipelines>

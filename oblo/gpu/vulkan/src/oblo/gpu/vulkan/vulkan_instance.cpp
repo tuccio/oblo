@@ -316,6 +316,7 @@ namespace oblo::gpu::vk
         if (m_dummySampler)
         {
             destroy(m_dummySampler);
+            m_dummySampler = {};
         }
 
         m_perFrameSetPool.shutdown();
