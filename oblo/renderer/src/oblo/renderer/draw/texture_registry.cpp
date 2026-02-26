@@ -145,6 +145,7 @@ namespace oblo
     void texture_registry::set_external_texture(
         h32<resident_texture> h, h32<gpu::image> image, gpu::image_resource_state state)
     {
+        OBLO_ASSERT(image);
         const gpu::bindless_image_descriptor residentTexture{
             .image = image,
             .state = state,
@@ -320,6 +321,7 @@ namespace oblo
 
         if (!image)
         {
+            OBLO_ASSERT(image);
             return false;
         }
 

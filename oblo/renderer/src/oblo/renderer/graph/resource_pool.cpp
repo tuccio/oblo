@@ -195,6 +195,7 @@ namespace oblo
 
     h32<transient_texture_resource> resource_pool::add_texture_impl(const frame_graph_texture_impl& t, bool isExternal)
     {
+        OBLO_ASSERT(t.handle);
         const auto id = m_textureResources.size32();
 
         m_textureResources.push_back({
@@ -209,6 +210,8 @@ namespace oblo
     h32<transient_texture_resource> resource_pool::add_external_texture(gpu::gpu_instance& gpu,
         h32<gpu::image> externalImage)
     {
+        OBLO_ASSERT(externalImage);
+
         const frame_graph_texture_impl t{
             .handle = externalImage,
             .descriptor = gpu.get_image_descriptor(externalImage),
@@ -374,26 +377,34 @@ namespace oblo
             descriptors.emplace_back(textureResource.descriptor);
         }
 
+        if (descriptors.empty())
+        {
+            return;
+        }
+
         dynamic_array<h32<gpu::image>> images;
-        descriptors.resize_default(descriptors.size());
+        images.resize_default(descriptors.size());
 
         const expected pool = gpu.create_image_pool(descriptors, images);
 
         if (!pool)
         {
+            OBLO_ASSERT(pool);
             return;
         }
 
-        for (usize i = 0; i < m_textureResources.size(); ++i)
+        for (usize imageIdx = 0, textureIdx = 0; imageIdx < images.size() && textureIdx < m_textureResources.size();
+            ++textureIdx)
         {
-            auto& textureResource = m_textureResources[i];
+            auto& textureResource = m_textureResources[textureIdx];
 
             if (textureResource.stableId || textureResource.isExternal)
             {
                 continue;
             }
 
-            textureResource.handle = images[i];
+            textureResource.handle = images[imageIdx];
+            ++imageIdx;
         }
     }
 

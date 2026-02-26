@@ -647,10 +647,10 @@ namespace oblo
 
         for (auto& texture : m_impl->bindlessTextures)
         {
-            const auto storage = to_storage_handle(texture.texture);
-            const auto transientTexture = m_impl->pinStorage.at(storage).transientTexture;
+            const h32 storage = to_storage_handle(texture.texture);
+            const h32 transientTexture = m_impl->pinStorage.at(storage).transientTexture;
 
-            const auto& t = m_impl->resourcePool.get_transient_texture(transientTexture);
+            const frame_graph_texture_impl& t = m_impl->resourcePool.get_transient_texture(transientTexture);
             textureRegistry.set_external_texture(texture.resident, t.handle, texture.state);
         }
     }

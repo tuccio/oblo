@@ -1237,6 +1237,8 @@ namespace oblo
             m_vk->get_allocator().get_allocation_callbacks(),
             &m_rt->tlas.accelerationStructure);
 
+        m_rt->tlas.handle = m_vk->register_acceleration_structure(m_rt->tlas.accelerationStructure);
+
         const VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo{
             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR,
             .accelerationStructure = m_rt->tlas.accelerationStructure,

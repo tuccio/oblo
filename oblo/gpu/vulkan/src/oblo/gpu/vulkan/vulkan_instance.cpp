@@ -28,7 +28,8 @@ namespace oblo::gpu::vk
         constexpr h32<queue> universal_queue_id{1u};
 
         constexpr flags descriptor_pool_general_kinds = resource_binding_kind::uniform |
-            resource_binding_kind::storage_buffer | resource_binding_kind::storage_image;
+            resource_binding_kind::storage_buffer | resource_binding_kind::storage_image |
+            resource_binding_kind::sampled_image | resource_binding_kind::acceleration_structure;
 
         constexpr flags descriptor_pool_texture_kinds =
             resource_binding_kind::sampler | resource_binding_kind::sampled_image;
@@ -529,6 +530,8 @@ namespace oblo::gpu::vk
             128u,
             0u,
             make_span_initializer<VkDescriptorPoolSize>({
+                {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 8},
+                {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 16},
                 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
                 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
             }));
