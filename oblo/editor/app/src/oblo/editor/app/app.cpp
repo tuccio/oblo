@@ -384,6 +384,7 @@ namespace oblo::editor
                     .isMaximized = true,
                     .isBorderless = true,
                 },
+                m_impl->m_runtimeRegistry.get_resource_registry(),
                 m_impl->m_vkEngine->get_frame_graph(),
                 {
                     .configFile = imguiIni.c_str(),
@@ -399,11 +400,6 @@ namespace oblo::editor
         m_impl->update_registries();
 
         init_ui();
-
-        if (!app.init_font_atlas(m_impl->m_runtimeRegistry.get_resource_registry()))
-        {
-            return;
-        }
 
         m_impl->startup_ui();
 

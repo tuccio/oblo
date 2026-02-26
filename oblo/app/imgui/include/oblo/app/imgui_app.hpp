@@ -37,12 +37,12 @@ namespace oblo
         imgui_app& operator=(const imgui_app&) = delete;
         imgui_app& operator=(imgui_app&&) noexcept = delete;
 
-        expected<> init(
-            const graphics_window_initializer& initializer, frame_graph& frameGraph, const imgui_app_config& cfg = {});
+        expected<> init(const graphics_window_initializer& initializer,
+            const resource_registry& resourceRegistry,
+            frame_graph& frameGraph,
+            const imgui_app_config& cfg = {});
 
         void shutdown();
-
-        expected<> init_font_atlas(const resource_registry& resourceRegistry);
 
         void begin_ui();
         void end_ui();

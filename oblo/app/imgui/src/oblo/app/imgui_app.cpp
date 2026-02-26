@@ -885,8 +885,10 @@ namespace oblo
 
     imgui_app::~imgui_app() = default;
 
-    expected<> imgui_app::init(
-        const graphics_window_initializer& initializer, frame_graph& frameGraph, const imgui_app_config& cfg)
+    expected<> imgui_app::init(const graphics_window_initializer& initializer,
+        const resource_registry& resourceRegistry,
+        frame_graph& frameGraph,
+        const imgui_app_config& cfg)
     {
         if (m_impl)
         {
@@ -901,6 +903,7 @@ namespace oblo
         m_eventProcessor.set_event_dispatcher({imgui_win32_dispatch_event});
 
         m_impl = allocate_unique<impl>();
+        m_impl->backend.resourceRegistry = &resourceRegistry;
         return m_impl->init(m_mainWindow, frameGraph, cfg);
     }
 
@@ -908,37 +911,6 @@ namespace oblo
     {
         m_impl.reset();
         graphics_app::shutdown();
-    }
-
-    expected<> imgui_app::init_font_atlas(const resource_registry& resourceRegistry)
-    {
-        ImGuiIO& io = ImGui::GetIO();
-
-        unsigned char* pixels;
-        int width, height;
-        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
-
-        texture font;
-
-        if (!font.allocate(texture_desc::make_2d(width, height, texture_format::r8g8b8a8_unorm)))
-        {
-            return "Failed to allocate font texture"_err;
-        }
-
-        std::span fontData = font.get_data();
-        const usize expectedSize = width * height * sizeof(u32) * sizeof(char);
-
-        if (fontData.size() != expectedSize)
-        {
-            return "Font texture data size mismatch"_err;
-        }
-
-        std::memcpy(fontData.data(), pixels, fontData.size_bytes());
-
-        m_impl->backend.resourceRegistry = &resourceRegistry;
-        m_impl->backend.register_texture(resourceRegistry.instantiate<texture>(std::move(font), "ImGui Font"));
-
-        return no_error;
     }
 
     void imgui_app::begin_ui()
