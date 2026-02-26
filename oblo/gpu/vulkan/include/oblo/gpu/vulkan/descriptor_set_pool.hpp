@@ -35,7 +35,7 @@ namespace oblo::gpu::vk
         struct used_pool
         {
             VkDescriptorPool pool;
-            u64 frameIndex;
+            u64 submitIndex;
         };
 
         struct pool_impl

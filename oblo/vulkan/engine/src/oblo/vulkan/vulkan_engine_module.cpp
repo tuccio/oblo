@@ -587,9 +587,8 @@ namespace oblo::vk
             }
         }
 
-        renderer.end_frame();
-
-        const hptr commandBuffer = renderer.finalize_command_buffer_for_submission();
+        const hptr commandBuffer = renderer.end_frame();
+        OBLO_ASSERT(commandBuffer);
 
         presentDoneSubmitIndex[semaphoreIndex] = ctx.get_submit_index();
 

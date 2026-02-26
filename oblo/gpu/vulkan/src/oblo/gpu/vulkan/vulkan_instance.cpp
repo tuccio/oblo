@@ -535,7 +535,7 @@ namespace oblo::gpu::vk
 
         /// @see descriptor_pool_texture-kinds, this one allows bindless descriptors for textures
         m_perFrameSetPool.add_pool_kind(descriptor_pool_texture_kinds,
-            1u, // This is just because we only need one
+            2u, // This is just because we only need one per each type, but it should be revisited
             VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
             make_span_initializer<VkDescriptorPoolSize>({
                 {VK_DESCRIPTOR_TYPE_SAMPLER, 32}, // We might want to expose or let users configure these limits
@@ -848,6 +848,7 @@ namespace oblo::gpu::vk
 
         it->descriptorSetLayout = vkLayout;
         it->resourceKinds = resourceKinds;
+        it->debugLabel = descriptor.debugLabel;
 
         return handle;
     }

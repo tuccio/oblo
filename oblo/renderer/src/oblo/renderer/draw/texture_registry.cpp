@@ -308,8 +308,10 @@ namespace oblo
             .height = desc.height,
             .depth = desc.depth,
             .mipLevels = desc.numLevels,
+            .arrayLayers = 1,
             .type = *imageType,
             .samples = gpu::samples_count::one,
+            .memoryUsage = gpu::memory_usage::gpu_only,
             .usages = gpu::image_usage::shader_sample | gpu::image_usage::transfer_destination,
             .debugLabel = debugName,
         };

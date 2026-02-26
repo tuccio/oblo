@@ -676,6 +676,7 @@ namespace oblo
 
             newBindGroupBindings.push_back({
                 .binding = resource.binding,
+                .count = 1u,
                 .bindingKind = descriptorType,
                 .shaderStages = resource.stageFlags,
             });
@@ -1642,6 +1643,7 @@ namespace oblo
             return failure();
         }
 
+        pipelineIt->pipeline = *graphicsPipeline;
         renderPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
         return pipelineHandle;
     }
@@ -1759,6 +1761,7 @@ namespace oblo
             return failure();
         }
 
+        pipelineIt->pipeline = *computePipeline;
         computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
 
         return failure();
@@ -1937,6 +1940,7 @@ namespace oblo
             return failure();
         }
 
+        pipelineIt->pipeline = *rayTracingPipeline;
         raytracingPass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
         return pipelineHandle;
     }

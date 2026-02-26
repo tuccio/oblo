@@ -112,9 +112,11 @@ namespace oblo
 
             m_firstUpdate = false;
         }
+
+        m_gpu->begin_submit_tracking().assert_value();
     }
 
-    void renderer::end_frame()
+    hptr<gpu::command_buffer> renderer::end_frame()
     {
         const hptr<gpu::command_buffer> commandBuffer = get_active_command_buffer();
         OBLO_ASSERT(commandBuffer);
@@ -122,7 +124,7 @@ namespace oblo
         if (!commandBuffer)
         {
             // If we didn't get a command buffer it may be an unrecoverable error, but we try to keep going
-            return;
+            return {};
         }
 
         m_platform->textureRegistry.flush_uploads(commandBuffer);
@@ -152,8 +154,7 @@ namespace oblo
         m_platform->passManager.end_frame();
         m_stagingBuffer.end_frame();
 
-        m_currentCmdBufferPool = {};
-        m_currentCmdBuffer = {};
+        return finalize_command_buffer_for_submission();
     }
 
     const instance_data_type_registry& renderer::get_instance_data_type_registry() const
@@ -204,19 +205,19 @@ namespace oblo
 
     hptr<gpu::command_buffer> renderer::finalize_command_buffer_for_submission()
     {
-        const hptr<gpu::command_buffer> cmd = m_currentCmdBuffer;
-
-        if (!cmd)
+        if (m_currentCmdBufferPool)
         {
-            return cmd;
+            m_usedPools.emplace_back(m_currentCmdBufferPool, m_gpu->get_submit_index());
+            m_currentCmdBufferPool = {};
         }
 
-        m_gpu->end_command_buffer(cmd).assert_value();
+        const hptr<gpu::command_buffer> cmd = m_currentCmdBuffer;
 
-        m_usedPools.emplace_back(m_currentCmdBufferPool, m_gpu->get_submit_index());
-
-        m_currentCmdBufferPool = {};
-        m_currentCmdBuffer = {};
+        if (cmd)
+        {
+            m_gpu->end_command_buffer(cmd).assert_value();
+            m_currentCmdBuffer = {};
+        }
 
         return cmd;
     }

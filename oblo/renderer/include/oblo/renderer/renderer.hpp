@@ -30,7 +30,7 @@ namespace oblo
         void shutdown();
 
         void begin_frame();
-        void end_frame();
+        [[nodiscard]] hptr<gpu::command_buffer> end_frame();
 
         gpu::gpu_instance& get_gpu_instance();
 
@@ -46,8 +46,6 @@ namespace oblo
 
         hptr<gpu::command_buffer> get_active_command_buffer();
 
-        hptr<gpu::command_buffer> finalize_command_buffer_for_submission();
-
         resource_cache& get_resource_cache();
 
         // An opaque handle for frame graph arguments, it's only really here for unit testing purposing
@@ -55,6 +53,9 @@ namespace oblo
 
     private:
         struct used_command_buffer_pool;
+
+    private:
+        [[nodiscard]] hptr<gpu::command_buffer> finalize_command_buffer_for_submission();
 
     private:
         gpu::gpu_instance* m_gpu{};

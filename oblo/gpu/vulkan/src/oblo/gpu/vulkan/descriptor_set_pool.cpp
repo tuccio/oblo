@@ -49,17 +49,12 @@ namespace oblo::gpu::vk
         {
             if (impl.current)
             {
-                impl.usedPools.emplace_back(impl.current, m_submitIndex);
+                impl.usedPools.emplace_back(impl.current, submitIndex);
                 impl.current = nullptr;
-            }
-
-            for (const auto& [pool, index] : impl.usedPools)
-            {
-                vkDestroyDescriptorPool(m_device, pool, m_allocator);
             }
         }
 
-        m_submitIndex = submitIndex;
+        m_submitIndex = submitIndex + 1;
     }
 
     result<VkDescriptorSet> descriptor_set_pool::acquire(flags<gpu::resource_binding_kind> kinds,
@@ -143,7 +138,7 @@ namespace oblo::gpu::vk
         {
             // Nothing to do, we will return the current one
         }
-        else if (!impl.usedPools.empty() && lastFinishedSubmit >= impl.usedPools.front().frameIndex)
+        else if (!impl.usedPools.empty() && lastFinishedSubmit >= impl.usedPools.front().submitIndex)
         {
             // The pool is no longer in use since the submit was executed, we can reuse it.
             auto* const next = impl.usedPools.front().pool;
