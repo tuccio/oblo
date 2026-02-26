@@ -24,7 +24,7 @@ namespace oblo
     struct mesh_attribute_description
     {
         h32<buffer_table_name> name;
-        u32 elementSize;
+        u64 elementSize;
     };
 
     // We might want to search all mesh tables that have the same attributes?

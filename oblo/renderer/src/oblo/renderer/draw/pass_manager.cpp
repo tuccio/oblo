@@ -1256,6 +1256,7 @@ namespace oblo
         const expected samplersSetLayout = gpu.create_bind_group_layout({
             .bindings = make_span_initializer<gpu::bind_group_binding>({{
                 .binding = TexturesSamplerBinding,
+                .count = array_size32(m_impl->samplers),
                 .bindingKind = gpu::resource_binding_kind::sampler,
                 .shaderStages = flags<gpu::shader_stage>::all(),
                 .immutableSamplers = m_impl->samplers,

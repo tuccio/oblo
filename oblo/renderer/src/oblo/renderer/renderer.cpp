@@ -24,6 +24,8 @@ namespace oblo
 
     bool renderer::init(const renderer::initializer& initializer)
     {
+        m_gpu = &initializer.gpu;
+
         // Only vulkan is currently supported
         auto* const vk = dynamic_cast<gpu::vk::vulkan_instance*>(m_gpu);
 
@@ -31,8 +33,6 @@ namespace oblo
         {
             return false;
         }
-
-        m_gpu = &initializer.gpu;
 
         m_isRayTracingEnabled = initializer.isRayTracingEnabled;
 
@@ -74,11 +74,17 @@ namespace oblo
 
     void renderer::shutdown()
     {
-        m_frameGraph.shutdown(*m_gpu);
+        if (m_gpu)
+        {
+            m_frameGraph.shutdown(*m_gpu);
+        }
 
-        m_platform->passManager.shutdown();
+        if (m_platform)
+        {
+            m_platform->passManager.shutdown();
+            m_platform->textureRegistry.shutdown();
+        }
 
-        m_platform->textureRegistry.shutdown();
         m_stagingBuffer.shutdown();
     }
 

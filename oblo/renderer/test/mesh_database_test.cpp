@@ -39,17 +39,19 @@ namespace oblo::vk::test
 
                 auto& gpu = vkEngine->get_gpu_instance();
 
+                constexpr auto makeName = [](attributes attr) { return h32<buffer_table_name>{u32(attr) + 1}; };
+
                 mesh_attribute_description attributes[] = {
                     {
-                        .name = h32<buffer_table_name>{u32(attributes::position)},
+                        .name = makeName(attributes::position),
                         .elementSize = sizeof(vec3),
                     },
                     {
-                        .name = h32<buffer_table_name>{u32(attributes::normal)},
+                        .name = makeName(attributes::normal),
                         .elementSize = sizeof(vec3),
                     },
                     {
-                        .name = h32<buffer_table_name>{u32(attributes::uv0)},
+                        .name = makeName(attributes::uv0),
                         .elementSize = sizeof(vec2),
                     },
                 };

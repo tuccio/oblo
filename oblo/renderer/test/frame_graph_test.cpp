@@ -157,25 +157,27 @@ namespace oblo::vk::test
         dynamic_array<frame_graph_template::vertex_handle> sorted;
         ASSERT_TRUE(topological_sort(g, sorted));
 
-#if 0 // Useful to see the result
-        std::stringstream ss;
+        if constexpr (false)
+        {
+            std::stringstream ss;
 
-        write_graphviz_dot(ss,
-            g,
-            [&g](auto v) -> std::string
-            {
-                const auto& d = g[v];
-
-                if (!d.name.empty())
+            write_graphviz_dot(ss,
+                g,
+                [&g](auto v) -> std::string
                 {
-                    return d.name;
-                }
+                    const auto& d = g[v];
 
-                return std::to_string(d.pinMemberOffset);
-            });
+                    if (!d.name.empty())
+                    {
+                        return d.name;
+                    }
 
-        const auto str = ss.str();
-#endif
+                    return std::to_string(d.pinMemberOffset);
+                });
+
+            const auto str = ss.str();
+            std::puts(str.c_str());
+        }
 
         dynamic_array<frame_graph_template::vertex_handle> sortedNodes;
 

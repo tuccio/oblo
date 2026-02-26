@@ -128,16 +128,19 @@ namespace oblo::vk
 
             bool create_swapchain(gpu::gpu_instance& ctx)
             {
-                if (!ctx.create_swapchain({
-                        .surface = surface,
-                        .format = g_SwapchainFormat,
-                        .width = width,
-                        .height = height,
-                    }))
+                const expected r = ctx.create_swapchain({
+                    .surface = surface,
+                    .format = g_SwapchainFormat,
+                    .width = width,
+                    .height = height,
+                });
+
+                if (!r)
                 {
                     return false;
                 }
 
+                swapchain = *r;
                 return true;
             }
 
@@ -320,7 +323,6 @@ namespace oblo::vk
 
     bool vulkan_engine_module::impl::initialize()
     {
-
         if (!ctx.init({
                 .application = "oblo",
                 .engine = "oblo",
