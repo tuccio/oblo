@@ -29,10 +29,10 @@ namespace oblo::gpu::vk
 
         constexpr flags descriptor_pool_general_kinds = resource_binding_kind::uniform |
             resource_binding_kind::storage_buffer | resource_binding_kind::storage_image |
-            resource_binding_kind::sampled_image | resource_binding_kind::acceleration_structure;
+            resource_binding_kind::sampler | resource_binding_kind::sampled_image |
+            resource_binding_kind::acceleration_structure;
 
-        constexpr flags descriptor_pool_texture_kinds =
-            resource_binding_kind::sampler | resource_binding_kind::sampled_image;
+        constexpr flags descriptor_pool_bindless_texture_kinds = resource_binding_kind::sampled_image;
 
         constexpr VkPhysicalDeviceFeatures g_physicalDeviceFeatures{
             .multiDrawIndirect = true,
@@ -532,17 +532,17 @@ namespace oblo::gpu::vk
             0u,
             make_span_initializer<VkDescriptorPoolSize>({
                 {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 8},
+                {VK_DESCRIPTOR_TYPE_SAMPLER, 16},
                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 16},
                 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
                 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
             }));
 
-        /// @see descriptor_pool_texture-kinds, this one allows bindless descriptors for textures
-        m_perFrameSetPool.add_pool_kind(descriptor_pool_texture_kinds,
-            2u, // This is just because we only need one per each type, but it should be revisited
+        /// @see descriptor_pool_bindless_texture_kinds, this one allows bindless descriptors for textures
+        m_perFrameSetPool.add_pool_kind(descriptor_pool_bindless_texture_kinds,
+            1u,
             VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT,
             make_span_initializer<VkDescriptorPoolSize>({
-                {VK_DESCRIPTOR_TYPE_SAMPLER, 32}, // We might want to expose or let users configure these limits
                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, max_bindless_images},
             }));
 
@@ -812,16 +812,16 @@ namespace oblo::gpu::vk
         VkDescriptorSetLayoutCreateFlags createFlags{};
         flags<resource_binding_kind> resourceKinds{};
 
-        if (descriptor_pool_general_kinds.contains_all(bindingKinds))
-        {
-            resourceKinds = descriptor_pool_general_kinds;
-        }
-        else if (descriptor_pool_texture_kinds.contains_all(bindingKinds))
+        if (descriptor_pool_bindless_texture_kinds.contains_all(bindingKinds))
         {
             createFlags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
             pAcquireNext = &extendedInfo;
 
-            resourceKinds = descriptor_pool_texture_kinds;
+            resourceKinds = descriptor_pool_bindless_texture_kinds;
+        }
+        else if (descriptor_pool_general_kinds.contains_all(bindingKinds))
+        {
+            resourceKinds = descriptor_pool_general_kinds;
         }
         else
         {
@@ -922,6 +922,7 @@ namespace oblo::gpu::vk
         h32<bind_group_layout> handle, u32 binding, u32 count)
     {
         const bind_group_layout_impl& layoutImpl = m_bindGroupLayouts.at(handle);
+        OBLO_ASSERT(layoutImpl.resourceKinds == descriptor_pool_bindless_texture_kinds);
 
         VkDescriptorSetVariableDescriptorCountAllocateInfoEXT countInfo{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
