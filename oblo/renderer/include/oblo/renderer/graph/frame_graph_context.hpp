@@ -209,7 +209,7 @@ namespace oblo
 
         void bind_descriptor_sets(binding_tables_span bindingTables) const;
 
-        void bind_index_buffer(pin::buffer buffer, u32 bufferOffset, gpu::mesh_index_type indexType) const;
+        void bind_index_buffer(pin::buffer buffer, u64 bufferOffset, gpu::mesh_index_type indexType) const;
 
         gpu::buffer_range access(pin::buffer handle) const;
         h32<gpu::image> access(pin::texture handle) const;

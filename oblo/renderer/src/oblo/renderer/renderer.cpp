@@ -13,6 +13,12 @@ namespace oblo
 {
     constexpr u32 StagingBufferSize{1u << 29};
 
+    struct renderer::used_command_buffer_pool
+    {
+        h32<gpu::command_buffer_pool> pool;
+        u64 submitIndex;
+    };
+
     renderer::renderer() = default;
     renderer::~renderer() = default;
 
@@ -94,7 +100,14 @@ namespace oblo
 
     void renderer::end_frame()
     {
-        const VkCommandBuffer commandBuffer = m_gpu->get_active_command_buffer();
+        const hptr<gpu::command_buffer> commandBuffer = get_active_command_buffer();
+        OBLO_ASSERT(commandBuffer);
+
+        if (!commandBuffer)
+        {
+            // If we didn't get a command buffer it may be an unrecoverable error, but we try to keep going
+            return;
+        }
 
         m_platform->textureRegistry.flush_uploads(commandBuffer);
 
@@ -126,10 +139,73 @@ namespace oblo
 
         m_platform->passManager.end_frame();
         m_stagingBuffer.end_frame();
+
+        m_currentCmdBufferPool = {};
+        m_currentCmdBuffer = {};
     }
 
     const instance_data_type_registry& renderer::get_instance_data_type_registry() const
     {
         return *m_instanceDataTypeRegistry;
+    }
+
+    hptr<gpu::command_buffer> renderer::get_active_command_buffer()
+    {
+        if (m_currentCmdBuffer)
+        {
+            return m_currentCmdBuffer;
+        }
+
+        if (!m_currentCmdBufferPool)
+        {
+            if (!m_usedPools.empty() && m_gpu->is_submit_done(m_usedPools.front().submitIndex))
+            {
+                m_currentCmdBufferPool = m_usedPools.front().pool;
+                m_usedPools.pop_front();
+            }
+            else
+            {
+                m_currentCmdBufferPool = m_gpu
+                                             ->create_command_buffer_pool({
+                                                 .queue = m_gpu->get_universal_queue(),
+                                                 .numCommandBuffers = 8,
+                                             })
+                                             .assert_value_or({});
+
+                if (!m_currentCmdBufferPool)
+                {
+                    return {};
+                }
+            }
+        }
+
+        if (m_gpu->fetch_command_buffers(m_currentCmdBufferPool, {&m_currentCmdBuffer, 1u}))
+        {
+            if (!m_gpu->begin_command_buffer(m_currentCmdBuffer))
+            {
+                m_currentCmdBuffer = {};
+            }
+        }
+
+        return m_currentCmdBuffer;
+    }
+
+    hptr<gpu::command_buffer> renderer::finalize_command_buffer_for_submission()
+    {
+        const hptr<gpu::command_buffer> cmd = m_currentCmdBuffer;
+
+        if (!cmd)
+        {
+            return cmd;
+        }
+
+        m_gpu->end_command_buffer(cmd).assert_value();
+
+        m_usedPools.emplace_back(m_currentCmdBufferPool, m_gpu->get_submit_index());
+
+        m_currentCmdBufferPool = {};
+        m_currentCmdBuffer = {};
+
+        return cmd;
     }
 }

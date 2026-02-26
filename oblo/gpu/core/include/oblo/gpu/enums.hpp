@@ -475,6 +475,7 @@ namespace oblo::gpu
         transfer_source,
         transfer_destination,
         present,
+        enum_max,
     };
 
     enum class pipeline_sync_stage : u8

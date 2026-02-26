@@ -43,8 +43,12 @@ namespace oblo
 
         bool is_ray_tracing_enabled() const;
 
-        // TODO: Get rid of the global command buffer
         hptr<gpu::command_buffer> get_active_command_buffer();
+
+        hptr<gpu::command_buffer> finalize_command_buffer_for_submission();
+
+    private:
+        struct used_command_buffer_pool;
 
     private:
         gpu::gpu_instance* m_gpu{};
@@ -54,10 +58,14 @@ namespace oblo
         gpu::staging_buffer m_stagingBuffer;
 
         unique_ptr<renderer_platform> m_platform;
+        deque<used_command_buffer_pool> m_usedPools;
 
         string_interner m_stringInterner;
 
         frame_graph m_frameGraph;
+
+        hptr<gpu::command_buffer> m_currentCmdBuffer{};
+        h32<gpu::command_buffer_pool> m_currentCmdBufferPool{};
 
         bool m_firstUpdate{};
         bool m_isRayTracingEnabled{};

@@ -924,7 +924,7 @@ namespace oblo
 
     void frame_graph_execute_context::bind_descriptor_sets(binding_tables_span bindingTables) const
     {
-        const binding_locator locator(m_frameGraph,
+        binding_locator locator(m_frameGraph,
             m_args,
             m_state.imageStateTracker,
             bindingTables,
@@ -951,10 +951,10 @@ namespace oblo
     }
 
     void frame_graph_execute_context::bind_index_buffer(
-        pin::buffer buffer, u32 bufferOffset, gpu::mesh_index_type indexType) const
+        pin::buffer buffer, u64 bufferOffset, gpu::mesh_index_type indexType) const
     {
         const frame_graph_buffer_impl& b = access_storage_resource(m_frameGraph, buffer);
-        m_state.gpu->cmd_bind_index_buffer(m_state.commandBuffer, b.handle, b.offset, indexType);
+        m_state.gpu->cmd_bind_index_buffer(m_state.commandBuffer, b.handle, b.offset + bufferOffset, indexType);
     }
 
     gpu::buffer_range frame_graph_execute_context::access(pin::buffer handle) const
