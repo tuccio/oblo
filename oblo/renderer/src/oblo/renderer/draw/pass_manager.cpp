@@ -1261,7 +1261,7 @@ namespace oblo
                 .shaderStages = flags<gpu::shader_stage>::all(),
                 .immutableSamplers = m_impl->samplers,
             }}),
-            .debugLabel = "sampler::samplers_layout",
+            .debugLabel = "bind_group::samplers",
         });
 
         m_impl->samplersSetLayout = samplersSetLayout.assert_value_or({});
@@ -1274,7 +1274,7 @@ namespace oblo
                 .bindingKind = gpu::resource_binding_kind::sampled_image,
                 .shaderStages = flags<gpu::shader_stage>::all(),
             }}),
-            .debugLabel = "sampler::bindless_textures",
+            .debugLabel = "bind_group::bindless_textures",
         });
 
         m_impl->textures2DSetLayout = bindlessTexturesLayout.assert_value_or({});

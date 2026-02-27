@@ -293,7 +293,7 @@ namespace oblo
         if (meshletBuffer && m_meshletsBuffer)
         {
             *meshletBuffer = {
-                .buffer = m_meshDataBuffer,
+                .buffer = m_meshletsBuffer,
             };
 
             meshletBuffer->offset += sizeof(meshlet_range) * range->meshletOffset;
