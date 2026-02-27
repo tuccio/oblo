@@ -1,4 +1,4 @@
-name: Win64 vs2022 Debug
+name: Win64 clang-cl Debug
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ env:
 
 jobs:
   build:
-    name: Win64 vs2022 Debug
+    name: Win64 clang-cl Debug
     runs-on: self-hosted
 
     steps:
@@ -24,8 +24,11 @@ jobs:
         submodules: 'true'
 
     - name: Configure CMake
-      shell: powershell
-      run: cmake -B ${{github.workspace}}/build --preset windows-vs2022
+      shell: cmd # Run cmd to keep the vcvars, then switch to powershell to configure
+      run: |
+        call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" x64
+        powershell
+        cmake -B ${{github.workspace}}/build --preset windows-ninja-clang-cl
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}

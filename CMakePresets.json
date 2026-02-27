@@ -56,10 +56,11 @@
             }
         },
         {
-            "name": "windows-vs2022",
+            "name": "windows-vs2026-clangcl",
             "description": "Settings for Visual Studio configurations",
-            "generator": "Visual Studio 17 2022",
+            "generator": "Visual Studio 18 2026",
             "inherits": "conf-windows-common",
+            "toolset": "ClangCL",
             "environment": {
                 "OBLO_CONAN_MULTICONFIG": "True"
             },
@@ -86,7 +87,7 @@
             ]
         },
         {
-            "name": "windows-clang-cl",
+            "name": "windows-ninja-clang-cl",
             "description": "Windows settings for clang-cl",
             "inherits": "conf-windows-ninja",
             "cacheVariables": {
