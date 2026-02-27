@@ -1767,7 +1767,7 @@ namespace oblo
         pipelineIt->pipeline = *computePipeline;
         computePass->variants.push_back({.hash = expectedHash, .pipeline = pipelineHandle});
 
-        return failure();
+        return pipelineHandle;
     }
 
     h32<raytracing_pipeline> pass_manager::get_or_create_pipeline(h32<raytracing_pass> raytracingPassHandle,

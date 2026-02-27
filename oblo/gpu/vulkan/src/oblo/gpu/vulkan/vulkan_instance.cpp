@@ -2093,11 +2093,10 @@ namespace oblo::gpu::vk
 
         const VkCommandBuffer vkCommandBuffer = unwrap_handle<VkCommandBuffer>(cmdBuffer);
 
+        m_cmdLabeler.begin(vkCommandBuffer, p->label.get());
+
         vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p->pipeline);
         vkCmdBeginRendering(vkCommandBuffer, &renderingInfo);
-
-        // TODO: Bind descriptors
-        // TODO: We might want context in some cases, e.g. with profiling active
 
         return hptr<graphics_pass>{pipeline.value};
     }
@@ -2105,6 +2104,7 @@ namespace oblo::gpu::vk
     void vulkan_instance::end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass>)
     {
         vkCmdEndRendering(unwrap_handle<VkCommandBuffer>(cmdBuffer));
+        m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }
 
     result<hptr<compute_pass>> vulkan_instance::begin_compute_pass(hptr<command_buffer> cmdBuffer,
@@ -2118,11 +2118,9 @@ namespace oblo::gpu::vk
         }
 
         const VkCommandBuffer vkCommandBuffer = unwrap_handle<VkCommandBuffer>(cmdBuffer);
-        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p->pipeline);
-
-        // TODO: Bind descriptors
-
         m_cmdLabeler.begin(vkCommandBuffer, p->label.get());
+
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, p->pipeline);
 
         return hptr<compute_pass>{pipeline.value};
     }
@@ -2143,14 +2141,10 @@ namespace oblo::gpu::vk
         }
 
         const VkCommandBuffer vkCommandBuffer = unwrap_handle<VkCommandBuffer>(cmdBuffer);
-        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, p->pipeline);
-
-        // TODO: Bind descriptors
-        // TODO: Begin label
-
         m_cmdLabeler.begin(vkCommandBuffer, p->label.get());
 
-        // This is used in trace_rays, if we change this we need to update that too
+        vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, p->pipeline);
+
         return hptr<raytracing_pass>{pipeline.value};
     }
 
