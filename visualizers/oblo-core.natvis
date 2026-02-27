@@ -123,11 +123,7 @@
 
 
     <Type Name="oblo::flags&lt;*,*&gt;">
-        <DisplayString Condition="storage == 0">empty</DisplayString>
-        <DisplayString
-            Condition="storage != 0">
-            {storage} ({storage,b})
-        </DisplayString>
+        <DisplayString>{storage} ({storage,b})</DisplayString>
 
         <Expand>
             <Item Name="raw">storage</Item>

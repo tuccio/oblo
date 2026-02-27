@@ -1085,8 +1085,6 @@ namespace oblo::gpu::vk
             return translate_error(r);
         }
 
-        label_vulkan_object(allocatedBuffer.buffer, descriptor.debugLabel);
-
         const auto [it, h] = m_buffers.emplace(allocatedBuffer);
         return h;
     }
@@ -1163,8 +1161,6 @@ namespace oblo::gpu::vk
         {
             return translate_error(r);
         }
-
-        label_vulkan_object(allocatedImage.image, descriptor.debugLabel);
 
         const expected view = image_utils::create_image_view(m_device,
             allocatedImage.image,

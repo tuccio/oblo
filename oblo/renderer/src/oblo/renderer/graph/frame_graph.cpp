@@ -893,9 +893,17 @@ namespace oblo
         case pass_kind::raytracing:
             stages = gpu::pipeline_sync_stage::raytracing;
             break;
+        case pass_kind::compute:
+            stages = gpu::pipeline_sync_stage::compute;
+            break;
         case pass_kind::graphics:
             stages = gpu::pipeline_sync_stage::graphics;
             break;
+        case pass_kind::none:
+            break;
+
+        default:
+            unreachable();
         }
 
         // TODO: Can we also prepare these in advance?
