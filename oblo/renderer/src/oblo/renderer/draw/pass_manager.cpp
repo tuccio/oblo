@@ -494,6 +494,9 @@ namespace oblo
         void invalidate_all_passes(Filter&& f = {});
 
         void propagate_pipeline_invalidation();
+
+        hptr<gpu::profiling_context> maybe_begin_profiling(hptr<gpu::command_buffer> cmd,
+            const base_pipeline& pipeline) const;
     };
 
     void pass_manager::impl::add_watch(string_view file, h32<compute_pass> pass)
@@ -1016,6 +1019,19 @@ namespace oblo
                 log::debug("Processing of directory watcher {} failed", watcher.get_directory());
             }
         }
+    }
+
+    hptr<gpu::profiling_context> pass_manager::impl::maybe_begin_profiling(hptr<gpu::command_buffer> cmd,
+        const base_pipeline& pipeline) const
+    {
+        hptr<gpu::profiling_context> r{};
+
+        if (enableProfilingThisFrame)
+        {
+            r = gpu->cmd_profile_begin(cmd, pipeline.label).value_or({});
+        }
+
+        return r;
     }
 
     hptr<gpu::bind_group> pass_manager::impl::create_descriptor_set(
@@ -1979,6 +1995,13 @@ namespace oblo
         }
 
         m_impl->propagate_pipeline_invalidation();
+
+        if (m_impl->enableProfilingThisFrame)
+        {
+            m_impl->gpu->cmd_profile_collect_metrics(commandBuffer);
+        }
+
+        m_impl->enableProfilingThisFrame = m_impl->enableProfiling && m_impl->gpu->is_profiler_attached();
     }
 
     void pass_manager::end_frame() {}
@@ -2050,8 +2073,11 @@ namespace oblo
             return "Failed to begin pass"_err;
         }
 
+        const hptr profilingContext = m_impl->maybe_begin_profiling(commandBuffer, *pipeline);
+
         const render_pass_context renderPassContext{
             .commandBuffer = commandBuffer,
+            .profilingContext = profilingContext,
             .internalPipeline = pipeline,
         };
 
@@ -2061,6 +2087,11 @@ namespace oblo
     void pass_manager::end_render_pass(const render_pass_context& context) const
     {
         m_impl->gpu->end_graphics_pass(context.commandBuffer);
+
+        if (context.profilingContext)
+        {
+            m_impl->gpu->cmd_profile_end(context.commandBuffer, context.profilingContext);
+        }
     }
 
     expected<compute_pass_context> pass_manager::begin_compute_pass(hptr<gpu::command_buffer> commandBuffer,
@@ -2096,8 +2127,11 @@ namespace oblo
             return "Failed to begin pass"_err;
         }
 
+        const hptr profilingContext = m_impl->maybe_begin_profiling(commandBuffer, *pipeline);
+
         const compute_pass_context computePassContext{
             .commandBuffer = commandBuffer,
+            .profilingContext = profilingContext,
             .internalPipeline = pipeline,
         };
 
@@ -2106,6 +2140,11 @@ namespace oblo
 
     void pass_manager::end_compute_pass(const compute_pass_context& context) const
     {
+        if (context.profilingContext)
+        {
+            m_impl->gpu->cmd_profile_end(context.commandBuffer, context.profilingContext);
+        }
+
         m_impl->gpu->end_compute_pass(context.commandBuffer);
     }
 
@@ -2142,8 +2181,11 @@ namespace oblo
             return "Failed to begin pass"_err;
         }
 
+        const hptr profilingContext = m_impl->maybe_begin_profiling(commandBuffer, *pipeline);
+
         const raytracing_pass_context rtPipelineContext{
             .commandBuffer = commandBuffer,
+            .profilingContext = profilingContext,
             .internalPipeline = pipeline,
         };
 
@@ -2152,6 +2194,11 @@ namespace oblo
 
     void pass_manager::end_raytracing_pass(const raytracing_pass_context& context) const
     {
+        if (context.profilingContext)
+        {
+            m_impl->gpu->cmd_profile_end(context.commandBuffer, context.profilingContext);
+        }
+
         m_impl->gpu->end_raytracing_pass(context.commandBuffer);
     }
 

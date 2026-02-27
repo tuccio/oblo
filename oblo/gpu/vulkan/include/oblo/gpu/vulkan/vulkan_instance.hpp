@@ -2,6 +2,7 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
@@ -35,6 +36,8 @@ namespace oblo::gpu::vk
         h32<queue> get_universal_queue() override;
 
         device_info get_device_info() override;
+
+        bool is_profiler_attached() const;
 
         result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) override;
         void destroy(h32<swapchain> handle) override;
@@ -237,8 +240,13 @@ namespace oblo::gpu::vk
 
         // Debugging and profiling
 
-        void cmd_label_begin(hptr<command_buffer> cmd, const char* label) override;
+        void cmd_label_begin(hptr<command_buffer> cmd, cstring_view label) override;
         void cmd_label_end(hptr<command_buffer> cmd) override;
+
+        result<hptr<profiling_context>> cmd_profile_begin(hptr<command_buffer> cmd, cstring_view label) override;
+        void cmd_profile_end(hptr<command_buffer> cmd, hptr<profiling_context> context) override;
+
+        void cmd_profile_collect_metrics(hptr<command_buffer> cmd) override;
 
         // Vulkan specific
         VkInstance get_instance() const;
@@ -278,6 +286,8 @@ namespace oblo::gpu::vk
         struct shader_module_impl;
         struct swapchain_impl;
 
+        struct profiling_impl;
+
     private:
         h32<image> register_image(
             VkImage image, VkImageView view, VmaAllocation allocation, const image_descriptor& descriptor);
@@ -304,6 +314,9 @@ namespace oblo::gpu::vk
         VkDevice m_device{};
         gpu_allocator m_allocator;
         dynamic_array<queue_impl> m_queues;
+
+        unique_ptr<profiling_impl> m_profiling;
+
         h32<sampler> m_dummySampler{};
 
         // Lazy approach with all these maps, we don't iterate over them so another solution would be preferrable

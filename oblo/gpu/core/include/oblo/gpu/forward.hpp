@@ -60,6 +60,7 @@ namespace oblo::gpu
     struct global_memory_barrier;
     struct image_state_transition;
     struct memory_properties;
+    struct profiling_context;
     struct push_constant_range;
     struct rectangle;
 

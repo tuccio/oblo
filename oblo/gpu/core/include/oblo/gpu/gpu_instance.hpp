@@ -3,12 +3,12 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
-
-#include <span>
 
 namespace oblo::gpu
 {
@@ -34,6 +34,8 @@ namespace oblo::gpu
         virtual result<> finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface) = 0;
 
         virtual device_info get_device_info() = 0;
+
+        virtual bool is_profiler_attached() const = 0;
 
         virtual h32<queue> get_universal_queue() = 0;
 
@@ -258,8 +260,13 @@ namespace oblo::gpu
 
         // Debugging and profiling
 
-        virtual void cmd_label_begin(hptr<command_buffer> cmd, const char* label) = 0;
+        virtual void cmd_label_begin(hptr<command_buffer> cmd, cstring_view label) = 0;
         virtual void cmd_label_end(hptr<command_buffer> cmd) = 0;
+
+        virtual result<hptr<profiling_context>> cmd_profile_begin(hptr<command_buffer> cmd, cstring_view label) = 0;
+        virtual void cmd_profile_end(hptr<command_buffer> cmd, hptr<profiling_context> context) = 0;
+
+        virtual void cmd_profile_collect_metrics(hptr<command_buffer> cmd) = 0;
 
     protected:
         struct submit_info;

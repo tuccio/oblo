@@ -134,18 +134,21 @@ namespace oblo
     struct render_pass_context
     {
         hptr<gpu::command_buffer> commandBuffer;
+        hptr<gpu::profiling_context> profilingContext;
         const render_pipeline* internalPipeline;
     };
 
     struct compute_pass_context
     {
         hptr<gpu::command_buffer> commandBuffer;
+        hptr<gpu::profiling_context> profilingContext;
         const compute_pipeline* internalPipeline;
     };
 
     struct raytracing_pass_context
     {
         hptr<gpu::command_buffer> commandBuffer;
+        hptr<gpu::profiling_context> profilingContext;
         const raytracing_pipeline* internalPipeline;
     };
 

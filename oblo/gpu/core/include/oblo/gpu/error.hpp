@@ -11,6 +11,7 @@ namespace oblo::gpu
         not_ready,
         device_lost,
         out_of_date,
+        out_of_memory,
         already_initialized,
         invalid_handle,
         invalid_usage,

@@ -44,6 +44,9 @@ namespace oblo
 
         bool is_ray_tracing_enabled() const;
 
+        void set_profiling_enabled(bool enable);
+        bool is_profiling_enabled() const;
+
         hptr<gpu::command_buffer> get_active_command_buffer();
 
         resource_cache& get_resource_cache();

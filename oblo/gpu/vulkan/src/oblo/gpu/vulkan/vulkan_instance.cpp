@@ -1,10 +1,13 @@
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/finally.hpp>
+#include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/overload.hpp>
 #include <oblo/core/span.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/descriptor_set_pool.hpp>
@@ -14,6 +17,10 @@
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
 #include <oblo/gpu/vulkan/utility/vk_type_conversions.hpp>
+
+#ifdef TRACY_ENABLE
+    #include <tracy/TracyVulkan.hpp>
+#endif
 
 #define OBLO_VK_LOAD_FN(name) PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 #define OBLO_VK_LOAD_FN_ASSIGN(loader, name) (loader.name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name)))
@@ -135,6 +142,19 @@ namespace oblo::gpu::vk
 
         m_objLabeler.set_object_name(m_device, obj, label.get());
     }
+
+#ifdef TRACY_ENABLE
+    struct vulkan_instance::profiling_impl : tracy::VkCtx
+    {
+        using tracy::VkCtx::VkCtx;
+
+        frame_allocator allocator;
+    };
+#else
+    struct vulkan_instance::profiling_impl
+    {
+    };
+#endif
 
     struct vulkan_instance::acceleration_structure_impl
     {
@@ -306,6 +326,8 @@ namespace oblo::gpu::vk
 
     void vulkan_instance::shutdown()
     {
+        m_profiling.reset();
+
         shutdown_tracked_queue_context();
 
         if (m_dummySampler)
@@ -548,6 +570,16 @@ namespace oblo::gpu::vk
 
         m_bindlessImages.resize(max_bindless_images);
 
+#ifdef TRACY_ENABLE
+        m_profiling = allocate_unique<profiling_impl>(m_physicalDevice,
+            m_device,
+            OBLO_VK_LOAD_FN(vkResetQueryPoolEXT),
+            OBLO_VK_LOAD_FN(vkGetPhysicalDeviceCalibrateableTimeDomainsEXT),
+            OBLO_VK_LOAD_FN(vkGetCalibratedTimestampsEXT));
+
+        m_profiling->allocator.init(1u << 24);
+#endif
+
         return init_tracked_queue_context();
     }
 
@@ -567,6 +599,15 @@ namespace oblo::gpu::vk
             .optimalBufferCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment,
             .optimalBufferCopyRowPitchAlignment = limits.optimalBufferCopyRowPitchAlignment,
         };
+    }
+
+    bool vulkan_instance::is_profiler_attached() const
+    {
+#ifdef TRACY_ENABLE
+        return tracy::GetProfiler().IsConnected();
+#else
+        return false;
+#endif
     }
 
     result<h32<swapchain>> vulkan_instance::create_swapchain(const swapchain_descriptor& descriptor)
@@ -2719,14 +2760,67 @@ namespace oblo::gpu::vk
             data.data());
     }
 
-    void vulkan_instance::cmd_label_begin(hptr<command_buffer> cmd, const char* label)
+    void vulkan_instance::cmd_label_begin(hptr<command_buffer> cmd, cstring_view label)
     {
-        m_cmdLabeler.begin(unwrap_handle<VkCommandBuffer>(cmd), label);
+        m_cmdLabeler.begin(unwrap_handle<VkCommandBuffer>(cmd), label.c_str());
     }
 
     void vulkan_instance::cmd_label_end(hptr<command_buffer> cmd)
     {
         m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmd));
+    }
+
+    result<hptr<profiling_context>> vulkan_instance::cmd_profile_begin(hptr<command_buffer> cmd, cstring_view label)
+    {
+#ifdef TRACY_ENABLE
+        // NOTE: This is not thread-safe
+        char* const name = allocate_n<char>(m_profiling->allocator, label.size());
+        auto* const locationMem =
+            m_profiling->allocator.allocate(sizeof(tracy::SourceLocationData), alignof(tracy::SourceLocationData));
+        auto* const scopeMem = m_profiling->allocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
+
+        if (!name || !locationMem || !scopeMem)
+        {
+            return error::out_of_memory;
+        }
+
+        std::memcpy(name, label.data(), label.size());
+
+        auto* const location = new (locationMem) tracy::SourceLocationData{
+            .name = name,
+        };
+
+        auto* const scope =
+            new (scopeMem) tracy::VkCtxScope{m_profiling.get(), location, unwrap_handle<VkCommandBuffer>(cmd), true};
+
+        return std::bit_cast<hptr<profiling_context>>(scope);
+#else
+        (void) cmd;
+        (void) label;
+        return error::invalid_usage;
+#endif
+    }
+
+    void vulkan_instance::cmd_profile_end(hptr<command_buffer>, hptr<profiling_context> context)
+    {
+#ifdef TRACY_ENABLE
+        auto* const scope = unwrap_handle<tracy::VkCtxScope*>(context);
+        scope->~VkCtxScope();
+#else
+        (void) context;
+#endif
+    }
+
+    void vulkan_instance::cmd_profile_collect_metrics(hptr<command_buffer> cmd)
+    {
+#ifdef TRACY_ENABLE
+        const VkCommandBuffer vkCmd = unwrap_handle<VkCommandBuffer>(cmd);
+        TracyVkCollect(m_profiling.get(), vkCmd);
+
+        m_profiling->allocator.restore_all();
+#else
+        (void) cmd;
+#endif
     }
 
     VkInstance vulkan_instance::get_instance() const

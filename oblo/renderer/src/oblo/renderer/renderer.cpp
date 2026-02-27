@@ -162,6 +162,16 @@ namespace oblo
         return *m_instanceDataTypeRegistry;
     }
 
+    void renderer::set_profiling_enabled(bool enable)
+    {
+        m_platform->passManager.set_profiling_enabled(enable);
+    }
+
+    bool renderer::is_profiling_enabled() const
+    {
+        return m_platform->passManager.is_profiling_enabled();
+    }
+
     hptr<gpu::command_buffer> renderer::get_active_command_buffer()
     {
         if (m_currentCmdBuffer)

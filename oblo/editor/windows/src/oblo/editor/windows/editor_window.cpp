@@ -221,15 +221,11 @@ namespace oblo::editor
 
                     auto* const renderer = ctx.services.find<oblo::renderer>();
 
-#if 0 // TODO: Profiling
-                    auto& passManager = renderer->get_pass_manager();
-
-                    if (bool isEnabled = passManager.is_profiling_enabled();
+                    if (bool isEnabled = renderer->is_profiling_enabled();
                         ImGui::MenuItem("GPU profiling", nullptr, &isEnabled))
                     {
-                        passManager.set_profiling_enabled(isEnabled);
+                        renderer->set_profiling_enabled(isEnabled);
                     }
-#endif
 
                     if (ImGui::MenuItem("Reset GI"))
                     {
