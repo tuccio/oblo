@@ -1,0 +1,442 @@
+#pragma once
+
+#include <oblo/core/flags.hpp>
+#include <oblo/core/handle.hpp>
+#include <oblo/core/string/debug_label.hpp>
+#include <oblo/core/variant.hpp>
+#include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/forward.hpp>
+#include <oblo/math/vec2i.hpp>
+#include <oblo/math/vec2u.hpp>
+#include <oblo/math/vec3i.hpp>
+#include <oblo/math/vec3u.hpp>
+
+#include <optional>
+#include <source_location>
+#include <span>
+
+namespace oblo::gpu
+{
+    struct sampler_descriptor
+    {
+        static constexpr f32 lod_clamp_none = 1000.f;
+
+        sampler_filter magFilter;
+        sampler_filter minFilter;
+        sampler_mipmap_mode mipmapMode;
+        sampler_address_mode addressModeU;
+        sampler_address_mode addressModeV;
+        sampler_address_mode addressModeW;
+        f32 mipLodBias;
+        bool anisotropyEnable;
+        f32 maxAnisotropy;
+        bool compareEnable;
+        compare_op compareOp;
+        f32 minLod;
+        f32 maxLod;
+        border_color borderColor;
+        bool unnormalizedCoordinates;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct command_buffer_pool_descriptor
+    {
+        h32<queue> queue;
+        u32 numCommandBuffers;
+    };
+
+    struct bindless_image_descriptor
+    {
+        h32<image> image;
+        image_resource_state state;
+    };
+    struct buffer_copy_descriptor
+    {
+        u64 srcOffset;
+        u64 dstOffset;
+        u64 size;
+    };
+
+    struct image_subresource_descriptor
+    {
+        u32 mipLevel;
+        u32 baseArrayLayer;
+        u32 layerCount;
+    };
+
+    struct buffer_image_copy_descriptor
+    {
+        u64 bufferOffset;
+        u32 bufferRowLength;
+        u32 bufferImageHeight;
+        image_subresource_descriptor imageSubresource;
+        vec3i imageOffset;
+        vec3u imageExtent;
+    };
+
+    struct memory_properties : variant<memory_usage, flags<memory_requirement>>
+    {
+    };
+
+    struct push_constant_range
+    {
+        flags<shader_stage> stages;
+        u32 offset;
+        u32 size;
+    };
+
+    struct rectangle
+    {
+        i32 x, y;
+        u32 width, height;
+    };
+
+    struct buffer_descriptor
+    {
+        u64 size;
+        memory_properties memoryProperties;
+        flags<buffer_usage> usages;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct device_descriptor
+    {
+        bool requireHardwareRaytracing;
+    };
+
+    struct fence_descriptor
+    {
+        bool createSignaled;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct image_descriptor
+    {
+        image_format format;
+        u32 width;
+        u32 height;
+        u32 depth;
+        u32 mipLevels;
+        u32 arrayLayers;
+        image_type type;
+        samples_count samples;
+        memory_usage memoryUsage;
+        flags<image_usage> usages;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct instance_descriptor
+    {
+        const char* application;
+        const char* engine;
+    };
+
+    struct present_descriptor
+    {
+        std::span<const h32<swapchain>> swapchains;
+        std::span<const h32<semaphore>> waitSemaphores;
+    };
+
+    struct queue_submit_descriptor
+    {
+        std::span<const hptr<command_buffer>> commandBuffers;
+        std::span<const h32<semaphore>> waitSemaphores;
+        h32<fence> signalFence;
+        std::span<const h32<semaphore>> signalSemaphores;
+        std::span<const u64> signalSemaphoreValues;
+    };
+
+    struct graphics_pipeline_stage
+    {
+        shader_stage stage;
+        h32<shader_module> shaderModule;
+        const char* entryFunction;
+    };
+
+    struct color_blend_attachment_state
+    {
+        bool enable = false;
+        blend_factor srcColorBlendFactor;
+        blend_factor dstColorBlendFactor;
+        blend_op colorBlendOp;
+        blend_factor srcAlphaBlendFactor;
+        blend_factor dstAlphaBlendFactor;
+        blend_op alphaBlendOp;
+        flags<color_component> colorWriteMask =
+            color_component::r | color_component::g | color_component::b | color_component::a;
+    };
+
+    struct graphics_pass_targets
+    {
+        std::span<const image_format> colorAttachmentFormats;
+        image_format depthFormat{image_format::undefined};
+        image_format stencilFormat{image_format::undefined};
+        std::span<const color_blend_attachment_state> blendStates;
+    };
+
+    struct stencil_op_state
+    {
+        stencil_op failOp;
+        stencil_op passOp;
+        stencil_op depthFailOp;
+        compare_op compareOp;
+        u32 compareMask;
+        u32 writeMask;
+        u32 reference;
+    };
+
+    struct depth_stencil_state
+    {
+        flags<pipeline_depth_stencil_state_create> flags;
+        bool depthTestEnable;
+        bool depthWriteEnable;
+        compare_op depthCompareOp;
+        bool depthBoundsTestEnable;
+        bool stencilTestEnable;
+        stencil_op_state front;
+        stencil_op_state back;
+        f32 minDepthBounds;
+        f32 maxDepthBounds;
+    };
+
+    struct rasterization_state
+    {
+        flags<pipeline_depth_stencil_state_create> flags;
+        bool depthClampEnable;
+        bool rasterizerDiscardEnable;
+        polygon_mode polygonMode;
+        oblo::flags<cull_mode> cullMode;
+        front_face frontFace;
+        bool depthBiasEnable;
+        f32 depthBiasConstantFactor;
+        f32 depthBiasClamp;
+        f32 depthBiasSlopeFactor;
+        f32 lineWidth;
+    };
+
+    struct graphics_pipeline_descriptor
+    {
+        std::span<const graphics_pipeline_stage> stages;
+        std::span<const vertex_input_binding_descriptor> vertexInputBindings;
+        std::span<const vertex_input_attribute_descriptor> vertexInputAttributes;
+        std::span<const push_constant_range> pushConstants;
+        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        graphics_pass_targets renderTargets;
+        depth_stencil_state depthStencilState;
+        rasterization_state rasterizationState;
+        primitive_topology primitiveTopology{primitive_topology::triangle_list};
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct raytracing_hit_shader
+    {
+        h32<shader_module> handle;
+        shader_stage stage;
+    };
+
+    struct raytracing_hit_group_descriptor
+    {
+        raytracing_hit_type type;
+        std::span<const raytracing_hit_shader> shaders;
+    };
+
+    struct compute_pipeline_descriptor
+    {
+        h32<shader_module> computeShader;
+        std::span<const push_constant_range> pushConstants;
+        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct raytracing_pipeline_descriptor
+    {
+        h32<shader_module> rayGenerationShader;
+        std::span<const h32<shader_module>> missShaders;
+        std::span<const raytracing_hit_group_descriptor> hitGroups;
+        std::span<const push_constant_range> pushConstants;
+        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        u32 maxPipelineRayRecursionDepth;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    union clear_color_value {
+        f32 f32[4];
+        i32 i32[4];
+        u32 u32[4];
+    };
+
+    struct clear_depth_stencil_value
+    {
+        f32 depth;
+        u32 stencil;
+    };
+
+    union clear_value {
+        clear_color_value color;
+        clear_depth_stencil_value depthStencil;
+    };
+
+    struct graphics_attachment
+    {
+        h32<image> image;
+        attachment_load_op loadOp;
+        attachment_store_op storeOp;
+        clear_value clearValue;
+    };
+
+    struct graphics_pass_descriptor
+    {
+        vec2i renderOffset;
+        vec2u renderResolution;
+
+        std::span<const graphics_attachment> colorAttachments;
+        std::optional<graphics_attachment> depthAttachment;
+        std::optional<graphics_attachment> stencilAttachment;
+    };
+
+    struct semaphore_descriptor
+    {
+        bool timeline;
+        u64 timelineInitialValue;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    struct shader_module_descriptor
+    {
+        shader_module_format format;
+        std::span<const byte> data;
+    };
+
+    struct swapchain_descriptor
+    {
+        hptr<surface> surface;
+        u32 numImages;
+        image_format format;
+        u32 width;
+        u32 height;
+    };
+
+    struct device_info
+    {
+        u32 subgroupSize;
+        u64 minUniformBufferOffsetAlignment;
+        u64 minStorageBufferOffsetAlignment;
+        u64 optimalBufferCopyOffsetAlignment;
+        u64 optimalBufferCopyRowPitchAlignment;
+    };
+
+    struct buffer_range
+    {
+        h32<buffer> buffer;
+        u64 offset;
+        u64 size;
+    };
+
+    struct buffer_memory_barrier
+    {
+        buffer_range bufferRange;
+        flags<pipeline_sync_stage> previousPipelines;
+        flags<memory_access_type> previousAccesses;
+        flags<pipeline_sync_stage> nextPipelines;
+        flags<memory_access_type> nextAccesses;
+    };
+
+    struct image_state_transition
+    {
+        h32<image> image;
+        flags<pipeline_sync_stage> previousPipelines;
+        image_resource_state previousState;
+        flags<pipeline_sync_stage> nextPipelines;
+        image_resource_state nextState;
+    };
+
+    struct global_memory_barrier
+    {
+        flags<pipeline_sync_stage> previousPipelines;
+        flags<memory_access_type> previousAccesses;
+        flags<pipeline_sync_stage> nextPipelines;
+        flags<memory_access_type> nextAccesses;
+    };
+
+    struct memory_barrier_descriptor
+    {
+        std::span<const buffer_memory_barrier> buffers;
+        std::span<const image_state_transition> images;
+        std::span<const global_memory_barrier> memory;
+    };
+
+    struct vertex_input_binding_descriptor
+    {
+        u32 binding;
+        u32 stride;
+        vertex_input_rate inputRate;
+    };
+
+    struct vertex_input_attribute_descriptor
+    {
+        u32 location;
+        u32 binding;
+        data_format format;
+        u32 offset;
+    };
+
+    struct bind_group_binding
+    {
+        u32 binding;
+        u32 count;
+
+        resource_binding_kind bindingKind;
+        flags<shader_stage> shaderStages;
+
+        /// @brief Only used if the bindingKind is resource_binding_kind::sampler
+        std::span<const h32<sampler>> immutableSamplers;
+    };
+
+    struct bind_group_layout_descriptor
+    {
+        std::span<const bind_group_binding> bindings;
+        debug_label debugLabel = std::source_location::current();
+    };
+
+    using bindable_acceleration_structure = h32<acceleration_structure>;
+    using bindable_buffer = buffer_range;
+
+    struct bindable_image
+    {
+        h32<image> image;
+        image_resource_state state;
+    };
+
+    struct bindable_object
+    {
+        bindable_resource_kind kind;
+
+        union {
+            bindable_buffer buffer;
+            bindable_image image;
+            bindable_acceleration_structure accelerationStructure;
+        };
+    };
+
+    struct bind_group_data
+    {
+        u32 binding;
+        resource_binding_kind bindingKind;
+        bindable_object object;
+    };
+
+    constexpr bindable_object make_bindable_object(const bindable_acceleration_structure& as)
+    {
+        return {.kind = bindable_resource_kind::acceleration_structure, .accelerationStructure = as};
+    }
+
+    constexpr bindable_object make_bindable_object(const bindable_buffer& b)
+    {
+        return {.kind = bindable_resource_kind::buffer, .buffer = b};
+    }
+
+    constexpr bindable_object make_bindable_object(const bindable_image& image)
+    {
+        return {.kind = bindable_resource_kind::image, .image = image};
+    }
+}

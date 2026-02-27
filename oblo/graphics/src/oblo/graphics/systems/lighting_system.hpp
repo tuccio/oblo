@@ -5,16 +5,11 @@
 #include <oblo/ecs/utility/entity_map.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/options/option_proxy.hpp>
-#include <oblo/vulkan/graph/frame_graph_template.hpp>
+#include <oblo/renderer/graph/frame_graph_template.hpp>
 
 namespace oblo::ecs
 {
     struct system_update_context;
-}
-
-namespace oblo::vk
-{
-    class renderer;
 }
 
 namespace oblo
@@ -45,7 +40,7 @@ namespace oblo
     private:
         scene_renderer* m_sceneRenderer{};
         const options_manager* m_optionsManager{};
-        vk::frame_graph_template m_rtShadows;
+        frame_graph_template m_rtShadows;
         ecs::entity_map<shadow_directional> m_shadows;
         option_proxy_struct<surfels_gi_options> m_giOptions;
         option_proxy_struct<rtao_options> m_rtaoOptions;

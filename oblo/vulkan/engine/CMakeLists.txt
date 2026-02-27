@@ -1,20 +1,20 @@
 oblo_add_library(
     engine
-    NAMESPACE oblo::vk
+    NAMESPACE oblo::vulkan
 )
 
 find_package(VulkanHeaders REQUIRED)
 
 target_link_libraries(
-    oblo_vk_engine
+    oblo_vulkan_engine
     PUBLIC
     oblo::core
     oblo::modules
     oblo::options
     PRIVATE
     oblo::app
+    oblo::gpu::vulkan
     oblo::log
-    oblo::vk::core
-    oblo::vk::renderer
+    oblo::renderer
     Vulkan::Headers
 )

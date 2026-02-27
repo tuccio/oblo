@@ -8,6 +8,10 @@
 #include <oblo/core/finally.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/gpu_instance.hpp>
+#include <oblo/gpu/structs.hpp>
+#include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -15,14 +19,10 @@
 #include <oblo/options/option_traits.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/options/options_provider.hpp>
+#include <oblo/renderer/renderer.hpp>
+#include <oblo/renderer/renderer_module.hpp>
+#include <oblo/renderer/templates/graph_templates.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/vulkan/error.hpp>
-#include <oblo/vulkan/renderer.hpp>
-#include <oblo/vulkan/renderer_module.hpp>
-#include <oblo/vulkan/swapchain.hpp>
-#include <oblo/vulkan/templates/graph_templates.hpp>
-#include <oblo/vulkan/texture.hpp>
-#include <oblo/vulkan/vulkan_context.hpp>
 
 namespace oblo
 {
@@ -46,37 +46,24 @@ namespace oblo::vk
     namespace
     {
         constexpr u32 g_SwapchainImages = 3;
-        constexpr VkFormat g_SwapchainFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
-        bool create_surface(native_window_handle wh,
-            VkInstance instance,
-            const VkAllocationCallbacks* allocator,
-            VkSurfaceKHR* surface);
+        constexpr gpu::image_format g_SwapchainFormat = gpu::image_format::b8g8r8a8_unorm;
 
-        bool create_swapchain_semaphores(VkDevice device,
-            const gpu_allocator& allocator,
-            VkSemaphore (&semaphores)[g_SwapchainImages],
-            const char* debugName)
+        bool create_swapchain_semaphores(
+            gpu::gpu_instance& gpu, h32<gpu::semaphore> (&semaphores)[g_SwapchainImages], const char* debugName)
         {
-            constexpr VkSemaphoreCreateInfo semaphoreInfo{
-                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            };
-
             string_builder nameBuilder;
-
-            const auto debugUtilsObject = allocator.get_object_debug_utils();
 
             for (u32 i = 0; i < g_SwapchainImages; ++i)
             {
-                if (vkCreateSemaphore(device, &semaphoreInfo, allocator.get_allocation_callbacks(), &semaphores[i]) !=
-                    VK_SUCCESS)
+                const expected r = gpu.create_semaphore({.debugLabel = {debugName}});
+
+                if (!r)
                 {
                     return false;
                 }
 
-                debugUtilsObject.set_object_name(device,
-                    semaphores[i],
-                    nameBuilder.clear().format("{}[{}]", debugName, i).c_str());
+                semaphores[i] = r.value();
             }
 
             return true;
@@ -90,11 +77,10 @@ namespace oblo::vk
 
         struct vulkan_window_context final : public graphics_window_context
         {
-            VkSurfaceKHR surface{};
-            swapchain<g_SwapchainImages> swapchain;
-            h32<texture> swapchainTextures[g_SwapchainImages]{};
+            hptr<gpu::surface> surface{};
+            h32<gpu::swapchain> swapchain{};
 
-            VkSemaphore acquiredImageSemaphores[g_SwapchainImages]{};
+            h32<gpu::semaphore> acquiredImageSemaphores[g_SwapchainImages]{};
 
             u32 width{1};
             u32 height{1};
@@ -108,28 +94,25 @@ namespace oblo::vk
             bool swapchainResized = false;
             bool markedForDestruction = false;
 
-            bool initialize(
-                vulkan_context& ctx, resource_manager& resourceManager, native_window_handle wh, u32 w, u32 h)
+            bool initialize(gpu::gpu_instance& ctx, native_window_handle wh, u32 w, u32 h)
             {
-                OBLO_ASSERT(!surface && !swapchain);
+                surface = ctx.create_surface(std::bit_cast<hptr<gpu::native_window>>(wh)).value_or({});
 
-                if (!create_surface(wh, ctx.get_instance(), ctx.get_allocator().get_allocation_callbacks(), &surface))
+                if (!surface)
                 {
-                    shutdown(ctx, resourceManager);
-                    return false;
+                    shutdown(ctx);
                 }
 
                 width = w;
                 height = h;
 
-                if (!create_swapchain(ctx, resourceManager))
+                if (!create_swapchain(ctx))
                 {
-                    shutdown(ctx, resourceManager);
+                    shutdown(ctx);
                     return false;
                 }
 
-                if (!create_swapchain_semaphores(ctx.get_device(),
-                        ctx.get_allocator(),
+                if (!create_swapchain_semaphores(ctx,
                         acquiredImageSemaphores,
                         OBLO_STRINGIZE(vulkan_window_context::acquiredImageSemaphores)))
                 {
@@ -139,115 +122,84 @@ namespace oblo::vk
                 return true;
             }
 
-            bool create_swapchain(vulkan_context& ctx, resource_manager& resourceManager)
+            bool create_swapchain(gpu::gpu_instance& ctx)
             {
-                if (!swapchain.create(ctx, surface, width, height, g_SwapchainFormat))
+                const expected r = ctx.create_swapchain({
+                    .surface = surface,
+                    .format = g_SwapchainFormat,
+                    .width = width,
+                    .height = height,
+                });
+
+                if (!r)
                 {
                     return false;
                 }
 
-                const image_initializer initializer{
-                    .imageType = VK_IMAGE_TYPE_2D,
-                    .format = g_SwapchainFormat,
-                    .extent = VkExtent3D{.width = width, .height = height, .depth = 1},
-                    .mipLevels = 1,
-                    .arrayLayers = 1,
-                    .samples = VK_SAMPLE_COUNT_1_BIT,
-                    .tiling = VK_IMAGE_TILING_OPTIMAL,
-                    .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .memoryUsage = memory_usage::gpu_only,
-                };
-
-                for (u32 i = 0; i < g_SwapchainImages; ++i)
-                {
-                    swapchainTextures[i] = resourceManager.register_texture(
-                        texture{
-                            .image = swapchain.get_image(i),
-                            .view = swapchain.get_image_view(i),
-                            .initializer = initializer,
-                        },
-                        VK_IMAGE_LAYOUT_UNDEFINED);
-                }
-
+                swapchain = *r;
                 return true;
             }
 
-            void destroy_swapchain(vulkan_context& ctx, resource_manager& resourceManager)
+            void destroy_swapchain(gpu::gpu_instance& ctx)
             {
-                swapchain.destroy(ctx);
-
-                for (auto& handle : swapchainTextures)
-                {
-                    if (handle)
-                    {
-                        resourceManager.unregister_texture(handle);
-                        handle = {};
-                    }
-                }
+                ctx.destroy(swapchain);
+                swapchain = {};
             }
 
-            void shutdown(vulkan_context& ctx, resource_manager& resourceManager)
+            void shutdown(gpu::gpu_instance& ctx)
             {
                 // Should probably just delay defer destruction through the context instead
-                vkDeviceWaitIdle(ctx.get_device());
+                ctx.wait_idle().assert_value();
 
                 if (swapchain)
                 {
-                    destroy_swapchain(ctx, resourceManager);
+                    destroy_swapchain(ctx);
                 }
 
                 if (surface)
                 {
-                    vkDestroySurfaceKHR(ctx.get_instance(), surface, ctx.get_allocator().get_allocation_callbacks());
-
-                    surface = nullptr;
+                    ctx.destroy(surface);
+                    surface = {};
                 }
 
-                for (auto semaphore : acquiredImageSemaphores)
+                for (auto& semaphore : acquiredImageSemaphores)
                 {
-                    vkDestroySemaphore(ctx.get_device(), semaphore, ctx.get_allocator().get_allocation_callbacks());
+                    if (semaphore)
+                    {
+                        ctx.destroy(semaphore);
+                        semaphore = {};
+                    }
                 }
             }
 
-            bool acquire_next_image(
-                vulkan_context& ctx, resource_manager& resourceManager, u32 semaphoreIndex, u32* imageIndex)
+            expected<h32<gpu::image>> acquire_next_image(gpu::gpu_instance& ctx, u32 semaphoreIndex)
             {
-                VkResult acquireImageResult;
-
                 do
                 {
-                    acquireImageResult = vkAcquireNextImageKHR(ctx.get_device(),
-                        swapchain.get(),
-                        UINT64_MAX,
-                        acquiredImageSemaphores[semaphoreIndex],
-                        VK_NULL_HANDLE,
-                        imageIndex);
+                    const expected r = ctx.acquire_swapchain_image(swapchain, acquiredImageSemaphores[semaphoreIndex]);
 
-                    if (acquireImageResult == VK_SUCCESS)
+                    if (r)
                     {
-                        break;
+                        return *r;
                     }
-                    else if (acquireImageResult == VK_ERROR_OUT_OF_DATE_KHR)
+                    else if (r.error() == gpu::error::out_of_date)
                     {
-                        vkDeviceWaitIdle(ctx.get_device());
+                        ctx.wait_idle().assert_value();
+                        destroy_swapchain(ctx);
 
-                        destroy_swapchain(ctx, resourceManager);
-
-                        if (!create_swapchain(ctx, resourceManager))
+                        if (!create_swapchain(ctx))
                         {
-                            OBLO_ASSERT(false, "Failed to create swapchain after it went out of date");
-                            return false;
+                            return "Failed to create swapchain after it went out of date"_err;
                         }
+
+                        // Try again
+                        continue;
                     }
-                    else if (acquireImageResult != VK_SUCCESS)
+                    else
                     {
-                        OBLO_VK_PANIC_MSG("vkAcquireNextImageKHR", acquireImageResult);
-                        return false;
+                        return "Failed to acquire image"_err;
                     }
                 } while (true);
-
-                return true;
             }
 
             void on_visibility_change(bool visible) override
@@ -283,21 +235,14 @@ namespace oblo::vk
 
     struct vulkan_engine_module::impl : public graphics_engine
     {
-        instance instance;
-        single_queue_engine engine;
-        gpu_allocator allocator;
-        vulkan_context vkContext;
-
-        // This is possibly not necessary anymore?
-        resource_manager resourceManager;
+        gpu::vk::vulkan_instance ctx;
 
         renderer renderer;
 
         deque<unique_ptr<vulkan_window_context>> windowContexts;
 
-        dynamic_array<VkSwapchainKHR> acquiredSwapchains;
-        dynamic_array<u32> acquiredImageIndices;
-        dynamic_array<VkSemaphore> acquiredImageSemaphores;
+        dynamic_array<h32<gpu::swapchain>> acquiredSwapchains;
+        dynamic_array<h32<gpu::semaphore>> acquiredImageSemaphores;
         dynamic_array<vulkan_window_context*> contextsToRender;
 
         frame_graph_registry nodeRegistry;
@@ -305,11 +250,14 @@ namespace oblo::vk
 
         u32 semaphoreIndex{};
 
-        VkSemaphore frameCompletedSemaphore[g_SwapchainImages]{};
+        h32<gpu::semaphore> frameCompletedSemaphore[g_SwapchainImages]{};
+
+        u64 presentDoneSubmitIndex[g_SwapchainImages]{};
 
         VkDebugUtilsMessengerEXT vkMessenger{};
 
         option_proxy_struct<renderer_options> options;
+        bool isFullyInitialized{};
 
         bool initialize();
         void shutdown();
@@ -354,9 +302,9 @@ namespace oblo::vk
         return m_impl->initialize();
     }
 
-    vulkan_context& vulkan_engine_module::get_vulkan_context()
+    gpu::gpu_instance& vulkan_engine_module::get_gpu_instance()
     {
-        return m_impl->vkContext;
+        return m_impl->ctx;
     }
 
     renderer& vulkan_engine_module::get_renderer()
@@ -369,100 +317,12 @@ namespace oblo::vk
         return m_impl->renderer.get_frame_graph();
     }
 
-    namespace
-    {
-        constexpr VkPhysicalDeviceFeatures g_physicalDeviceFeatures{
-            .multiDrawIndirect = true,
-            .samplerAnisotropy = true,
-            .shaderInt64 = true,
-            .shaderInt16 = true,
-        };
-
-        VkPhysicalDeviceDynamicRenderingFeatures g_dynamicRenderingFeature{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
-            .dynamicRendering = VK_TRUE,
-        };
-
-        VkPhysicalDeviceMeshShaderFeaturesEXT g_meshShaderFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT,
-            .pNext = &g_dynamicRenderingFeature,
-            .taskShader = true,
-            .meshShader = true,
-        };
-
-        VkPhysicalDeviceVulkan11Features g_deviceVulkan11Features{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
-            .pNext = &g_meshShaderFeatures,
-            .storageBuffer16BitAccess = true,
-            .shaderDrawParameters = true,
-        };
-
-        VkPhysicalDeviceVulkan12Features g_deviceVulkan12Features{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-            .pNext = &g_deviceVulkan11Features,
-            .drawIndirectCount = true,
-            .storageBuffer8BitAccess = true,
-            .shaderInt8 = true,
-            .descriptorBindingSampledImageUpdateAfterBind = true,
-            .descriptorBindingPartiallyBound = true,
-            .descriptorBindingVariableDescriptorCount = true,
-            .runtimeDescriptorArray = true,
-            .hostQueryReset = true,
-            .timelineSemaphore = true,
-            .bufferDeviceAddress = true,
-        };
-
-        VkPhysicalDeviceSynchronization2Features g_synchronizationFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
-            .pNext = &g_deviceVulkan12Features,
-            .synchronization2 = true,
-        };
-
-        // From here on it's ray-tracing stuff, conditionally disabled
-        VkPhysicalDeviceAccelerationStructureFeaturesKHR g_accelerationFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
-            .pNext = &g_synchronizationFeatures,
-            .accelerationStructure = true,
-        };
-
-        VkPhysicalDeviceRayQueryFeaturesKHR g_rtRayQueryFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR,
-            .pNext = &g_accelerationFeatures,
-            .rayQuery = true,
-        };
-
-        VkPhysicalDeviceRayTracingPipelineFeaturesKHR g_rtPipelineFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
-            .pNext = &g_rtRayQueryFeatures,
-            .rayTracingPipeline = true,
-        };
-
-        constexpr const char* g_instanceExtensions[] = {
-            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-            VK_KHR_SURFACE_EXTENSION_NAME,
-
-#ifdef WIN32
-            "VK_KHR_win32_surface",
-#endif
-        };
-    }
-
     bool vulkan_engine_module::impl::initialize()
     {
-        // First we create the instance
-
-        const VkApplicationInfo appInfo{
-            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-            .pNext = nullptr,
-            .pApplicationName = "oblo",
-            .applicationVersion = 0,
-            .pEngineName = "oblo",
-            .engineVersion = 0,
-            .apiVersion = VK_API_VERSION_1_3,
-        };
-
-        if (!instance.init(appInfo, {}, g_instanceExtensions, nullptr))
+        if (!ctx.init({
+                .application = "oblo",
+                .engine = "oblo",
+            }))
         {
             return false;
         }
@@ -477,90 +337,27 @@ namespace oblo::vk
             return false;
         }
 
-        VkSurfaceKHR surface{};
+        const hptr hiddenWindowSurface =
+            ctx.create_surface(std::bit_cast<hptr<gpu::native_window>>(hiddenWindow.get_native_handle())).value_or({});
 
-        if (!create_surface(hiddenWindow.get_native_handle(), instance.get(), nullptr, &surface))
-        {
-            return false;
-        }
-
-        const auto cleanup = finally([&] { vkDestroySurfaceKHR(instance.get(), surface, nullptr); });
-
-        // Now we can create rest of the vulkan objects
-        constexpr const char* requiredDeviceExtensions[] = {
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
-            VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
-            VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-            VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME,
-            VK_EXT_MESH_SHADER_EXTENSION_NAME,
-            VK_KHR_SPIRV_1_4_EXTENSION_NAME,
-            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME, // This is needed for debug printf
-            VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,    // We need this for profiling with Tracy
-            VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME,         // We need this for profiling with Tracy
-
-        };
-
-        // Ray-tracing extensions, we might want to disable them
-        constexpr const char* rayTracingExtensions[] = {
-            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-        };
+        const auto cleanupSurface = finally([&] { ctx.destroy(hiddenWindowSurface); });
 
         auto& optionsManager = module_manager::get().find<options_module>()->manager();
         options.init(optionsManager);
         const bool requireHardwareRaytracing = options.requireHardwareRaytracing.read(optionsManager);
 
-        constexpr auto totalExtensions = array_size(requiredDeviceExtensions) + array_size(rayTracingExtensions);
-        buffered_array<const char*, totalExtensions> deviceExtensions;
-        deviceExtensions.append(std::begin(requiredDeviceExtensions), std::end(requiredDeviceExtensions));
-
-        if (requireHardwareRaytracing)
-        {
-            deviceExtensions.append(std::begin(rayTracingExtensions), std::end(rayTracingExtensions));
-        }
-
-        VkPhysicalDeviceFeatures2 g_physicalDeviceFeatures2{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-            .features = g_physicalDeviceFeatures,
+        const gpu::device_descriptor deviceDescriptor{
+            .requireHardwareRaytracing = options.requireHardwareRaytracing.read(optionsManager),
         };
 
-        if (requireHardwareRaytracing)
-        {
-            g_physicalDeviceFeatures2.pNext = &g_rtPipelineFeatures;
-        }
-        else
-        {
-            g_physicalDeviceFeatures2.pNext = &g_synchronizationFeatures;
-        }
-
-        if (!engine.init(instance.get(), surface, {}, deviceExtensions, &g_physicalDeviceFeatures2, nullptr))
+        if (!ctx.finalize_init(deviceDescriptor, hiddenWindowSurface))
         {
             return false;
         }
 
-        if (!allocator.init(instance.get(), engine.get_physical_device(), engine.get_device()))
-        {
-            return false;
-        }
+        isFullyInitialized = true;
 
-        if (!vkContext.init({
-                .instance = instance.get(),
-                .engine = engine,
-                .allocator = allocator,
-                .resourceManager = resourceManager,
-                .buffersPerFrame =
-                    2, // This number includes the buffer for incomplete transition, so it's effectively half
-                .submitsInFlight = g_SwapchainImages,
-            }))
-        {
-            return false;
-        }
-
-        if (!create_swapchain_semaphores(engine.get_device(),
-                allocator,
+        if (!create_swapchain_semaphores(ctx,
                 frameCompletedSemaphore,
                 OBLO_STRINGIZE(vulkan_engine::impl::frameCompletedSemaphore)))
         {
@@ -568,7 +365,7 @@ namespace oblo::vk
         }
 
         if (!renderer.init({
-                .vkContext = vkContext,
+                .gpu = ctx,
                 .isRayTracingEnabled = requireHardwareRaytracing,
             }))
         {
@@ -583,39 +380,37 @@ namespace oblo::vk
 
     void vulkan_engine_module::impl::shutdown()
     {
-        if (VkDevice device = engine.get_device())
+        if (isFullyInitialized)
         {
-            vkDeviceWaitIdle(device);
+            ctx.wait_idle().assert_value();
 
             for (auto& windowContext : windowContexts)
             {
-                windowContext->shutdown(vkContext, resourceManager);
+                windowContext->shutdown(ctx);
                 windowContext.reset();
             }
 
-            for (VkSemaphore semaphore : frameCompletedSemaphore)
+            for (h32 semaphore : frameCompletedSemaphore)
             {
-                vkContext.reset_immediate(semaphore);
+                ctx.destroy(semaphore);
             }
 
             renderer.shutdown();
-
-            vkContext.shutdown();
-            allocator.shutdown();
-            engine.shutdown();
         }
+
+        isFullyInitialized = false;
 
         if (vkMessenger)
         {
             const PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT =
                 reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-                    vkGetInstanceProcAddr(instance.get(), "vkDestroyDebugUtilsMessengerEXT"));
+                    vkGetInstanceProcAddr(ctx.get_instance(), "vkDestroyDebugUtilsMessengerEXT"));
 
-            vkDestroyDebugUtilsMessengerEXT(instance.get(), vkMessenger, nullptr);
+            vkDestroyDebugUtilsMessengerEXT(ctx.get_instance(), vkMessenger, nullptr);
             vkMessenger = {};
         }
 
-        instance.shutdown();
+        ctx.shutdown();
     }
 
     namespace
@@ -654,7 +449,7 @@ namespace oblo::vk
         {
             const PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessengerEXT =
                 reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-                    vkGetInstanceProcAddr(instance.get(), "vkCreateDebugUtilsMessengerEXT"));
+                    vkGetInstanceProcAddr(ctx.get_instance(), "vkCreateDebugUtilsMessengerEXT"));
 
             if (vkCreateDebugUtilsMessengerEXT)
             {
@@ -669,7 +464,8 @@ namespace oblo::vk
                     .pfnUserCallback = debug_messenger_callback,
                 };
 
-                const auto result = vkCreateDebugUtilsMessengerEXT(instance.get(), &createInfo, nullptr, &vkMessenger);
+                const auto result =
+                    vkCreateDebugUtilsMessengerEXT(ctx.get_instance(), &createInfo, nullptr, &vkMessenger);
 
                 if (result != VK_SUCCESS)
                 {
@@ -687,7 +483,7 @@ namespace oblo::vk
     {
         auto windowCtx = allocate_unique<vulkan_window_context>();
 
-        if (!windowCtx->initialize(vkContext, resourceManager, wh, width, height))
+        if (!windowCtx->initialize(ctx, wh, width, height))
         {
             return nullptr;
         }
@@ -702,11 +498,13 @@ namespace oblo::vk
         auto& frameGraph = renderer.get_frame_graph();
 
         acquiredSwapchains.clear();
-        acquiredImageIndices.clear();
         acquiredImageSemaphores.clear();
         contextsToRender.clear();
 
-        vkContext.wait_until_ready();
+        if (!ctx.wait_for_submit_completion(presentDoneSubmitIndex[semaphoreIndex]))
+        {
+            return false;
+        }
 
         for (auto it = windowContexts.begin(); it != windowContexts.end();)
         {
@@ -715,7 +513,7 @@ namespace oblo::vk
             if (windowCtx->markedForDestruction)
             {
                 // Collect it, it was destroyed
-                windowCtx->shutdown(vkContext, resourceManager);
+                windowCtx->shutdown(ctx);
                 it = windowContexts.erase_unordered(it);
                 continue;
             }
@@ -728,30 +526,27 @@ namespace oblo::vk
 
             if (windowCtx->swapchainResized)
             {
-                windowCtx->destroy_swapchain(vkContext, resourceManager);
-                windowCtx->create_swapchain(vkContext, resourceManager);
+                windowCtx->destroy_swapchain(ctx);
+                windowCtx->create_swapchain(ctx);
                 windowCtx->swapchainResized = false;
                 continue;
             }
 
-            u32 imageIndex;
+            const expected image = windowCtx->acquire_next_image(ctx, semaphoreIndex);
 
-            if (!windowCtx->acquire_next_image(vkContext, resourceManager, semaphoreIndex, &imageIndex))
+            if (!image)
             {
                 OBLO_ASSERT(false, "Failed to acquire image on swapchain");
                 ++it;
                 continue;
             }
 
-            acquiredSwapchains.emplace_back(windowCtx->swapchain.get());
-            acquiredImageIndices.emplace_back(imageIndex);
+            acquiredSwapchains.emplace_back(windowCtx->swapchain);
             acquiredImageSemaphores.emplace_back(windowCtx->acquiredImageSemaphores[semaphoreIndex]);
 
             auto swapChainGraph = frameGraph.instantiate(swapchainGraphTemplate);
 
-            frameGraph
-                .set_input(swapChainGraph, swapchain_graph::InAcquiredImage, windowCtx->swapchainTextures[imageIndex])
-                .assert_value();
+            frameGraph.set_input(swapChainGraph, swapchain_graph::InAcquiredImage, *image).assert_value();
 
             contextsToRender.emplace_back(windowCtx);
             windowCtx->swapchainGraph = swapChainGraph;
@@ -763,9 +558,6 @@ namespace oblo::vk
         {
             return false;
         }
-
-        vkContext.frame_begin(frameCompletedSemaphore[semaphoreIndex]);
-        vkContext.push_frame_wait_semaphores(acquiredImageSemaphores);
 
         renderer.begin_frame();
 
@@ -791,24 +583,28 @@ namespace oblo::vk
             }
         }
 
-        renderer.end_frame();
+        const hptr commandBuffer = renderer.end_frame();
+        OBLO_ASSERT(commandBuffer);
 
-        // Should be unnecessary, but we won't submit if we don't call it at least once
-        vkContext.get_active_command_buffer();
+        presentDoneSubmitIndex[semaphoreIndex] = ctx.get_submit_index();
 
-        vkContext.frame_end();
+        ctx.submit(ctx.get_universal_queue(),
+               {
+                   .commandBuffers = {&commandBuffer, 1},
+                   .waitSemaphores = acquiredImageSemaphores,
+                   .signalSemaphores = {&frameCompletedSemaphore[semaphoreIndex], 1},
+               })
+            .assert_value();
 
-        const VkPresentInfoKHR presentInfo{
-            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &frameCompletedSemaphore[semaphoreIndex],
-            .swapchainCount = acquiredSwapchains.size32(),
-            .pSwapchains = acquiredSwapchains.data(),
-            .pImageIndices = acquiredImageIndices.data(),
-            .pResults = nullptr,
-        };
+        const expected presentResult = ctx.present({
+            .swapchains = acquiredSwapchains,
+            .waitSemaphores = {&frameCompletedSemaphore[semaphoreIndex], 1},
+        });
 
-        OBLO_VK_PANIC_EXCEPT(vkQueuePresentKHR(engine.get_queue(), &presentInfo), VK_ERROR_OUT_OF_DATE_KHR);
+        if (!presentResult && presentResult.error() != gpu::error::out_of_date)
+        {
+            log::error("Failed to present GPU back-buffer");
+        }
 
         semaphoreIndex = (semaphoreIndex + 1) % g_SwapchainImages;
 
@@ -821,34 +617,3 @@ namespace oblo::vk
         contextsToRender.clear();
     }
 }
-
-#ifdef WIN32
-    #include <Windows.h>
-
-    #include <vulkan/vulkan_win32.h>
-
-namespace oblo::vk
-{
-    namespace
-    {
-        bool create_surface(
-            native_window_handle wh, VkInstance instance, const VkAllocationCallbacks* allocator, VkSurfaceKHR* surface)
-        {
-            const HWND hwnd = reinterpret_cast<HWND>(wh);
-
-            const VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{
-                .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-                .hinstance = GetModuleHandle(nullptr),
-                .hwnd = hwnd,
-            };
-
-            if (vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, allocator, surface) != VK_SUCCESS)
-            {
-                return false;
-            }
-
-            return true;
-        }
-    }
-}
-#endif

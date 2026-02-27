@@ -1,25 +1,9 @@
 #pragma once
 
 #include <oblo/core/types.hpp>
+#include <oblo/gpu/enums.hpp>
 
 namespace oblo::vk
 {
-    enum class shader_stage : u8
-    {
-        mesh,
-        task,
-        compute,
-        vertex,
-        geometry,
-        tessellation_control,
-        tessellation_evaluation,
-        fragment,
-        raygen,
-        intersection,
-        closest_hit,
-        any_hit,
-        miss,
-        callable,
-        enum_max,
-    };
+    using shader_stage = gpu::shader_stage;
 }

@@ -16,10 +16,10 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/options/options_module.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
+#include <oblo/renderer/draw/draw_registry.hpp>
+#include <oblo/renderer/draw/resource_cache.hpp>
+#include <oblo/renderer/renderer.hpp>
 #include <oblo/scene/systems/barriers.hpp>
-#include <oblo/vulkan/draw/draw_registry.hpp>
-#include <oblo/vulkan/draw/resource_cache.hpp>
-#include <oblo/vulkan/renderer.hpp>
 #include <oblo/vulkan/vulkan_engine_module.hpp>
 
 namespace oblo
@@ -34,47 +34,45 @@ namespace oblo
             .services =
                 [](service_registry_builder& builder)
             {
-                builder.add<vk::renderer>().build(
-                    [](service_builder<vk::renderer> builder)
+                builder.add<renderer>().build(
+                    [](service_builder<renderer> builder)
                     {
                         auto* const vkEngine = module_manager::get().find<vk::vulkan_engine_module>();
                         builder.externally_owned(&vkEngine->get_renderer());
                     });
 
-                builder.add<scene_renderer>().require<vk::renderer, vk::draw_registry>().build(
+                builder.add<scene_renderer>().require<renderer, draw_registry>().build(
                     [](service_builder<scene_renderer> builder)
                     {
-                        auto& renderer = *builder.find<vk::renderer>();
-                        auto& drawRegistry = *builder.find<vk::draw_registry>();
+                        auto& r = *builder.find<renderer>();
+                        auto& drawRegistry = *builder.find<draw_registry>();
 
-                        builder.unique(renderer.get_frame_graph(), drawRegistry);
+                        builder.unique(r.get_frame_graph(), drawRegistry);
                     });
 
-                builder.add<vk::resource_cache>().require<vk::renderer>().build(
-                    [](service_builder<vk::resource_cache> builder)
+                builder.add<resource_cache>().require<renderer>().build(
+                    [](service_builder<resource_cache> builder)
                     {
-                        auto& renderer = *builder.find<vk::renderer>();
-                        builder.externally_owned(&renderer.get_resource_cache());
+                        auto& r = *builder.find<renderer>();
+                        builder.externally_owned(&r.get_resource_cache());
                     });
 
-                builder.add<vk::draw_registry>()
-                    .require<vk::renderer, ecs::entity_registry, const resource_registry>()
-                    .build(
-                        [](service_builder<vk::draw_registry> builder)
-                        {
-                            auto& renderer = *builder.find<vk::renderer>();
-                            auto& entities = *builder.find<ecs::entity_registry>();
-                            auto& resourceRegistry = *builder.find<const resource_registry>();
+                builder.add<draw_registry>().require<renderer, ecs::entity_registry, const resource_registry>().build(
+                    [](service_builder<draw_registry> builder)
+                    {
+                        auto& r = *builder.find<renderer>();
+                        auto& entities = *builder.find<ecs::entity_registry>();
+                        auto& resourceRegistry = *builder.find<const resource_registry>();
 
-                            auto* drawRegistry = builder.unique();
+                        auto* drawRegistry = builder.unique();
 
-                            drawRegistry->init(renderer.get_vulkan_context(),
-                                renderer.get_staging_buffer(),
-                                renderer.get_string_interner(),
-                                entities,
-                                resourceRegistry,
-                                renderer.get_instance_data_type_registry());
-                        });
+                        drawRegistry->init(r.get_gpu_instance(),
+                            r.get_staging_buffer(),
+                            r.get_string_interner(),
+                            entities,
+                            resourceRegistry,
+                            r.get_instance_data_type_registry());
+                    });
             },
             .systems =
                 [](ecs::system_graph_builder& builder)

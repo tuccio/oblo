@@ -286,7 +286,7 @@ namespace oblo::vk
                 const char* const sourceCodeStrings[] = {sourceCode.data()};
                 const int sourceCodeLengths[] = {narrow_cast<int>(sourceCode.size())};
 
-                m_shader.setStringsWithLengths(sourceCodeStrings, sourceCodeLengths, array_size(sourceCodeStrings));
+                m_shader.setStringsWithLengths(sourceCodeStrings, sourceCodeLengths, array_size32(sourceCodeStrings));
 
                 // We want to process includes ourselves instead
                 glslang::TShader::ForbidIncluder forbidIncluder;

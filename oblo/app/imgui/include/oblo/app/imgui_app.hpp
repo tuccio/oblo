@@ -8,6 +8,7 @@ struct ImGuiContext;
 
 namespace oblo
 {
+    class frame_graph;
     class graphics_window;
     class resource_registry;
     struct window_event_dispatcher;
@@ -36,10 +37,12 @@ namespace oblo
         imgui_app& operator=(const imgui_app&) = delete;
         imgui_app& operator=(imgui_app&&) noexcept = delete;
 
-        expected<> init(const graphics_window_initializer& initializer, const imgui_app_config& cfg = {});
-        void shutdown();
+        expected<> init(const graphics_window_initializer& initializer,
+            const resource_registry& resourceRegistry,
+            frame_graph& frameGraph,
+            const imgui_app_config& cfg = {});
 
-        expected<> init_font_atlas(const resource_registry& resourceRegistry);
+        void shutdown();
 
         void begin_ui();
         void end_ui();

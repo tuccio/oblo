@@ -21,9 +21,8 @@ target_link_libraries(
     oblo::input
     oblo::options
     oblo::properties
+    oblo::renderer
     oblo::scene
-    oblo::vk::core
-    oblo::vk::renderer
     imgui::imgui
     iconfontcppheaders::iconfontcppheaders
     imguizmo::imguizmo

@@ -15,9 +15,9 @@
 #include <oblo/editor/windows/style_window.hpp>
 #include <oblo/editor/windows/viewport.hpp>
 #include <oblo/log/log.hpp>
-#include <oblo/vulkan/events/gi_reset_event.hpp>
-#include <oblo/vulkan/graph/frame_graph.hpp>
-#include <oblo/vulkan/renderer.hpp>
+#include <oblo/renderer/events/gi_reset_event.hpp>
+#include <oblo/renderer/graph/frame_graph.hpp>
+#include <oblo/renderer/renderer.hpp>
 
 #include <IconsFontAwesome6.h>
 
@@ -219,19 +219,17 @@ namespace oblo::editor
                         ctx.windowManager.create_child_window<style_window>(ctx.windowHandle);
                     }
 
-                    auto* const renderer = ctx.services.find<vk::renderer>();
+                    auto* const renderer = ctx.services.find<oblo::renderer>();
 
-                    auto& passManager = renderer->get_pass_manager();
-
-                    if (bool isEnabled = passManager.is_profiling_enabled();
+                    if (bool isEnabled = renderer->is_profiling_enabled();
                         ImGui::MenuItem("GPU profiling", nullptr, &isEnabled))
                     {
-                        passManager.set_profiling_enabled(isEnabled);
+                        renderer->set_profiling_enabled(isEnabled);
                     }
 
                     if (ImGui::MenuItem("Reset GI"))
                     {
-                        renderer->get_frame_graph().push_event(vk::gi_reset_event{});
+                        renderer->get_frame_graph().push_event(gi_reset_event{});
                     }
 
                     if (ImGui::MenuItem("Copy frame graph to clipboard"))

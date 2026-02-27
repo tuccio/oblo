@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/allocator.hpp>
+#include <oblo/core/debug.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/rotate.hpp>
 #include <oblo/core/types.hpp>

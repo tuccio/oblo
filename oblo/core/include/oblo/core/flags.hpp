@@ -59,6 +59,9 @@ namespace oblo
         using type = detail::flags_underlying_type<Size>;
 
     public:
+        OBLO_FORCEINLINE static constexpr flags all();
+
+    public:
         constexpr flags() = default;
         OBLO_FORCEINLINE constexpr flags(E value);
         constexpr flags(const flags&) noexcept = default;
@@ -96,6 +99,12 @@ namespace oblo
     public:
         type storage{};
     };
+
+    template <typename E, u32 Size>
+    constexpr flags<E, Size> flags<E, Size>::all()
+    {
+        return ~flags<E, Size>{};
+    }
 
     template <typename E, u32 Size>
     constexpr flags<E, Size>::flags(E value) : storage{as_flag(value)}

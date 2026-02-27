@@ -3,12 +3,19 @@
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/modules/module_interface.hpp>
 
-namespace oblo::vk
+namespace oblo
 {
     class frame_graph;
     class renderer;
-    class vulkan_context;
 
+    namespace gpu
+    {
+        class gpu_instance;
+    }
+}
+
+namespace oblo::vk
+{
     class vulkan_engine_module final : public module_interface
     {
     public:
@@ -24,7 +31,8 @@ namespace oblo::vk
         void shutdown() override;
         bool finalize() override;
 
-        vulkan_context& get_vulkan_context();
+        gpu::gpu_instance& get_gpu_instance();
+
         renderer& get_renderer();
         frame_graph& get_frame_graph();
 

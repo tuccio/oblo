@@ -25,7 +25,7 @@ target_link_libraries(
     oblo::scene
     oblo::scene::editor
     oblo::thread
-    oblo::vk::engine
+    oblo::vulkan::engine
     cxxopts::cxxopts
 )
 
@@ -33,7 +33,7 @@ oblo_add_data_folder(oblo::editor::data "${CMAKE_SOURCE_DIR}/data/editor")
 
 oblo_symlink_to_data_folder(oblo oblo::editor::data "$<TARGET_FILE_DIR:oblo>/data/oblo")
 oblo_symlink_to_data_folder(oblo oblo::imgui::data "$<TARGET_FILE_DIR:oblo>/imgui")
-oblo_symlink_to_data_folder(oblo oblo::vulkan::shaders "$<TARGET_FILE_DIR:oblo>/vulkan")
+oblo_symlink_to_data_folder(oblo oblo::renderer::vulkan_shaders "$<TARGET_FILE_DIR:oblo>/vulkan")
 
 if(OBLO_WITH_DOTNET)
     oblo_symlink_to_data_folder(oblo oblo::dotnet::runtime::data "$<TARGET_FILE_DIR:oblo>/dotnet")
