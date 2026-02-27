@@ -34,13 +34,6 @@ namespace oblo::gpu::vk
 
         constexpr flags descriptor_pool_bindless_texture_kinds = resource_binding_kind::sampled_image;
 
-        constexpr VkPhysicalDeviceFeatures g_physicalDeviceFeatures{
-            .multiDrawIndirect = true,
-            .samplerAnisotropy = true,
-            .shaderInt64 = true,
-            .shaderInt16 = true,
-        };
-
         VkPhysicalDeviceDynamicRenderingFeatures g_dynamicRenderingFeature{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
             .dynamicRendering = VK_TRUE,
@@ -453,7 +446,13 @@ namespace oblo::gpu::vk
 
         VkPhysicalDeviceFeatures2 g_physicalDeviceFeatures2{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-            .features = g_physicalDeviceFeatures,
+            .features =
+                {
+                    .multiDrawIndirect = true,
+                    .samplerAnisotropy = true,
+                    .shaderInt64 = true,
+                    .shaderInt16 = true,
+                },
         };
 
         // Now we can create rest of the vulkan objects
@@ -502,7 +501,6 @@ namespace oblo::gpu::vk
             .ppEnabledLayerNames = nullptr,
             .enabledExtensionCount = deviceExtensions.size32(),
             .ppEnabledExtensionNames = deviceExtensions.data(),
-            .pEnabledFeatures = &g_physicalDeviceFeatures,
         };
 
         m_queues.push_back({
