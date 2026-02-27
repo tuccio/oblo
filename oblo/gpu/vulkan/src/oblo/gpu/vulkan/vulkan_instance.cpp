@@ -2447,7 +2447,7 @@ namespace oblo::gpu::vk
                         {0, 0, 0},
                         {
                             i32(srcImpl.descriptor.width),
-                            i32(srcImpl.descriptor.width),
+                            i32(srcImpl.descriptor.height),
                             i32(srcImpl.descriptor.depth),
                         },
                     },
@@ -2461,7 +2461,7 @@ namespace oblo::gpu::vk
                         {0, 0, 0},
                         {
                             i32(dstImpl.descriptor.width),
-                            i32(dstImpl.descriptor.width),
+                            i32(dstImpl.descriptor.height),
                             i32(dstImpl.descriptor.depth),
                         },
                     },
