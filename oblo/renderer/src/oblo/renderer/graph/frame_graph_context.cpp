@@ -301,10 +301,9 @@ namespace oblo
                 const binding_tables_span& bindingTables,
                 [[maybe_unused]] const base_pipeline& pipeline,
                 [[maybe_unused]] h32<frame_graph_pass> currentPass) :
-                m_frameGraph{frameGraph}, m_executeArgs{args},
-                m_interner{args.rendererPlatform.passManager.get_string_interner()},
-                m_imageStateTracker{imageStateTracker}, m_bindingTables{bindingTables}, m_pipeline{pipeline},
-                m_currentPass{currentPass}
+                m_frameGraph{frameGraph}, m_interner{args.rendererPlatform.passManager.get_string_interner()},
+                m_imageStateTracker{imageStateTracker}, m_bindingTables{bindingTables}, m_executeArgs{args},
+                m_pipeline{pipeline}, m_currentPass{currentPass}
             {
             }
 
@@ -358,14 +357,9 @@ namespace oblo
                     case gpu::bindable_resource_kind::image: {
                         const frame_graph_texture_impl& t = access_storage_resource(m_frameGraph, r->texture);
 
-                        // The frame graph converts the pin storage handle to texture handle to use when keeping
-                        // track of textures
-                        const auto storage = as_storage_handle(r->texture);
-
                         gpu::image_resource_state state = gpu::image_resource_state::undefined;
 
                         [[maybe_unused]] const bool hasState = m_imageStateTracker.try_get_state(t.handle, state);
-
                         OBLO_ASSERT(hasState);
 
                         return gpu::make_bindable_object(gpu::bindable_image{

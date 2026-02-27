@@ -52,10 +52,6 @@ namespace oblo::vk
         bool create_swapchain_semaphores(
             gpu::gpu_instance& gpu, h32<gpu::semaphore> (&semaphores)[g_SwapchainImages], const char* debugName)
         {
-            constexpr VkSemaphoreCreateInfo semaphoreInfo{
-                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            };
-
             string_builder nameBuilder;
 
             for (u32 i = 0; i < g_SwapchainImages; ++i)
@@ -591,8 +587,6 @@ namespace oblo::vk
         OBLO_ASSERT(commandBuffer);
 
         presentDoneSubmitIndex[semaphoreIndex] = ctx.get_submit_index();
-
-        acquiredImageSemaphores;
 
         ctx.submit(ctx.get_universal_queue(),
                {

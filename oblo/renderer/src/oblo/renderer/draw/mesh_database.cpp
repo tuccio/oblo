@@ -396,7 +396,7 @@ namespace oblo
 
             const expected newBuffer = m_gpu->create_buffer({
                 .size = tableByteSize * MaxTables,
-                .memoryProperties = gpu::memory_usage::gpu_only,
+                .memoryProperties = {gpu::memory_usage::gpu_only},
                 .usages = m_indexBufferUsage,
             });
 

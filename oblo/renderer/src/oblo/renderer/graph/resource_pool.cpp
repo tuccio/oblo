@@ -498,7 +498,7 @@ namespace oblo
         {
             const expected newBuffer = ctx.create_buffer({
                 .size = resource.size,
-                .memoryProperties = gpu::memory_usage::gpu_only,
+                .memoryProperties = {gpu::memory_usage::gpu_only},
                 .usages = resource.usage,
             });
 

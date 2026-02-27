@@ -343,7 +343,7 @@ namespace oblo
                 .colorAttachments = colorAttachments,
             };
 
-            if (const auto r = m_gpu->begin_graphics_pass(cmd, m_renderPipeline, renderPassDesc))
+            if (m_gpu->begin_graphics_pass(cmd, m_renderPipeline, renderPassDesc))
             {
                 const gpu::rectangle rect[1] = {
                     {.x = 0, .y = 0, .width = resolution.x, .height = resolution.y},
@@ -352,7 +352,7 @@ namespace oblo
                 m_gpu->cmd_set_viewport(cmd, 0, rect, 0.f, 1.f);
                 m_gpu->cmd_set_scissor(cmd, 0, rect);
                 m_gpu->cmd_draw(cmd, 3, 1, 0, 0);
-                m_gpu->end_graphics_pass(cmd, *r);
+                m_gpu->end_graphics_pass(cmd);
             }
 
             {

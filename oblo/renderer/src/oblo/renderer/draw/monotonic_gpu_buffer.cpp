@@ -2,8 +2,8 @@
 
 #include <oblo/core/utility.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/structs.hpp>
+
 
 namespace oblo
 {
@@ -61,7 +61,7 @@ namespace oblo
             {
                 const expected newBuffer = gpu.create_buffer({
                     .size = m_chunkSize,
-                    .memoryProperties = m_memoryUsage,
+                    .memoryProperties = {m_memoryUsage},
                     .usages = m_usage,
                 });
 

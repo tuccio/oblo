@@ -37,7 +37,7 @@ namespace oblo::gpu::vk
 
         device_info get_device_info() override;
 
-        bool is_profiler_attached() const;
+        bool is_profiler_attached() const override;
 
         result<h32<swapchain>> create_swapchain(const swapchain_descriptor& descriptor) override;
         void destroy(h32<swapchain> handle) override;
