@@ -2,9 +2,9 @@
 
 #include <oblo/core/finally.hpp>
 #include <oblo/core/random_generator.hpp>
-#include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
+#include <oblo/gpu/structs.hpp>
 
 #include <oblo/gpu/vulkan/vulkan_instance.hpp>
 
@@ -57,9 +57,6 @@ namespace oblo::gpu
 
         ASSERT_TRUE(pool);
 
-        const h32 fence = gpu->create_fence({}).value_or({});
-        ASSERT_TRUE(fence);
-
         // Create the buffers
         h32<buffer> buffers[buffersCount];
         void* mappings[buffersCount];
@@ -85,7 +82,6 @@ namespace oblo::gpu
                 ASSERT_TRUE(gpu->wait_idle());
 
                 gpu->destroy(pool);
-                gpu->destroy(fence);
 
                 for (auto buffer : buffers)
                 {
@@ -105,6 +101,7 @@ namespace oblo::gpu
             // The first 2 uploads will work, after that we need to flush because we used the whole staging buffer
             constexpr u64 frameIndex{1};
 
+            ASSERT_TRUE(gpu->begin_submit_tracking());
             stagingBuffer.begin_frame(frameIndex);
 
             const expected<staging_buffer_span> staged[] = {
@@ -131,13 +128,13 @@ namespace oblo::gpu
 
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
-            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}, .signalFence = fence};
+            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}};
 
             ASSERT_TRUE(gpu->submit(universalQueue, submit));
         }
 
-        ASSERT_TRUE(gpu->wait_for_fences({&fence, 1}));
-        ASSERT_TRUE(gpu->reset_fences({&fence, 1}));
+        ASSERT_TRUE(gpu->begin_submit_tracking());
+        ASSERT_TRUE(gpu->wait_for_submit_completion(gpu->get_submit_index() - 1));
 
         ASSERT_TRUE(gpu->memory_invalidate({buffers, buffersCount}));
 
@@ -184,14 +181,13 @@ namespace oblo::gpu
 
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
-            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}, .signalFence = fence};
+            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}};
 
             ASSERT_TRUE(gpu->submit(universalQueue, submit));
         }
 
-        ASSERT_TRUE(gpu->wait_for_fences({&fence, 1}));
-        ASSERT_TRUE(gpu->reset_fences({&fence, 1}));
-
+        ASSERT_TRUE(gpu->begin_submit_tracking());
+        ASSERT_TRUE(gpu->wait_for_submit_completion(gpu->get_submit_index() - 1));
         ASSERT_TRUE(gpu->memory_invalidate({buffers, buffersCount}));
 
         ASSERT_EQ(readbackBuffer(mappings[2]), data);
@@ -238,13 +234,13 @@ namespace oblo::gpu
 
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
-            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}, .signalFence = fence};
+            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}};
 
             ASSERT_TRUE(gpu->submit(universalQueue, submit));
         }
 
-        ASSERT_TRUE(gpu->wait_for_fences({&fence, 1}));
-        ASSERT_TRUE(gpu->reset_fences({&fence, 1}));
+        ASSERT_TRUE(gpu->begin_submit_tracking());
+        ASSERT_TRUE(gpu->wait_for_submit_completion(gpu->get_submit_index() - 1));
 
         ASSERT_TRUE(gpu->memory_invalidate({buffers, buffersCount}));
 

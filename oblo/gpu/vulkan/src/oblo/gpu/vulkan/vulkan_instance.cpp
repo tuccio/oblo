@@ -2241,7 +2241,7 @@ namespace oblo::gpu::vk
 
         VkFence vkFence{};
 
-        OBLO_ASSERT(isMainQueue || !descriptor.signalFence,
+        OBLO_ASSERT(isMainQueue ^ !!descriptor.signalFence,
             "For the universal queue, we need to override with internal fence for tracking");
 
         if (isMainQueue)
