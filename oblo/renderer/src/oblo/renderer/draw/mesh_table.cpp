@@ -249,6 +249,8 @@ namespace oblo
                     result.buffer = m_vertexBuffer;
                     result.offset = subrange.begin + elementSize * range->vertexOffset;
                     result.size = elementSize * range->vertexCount;
+
+                    OBLO_ASSERT(result.offset >= subrange.begin && result.offset + result.size < subrange.end);
                 }
 
                 vertexBuffers[i] = result;
@@ -274,9 +276,13 @@ namespace oblo
 
                     const buffer_table_subrange& subrange = allBuffers[columnIndex];
 
-                    result.buffer = m_meshDataBuffer;
-                    result.offset = subrange.begin + elementSize * range->vertexOffset;
-                    result.size = elementSize * range->vertexCount;
+                    result = {
+                        .buffer = m_meshDataBuffer,
+                        .offset = subrange.begin + elementSize * range->meshOffset,
+                        .size = elementSize,
+                    };
+
+                    OBLO_ASSERT(result.offset >= subrange.begin && result.offset + result.size < subrange.end);
                 }
 
                 meshDataBuffers[i] = result;
@@ -294,10 +300,9 @@ namespace oblo
         {
             *meshletBuffer = {
                 .buffer = m_meshletsBuffer,
+                .offset = sizeof(meshlet_range) * range->meshletOffset,
+                .size = sizeof(meshlet_range) * range->meshletCount,
             };
-
-            meshletBuffer->offset += sizeof(meshlet_range) * range->meshletOffset;
-            meshletBuffer->size = sizeof(meshlet_range) * range->meshletCount;
         }
 
         return true;
