@@ -11,7 +11,7 @@
 
 namespace oblo
 {
-    constexpr u32 StagingBufferSize{1u << 29};
+    constexpr u32 StagingBufferSize{1u << 30};
 
     struct renderer::used_command_buffer_pool
     {

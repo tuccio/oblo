@@ -2016,6 +2016,12 @@ namespace oblo::gpu::vk
     void vulkan_instance::destroy(h32<raytracing_pipeline> handle)
     {
         auto& pipeline = m_raytracingPipelines.at(handle);
+
+        if (pipeline.shaderBindingTable.buffer)
+        {
+            m_allocator.destroy(pipeline.shaderBindingTable);
+        }
+
         destroy_pipeline_base(pipeline, m_device, m_allocator.get_allocation_callbacks());
         m_raytracingPipelines.erase(handle);
     }
