@@ -306,6 +306,8 @@ namespace oblo::gpu::vk
         OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkGetRayTracingShaderGroupHandlesKHR);
         OBLO_VK_LOAD_FN_ASSIGN(m_loadedFunctions, vkCmdTraceRaysKHR);
 
+        m_allocator.set_object_debug_utils(m_objLabeler);
+
         return no_error;
     }
 
