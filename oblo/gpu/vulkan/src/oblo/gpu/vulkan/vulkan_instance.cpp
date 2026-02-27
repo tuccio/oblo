@@ -2040,7 +2040,7 @@ namespace oblo::gpu::vk
         }
     }
 
-    result<hptr<graphics_pass>> vulkan_instance::begin_graphics_pass(
+    result<> vulkan_instance::begin_graphics_pass(
         hptr<command_buffer> cmdBuffer, h32<graphics_pipeline> pipeline, const graphics_pass_descriptor& descriptor)
     {
         auto* const p = m_renderPipelines.try_find(pipeline);
@@ -2104,17 +2104,16 @@ namespace oblo::gpu::vk
         vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p->pipeline);
         vkCmdBeginRendering(vkCommandBuffer, &renderingInfo);
 
-        return hptr<graphics_pass>{pipeline.value};
+        return no_error;
     }
 
-    void vulkan_instance::end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass>)
+    void vulkan_instance::end_graphics_pass(hptr<command_buffer> cmdBuffer)
     {
         vkCmdEndRendering(unwrap_handle<VkCommandBuffer>(cmdBuffer));
         m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }
 
-    result<hptr<compute_pass>> vulkan_instance::begin_compute_pass(hptr<command_buffer> cmdBuffer,
-        h32<compute_pipeline> pipeline)
+    result<> vulkan_instance::begin_compute_pass(hptr<command_buffer> cmdBuffer, h32<compute_pipeline> pipeline)
     {
         auto* const p = m_computePipelines.try_find(pipeline);
 
@@ -2128,16 +2127,15 @@ namespace oblo::gpu::vk
 
         vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, p->pipeline);
 
-        return hptr<compute_pass>{pipeline.value};
+        return no_error;
     }
 
-    void vulkan_instance::end_compute_pass(hptr<command_buffer> cmdBuffer, hptr<compute_pass>)
+    void vulkan_instance::end_compute_pass(hptr<command_buffer> cmdBuffer)
     {
         m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }
 
-    result<hptr<raytracing_pass>> vulkan_instance::begin_raytracing_pass(hptr<command_buffer> cmdBuffer,
-        h32<raytracing_pipeline> pipeline)
+    result<> vulkan_instance::begin_raytracing_pass(hptr<command_buffer> cmdBuffer, h32<raytracing_pipeline> pipeline)
     {
         auto* const p = m_raytracingPipelines.try_find(pipeline);
 
@@ -2151,10 +2149,10 @@ namespace oblo::gpu::vk
 
         vkCmdBindPipeline(vkCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, p->pipeline);
 
-        return hptr<raytracing_pass>{pipeline.value};
+        return no_error;
     }
 
-    void vulkan_instance::end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass>)
+    void vulkan_instance::end_raytracing_pass(hptr<command_buffer> cmdBuffer)
     {
         m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }
@@ -2550,7 +2548,7 @@ namespace oblo::gpu::vk
     }
 
     void vulkan_instance::cmd_trace_rays(
-        hptr<command_buffer> cmd, hptr<raytracing_pass> currentPass, u32 width, u32 height, u32 depth)
+        hptr<command_buffer> cmd, h32<raytracing_pipeline> currentPass, u32 width, u32 height, u32 depth)
     {
         // Not ideal we could probably considering using the TLS or allocate this stuff into an arena
         const h32<raytracing_pipeline> h{u32(currentPass.value)};

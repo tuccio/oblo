@@ -2052,7 +2052,6 @@ namespace oblo
 
         const render_pass_context renderPassContext{
             .commandBuffer = commandBuffer,
-            .pass = *pass,
             .internalPipeline = pipeline,
         };
 
@@ -2061,7 +2060,7 @@ namespace oblo
 
     void pass_manager::end_render_pass(const render_pass_context& context) const
     {
-        m_impl->gpu->end_graphics_pass(context.commandBuffer, context.pass);
+        m_impl->gpu->end_graphics_pass(context.commandBuffer);
     }
 
     expected<compute_pass_context> pass_manager::begin_compute_pass(hptr<gpu::command_buffer> commandBuffer,
@@ -2099,7 +2098,6 @@ namespace oblo
 
         const compute_pass_context computePassContext{
             .commandBuffer = commandBuffer,
-            .pass = *pass,
             .internalPipeline = pipeline,
         };
 
@@ -2108,7 +2106,7 @@ namespace oblo
 
     void pass_manager::end_compute_pass(const compute_pass_context& context) const
     {
-        m_impl->gpu->end_compute_pass(context.commandBuffer, context.pass);
+        m_impl->gpu->end_compute_pass(context.commandBuffer);
     }
 
     expected<raytracing_pass_context> pass_manager::begin_raytracing_pass(hptr<gpu::command_buffer> commandBuffer,
@@ -2146,7 +2144,6 @@ namespace oblo
 
         const raytracing_pass_context rtPipelineContext{
             .commandBuffer = commandBuffer,
-            .pass = *pass,
             .internalPipeline = pipeline,
         };
 
@@ -2155,7 +2152,7 @@ namespace oblo
 
     void pass_manager::end_raytracing_pass(const raytracing_pass_context& context) const
     {
-        m_impl->gpu->end_raytracing_pass(context.commandBuffer, context.pass);
+        m_impl->gpu->end_raytracing_pass(context.commandBuffer);
     }
 
     u32 pass_manager::get_subgroup_size() const
@@ -2227,7 +2224,7 @@ namespace oblo
 
     void pass_manager::trace_rays(const raytracing_pass_context& ctx, u32 width, u32 height, u32 depth) const
     {
-        m_impl->gpu->cmd_trace_rays(ctx.commandBuffer, ctx.pass, width, height, depth);
+        m_impl->gpu->cmd_trace_rays(ctx.commandBuffer, ctx.internalPipeline->pipeline, width, height, depth);
     }
 
     const base_pipeline* pass_manager::get_base_pipeline(const compute_pipeline* pipeline) const

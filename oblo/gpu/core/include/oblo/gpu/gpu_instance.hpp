@@ -118,21 +118,19 @@ namespace oblo::gpu
         virtual result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) = 0;
         virtual void destroy(h32<sampler> handle) = 0;
 
-        virtual result<hptr<graphics_pass>> begin_graphics_pass(hptr<command_buffer> cmdBuffer,
+        virtual result<> begin_graphics_pass(hptr<command_buffer> cmdBuffer,
             h32<graphics_pipeline> pipeline,
             const graphics_pass_descriptor& descriptor) = 0;
 
-        virtual void end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass> renderPass) = 0;
+        virtual void end_graphics_pass(hptr<command_buffer> cmdBuffer) = 0;
 
-        virtual result<hptr<compute_pass>> begin_compute_pass(hptr<command_buffer> cmdBuffer,
-            h32<compute_pipeline> pipeline) = 0;
+        virtual result<> begin_compute_pass(hptr<command_buffer> cmdBuffer, h32<compute_pipeline> pipeline) = 0;
 
-        virtual void end_compute_pass(hptr<command_buffer> cmdBuffer, hptr<compute_pass> renderPass) = 0;
+        virtual void end_compute_pass(hptr<command_buffer> cmdBuffer) = 0;
 
-        virtual result<hptr<raytracing_pass>> begin_raytracing_pass(hptr<command_buffer> cmdBuffer,
-            h32<raytracing_pipeline> pipeline) = 0;
+        virtual result<> begin_raytracing_pass(hptr<command_buffer> cmdBuffer, h32<raytracing_pipeline> pipeline) = 0;
 
-        virtual void end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass> renderPass) = 0;
+        virtual void end_raytracing_pass(hptr<command_buffer> cmdBuffer) = 0;
 
         /// @brief Necessary to call for tracking the main queue and synchronizing with the GPU when necessary.
         /// This function might release resources that are not used by the GPU anymore.
@@ -211,7 +209,7 @@ namespace oblo::gpu
         virtual void cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ) = 0;
 
         virtual void cmd_trace_rays(
-            hptr<command_buffer> cmd, hptr<raytracing_pass> currentPass, u32 width, u32 height, u32 depth) = 0;
+            hptr<command_buffer> cmd, h32<raytracing_pipeline> currentPipeline, u32 width, u32 height, u32 depth) = 0;
 
         virtual void cmd_set_viewport(hptr<command_buffer> cmd,
             u32 firstViewport,

@@ -117,21 +117,19 @@ namespace oblo::gpu::vk
         result<h32<sampler>> create_sampler(const sampler_descriptor& descriptor) override;
         void destroy(h32<sampler> handle) override;
 
-        result<hptr<graphics_pass>> begin_graphics_pass(hptr<command_buffer> cmdBuffer,
+        result<> begin_graphics_pass(hptr<command_buffer> cmdBuffer,
             h32<graphics_pipeline> pipeline,
             const graphics_pass_descriptor& descriptor) override;
 
-        void end_graphics_pass(hptr<command_buffer> cmdBuffer, hptr<graphics_pass> graphicsPass) override;
+        void end_graphics_pass(hptr<command_buffer> cmdBuffer) override;
 
-        result<hptr<compute_pass>> begin_compute_pass(hptr<command_buffer> cmdBuffer,
-            h32<compute_pipeline> pipeline) override;
+        result<> begin_compute_pass(hptr<command_buffer> cmdBuffer, h32<compute_pipeline> pipeline) override;
 
-        void end_compute_pass(hptr<command_buffer> cmdBuffer, hptr<compute_pass> computePass) override;
+        void end_compute_pass(hptr<command_buffer> cmdBuffer) override;
 
-        result<hptr<raytracing_pass>> begin_raytracing_pass(hptr<command_buffer> cmdBuffer,
-            h32<raytracing_pipeline> pipeline) override;
+        result<> begin_raytracing_pass(hptr<command_buffer> cmdBuffer, h32<raytracing_pipeline> pipeline) override;
 
-        void end_raytracing_pass(hptr<command_buffer> cmdBuffer, hptr<raytracing_pass> raytracingPass) override;
+        void end_raytracing_pass(hptr<command_buffer> cmdBuffer) override;
 
         result<> begin_submit_tracking() override;
         result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
@@ -187,8 +185,11 @@ namespace oblo::gpu::vk
 
         void cmd_dispatch_compute(hptr<command_buffer> cmd, u32 groupX, u32 groupY, u32 groupZ) override;
 
-        void cmd_trace_rays(
-            hptr<command_buffer> cmd, hptr<raytracing_pass> currentPass, u32 width, u32 height, u32 depth) override;
+        void cmd_trace_rays(hptr<command_buffer> cmd,
+            h32<raytracing_pipeline> currentPipeline,
+            u32 width,
+            u32 height,
+            u32 depth) override;
 
         void cmd_set_viewport(hptr<command_buffer> cmd,
             u32 firstScissor,

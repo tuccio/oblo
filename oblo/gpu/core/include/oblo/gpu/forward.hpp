@@ -15,7 +15,6 @@ namespace oblo::gpu
     struct compute_pipeline;
     struct device_address;
     struct fence;
-    struct graphics_pass;
     struct graphics_pipeline;
     struct image_pool;
     struct image;
@@ -36,7 +35,6 @@ namespace oblo::gpu
     struct buffer_descriptor;
     struct buffer_image_copy_descriptor;
     struct command_buffer_pool_descriptor;
-    struct compute_pass;
     struct compute_pipeline_descriptor;
     struct device_descriptor;
     struct fence_descriptor;
@@ -48,7 +46,6 @@ namespace oblo::gpu
     struct present_descriptor;
     struct queue_submit_descriptor;
     struct raytracing_hit_group_descriptor;
-    struct raytracing_pass;
     struct raytracing_pipeline_descriptor;
     struct sampler_descriptor;
     struct semaphore_descriptor;
