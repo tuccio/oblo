@@ -1162,7 +1162,7 @@ namespace oblo::gpu::vk
     result<h32<acceleration_structure>> vulkan_instance::create_acceleration_structure(
         const acceleration_structure_descriptor& descriptor)
     {
-        // TODO
+        // TODO (#84): Acceleration structures are not supported yet
         (void) descriptor;
         return error::invalid_usage;
     }

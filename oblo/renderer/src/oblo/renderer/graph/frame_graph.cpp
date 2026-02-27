@@ -1403,8 +1403,7 @@ namespace oblo
                     auto* const dstPin = pins.try_find(outVertex.pin);
                     const auto dstNode = dstPin->nodeHandle;
 
-                    const auto& dstNodeVertex = graph[dstNode];
-                    OBLO_ASSERT(dstNodeVertex.kind == frame_graph_vertex_kind::node);
+                    OBLO_ASSERT(graph[dstNode].kind == frame_graph_vertex_kind::node);
 
                     if (outVertex.state == frame_graph_vertex_state::enabled)
                     {
