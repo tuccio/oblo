@@ -1148,7 +1148,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_black,
-                .debugLabel = "linear_repeat",
+                .debugLabel = "sampler::linear_repeat",
             };
 
             m_impl->samplers[u32(sampler::linear_repeat)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1168,7 +1168,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_black,
-                .debugLabel = "linear_clamp_edge",
+                .debugLabel = "sampler::linear_clamp_edge",
             };
 
             m_impl->samplers[u32(sampler::linear_clamp_edge)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1189,7 +1189,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_black,
-                .debugLabel = "linear_clamp_black",
+                .debugLabel = "sampler::linear_clamp_black",
             };
 
             m_impl->samplers[u32(sampler::linear_clamp_black)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1210,7 +1210,7 @@ namespace oblo
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
                 .borderColor = gpu::border_color::int_opaque_white,
-                .debugLabel = "linear_clamp_white",
+                .debugLabel = "sampler::linear_clamp_white",
             };
 
             m_impl->samplers[u32(sampler::linear_clamp_white)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1230,7 +1230,7 @@ namespace oblo
                 .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
-                .debugLabel = "nearest",
+                .debugLabel = "sampler::nearest",
             };
 
             m_impl->samplers[u32(sampler::nearest)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1251,7 +1251,7 @@ namespace oblo
                 .compareOp = gpu::compare_op::always,
                 .minLod = 0.0f,
                 .maxLod = gpu::sampler_descriptor::lod_clamp_none,
-                .debugLabel = "anisotropic",
+                .debugLabel = "sampler::anisotropic",
             };
 
             m_impl->samplers[u32(sampler::anisotropic)] = gpu.create_sampler(samplerInfo).value_or({});
@@ -1265,7 +1265,7 @@ namespace oblo
                 .shaderStages = flags<gpu::shader_stage>::all(),
                 .immutableSamplers = m_impl->samplers,
             }}),
-            .debugLabel = "samplers_layout",
+            .debugLabel = "sampler::samplers_layout",
         });
 
         m_impl->samplersSetLayout = samplersSetLayout.assert_value_or({});
@@ -1278,7 +1278,7 @@ namespace oblo
                 .bindingKind = gpu::resource_binding_kind::sampled_image,
                 .shaderStages = flags<gpu::shader_stage>::all(),
             }}),
-            .debugLabel = "bindless_textures",
+            .debugLabel = "sampler::bindless_textures",
         });
 
         m_impl->textures2DSetLayout = bindlessTexturesLayout.assert_value_or({});

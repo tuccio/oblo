@@ -7,6 +7,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_interner.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
@@ -537,50 +538,38 @@ namespace oblo
         as = {};
     }
 
-    void draw_registry::flush_uploads(hptr<gpu::command_buffer> commandBufferHandle)
+    void draw_registry::flush_uploads(hptr<gpu::command_buffer> commandBuffer)
     {
         if (!m_pendingMeshUploads.empty())
         {
-            const VkCommandBuffer commandBuffer = std::bit_cast<VkCommandBuffer>(commandBufferHandle);
-
-            const VkMemoryBarrier2 before{
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            const gpu::global_memory_barrier before[] = {
+                {
+                    .previousPipelines = gpu::pipeline_sync_stage::all_commands,
+                    .previousAccesses = gpu::memory_access_type::any_read | gpu::memory_access_type::any_write,
+                    .nextPipelines = gpu::pipeline_sync_stage::transfer,
+                    .nextAccesses = gpu::memory_access_type::any_write,
+                },
             };
 
-            const VkDependencyInfo beforeDependencyInfo{
-                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                .memoryBarrierCount = 1u,
-                .pMemoryBarriers = &before,
-            };
-
-            vkCmdPipelineBarrier2(commandBuffer, &beforeDependencyInfo);
+            m_ctx->cmd_label_begin(commandBuffer, "draw_registry::flush_uploads");
+            m_ctx->cmd_apply_barriers(commandBuffer, {.memory = before});
 
             for (const auto& upload : m_pendingMeshUploads)
             {
-                m_stagingBuffer->upload(commandBufferHandle, upload.src, upload.dst.buffer, upload.dst.offset);
+                m_stagingBuffer->upload(commandBuffer, upload.src, upload.dst.buffer, upload.dst.offset);
             }
 
-            const VkMemoryBarrier2 after{
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+            const gpu::global_memory_barrier after[] = {
+                {
+                    .previousPipelines = gpu::pipeline_sync_stage::transfer,
+                    .previousAccesses = gpu::memory_access_type::any_write,
+                    .nextPipelines = gpu::pipeline_sync_stage::all_commands,
+                    .nextAccesses = gpu::memory_access_type::any_read,
+                },
             };
 
-            const VkDependencyInfo afterDependencyInfo{
-                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                .memoryBarrierCount = 1u,
-                .pMemoryBarriers = &after,
-            };
-
-            vkCmdPipelineBarrier2(commandBuffer, &afterDependencyInfo);
+            m_ctx->cmd_apply_barriers(commandBuffer, {.memory = after});
+            m_ctx->cmd_label_end(commandBuffer);
 
             m_pendingMeshUploads.clear();
         }

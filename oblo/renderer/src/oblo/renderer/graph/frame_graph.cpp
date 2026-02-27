@@ -691,7 +691,7 @@ namespace oblo
 
         if (!m_impl->pendingUploads.empty())
         {
-            m_impl->flush_uploads(commandBuffer, args.stagingBuffer);
+            m_impl->flush_uploads(gpu, commandBuffer, args.stagingBuffer);
         }
 
         // Prepare the download buffers
@@ -1514,25 +1514,22 @@ namespace oblo
         }
     }
 
-    void frame_graph_impl::flush_uploads(hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer)
+    void frame_graph_impl::flush_uploads(
+        gpu::gpu_instance& gpu, hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer)
     {
         OBLO_ASSERT(!pendingUploads.empty());
 
-        const VkMemoryBarrier2 before{
-            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-            .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            .srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-            .dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        const gpu::global_memory_barrier before[] = {
+            {
+                .previousPipelines = gpu::pipeline_sync_stage::all_commands,
+                .previousAccesses = gpu::memory_access_type::any_read | gpu::memory_access_type::any_write,
+                .nextPipelines = gpu::pipeline_sync_stage::transfer,
+                .nextAccesses = gpu::memory_access_type::any_write,
+            },
         };
 
-        const VkDependencyInfo beforeDependencyInfo{
-            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-            .memoryBarrierCount = 1u,
-            .pMemoryBarriers = &before,
-        };
-
-        vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBuffer), &beforeDependencyInfo);
+        gpu.cmd_label_begin(commandBuffer, "frame_graph_impl::flush_uploads");
+        gpu.cmd_apply_barriers(commandBuffer, {.memory = before});
 
         for (const auto& upload : pendingUploads)
         {
@@ -1543,26 +1540,22 @@ namespace oblo
 
         pendingUploads.clear();
 
-        const VkMemoryBarrier2 after{
-            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-            .srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-            .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            .dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT,
+        const gpu::global_memory_barrier after[] = {
+            {
+                .previousPipelines = gpu::pipeline_sync_stage::transfer,
+                .previousAccesses = gpu::memory_access_type::any_write,
+                .nextPipelines = gpu::pipeline_sync_stage::all_commands,
+                .nextAccesses = gpu::memory_access_type::any_read,
+            },
         };
 
-        const VkDependencyInfo afterDependencyInfo{
-            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-            .memoryBarrierCount = 1u,
-            .pMemoryBarriers = &after,
-        };
-
-        vkCmdPipelineBarrier2(std::bit_cast<VkCommandBuffer>(commandBuffer), &afterDependencyInfo);
+        gpu.cmd_apply_barriers(commandBuffer, {.memory = after});
+        gpu.cmd_label_end(commandBuffer);
     }
 
-    void frame_graph_impl::flush_downloads(gpu::gpu_instance& queueCtx)
+    void frame_graph_impl::flush_downloads(gpu::gpu_instance& gpu)
     {
-        const auto lastFinishedFrame = queueCtx.get_last_finished_submit();
+        const auto lastFinishedFrame = gpu.get_last_finished_submit();
 
         downloadStaging.notify_finished_frames(lastFinishedFrame);
 

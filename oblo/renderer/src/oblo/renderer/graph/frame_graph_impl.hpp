@@ -319,8 +319,9 @@ namespace oblo
     public: // Internals for frame graph execution
         void mark_active_nodes();
         void rebuild_runtime(const frame_graph_build_args& args);
-        void flush_uploads(hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer);
-        void flush_downloads(gpu::gpu_instance& queueCtx);
+        void flush_uploads(
+            gpu::gpu_instance& gpu, hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer);
+        void flush_downloads(gpu::gpu_instance& gpu);
         void finish_frame();
 
         future<async_metrics> request_metrics();
