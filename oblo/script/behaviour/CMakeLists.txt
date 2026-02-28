@@ -17,5 +17,6 @@ target_link_libraries(
     oblo::properties
     oblo::reflection
     oblo::resource
+    oblo::scene::headers
     oblo::script::runtime
 )

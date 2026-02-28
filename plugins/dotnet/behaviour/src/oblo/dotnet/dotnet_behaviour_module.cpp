@@ -12,11 +12,8 @@
 #include <oblo/reflection/codegen/registration.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
-
-namespace oblo::barriers
-{
-    struct transform_update;
-}
+#include <oblo/scene/systems/barriers.hpp>
+#include <oblo/scene/systems/usages.hpp>
 
 namespace oblo
 {
@@ -58,7 +55,7 @@ namespace oblo
             .systems =
                 [](ecs::system_graph_builder& b)
             {
-                if (!b.usages().contains("no_scripts"_hsv))
+                if (!b.usages().contains(system_graph_usages::no_scripts))
                 {
                     b.add_system<dotnet_behaviour_system>().before<barriers::transform_update>();
                 }

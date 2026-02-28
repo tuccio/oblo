@@ -1,4 +1,6 @@
-oblo_add_library(scene MODULE)
+oblo_add_library(scene MODULE
+    GENERATE_HEADERS_TARGET
+)
 
 find_package(Ktx REQUIRED)
 find_package(RapidJSON REQUIRED)

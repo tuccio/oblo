@@ -11,7 +11,6 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/time/time.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/editor/data/time_stats.hpp>
 #include <oblo/editor/editor_module.hpp>
 #include <oblo/editor/providers/module_repository_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
@@ -27,14 +26,11 @@
 #include <oblo/editor/windows/asset_browser.hpp>
 #include <oblo/editor/windows/console_window.hpp>
 #include <oblo/editor/windows/editor_window.hpp>
-#include <oblo/editor/windows/style_window.hpp>
 #include <oblo/input/input_queue.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/log/log_module.hpp>
 #include <oblo/log/sinks/file_sink.hpp>
 #include <oblo/log/sinks/win32_debug_sink.hpp>
-#include <oblo/math/quaternion.hpp>
-#include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/modules/utility/provider_service.hpp>
@@ -47,7 +43,6 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/resource/utility/registration.hpp>
-#include <oblo/runtime/runtime.hpp>
 #include <oblo/runtime/runtime_module.hpp>
 #include <oblo/runtime/runtime_registry.hpp>
 #include <oblo/scene/resources/texture.hpp>

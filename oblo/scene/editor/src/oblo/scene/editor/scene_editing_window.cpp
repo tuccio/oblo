@@ -80,7 +80,7 @@ namespace oblo::editor
             switch (newMode)
             {
             case editor_mode::simulating:
-                usages = {system_graph_usages::editor};
+                usages = {system_graph_usages::editor, system_graph_usages::play_mode};
                 break;
 
             case editor_mode::editing:

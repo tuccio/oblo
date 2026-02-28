@@ -9,15 +9,12 @@
 #include <oblo/reflection/codegen/registration.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
+#include <oblo/scene/systems/barriers.hpp>
+#include <oblo/scene/systems/usages.hpp>
 #include <oblo/script/behaviour/options.hpp>
 #include <oblo/script/behaviour/script_behaviour_system.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
 #include <oblo/script/resources/traits.hpp>
-
-namespace oblo::barriers
-{
-    struct transform_update;
-}
 
 namespace oblo
 {
@@ -62,7 +59,7 @@ namespace oblo
                 .systems =
                     [](ecs::system_graph_builder& b)
                 {
-                    if (!b.usages().contains("no_scripts"_hsv))
+                    if (!b.usages().contains(system_graph_usages::no_scripts))
                     {
                         b.add_system<script_behaviour_system>().before<barriers::transform_update>();
                     }
