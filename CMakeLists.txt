@@ -24,4 +24,9 @@ add_subdirectory(oblo)
 add_subdirectory(plugins)
 add_subdirectory(testing)
 
+foreach(directory IN LISTS OBLO_EXTRA_MODULE_DIRS)
+    cmake_path(GET directory FILENAME directoryName)
+    add_subdirectory(${directory} "${CMAKE_CURRENT_BINARY_DIR}/extra/${directoryName}")
+endforeach()
+
 oblo_shutdown()

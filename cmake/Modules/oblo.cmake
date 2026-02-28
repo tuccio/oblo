@@ -19,6 +19,7 @@ option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
 option(OBLO_CONAN_FORCE_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
+set(OBLO_EXTRA_MODULE_DIRS "" CACHE STRING "A list of directories for extra modules to include in the project")
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
@@ -316,7 +317,7 @@ function(oblo_add_library name)
         endif()
 
         if(_withReflection)
-            target_link_libraries(${_target} PUBLIC oblo::annotations)
+            target_link_libraries(${_target} PUBLIC oblo::annotations PRIVATE oblo::reflection)
             _oblo_add_codegen_dependency(${_target})
         endif()
 

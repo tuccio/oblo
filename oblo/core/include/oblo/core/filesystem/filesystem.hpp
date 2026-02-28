@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/forward.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -18,7 +19,13 @@ namespace oblo::filesystem
 
     expected<bool> rename(string_view from, string_view to);
 
-    expected<bool> copy_file(string_view source, string_view destination);
+    enum class copy_options : u8
+    {
+        overwrite_existing,
+        enum_max,
+    };
+
+    expected<bool> copy_file(string_view source, string_view destination, flags<copy_options> opts = {});
 
     expected<bool> create_directories(string_view path);
 
