@@ -2,9 +2,9 @@
 
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/structs.hpp>
-#include <oblo/gpu/enums.hpp>
 
 namespace oblo
 {
@@ -19,7 +19,11 @@ namespace oblo
         dynamic_buffer& operator=(const dynamic_buffer&) = delete;
         dynamic_buffer& operator=(dynamic_buffer&&) noexcept = delete;
 
-        void init(gpu::gpu_instance& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties);
+        void init(gpu::gpu_instance& ctx,
+            flags<gpu::buffer_usage> usage,
+            gpu::memory_properties memoryProperties,
+            u32 alignment);
+
         void shutdown();
 
         void clear();
@@ -44,6 +48,7 @@ namespace oblo
         h32<gpu::buffer> m_buffer{};
         u32 m_capacity{};
         u32 m_usedBytes{};
+        u32 m_alignment{};
         flags<gpu::buffer_usage> m_usage{};
         gpu::memory_properties m_memoryProperties;
     };

@@ -94,6 +94,7 @@ namespace oblo::gpu
     struct buffer_descriptor
     {
         u64 size;
+        u64 alignment;
         memory_properties memoryProperties;
         flags<buffer_usage> usages;
         debug_label debugLabel = std::source_location::current();
@@ -319,6 +320,7 @@ namespace oblo::gpu
     struct device_info
     {
         u32 subgroupSize;
+        u64 minAccelerationStructureScratchOffsetAlignment;
         u64 minUniformBufferOffsetAlignment;
         u64 minStorageBufferOffsetAlignment;
         u64 optimalBufferCopyOffsetAlignment;

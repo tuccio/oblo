@@ -11,13 +11,14 @@ namespace oblo
     }
 
     void dynamic_buffer::init(
-        gpu::gpu_instance& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties)
+        gpu::gpu_instance& ctx, flags<gpu::buffer_usage> usage, gpu::memory_properties memoryProperties, u32 alignment)
     {
         m_ctx = &ctx;
         m_buffer = {};
         m_capacity = {};
         m_usedBytes = {};
         m_usage = usage;
+        m_alignment = alignment;
         m_memoryProperties = memoryProperties;
     }
 
@@ -80,6 +81,7 @@ namespace oblo
 
         const expected newBuffer = gpu.create_buffer({
             .size = size,
+            .alignment = m_alignment,
             .memoryProperties = m_memoryProperties,
             .usages = m_usage,
         });

@@ -3,7 +3,7 @@
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/vulkan/utility/debug_utils.hpp>
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include <span>
 
@@ -83,7 +83,8 @@ namespace oblo::gpu::vk
 
     struct allocated_buffer_initializer
     {
-        u64 size;
+        VkDeviceSize size;
+        VkDeviceSize alignment;
         VkBufferUsageFlags usage;
 
         // One between required flags and memory usage has to be non-zero

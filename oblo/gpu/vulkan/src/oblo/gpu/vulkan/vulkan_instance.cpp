@@ -391,8 +391,13 @@ namespace oblo::gpu::vk
         m_physicalDevice = devices[0];
 
         // Cache the properties so users can query them on demand
+        m_accelerationStructureProperties = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+        };
+
         m_raytracingProperties = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR,
+            .pNext = &m_accelerationStructureProperties,
         };
 
         m_subgroupProperties = {
@@ -594,6 +599,8 @@ namespace oblo::gpu::vk
 
         return {
             .subgroupSize = m_subgroupProperties.subgroupSize,
+            .minAccelerationStructureScratchOffsetAlignment =
+                m_accelerationStructureProperties.minAccelerationStructureScratchOffsetAlignment,
             .minUniformBufferOffsetAlignment = limits.minUniformBufferOffsetAlignment,
             .minStorageBufferOffsetAlignment = limits.minStorageBufferOffsetAlignment,
             .optimalBufferCopyOffsetAlignment = limits.optimalBufferCopyOffsetAlignment,
@@ -1109,6 +1116,7 @@ namespace oblo::gpu::vk
 
         vk::allocated_buffer_initializer initializer{
             .size = descriptor.size,
+            .alignment = descriptor.alignment,
             .usage = vk::convert_enum_flags(descriptor.usages),
             .debugLabel = descriptor.debugLabel,
         };
