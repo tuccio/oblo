@@ -11,11 +11,6 @@
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
 
-namespace oblo::barriers
-{
-    struct transform_update;
-}
-
 namespace oblo
 {
     bool dotnet_module::startup(const module_initializer&)

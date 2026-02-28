@@ -1,9 +1,10 @@
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
 
-#include <oblo/core/finally.hpp>
 #include <oblo/core/frame_allocator.hpp>
+#include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/platform/platform_win32.hpp>
+#include <oblo/core/unreachable.hpp>
 
 #include <utf8cpp/utf8.h>
 
@@ -269,14 +270,29 @@ namespace oblo::filesystem
         return true;
     }
 
-    expected<bool> copy_file(string_view source, string_view destination)
+    expected<bool> copy_file(string_view source, string_view destination, flags<copy_options> opts)
     {
+        std::filesystem::copy_options stdOpts{};
+
+        for (const auto opt : flags_range{opts})
+        {
+            switch (opt)
+            {
+            case copy_options::overwrite_existing:
+                stdOpts |= std::filesystem::copy_options::overwrite_existing;
+                break;
+
+            default:
+                unreachable();
+            }
+        }
+
         std::filesystem::path p1{std::u8string_view{source.u8data(), source.size()}};
         std::filesystem::path p2{std::u8string_view{destination.u8data(), destination.size()}};
 
         std::error_code ec;
 
-        const auto r = std::filesystem::copy_file(p1, p2, ec);
+        const auto r = std::filesystem::copy_file(p1, p2, stdOpts, ec);
 
         if (ec)
         {

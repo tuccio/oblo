@@ -258,6 +258,7 @@ namespace oblo::vk
 
         option_proxy_struct<renderer_options> options;
         bool isFullyInitialized{};
+        bool hasLoggedFatalError{};
 
         bool initialize();
         void shutdown();
@@ -269,6 +270,8 @@ namespace oblo::vk
 
         bool acquire_images() override;
         void present() override;
+
+        void maybe_log_fatal_error(gpu::error e);
     };
 
     vulkan_engine_module::vulkan_engine_module() = default;
@@ -501,8 +504,11 @@ namespace oblo::vk
         acquiredImageSemaphores.clear();
         contextsToRender.clear();
 
-        if (!ctx.wait_for_submit_completion(presentDoneSubmitIndex[semaphoreIndex]))
+        const expected waitResult = ctx.wait_for_submit_completion(presentDoneSubmitIndex[semaphoreIndex]);
+
+        if (!waitResult)
         {
+            maybe_log_fatal_error(waitResult.error());
             return false;
         }
 
@@ -615,5 +621,25 @@ namespace oblo::vk
         }
 
         contextsToRender.clear();
+    }
+
+    void vulkan_engine_module::impl::maybe_log_fatal_error(gpu::error e)
+    {
+        if (hasLoggedFatalError)
+        {
+            return;
+        }
+
+        switch (e)
+        {
+        case gpu::error::device_lost:
+            log::error("GPU device was lost, this is usually caused by a driver crash or GPU reset. The application "
+                       "should be restarted.");
+            hasLoggedFatalError = true;
+            OBLO_ASSERT(false, "GPU device lost");
+            break;
+        default:
+            break;
+        };
     }
 }

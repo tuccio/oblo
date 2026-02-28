@@ -214,7 +214,7 @@ namespace oblo::gen
             new_line();
         }
 
-        if (r.flags.contains(record_flags::uuid))
+        if (r.flags.contains(record_flags::uuid) && r.attrUuid >= 0)
         {
             m_content.format("classBuilder.add_concept<::oblo::uuid>(\"{}\"_uuid);", t.stringAttributeData[r.attrUuid]);
             new_line();

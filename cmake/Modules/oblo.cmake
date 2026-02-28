@@ -19,6 +19,7 @@ option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
 option(OBLO_CONAN_FORCE_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
+set(OBLO_EXTRA_MODULE_DIRS "" CACHE STRING "A list of directories for extra modules to include in the project")
 
 define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
@@ -217,7 +218,7 @@ endfunction(oblo_add_executable target)
 function(oblo_add_library name)
     cmake_parse_arguments(
         OBLO_LIB
-        "MODULE;TEST_MAIN"
+        "GENERATE_HEADERS_TARGET;MODULE;TEST_MAIN"
         "NAMESPACE"
         ""
         ${ARGN}
@@ -316,7 +317,7 @@ function(oblo_add_library name)
         endif()
 
         if(_withReflection)
-            target_link_libraries(${_target} PUBLIC oblo::annotations)
+            target_link_libraries(${_target} PUBLIC oblo::annotations PRIVATE oblo::reflection)
             _oblo_add_codegen_dependency(${_target})
         endif()
 
@@ -340,6 +341,19 @@ function(oblo_add_library name)
         FOLDER ${_folder}
         PROJECT_LABEL ${name}
     )
+
+    if(OBLO_LIB_GENERATE_HEADERS_TARGET)
+        set(_headers_target ${_target}_headers)
+        add_library(${_headers_target} INTERFACE)
+        _oblo_configure_cxx_target(${_headers_target} INTERFACE)
+
+        target_include_directories(
+            ${_headers_target} INTERFACE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+        )
+
+        add_library("${_oblo_alias_prefix}::${name}::headers" ALIAS ${_headers_target})
+    endif()
 endfunction(oblo_add_library target)
 
 function(oblo_add_data_folder data_target data_dir)

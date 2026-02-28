@@ -129,7 +129,9 @@ namespace oblo
     {
         OBLO_ASSERT(is_path_separator(separator));
 
-        if (const auto len = size(); len > 0 && is_path_separator(m_buffer[len - 1]))
+        const usize len = size();
+
+        if (len > 0 && is_path_separator(m_buffer[len - 1]) || len == 0)
         {
             return *this;
         }

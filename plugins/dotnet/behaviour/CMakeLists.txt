@@ -14,4 +14,5 @@ target_link_libraries(
     oblo::modules
     oblo::reflection
     oblo::resource
+    oblo::scene::headers
 )
