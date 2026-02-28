@@ -95,12 +95,27 @@ namespace oblo::gpu::vk
             .requiredFlags = initializer.requiredFlags,
         };
 
-        const auto result = vmaCreateBuffer(m_allocator,
-            &bufferCreateInfo,
-            &allocInfo,
-            &outBuffer->buffer,
-            &outBuffer->allocation,
-            nullptr);
+        VkResult result{};
+
+        if (initializer.alignment > 1)
+        {
+            result = vmaCreateBufferWithAlignment(m_allocator,
+                &bufferCreateInfo,
+                &allocInfo,
+                initializer.alignment,
+                &outBuffer->buffer,
+                &outBuffer->allocation,
+                nullptr);
+        }
+        else
+        {
+            result = vmaCreateBuffer(m_allocator,
+                &bufferCreateInfo,
+                &allocInfo,
+                &outBuffer->buffer,
+                &outBuffer->allocation,
+                nullptr);
+        }
 
         if (result == VK_SUCCESS)
         {

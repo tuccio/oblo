@@ -340,6 +340,7 @@ namespace oblo::gpu::vk
         descriptor_set_pool m_perFrameSetPool;
 
         VkPhysicalDeviceProperties2 m_physicalDeviceProperties{};
+        VkPhysicalDeviceAccelerationStructurePropertiesKHR m_accelerationStructureProperties{};
         VkPhysicalDeviceSubgroupProperties m_subgroupProperties{};
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_raytracingProperties{};
 

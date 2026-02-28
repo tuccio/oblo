@@ -258,14 +258,18 @@ namespace oblo
 
         OBLO_ASSERT(meshDbInit);
 
+        const gpu::device_info& deviceInfo = ctx.get_device_info();
+
         m_rt->scratchBuffer.init(*m_ctx,
             gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
-            {flags{gpu::memory_requirement::device_local}});
+            {flags{gpu::memory_requirement::device_local}},
+            deviceInfo.minAccelerationStructureScratchOffsetAlignment);
 
         m_rt->instanceBuffer.init(*m_ctx,
             gpu::buffer_usage::acceleration_structure_build_input | gpu::buffer_usage::device_address |
                 gpu::buffer_usage::transfer_destination,
-            {flags{gpu::memory_requirement::device_local}});
+            {flags{gpu::memory_requirement::device_local}},
+            0);
 
         for (const auto& [type, info] : instanceDataTypeRegistry)
         {
