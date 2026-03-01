@@ -22,10 +22,12 @@
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
+#include <oblo/scene/resources/skeleton.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
+#include <oblo/scene/serialization/skeleton_file.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/parallel_for.hpp>
 
@@ -76,6 +78,12 @@ namespace oblo::importers
             uuid id;
         };
 
+        struct import_skeleton
+        {
+            u32 nodeIndex;
+            i32 sceneNodeRootIndex;
+        };
+
         int find_image_from_texture(const tinygltf::Model& model, int textureIndex)
         {
             if (textureIndex < 0)
@@ -102,6 +110,23 @@ namespace oblo::importers
                 return fallback;
             }
         }
+
+        quaternion get_quaternion_or(const std::vector<double>& value, quaternion fallback)
+        {
+            if (value.size() == 4)
+            {
+                return {
+                    f32(value[0]),
+                    f32(value[1]),
+                    f32(value[2]),
+                    f32(value[3]),
+                };
+            }
+            else
+            {
+                return fallback;
+            }
+        }
     }
 
     struct gltf::impl
@@ -113,6 +138,7 @@ namespace oblo::importers
         dynamic_array<import_mesh> importMeshes;
         dynamic_array<import_material> importMaterials;
         dynamic_array<import_image> importImages;
+        dynamic_array<import_skeleton> importSkeletons;
 
         dynamic_array<import_artifact> artifacts;
         dynamic_array<string> sourceFiles;
@@ -268,6 +294,42 @@ namespace oblo::importers
 
                 preview.nodes.emplace_back(resource_type<mesh>, primitiveNameBuilder.as<string>());
             }
+        }
+
+        // Find all skeletons referenced by skins
+        dynamic_array<i32> allSkeletons;
+
+        for (const tinygltf::Skin& skin : m_impl->model.skins)
+        {
+            if (skin.skeleton < 0)
+            {
+                continue;
+            }
+
+            allSkeletons.push_back(skin.skeleton);
+        }
+
+        // Remove duplicates
+        std::sort(allSkeletons.begin(), allSkeletons.end());
+        allSkeletons.erase(std::unique(allSkeletons.begin(), allSkeletons.end()), allSkeletons.end());
+
+        m_impl->importSkeletons.reserve(allSkeletons.size());
+
+        for (const i32 nodeIdx : allSkeletons)
+        {
+            auto& skeletonNode = m_impl->importSkeletons.emplace_back();
+
+            skeletonNode.sceneNodeRootIndex = nodeIdx;
+
+            string_view nodeName{m_impl->model.nodes[nodeIdx].name};
+
+            if (nodeName.empty())
+            {
+                nodeName = "Unnamed skeleton";
+            }
+
+            skeletonNode.nodeIndex = preview.nodes.size32();
+            preview.nodes.emplace_back(resource_type<skeleton>, string{nodeName});
         }
 
         m_impl->importImages.resize(m_impl->model.images.size());
@@ -597,6 +659,61 @@ namespace oblo::importers
 
         usedBuffers.resize(numBuffers);
 
+        dynamic_array<skeleton::joint> jointsBuffer;
+        jointsBuffer.reserve(256);
+
+        for (const auto& importedSkeleton : m_impl->importSkeletons)
+        {
+            const auto& modelNodeConfig = importNodeConfigs[importedSkeleton.nodeIndex];
+
+            if (!modelNodeConfig.enabled)
+            {
+                continue;
+            }
+
+            jointsBuffer.clear();
+
+            const auto gatherSkeleton = [this, &jointsBuffer](auto&& recurse, i32 index, u32 parent) -> void
+            {
+                auto& current = m_impl->model.nodes[index];
+
+                const u32 jointIndex = jointsBuffer.size32();
+                auto& joint = jointsBuffer.emplace_back();
+                joint.parentIndex = parent;
+                joint.name = string{current.name};
+
+                joint.translation = get_vec3_or(current.translation, vec3::splat(0.f));
+                joint.rotation = get_quaternion_or(current.rotation, quaternion::identity());
+                joint.scale = get_vec3_or(current.scale, vec3::splat(1.f));
+
+                for (const i32 child : current.children)
+                {
+                    recurse(recurse, child, jointIndex);
+                }
+            };
+
+            gatherSkeleton(gatherSkeleton, importedSkeleton.sceneNodeRootIndex, skeleton::joint::no_parent);
+
+            skeleton skeletonArtifact;
+            skeletonArtifact.jointsHierarchy.assign(jointsBuffer.begin(), jointsBuffer.end());
+
+            string_builder outputPath;
+
+            if (!save_skeleton_json(skeletonArtifact,
+                    ctx.get_output_path(modelNodeConfig.id, outputPath, ".oskeleton")))
+            {
+                log::error("Failed to save skeleton");
+                continue;
+            }
+
+            m_impl->artifacts.push_back({
+                .id = modelNodeConfig.id,
+                .type = resource_type<skeleton>,
+                .name = importNodes[importedSkeleton.nodeIndex].name,
+                .path = outputPath.as<string>(),
+            });
+        }
+
         for (const auto& model : m_impl->importModels)
         {
             const auto& modelNodeConfig = importNodeConfigs[model.nodeIndex];
@@ -701,29 +818,9 @@ namespace oblo::importers
 
                 auto& node = m_impl->model.nodes[nodeIndex];
 
-                vec3 translation = vec3::splat(0.f);
-                quaternion rotation = quaternion::identity();
-                vec3 scale = vec3::splat(1.f);
-
-                if (node.translation.size() == 3)
-                {
-                    translation = {f32(node.translation[0]), f32(node.translation[1]), f32(node.translation[2])};
-                }
-
-                if (node.scale.size() == 3)
-                {
-                    scale = {f32(node.scale[0]), f32(node.scale[1]), f32(node.scale[2])};
-                }
-
-                if (node.rotation.size() == 4)
-                {
-                    rotation = {
-                        f32(node.rotation[0]),
-                        f32(node.rotation[1]),
-                        f32(node.rotation[2]),
-                        f32(node.rotation[3]),
-                    };
-                }
+                const vec3 translation = get_vec3_or(node.translation, vec3::splat(0.f));
+                const quaternion rotation = get_quaternion_or(node.rotation, quaternion::identity());
+                const vec3 scale = get_vec3_or(node.scale, vec3::splat(1.f));
 
                 const auto e = ecs_utility::create_named_physical_entity(reg,
                     node.name.c_str(),

@@ -3,12 +3,11 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/iterator/iterator_range.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/properties/serialization/data_node.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -69,6 +68,7 @@ namespace oblo
         u32 find_child(u32 parent, hashed_string_view name) const;
         hashed_string_view get_node_name(u32 node) const;
 
+        expected<std::span<const byte>, error> read_value(u32 node) const;
         expected<data_string, error> read_string(u32 node) const;
         expected<bool, error> read_bool(u32 node) const;
 

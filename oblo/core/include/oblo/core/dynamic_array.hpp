@@ -460,7 +460,7 @@ namespace oblo
     template <typename T>
     inline dynamic_array<T>::iterator dynamic_array<T>::erase(const_iterator begin, const_iterator end)
     {
-        OBLO_ASSERT(begin < m_data + m_size);
+        OBLO_ASSERT(begin == end || begin < m_data + m_size);
 
         const auto beginIt = const_cast<iterator>(begin);
         const auto endIt = const_cast<iterator>(end);

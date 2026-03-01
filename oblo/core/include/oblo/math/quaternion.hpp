@@ -17,6 +17,16 @@ namespace oblo
 
         constexpr bool operator==(const quaternion&) const = default;
 
+        constexpr f32& operator[](u32 index)
+        {
+            return *(&x + index);
+        }
+
+        constexpr const f32& operator[](u32 index) const
+        {
+            return *(&x + index);
+        }
+
         static constexpr quaternion identity();
 
         static quaternion from_axis_angle(const vec3& axis, radians angle);

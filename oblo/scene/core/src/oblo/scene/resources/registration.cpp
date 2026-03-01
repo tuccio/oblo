@@ -8,12 +8,14 @@
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/skeleton.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
+#include <oblo/scene/serialization/skeleton_file.hpp>
 
 namespace oblo
 {
@@ -93,6 +95,20 @@ namespace oblo
         };
 
         template <>
+        struct meta<skeleton>
+        {
+            static expected<> load(skeleton& sk, cstring_view source, const any&)
+            {
+                return load_skeleton(sk, source);
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
+            }
+        };
+
+        template <>
         struct meta<texture>
         {
             static expected<> load(texture& texture, cstring_view source, const any&)
@@ -127,6 +143,7 @@ namespace oblo
         outResourceTypes.push_back(make_resource_type_desc<material>());
         outResourceTypes.push_back(make_resource_type_desc<mesh>());
         outResourceTypes.push_back(make_resource_type_desc<model>());
+        outResourceTypes.push_back(make_resource_type_desc<skeleton>());
         outResourceTypes.push_back(make_resource_type_desc<texture>());
     }
 }

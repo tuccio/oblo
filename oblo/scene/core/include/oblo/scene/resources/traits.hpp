@@ -9,6 +9,7 @@ namespace oblo
     class mesh;
     class texture;
     struct model;
+    struct skeleton;
 
     template <>
     struct resource_traits<entity_hierarchy>
@@ -32,6 +33,12 @@ namespace oblo
     struct resource_traits<model>
     {
         static constexpr uuid uuid = "3f1881e4-db45-4f95-ae4d-9bacccf72c70"_uuid;
+    };
+
+    template <>
+    struct resource_traits<skeleton>
+    {
+        static constexpr uuid uuid = "2d340ee4-f0c4-430c-aa73-83491de4f62c"_uuid;
     };
 
     template <>
