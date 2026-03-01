@@ -78,6 +78,13 @@ namespace oblo::importers
             uuid id;
         };
 
+        struct import_skin
+        {
+            u32 nodeIndex;
+            u32 skinIndex;
+            u32 skeletonNodeIndex;
+        };
+
         struct import_skeleton
         {
             u32 nodeIndex;
@@ -139,6 +146,7 @@ namespace oblo::importers
         dynamic_array<import_material> importMaterials;
         dynamic_array<import_image> importImages;
         dynamic_array<import_skeleton> importSkeletons;
+        dynamic_array<import_skin> importSkins;
 
         dynamic_array<import_artifact> artifacts;
         dynamic_array<string> sourceFiles;
@@ -297,39 +305,63 @@ namespace oblo::importers
         }
 
         // Find all skeletons referenced by skins
-        dynamic_array<i32> allSkeletons;
-
-        for (const tinygltf::Skin& skin : m_impl->model.skins)
+        struct skeleton_node_info
         {
+            bool isMarkedForImport{};
+            u32 nodeIndex{};
+        };
+
+        dynamic_array<skeleton_node_info> skeletonNodeInfo;
+        skeletonNodeInfo.resize(m_impl->model.nodes.size());
+
+        // Import all the skns, try to reuse skeleton nodes if possible, otherwise import them as new nodes.
+        for (usize skinIndex = 0; skinIndex < m_impl->model.skins.size(); ++skinIndex)
+        {
+            const tinygltf::Skin& skin = m_impl->model.skins[skinIndex];
+
             if (skin.skeleton < 0)
             {
                 continue;
             }
 
-            allSkeletons.push_back(skin.skeleton);
-        }
+            auto& skinNode = m_impl->importSkins.emplace_back();
+            skinNode.nodeIndex = preview.nodes.size32();
+            skinNode.skinIndex = skinIndex;
 
-        // Remove duplicates
-        std::sort(allSkeletons.begin(), allSkeletons.end());
-        allSkeletons.erase(std::unique(allSkeletons.begin(), allSkeletons.end()), allSkeletons.end());
+            nameBuilder = skin.name;
 
-        m_impl->importSkeletons.reserve(allSkeletons.size());
-
-        for (const i32 nodeIdx : allSkeletons)
-        {
-            auto& skeletonNode = m_impl->importSkeletons.emplace_back();
-
-            skeletonNode.sceneNodeRootIndex = nodeIdx;
-
-            string_view nodeName{m_impl->model.nodes[nodeIdx].name};
-
-            if (nodeName.empty())
+            if (nameBuilder.empty())
             {
-                nodeName = "Unnamed skeleton";
+                nameBuilder.format("Skin #{}", m_impl->importSkins.size() - 1);
             }
 
-            skeletonNode.nodeIndex = preview.nodes.size32();
-            preview.nodes.emplace_back(resource_type<skeleton>, string{nodeName});
+            preview.nodes.emplace_back(resource_type<skeleton>, nameBuilder.as<string>());
+
+            auto& nodeInfo = skeletonNodeInfo[skin.skeleton];
+
+            if (nodeInfo.isMarkedForImport)
+            {
+                skinNode.skeletonNodeIndex = nodeInfo.nodeIndex;
+                continue;
+            }
+
+            nodeInfo.isMarkedForImport = true;
+            nodeInfo.nodeIndex = preview.nodes.size32();
+
+            auto& skeletonNode = m_impl->importSkeletons.emplace_back();
+
+            skeletonNode.sceneNodeRootIndex = nodeInfo.nodeIndex;
+            skeletonNode.nodeIndex = nodeInfo.nodeIndex;
+            skinNode.skeletonNodeIndex = nodeInfo.nodeIndex;
+
+            nameBuilder = m_impl->model.nodes[nodeInfo.nodeIndex].name;
+
+            if (nameBuilder.empty())
+            {
+                nameBuilder.format("Skeleton #{}", m_impl->importSkeletons.size() - 1);
+            }
+
+            preview.nodes.emplace_back(resource_type<skeleton>, nameBuilder.as<string>());
         }
 
         m_impl->importImages.resize(m_impl->model.images.size());
@@ -710,6 +742,70 @@ namespace oblo::importers
                 .id = modelNodeConfig.id,
                 .type = resource_type<skeleton>,
                 .name = importNodes[importedSkeleton.nodeIndex].name,
+                .path = outputPath.as<string>(),
+            });
+        }
+
+        for (const auto& importedSkin : m_impl->importSkins)
+        {
+            const auto& modelNodeConfig = importNodeConfigs[importedSkin.nodeIndex];
+
+            if (!modelNodeConfig.enabled)
+            {
+                continue;
+            }
+
+            const tinygltf::Skin& gltfSkin = m_impl->model.skins[importedSkin.skinIndex];
+
+            const usize numJoints = gltfSkin.joints.size();
+
+            skin skinArtifact;
+            skinArtifact.invBindPoses.resize_default(numJoints);
+            skinArtifact.jointNames.reserve(numJoints);
+
+            if (gltfSkin.inverseBindMatrices < 0)
+            {
+                skinArtifact.invBindPoses.assign(numJoints, mat4::identity());
+            }
+            else
+            {
+                const auto& accessor = m_impl->model.accessors[gltfSkin.inverseBindMatrices];
+                const auto& bufferView = m_impl->model.bufferViews[accessor.bufferView];
+                const auto& buffer = m_impl->model.buffers[bufferView.buffer];
+                const usize byteOffset = accessor.byteOffset + bufferView.byteOffset;
+
+                const usize expectedSize = numJoints * sizeof(mat4);
+
+                if (expectedSize != bufferView.byteLength)
+                {
+                    log::error("Failed to read inverse bind poses for skin '{}'", gltfSkin.name);
+                    skinArtifact.invBindPoses.assign(numJoints, mat4::identity());
+                }
+                else
+                {
+                    std::memcpy(skinArtifact.invBindPoses.data(), buffer.data.data() + byteOffset, expectedSize);
+                }
+            }
+
+            for (const i32 jointNodeIndex : gltfSkin.joints)
+            {
+                const auto& jointNode = m_impl->model.nodes[jointNodeIndex];
+                skinArtifact.jointNames.emplace_back(jointNode.name);
+            }
+
+            skinArtifact.skeleton = resource_ref<skeleton>{importNodeConfigs[importedSkin.skeletonNodeIndex].id};
+
+            string_builder outputPath;
+            if (!save_skin_json(skinArtifact, ctx.get_output_path(modelNodeConfig.id, outputPath, ".oskin")))
+            {
+                log::error("Failed to save skin");
+                continue;
+            }
+
+            m_impl->artifacts.push_back({
+                .id = modelNodeConfig.id,
+                .type = resource_type<skeleton>,
+                .name = importNodes[importedSkin.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
         }

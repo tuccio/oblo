@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/forward.hpp>
 #include <oblo/core/span.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -31,17 +32,27 @@ namespace oblo
         for (const auto& v : values)
         {
             const u32 valueNode = doc.array_push_back(node);
-            doc.make_value(valueNode, property_value_wrapper{v});
+
+            if constexpr (std::is_constructible_v<property_value_wrapper, const T&>)
+            {
+                doc.make_value(valueNode, property_value_wrapper{v});
+            }
+            else if constexpr (std::is_constructible_v<string_view, const T&>)
+            {
+                doc.make_value(valueNode, property_value_wrapper{string_view{v}});
+            }
+            else
+            {
+                doc.make_value(valueNode, property_value_wrapper{v});
+            }
         }
 
         return node;
     }
 
     template <typename T>
-    inline expected<> read_child_array(data_document& doc, u32 parent, hashed_string_view name, std::span<T> values)
+    inline expected<> read_array(data_document& doc, u32 node, std::span<T> values)
     {
-        const u32 node = doc.find_child(parent, name);
-
         if (node == data_node::Invalid || !doc.is_array(node))
         {
             return "Child array not found"_err;
@@ -56,7 +67,19 @@ namespace oblo
 
         auto outIt = values.begin();
 
-        constexpr auto kind = property_value_wrapper{T{}}.get_kind();
+        constexpr auto deduceKind = []
+        {
+            if constexpr (std::is_same_v<string, T>)
+            {
+                return property_kind::string;
+            }
+            else
+            {
+                return property_value_wrapper{T{}}.get_kind();
+            }
+        };
+
+        constexpr auto kind = deduceKind();
 
         for (const u32 child : doc.children(node))
         {
@@ -85,5 +108,12 @@ namespace oblo
         }
 
         return no_error;
+    }
+
+    template <typename T>
+    inline expected<> read_child_array(data_document& doc, u32 parent, hashed_string_view name, std::span<T> values)
+    {
+        const u32 node = doc.find_child(parent, name);
+        return read_array(doc, node, values);
     }
 }

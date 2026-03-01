@@ -143,4 +143,73 @@ namespace oblo
 
         return no_error;
     }
+
+    expected<> save_skin_json(const skin& sk, cstring_view destination)
+    {
+        data_document doc;
+        doc.init();
+
+        const u32 numJoints = sk.jointNames.size32();
+
+        if (numJoints != sk.invBindPoses.size32())
+        {
+            return "Invalid skin data"_err;
+        }
+
+        write_child_array(doc, doc.get_root(), "joints"_hsv, std::span{sk.jointNames});
+        const u32 invBindPoses = doc.child_array(doc.get_root(), "invBindPoses"_hsv);
+
+        for (u32 i = 0; i < numJoints; ++i)
+        {
+            write_child_array(doc, invBindPoses, {}, std::span{&sk.invBindPoses[i].columns[0][0], 16});
+        }
+
+        return json::write(doc, destination);
+    }
+
+    expected<> load_skin(skin& sk, cstring_view source)
+    {
+        data_document doc;
+
+        if (auto e = json::read(doc, source); !e)
+        {
+            return e;
+        }
+
+        const u32 joints = doc.find_child(doc.get_root(), "joints"_hsv);
+        const u32 invBindPoses = doc.find_child(doc.get_root(), "invBindPoses"_hsv);
+
+        if (joints == data_node::Invalid || !doc.is_array(joints) || invBindPoses == data_node::Invalid ||
+            !doc.is_array(invBindPoses))
+        {
+            return "Invalid skin file"_err;
+        }
+
+        const u32 numJoints = doc.children_count(joints);
+
+        if (numJoints != doc.children_count(invBindPoses))
+        {
+            return "Invalid skin data"_err;
+        }
+
+        sk.jointNames.resize(numJoints);
+        if (!read_child_array(doc, doc.get_root(), "joints"_hsv, std::span{sk.jointNames}))
+        {
+            return "Invalid skin data"_err;
+        }
+
+        sk.invBindPoses.resize_default(numJoints);
+
+        u32 currentBindPoseIdx = 0;
+
+        for (const u32 child : doc.children(invBindPoses))
+        {
+            if (!read_array(doc, child, std::span{&sk.invBindPoses[currentBindPoseIdx].columns[0][0], 16}))
+            {
+                return "Invalid skin data"_err;
+            }
+        }
+
+        return no_error;
+    }
 }

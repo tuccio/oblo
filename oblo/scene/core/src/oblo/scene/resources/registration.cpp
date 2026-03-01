@@ -109,6 +109,20 @@ namespace oblo
         };
 
         template <>
+        struct meta<skin>
+        {
+            static expected<> load(skin& sk, cstring_view source, const any&)
+            {
+                return load_skin(sk, source);
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
+            }
+        };
+
+        template <>
         struct meta<texture>
         {
             static expected<> load(texture& texture, cstring_view source, const any&)
@@ -144,6 +158,7 @@ namespace oblo
         outResourceTypes.push_back(make_resource_type_desc<mesh>());
         outResourceTypes.push_back(make_resource_type_desc<model>());
         outResourceTypes.push_back(make_resource_type_desc<skeleton>());
+        outResourceTypes.push_back(make_resource_type_desc<skin>());
         outResourceTypes.push_back(make_resource_type_desc<texture>());
     }
 }
