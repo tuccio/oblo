@@ -988,6 +988,26 @@ namespace oblo::editor
                             }
                         }
 
+                        if (ImGui::MenuItem("Open Artifact Directory in Explorer"))
+                        {
+                            buffered_array<uuid, 16> artifacts;
+
+                            if (!registry->find_asset_artifacts(meta.assetId, artifacts) || artifacts.empty())
+                            {
+                                log::error("Can't open artifact directory: no artifact found");
+                            }
+                            else
+                            {
+                                string_builder artifactPath;
+
+                                if (registry->get_artifact_path(artifacts.front(), artifactPath))
+                                {
+                                    artifactPath.parent_path();
+                                    platform::open_folder(artifactPath.view());
+                                }
+                            }
+                        }
+
                         ImGui::EndPopup();
                     }
 
