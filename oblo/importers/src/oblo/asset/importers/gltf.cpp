@@ -11,6 +11,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -81,8 +82,8 @@ namespace oblo::importers
         struct import_skin
         {
             u32 nodeIndex;
-            u32 skinIndex;
             u32 skeletonNodeIndex;
+            bool skipped;
         };
 
         struct import_skeleton
@@ -317,27 +318,27 @@ namespace oblo::importers
         // Import all the skns, try to reuse skeleton nodes if possible, otherwise import them as new nodes.
         for (usize skinIndex = 0; skinIndex < m_impl->model.skins.size(); ++skinIndex)
         {
-            const tinygltf::Skin& skin = m_impl->model.skins[skinIndex];
+            const tinygltf::Skin& gltfSkin = m_impl->model.skins[skinIndex];
 
-            if (skin.skeleton < 0)
+            auto& skinNode = m_impl->importSkins.emplace_back();
+
+            if (gltfSkin.skeleton < 0)
             {
+                skinNode.skipped = true;
                 continue;
             }
 
-            auto& skinNode = m_impl->importSkins.emplace_back();
-            skinNode.nodeIndex = preview.nodes.size32();
-            skinNode.skinIndex = skinIndex;
-
-            nameBuilder = skin.name;
+            nameBuilder = gltfSkin.name;
 
             if (nameBuilder.empty())
             {
                 nameBuilder.format("Skin #{}", m_impl->importSkins.size() - 1);
             }
 
-            preview.nodes.emplace_back(resource_type<skeleton>, nameBuilder.as<string>());
+            skinNode.nodeIndex = preview.nodes.size32();
+            preview.nodes.emplace_back(resource_type<skin>, nameBuilder.as<string>());
 
-            auto& nodeInfo = skeletonNodeInfo[skin.skeleton];
+            auto& nodeInfo = skeletonNodeInfo[gltfSkin.skeleton];
 
             if (nodeInfo.isMarkedForImport)
             {
@@ -746,8 +747,15 @@ namespace oblo::importers
             });
         }
 
-        for (const auto& importedSkin : m_impl->importSkins)
+        for (u32 skinIndex = 0; skinIndex < m_impl->importSkins.size32(); ++skinIndex)
         {
+            const auto& importedSkin = m_impl->importSkins[skinIndex];
+
+            if (importedSkin.skipped)
+            {
+                continue;
+            }
+
             const auto& modelNodeConfig = importNodeConfigs[importedSkin.nodeIndex];
 
             if (!modelNodeConfig.enabled)
@@ -755,7 +763,7 @@ namespace oblo::importers
                 continue;
             }
 
-            const tinygltf::Skin& gltfSkin = m_impl->model.skins[importedSkin.skinIndex];
+            const tinygltf::Skin& gltfSkin = m_impl->model.skins[skinIndex];
 
             const usize numJoints = gltfSkin.joints.size();
 
@@ -804,7 +812,7 @@ namespace oblo::importers
 
             m_impl->artifacts.push_back({
                 .id = modelNodeConfig.id,
-                .type = resource_type<skeleton>,
+                .type = resource_type<skin>,
                 .name = importNodes[importedSkin.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
@@ -912,7 +920,7 @@ namespace oblo::importers
                 const auto [parent, nodeIndex] = stack.back();
                 stack.pop_back();
 
-                auto& node = m_impl->model.nodes[nodeIndex];
+                const tinygltf::Node& node = m_impl->model.nodes[nodeIndex];
 
                 const vec3 translation = get_vec3_or(node.translation, vec3::splat(0.f));
                 const quaternion rotation = get_quaternion_or(node.rotation, quaternion::identity());
@@ -956,6 +964,18 @@ namespace oblo::importers
                             sm.mesh = resource_ref<mesh>{meshNodeConfig.id};
                             sm.material = resource_ref<material>{
                                 primitive.material >= 0 ? m_impl->importMaterials[primitive.material].id : uuid{}};
+
+                            if (node.skin >= 0)
+                            {
+                                const import_skin& importSkin = m_impl->importSkins[node.skin];
+
+                                if (!importSkin.skipped)
+                                {
+                                    const auto& skinNode = importNodeConfigs[importSkin.nodeIndex];
+                                    skin_component& skinComponent = reg.add<skin_component>(m);
+                                    skinComponent.skin = resource_ref<skin>{skinNode.id};
+                                }
+                            }
                         }
                     }
                 }

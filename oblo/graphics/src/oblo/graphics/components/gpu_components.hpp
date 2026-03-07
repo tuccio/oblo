@@ -2,6 +2,7 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/ecs/handles.hpp>
+#include <oblo/math/mat4.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/reflection/codegen/annotations.hpp>
 
@@ -31,4 +32,22 @@ namespace oblo
     {
         ecs::entity entityId;
     } OBLO_COMPONENT("5564d553-57c2-42d7-931c-9ab1f98657d2", GpuComponent = "i_EntityIdBuffer", Transient);
+
+    struct joint_chunk_component
+    {
+        static constexpr u32 max_joints_per_chunk = 32;
+
+        mat4 jointMatrices[max_joints_per_chunk];
+    } OBLO_COMPONENT("9d22f00a-1f4d-4f34-a47f-2fcc10601ceb", GpuComponent = "i_JointChunkBuffer", Transient);
+
+    struct joint_chunk_list_component
+    {
+        static constexpr u32 max_joint_chunks = 32;
+        ecs::entity jointChunks[max_joint_chunks];
+    } OBLO_COMPONENT("7f2b0b45-b68f-4ec7-b377-c9af94ae1d27", GpuComponent = "i_JointChunkListBuffer", Transient);
+
+    constexpr u32 get_max_joints()
+    {
+        return joint_chunk_list_component::max_joint_chunks * joint_chunk_component::max_joints_per_chunk;
+    }
 }

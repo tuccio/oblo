@@ -481,8 +481,15 @@ namespace oblo::ecs
     bool entity_registry::fetch_component_offsets(
         const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets)
     {
-        const auto& archetype = *storage.archetype;
-        const auto* archetypeTypeIt = archetype.components;
+        const archetype_impl& archetype = *storage.archetype;
+
+        // Effectively takes care of an empty archetype too
+        if (componentTypes.size() > archetype.numComponents)
+        {
+            return false;
+        }
+
+        const component_type* typeInArchetypeIt = archetype.components;
 
         auto outIt = offsets.begin();
 
@@ -490,23 +497,28 @@ namespace oblo::ecs
         {
             OBLO_ASSERT(*it);
 
-            while (*it != *archetypeTypeIt)
+            while (*it != *typeInArchetypeIt)
             {
-                if (*it < *archetypeTypeIt)
+                if (*it < *typeInArchetypeIt)
                 {
                     ++it;
+
+                    if (it == componentTypes.end())
+                    {
+                        return false;
+                    }
                 }
                 else
                 {
-                    ++archetypeTypeIt;
+                    ++typeInArchetypeIt;
                 }
             }
 
-            const u8 componentIndex = u8(archetypeTypeIt - archetype.components);
+            const u8 componentIndex = narrow_cast<u8>(typeInArchetypeIt - archetype.components);
 
             *outIt = archetype.offsets[componentIndex];
 
-            ++archetypeTypeIt;
+            ++typeInArchetypeIt;
             ++it;
             ++outIt;
         }

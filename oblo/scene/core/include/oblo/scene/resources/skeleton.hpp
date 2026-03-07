@@ -5,6 +5,8 @@
 #include <oblo/math/mat4.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
+#include <oblo/resource/resource_ref.hpp>
 
 namespace oblo
 {
@@ -13,7 +15,7 @@ namespace oblo
         struct joint;
 
         dynamic_array<joint> jointsHierarchy;
-    };
+    } OBLO_RESOURCE();
 
     struct skeleton::joint
     {
@@ -33,5 +35,5 @@ namespace oblo
         resource_ref<skeleton> skeleton{};
         dynamic_array<mat4> invBindPoses;
         dynamic_array<string> jointNames;
-    };
+    } OBLO_RESOURCE();
 }

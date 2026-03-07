@@ -5,28 +5,27 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
-#include <oblo/ecs/utility/registration.hpp>
 #include <oblo/graphics/components/gpu_components.hpp>
+#include <oblo/graphics/components/mesh_internal.hpp>
+#include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
-#include <oblo/graphics/components/static_mesh_internal.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/renderer/data/components.hpp>
 #include <oblo/renderer/draw/draw_registry.hpp>
 #include <oblo/renderer/draw/resource_cache.hpp>
-#include <oblo/renderer/renderer.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
-
-#include <span>
+#include <oblo/scene/resources/skeleton.hpp>
 
 namespace oblo
 {
@@ -104,26 +103,59 @@ namespace oblo
             return out;
         }
 
-        void add_mesh(const resource_registry* resourceRegistry,
+        template <bool WithSkin>
+        bool try_add_mesh(const resource_registry* resourceRegistry,
             resource_cache* resourceCache,
             draw_registry& drawRegistry,
             ecs::entity entity,
             const static_mesh_component& meshComponent,
+            [[maybe_unused]] const skin_component* skinComponent,
             ecs::deferred& deferred)
         {
-            auto materialRes = resourceRegistry->get_resource(meshComponent.material.id).as<material>();
-            auto meshRes = resourceRegistry->get_resource(meshComponent.mesh.id).as<mesh>();
+            auto materialRes = resourceRegistry->get_resource(meshComponent.material);
+            auto meshRes = resourceRegistry->get_resource(meshComponent.mesh);
 
             if (!meshRes || !materialRes)
             {
                 // Maybe we should add a tag to avoid re-processing every frame
-                return;
+                log::debug("Failed to find mesh or material for entity {}", entity.value);
+                return false;
             }
 
             bool stillLoading = false;
 
+            resource_ptr<skin> skinRes{};
+            resource_ptr<skeleton> skeletonRes{};
+
+            if constexpr (WithSkin)
+            {
+                skinRes = resourceRegistry->get_resource(skinComponent->skin);
+
+                if (!skinRes)
+                {
+                    log::debug("Failed to find skin resource for entity {}", entity.value);
+                    return false;
+                }
+
+                skinRes.load_start_async();
+                stillLoading |= skinRes.is_currently_loading();
+
+                if (skinRes.is_successfully_loaded())
+                {
+                    skeletonRes = resourceRegistry->get_resource(skinRes->skeleton);
+
+                    if (!skeletonRes)
+                    {
+                        log::debug("Failed to find skeleton resource for entity {}", entity.value);
+                        return false;
+                    }
+
+                    stillLoading |= skeletonRes.is_currently_loading();
+                }
+            }
+
             materialRes.load_start_async();
-            stillLoading = materialRes.is_currently_loading();
+            stillLoading |= materialRes.is_currently_loading();
 
             // If the mesh is already on GPU we don't care about loading the resource
             auto mesh = drawRegistry.try_get_mesh(meshComponent.mesh);
@@ -131,7 +163,7 @@ namespace oblo
             if (!mesh)
             {
                 meshRes.load_start_async();
-                stillLoading = meshRes.is_currently_loading();
+                stillLoading |= meshRes.is_currently_loading();
             }
 
             if (stillLoading)
@@ -139,9 +171,11 @@ namespace oblo
                 deferred.add<mesh_resources>(entity) = {
                     .material = std::move(materialRes),
                     .mesh = std::move(meshRes),
+                    .skeleton = std::move(skeletonRes),
+                    .skin = std::move(skinRes),
                 };
 
-                return;
+                return false;
             }
 
             // If loading failed here, we could consider replacing the mesh with something that catches the attention on
@@ -159,7 +193,7 @@ namespace oblo
                 if (!mesh)
                 {
                     deferred.add<mesh_processed_tag>(entity);
-                    return;
+                    return false;
                 }
             }
 
@@ -180,6 +214,8 @@ namespace oblo
 
             // Store a checksum so we can determine whether or not we want to re-process it
             cachedRefs = processed_mesh_resources::from(meshComponent);
+
+            return true;
         }
     }
 
@@ -237,9 +273,38 @@ namespace oblo
                  .with<global_transform_component>()
                  .exclude<mesh_processed_tag>())
         {
-            for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, static_mesh_component>())
+            const std::span skinComponents = chunk.try_get<const skin_component>();
+
+            if (skinComponents.empty())
             {
-                add_mesh(m_resourceRegistry, m_resourceCache, *m_drawRegistry, e, meshComponent, deferred);
+                for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, static_mesh_component>())
+                {
+                    constexpr bool withSkin = false;
+
+                    try_add_mesh<withSkin>(m_resourceRegistry,
+                        m_resourceCache,
+                        *m_drawRegistry,
+                        e,
+                        meshComponent,
+                        nullptr,
+                        deferred);
+                }
+            }
+            else
+            {
+                for (auto&& [e, meshComponent, skinComponent] :
+                    zip_range(chunk.get<ecs::entity>(), chunk.get<static_mesh_component>(), skinComponents))
+                {
+                    constexpr bool withSkin = true;
+
+                    try_add_mesh<withSkin>(m_resourceRegistry,
+                        m_resourceCache,
+                        *m_drawRegistry,
+                        e,
+                        meshComponent,
+                        &skinComponent,
+                        deferred);
+                }
             }
         }
 

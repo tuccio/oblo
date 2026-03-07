@@ -5,10 +5,17 @@
 
 namespace oblo
 {
+    class material;
+    class mesh;
+    struct skeleton;
+    struct skin;
+
     struct mesh_resources
     {
         resource_ptr<material> material;
         resource_ptr<mesh> mesh;
+        resource_ptr<skeleton> skeleton;
+        resource_ptr<skin> skin;
     } OBLO_COMPONENT("77456048-9d05-4dbc-a66a-ce673d0c6c0d", Transient);
 
     struct mesh_processed_tag

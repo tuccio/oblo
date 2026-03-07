@@ -15,5 +15,6 @@
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/registration.hpp>
+#include <oblo/scene/resources/skeleton.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
