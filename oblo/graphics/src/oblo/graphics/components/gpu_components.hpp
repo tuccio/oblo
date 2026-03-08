@@ -33,21 +33,9 @@ namespace oblo
         ecs::entity entityId;
     } OBLO_COMPONENT("5564d553-57c2-42d7-931c-9ab1f98657d2", GpuComponent = "i_EntityIdBuffer", Transient);
 
-    struct joint_chunk_component
+    struct joint_skinning_transform_component
     {
-        static constexpr u32 max_joints_per_chunk = 32;
-
-        mat4 jointMatrices[max_joints_per_chunk];
-    } OBLO_COMPONENT("9d22f00a-1f4d-4f34-a47f-2fcc10601ceb", GpuComponent = "i_JointChunkBuffer", Transient);
-
-    struct joint_chunk_list_component
-    {
-        static constexpr u32 max_joint_chunks = 32;
-        ecs::entity jointChunks[max_joint_chunks];
-    } OBLO_COMPONENT("7f2b0b45-b68f-4ec7-b377-c9af94ae1d27", GpuComponent = "i_JointChunkListBuffer", Transient);
-
-    constexpr u32 get_max_joints()
-    {
-        return joint_chunk_list_component::max_joint_chunks * joint_chunk_component::max_joints_per_chunk;
-    }
+        static constexpr u32 max_joints = 32;
+        mat4 jointMatrices[max_joints];
+    } OBLO_COMPONENT("d7f5e8b3-8a31-4d7c-b3af-8fcdb0b56ccf", GpuComponent = "i_JointSkinningTransformBuffer", Transient);
 }

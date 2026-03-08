@@ -10,6 +10,47 @@
 
 namespace oblo
 {
+    namespace detail
+    {
+        template <typename T>
+        expected<property_value_wrapper> get_value_impl(const data_document& doc, u32 child)
+        {
+            if constexpr (std::is_same_v<string, T>)
+            {
+                const expected value = doc.read_string(child);
+
+                if (!value)
+                {
+                    return "Child array string value read failed"_err;
+                }
+
+                return property_value_wrapper{value->str()};
+            }
+            else if constexpr (std::is_same_v<f32, T>)
+            {
+                const expected value = doc.read_f32(child);
+
+                if (!value)
+                {
+                    return "Child array value read failed"_err;
+                }
+
+                return property_value_wrapper{*value};
+            }
+            else if constexpr (std::is_same_v<u32, T>)
+            {
+                const expected value = doc.read_u32(child);
+
+                if (!value)
+                {
+                    return "Child array value read failed"_err;
+                }
+
+                return property_value_wrapper{*value};
+            }
+        }
+    }
+
     inline u32 write_child_array_initializer(
         data_document& doc, u32 parent, hashed_string_view name, std::initializer_list<property_value_wrapper> values)
     {
@@ -51,7 +92,7 @@ namespace oblo
     }
 
     template <typename T>
-    inline expected<> read_array(data_document& doc, u32 node, std::span<T> values)
+    inline expected<> read_array(const data_document& doc, u32 node, std::span<T> values)
     {
         if (node == data_node::Invalid || !doc.is_array(node))
         {
@@ -83,35 +124,22 @@ namespace oblo
 
         for (const u32 child : doc.children(node))
         {
-            property_value_wrapper w;
+            const expected w = detail::get_value_impl<T>(doc, child);
 
-            const expected value = doc.read_value(child);
-
-            if (!value)
+            if (!w)
             {
-                return "Child array value read failed"_err;
+                return w.error();
             }
 
-            const std::span bytes = *value;
-
-            if (bytes.size() != sizeof(T))
-            {
-                return "Child array value size mismatch"_err;
-            }
-
-            if (!w.assign_from(kind, bytes.data()))
-            {
-                return "Child array value kind mismatch"_err;
-            }
-
-            w.assign_to(kind, &*outIt);
+            w->assign_to(kind, &*outIt);
+            ++outIt;
         }
 
         return no_error;
     }
 
     template <typename T>
-    inline expected<> read_child_array(data_document& doc, u32 parent, hashed_string_view name, std::span<T> values)
+    inline expected<> read_child_array(const data_document& doc, u32 parent, hashed_string_view name, std::span<T> values)
     {
         const u32 node = doc.find_child(parent, name);
         return read_array(doc, node, values);

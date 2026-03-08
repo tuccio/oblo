@@ -15,6 +15,7 @@
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/math/transform.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -715,9 +716,16 @@ namespace oblo::importers
                 joint.parentIndex = parent;
                 joint.name = string{current.name};
 
-                joint.translation = get_vec3_or(current.translation, vec3::splat(0.f));
-                joint.rotation = get_quaternion_or(current.rotation, quaternion::identity());
-                joint.scale = get_vec3_or(current.scale, vec3::splat(1.f));
+                const vec3 translation = get_vec3_or(current.translation, vec3::splat(0.f));
+                const quaternion rotation = get_quaternion_or(current.rotation, quaternion::identity());
+                const vec3 scale = get_vec3_or(current.scale, vec3::splat(1.f));
+
+                const mat4 localTransform = make_transform_matrix(translation, rotation, scale);
+
+                const mat4 parentTransform =
+                    parent == skeleton::joint::no_parent ? mat4::identity() : jointsBuffer[parent].transform;
+
+                joint.transform = parentTransform * localTransform;
 
                 for (const i32 child : current.children)
                 {

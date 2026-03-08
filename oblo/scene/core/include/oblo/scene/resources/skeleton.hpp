@@ -3,8 +3,6 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/math/mat4.hpp>
-#include <oblo/math/quaternion.hpp>
-#include <oblo/math/vec3.hpp>
 #include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/resource/resource_ref.hpp>
 
@@ -22,12 +20,8 @@ namespace oblo
         static constexpr u32 no_parent = ~0u;
 
         string name;
-
         u32 parentIndex;
-
-        vec3 translation;
-        quaternion rotation;
-        vec3 scale;
+        mat4 transform;
     };
 
     struct skin

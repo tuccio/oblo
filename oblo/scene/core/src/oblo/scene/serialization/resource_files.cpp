@@ -93,9 +93,7 @@ namespace oblo
             doc.child_value(currentJointNode, "name"_hsv, property_value_wrapper{string_view{joint.name}});
             doc.child_value(currentJointNode, "parentIndex"_hsv, property_value_wrapper{joint.parentIndex});
 
-            write_child_array(doc, currentJointNode, "translation"_hsv, std::span{&joint.translation[0], 3});
-            write_child_array(doc, currentJointNode, "rotation"_hsv, std::span{&joint.rotation[0], 3});
-            write_child_array(doc, currentJointNode, "scale"_hsv, std::span{&joint.scale[0], 3});
+            write_child_array(doc, currentJointNode, "transform"_hsv, std::span{&joint.transform.columns[0][0], 16});
         }
 
         return json::write(doc, destination);
@@ -123,16 +121,17 @@ namespace oblo
         {
             auto& joint = sk.jointsHierarchy.emplace_back();
 
-            const expected name = doc.read_string(doc.find_child(child, "name"_hsv));
-            const expected parentIndex = doc.read_u32(doc.find_child(child, "parentIndex"_hsv));
+            const u32 nameNode = doc.find_child(child, "name"_hsv);
+            const u32 parentIndexNode = doc.find_child(child, "parentIndex"_hsv);
 
-            const expected translation =
-                read_child_array(doc, child, "translation"_hsv, std::span{&joint.translation[0], 3});
-            const expected rotation = read_child_array(doc, child, "rotation"_hsv, std::span{&joint.rotation[0], 3});
-            const expected scale = read_child_array(doc, child, "scale"_hsv, std::span{&joint.scale[0], 3});
+            const expected name = doc.read_string(nameNode);
+            const expected parentIndex = doc.read_u32(parentIndexNode);
 
-            if (!name || !parentIndex || !translation || !rotation || !scale ||
-                parentIndex.value() >= sk.jointsHierarchy.size())
+            const expected transform =
+                read_child_array(doc, child, "transform"_hsv, std::span{&joint.transform.columns[0][0], 16});
+
+            if (!name || !parentIndex || !transform ||
+                *parentIndex != skeleton::joint::no_parent && *parentIndex >= sk.jointsHierarchy.size())
             {
                 return "Invalid data in skeleton"_err;
             }
@@ -156,6 +155,8 @@ namespace oblo
             return "Invalid skin data"_err;
         }
 
+        doc.child_value(doc.get_root(), "skeleton"_hsv, property_value_wrapper{sk.skeleton.id});
+
         write_child_array(doc, doc.get_root(), "joints"_hsv, std::span{sk.jointNames});
         const u32 invBindPoses = doc.child_array(doc.get_root(), "invBindPoses"_hsv);
 
@@ -176,14 +177,18 @@ namespace oblo
             return e;
         }
 
+        const u32 skeleton = doc.find_child(doc.get_root(), "skeleton"_hsv);
         const u32 joints = doc.find_child(doc.get_root(), "joints"_hsv);
         const u32 invBindPoses = doc.find_child(doc.get_root(), "invBindPoses"_hsv);
 
         if (joints == data_node::Invalid || !doc.is_array(joints) || invBindPoses == data_node::Invalid ||
-            !doc.is_array(invBindPoses))
+            !doc.is_array(invBindPoses) || skeleton == data_node::Invalid)
         {
             return "Invalid skin file"_err;
         }
+
+        const uuid skeletonId = doc.read_uuid(skeleton).value_or({});
+        sk.skeleton = resource_ref<oblo::skeleton>{skeletonId};
 
         const u32 numJoints = doc.children_count(joints);
 
@@ -193,7 +198,7 @@ namespace oblo
         }
 
         sk.jointNames.resize(numJoints);
-        if (!read_child_array(doc, doc.get_root(), "joints"_hsv, std::span{sk.jointNames}))
+        if (!read_array(doc, joints, std::span{sk.jointNames}))
         {
             return "Invalid skin data"_err;
         }
@@ -208,6 +213,8 @@ namespace oblo
             {
                 return "Invalid skin data"_err;
             }
+
+            ++currentBindPoseIdx;
         }
 
         return no_error;

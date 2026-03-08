@@ -275,6 +275,13 @@ namespace oblo
         {
             const auto componentType = m_typeRegistry->find_component(type);
 
+            if (!componentType)
+            {
+                log::error("Failed to find component type for instance data type {}", type.name);
+                OBLO_ASSERT(componentType);
+                continue;
+            }
+
             m_instanceDataTypeNames.emplace(componentType, info.gpuBufferId);
             m_instanceDataTypes.add(componentType);
         }

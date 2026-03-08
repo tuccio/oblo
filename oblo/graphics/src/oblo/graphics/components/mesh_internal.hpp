@@ -34,4 +34,12 @@ namespace oblo
 
         bool operator==(const processed_mesh_resources&) const = default;
     } OBLO_COMPONENT("d6546dca-5296-455b-933e-f8029d196d88", Transient);
+
+    struct joint_pose_component
+    {
+        static constexpr u32 max_joints = 32;
+        mat4 defaultPoses[max_joints];
+        mat4 currentPoses[max_joints];
+        mat4 invBindPoses[max_joints];
+    } OBLO_COMPONENT("7f2b0b45-b68f-4ec7-b377-c9af94ae1d27", GpuComponent = "i_JointArrayBuffer", Transient);
 }

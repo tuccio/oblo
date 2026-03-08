@@ -150,7 +150,14 @@ namespace oblo
                         return false;
                     }
 
+                    skeletonRes.load_start_async();
                     stillLoading |= skeletonRes.is_currently_loading();
+                }
+
+                if (!stillLoading && (!skinRes.is_successfully_loaded() || !skeletonRes.is_successfully_loaded()))
+                {
+                    log::debug("Failed to load skin or skeleton resource for entity {}", entity.value);
+                    return false;
                 }
             }
 
@@ -297,17 +304,95 @@ namespace oblo
                 {
                     constexpr bool withSkin = true;
 
-                    try_add_mesh<withSkin>(m_resourceRegistry,
+                    const bool meshAdded = try_add_mesh<withSkin>(m_resourceRegistry,
                         m_resourceCache,
                         *m_drawRegistry,
                         e,
                         meshComponent,
                         &skinComponent,
                         deferred);
+
+                    if (!meshAdded)
+                    {
+                        continue;
+                    }
+
+                    const resource_ptr skin = m_resourceRegistry->get_resource(skinComponent.skin);
+
+                    // This shouldn't be doing anything really, since we used it in try_add_mesh
+                    OBLO_ASSERT(skin.is_successfully_loaded());
+                    skin.load_sync();
+
+                    if (!skin.is_successfully_loaded())
+                    {
+                        log::error("Failed to load skin on entity {}", e.value);
+                        continue;
+                    }
+
+                    const resource_ptr skeleton = m_resourceRegistry->get_resource(skin->skeleton);
+
+                    OBLO_ASSERT(skeleton.is_successfully_loaded());
+                    skeleton.load_sync();
+
+                    if (!skeleton.is_successfully_loaded())
+                    {
+                        log::error("Failed to load skeleton on entity {}", e.value);
+                        continue;
+                    }
+
+                    static_assert(joint_pose_component::max_joints == joint_skinning_transform_component::max_joints);
+                    const u32 numJoints = skin->invBindPoses.size32();
+
+                    if (numJoints > joint_skinning_transform_component::max_joints)
+                    {
+                        log::error("Entity {} exceeds the number of joints", e.value);
+                        continue;
+                    }
+
+                    // TODO: Get the "default" position of each joint (i.e. with no animation) from the skeleton
+
+                    joint_skinning_transform_component& jointTransform =
+                        deferred.add<joint_skinning_transform_component>(e);
+
+                    joint_pose_component& jointPose = deferred.add<joint_pose_component>(e);
+
+                    for (u32 jointIndex = 0; jointIndex < numJoints; ++jointIndex)
+                    {
+                        const auto& jointName = skin->jointNames[jointIndex];
+
+                        auto skeletonJointIt = skeleton->jointsHierarchy.begin();
+
+                        // Linear search, could cache the skeleton instead and use a map, not sure if it's worth
+                        // persisting the skeletons though
+                        for (; skeletonJointIt != skeleton->jointsHierarchy.end(); ++skeletonJointIt)
+                        {
+                            if (skeletonJointIt->name == jointName)
+                            {
+                                break;
+                            }
+                        }
+
+                        if (skeletonJointIt == skeleton->jointsHierarchy.end())
+                        {
+                            log::error("Unable to find joint {} on entity {}", jointName, e.value);
+                        }
+
+                        const skeleton::joint& skeletonJoint = *skeletonJointIt;
+
+                        jointPose.currentPoses[jointIndex] = skeletonJoint.transform;
+                        jointPose.defaultPoses[jointIndex] = skeletonJoint.transform;
+                        jointPose.invBindPoses[jointIndex] = skin->invBindPoses[jointIndex];
+
+                        jointTransform.jointMatrices[jointIndex] =
+                            skin->invBindPoses[jointIndex] * skeletonJoint.transform;
+                    }
                 }
             }
         }
 
         deferred.apply(*ctx.entities);
+
+        // We could decide to delete the mesh_resource after processing, but we need to double-check how often we are
+        // updating materials
     }
 }
