@@ -352,7 +352,7 @@ namespace oblo::importers
 
             auto& skeletonNode = m_impl->importSkeletons.emplace_back();
 
-            skeletonNode.sceneNodeRootIndex = nodeInfo.nodeIndex;
+            skeletonNode.sceneNodeRootIndex = gltfSkin.skeleton;
             skeletonNode.nodeIndex = nodeInfo.nodeIndex;
             skinNode.skeletonNodeIndex = nodeInfo.nodeIndex;
 
