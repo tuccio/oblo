@@ -113,6 +113,7 @@ namespace oblo
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+        ctx.acquire(inEntitySetBuffer, buffer_usage::storage_read);
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
@@ -126,6 +127,7 @@ namespace oblo
             {"b_CameraBuffer"_hsv, inCameraBuffer},
             {"b_MeshTables"_hsv, inMeshDatabase},
             {"b_InstanceTables"_hsv, inInstanceTables},
+            {"b_EcsEntitySet"_hsv, inEntitySetBuffer},
         });
 
         const std::span drawData = ctx.access(inDrawData);
@@ -167,7 +169,8 @@ namespace oblo
 
         for (usize drawCallIndex = 0; drawCallIndex < drawData.size(); ++drawCallIndex)
         {
-            const auto& culledDraw = drawData[drawCallIndex];
+            const draw_buffer_data& culledDraw = drawData[drawCallIndex];
+            OBLO_ASSERT(culledDraw.sourceData.kind == batch_kind::draw);
 
             perDrawBindingTable.clear();
 

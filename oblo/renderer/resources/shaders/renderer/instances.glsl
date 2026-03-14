@@ -19,6 +19,10 @@
          get_instance_data(g_InstanceTables[TableId], OBLO_INSTANCE_DATA_ID(Instance))))                               \
         .values[Index]
 
+/// Checks whether or not this table has a certain data member
+#define OBLO_HAS_INSTANCE_DATA(TableId, Instance)                                                                      \
+    (get_instance_data(g_InstanceTables[TableId], OBLO_INSTANCE_DATA_ID(Instance)) != 0)
+
 #define OBLO_INSTANCE_DATA_MAX 32
 
 struct instance_table

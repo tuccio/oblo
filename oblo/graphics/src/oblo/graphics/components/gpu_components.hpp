@@ -37,7 +37,7 @@ namespace oblo
     {
         static constexpr u32 max_chunks = 16;
         ecs::entity chunks[max_chunks];
-    } OBLO_COMPONENT("60f4d010-5c1c-4629-958d-14b61156b1bc", GpuComponent = "i_JointSkinningChunks", Transient);
+    } OBLO_COMPONENT("60f4d010-5c1c-4629-958d-14b61156b1bc", GpuComponent = "i_JointSkinningChunksBuffer", Transient);
 
     struct joint_skinning_transform_component
     {

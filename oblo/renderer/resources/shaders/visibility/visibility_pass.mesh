@@ -6,6 +6,8 @@
 #extension GL_ARB_gpu_shader_int64 : require
 #extension GL_EXT_shader_8bit_storage : require
 
+#extension GL_EXT_debug_printf : require
+
 #include <renderer/camera>
 #include <renderer/instances>
 #include <renderer/math>
@@ -13,6 +15,7 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
+#include <renderer/meshes/skinning>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
 
@@ -77,15 +80,47 @@ void main()
     const mat4 localToWorld = instanceTransform.localToWorld;
     const uint baseVertex = meshRange.vertexOffset + meshletRange.vertexOffset;
 
-    for (uint meshletVertexId = meshletVertexBegin; meshletVertexId < meshletVertexEnd; ++meshletVertexId)
+    const bool hasSkinningInstanceData =
+        OBLO_HAS_INSTANCE_DATA(g_Constants.instanceTableId, i_JointSkinningChunksBuffer);
+
+    const bool hasSkinningMeshAttributes = mesh_table_has_attributes(table,
+        (1u << OBLO_VERTEX_ATTRIBUTE_JOINT_INDICES) | (1u << OBLO_VERTEX_ATTRIBUTE_JOINT_WEIGHTS));
+
+    const bool performSkinning = hasSkinningInstanceData && hasSkinningMeshAttributes;
+
+    if (performSkinning)
     {
-        const uint meshVertexId = baseVertex + meshletVertexId;
-        const vec3 inPosition = mesh_get_position(table, meshVertexId);
+        const skinning_joint_chunks chunks =
+            OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_JointSkinningChunksBuffer, preCullingId);
 
-        const vec4 positionWS = localToWorld * vec4(inPosition, 1);
-        const vec4 positionNDC = g_Camera.viewProjection * positionWS;
+        for (uint meshletVertexId = meshletVertexBegin; meshletVertexId < meshletVertexEnd; ++meshletVertexId)
+        {
+            const uint meshVertexId = baseVertex + meshletVertexId;
+            const vec3 inPosition = mesh_get_position(table, meshVertexId);
 
-        gl_MeshVerticesEXT[meshletVertexId].gl_Position = positionNDC;
+            const uvec4 inJointIndices = mesh_get_joint_indices(table, meshVertexId);
+            const vec4 inJointWeights = mesh_get_joint_weights(table, meshVertexId);
+
+            const mat4 skinningMatrix = skinning_calculate_weighted_matrix(chunks, inJointIndices, inJointWeights);
+
+            const vec4 positionWS = localToWorld * skinningMatrix * vec4(inPosition, 1);
+            const vec4 positionNDC = g_Camera.viewProjection * positionWS;
+
+            gl_MeshVerticesEXT[meshletVertexId].gl_Position = positionNDC;
+        }
+    }
+    else
+    {
+        for (uint meshletVertexId = meshletVertexBegin; meshletVertexId < meshletVertexEnd; ++meshletVertexId)
+        {
+            const uint meshVertexId = baseVertex + meshletVertexId;
+            const vec3 inPosition = mesh_get_position(table, meshVertexId);
+
+            const vec4 positionWS = localToWorld * vec4(inPosition, 1);
+            const vec4 positionNDC = g_Camera.viewProjection * positionWS;
+
+            gl_MeshVerticesEXT[meshletVertexId].gl_Position = positionNDC;
+        }
     }
 
     const uint maxTrianglesPerThread = round_up_div(meshletTriangleCount, meshletThreadsCount);

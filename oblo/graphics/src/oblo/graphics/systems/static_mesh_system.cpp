@@ -372,12 +372,17 @@ namespace oblo
 
                         for (u32 chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
                         {
-                            auto&& [chunkEntity, parentComponent, jointTransform, jointPose] =
+                            auto&& [chunkEntity, parentComponent, jointTransform, jointPose, drawInstanceId] =
                                 deferred.create_with_reserved_id<parent_component,
                                     joint_skinning_transform_component,
                                     joint_pose_component,
+                                    // Add draw_instance_id_component to make sure the entity is uploaded to the GPU
+                                    draw_instance_id_component,
                                     transient_tag>(*ctx.entities);
 
+                            // This is mostly to make sure we keep track of what was actually filled in by draw_registry
+                            drawInstanceId.rtInstanceId = draw_instance_id_component::invalid_id;
+                            
                             parentComponent.parent = e;
                             childrenComponent.children.push_back(chunkEntity);
 

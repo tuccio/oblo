@@ -25,6 +25,7 @@ namespace oblo
             g.connect(sceneDataProvider, scene_data::OutInstanceBuffers, mainView, main_view::InInstanceBuffers);
 
             g.connect(sceneDataProvider, scene_data::OutMeshDatabase, mainView, main_view::InMeshDatabase);
+            g.connect(sceneDataProvider, scene_data::OutEcsEntitySetBuffer, mainView, main_view::InEcsEntitySetBuffer);
 
             g.connect(sceneDataProvider,
                 scene_data::OutSkyboxSettingsBuffer,
