@@ -386,7 +386,7 @@ namespace oblo
 
             if (const auto kind = meshAttribute.kind; is_vertex_attribute(kind))
             {
-                const auto a = convert_vertex_attribute(kind);
+                const vertex_attributes a = convert_vertex_attribute(kind);
                 meshAttributes[vertexAttributesCount] = kind;
                 attributeIds[vertexAttributesCount] = u32(a);
                 attributeFlags |= a;
@@ -540,6 +540,8 @@ namespace oblo
 
     void draw_registry::defer_upload(const std::span<const byte> data, const gpu::buffer_range& b)
     {
+        OBLO_ASSERT(b.size == data.size());
+
         // Do we need info on pipeline barriers?
         [[maybe_unused]] const auto result = m_stagingBuffer->stage(data);
 
@@ -627,7 +629,11 @@ namespace oblo
         {
             const ecs::component_and_tag_sets typeSets = ecs::get_component_and_tag_sets(archetype);
 
-            if (!typeSets.components.contains(m_instanceComponent))
+            const bool isDrawBatch = typeSets.components.contains(m_instanceComponent);
+
+            // We filter which archetypes to upload to GPU. Anything that we might want to access in the shader as
+            // instance data should be included here.
+            if (!isDrawBatch && typeSets.components.intersection(m_instanceDataTypes).is_empty())
             {
                 continue;
             }
@@ -639,13 +645,14 @@ namespace oblo
                 continue;
             }
 
-            ++currentDrawBatch;
-
-            *currentDrawBatch = {};
-
             const std::span componentTypes = ecs::get_component_types(archetype);
 
-            currentDrawBatch->instanceTableId = drawBatches;
+            ++currentDrawBatch;
+
+            *currentDrawBatch = {
+                .instanceTableId = drawBatches,
+            };
+
             ++drawBatches;
 
             // TODO: Don't blindly update all instance buffers every frame
@@ -734,6 +741,7 @@ namespace oblo
 
             currentDrawBatch->instanceBuffers = instanceBuffers;
             currentDrawBatch->numInstances = numProcessedEntities;
+            currentDrawBatch->kind = isDrawBatch ? batch_kind::draw : batch_kind::instance_data;
         }
 
         m_drawData = frameDrawData;

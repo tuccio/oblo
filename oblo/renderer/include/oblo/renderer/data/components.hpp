@@ -14,6 +14,8 @@ namespace oblo
 
     struct draw_instance_id_component
     {
+        static constexpr u32 invalid_id = ~0u;
+
         // We use 24 bits, because that is what the ray tracing pipeline allows for custom ids
         // We reserve 4 for the instance table and 20 for the instance index
         u32 rtInstanceId;

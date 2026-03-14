@@ -39,6 +39,11 @@ namespace oblo
         {
             for (const auto [e, id] : chunk.zip<ecs::entity, draw_instance_id_component>())
             {
+                if (id.rtInstanceId == draw_instance_id_component::invalid_id)
+                {
+                    continue;
+                }
+
                 const u32 entityIndex = reg.extract_entity_index(e);
 
                 if (entityIndex >= entities.size())

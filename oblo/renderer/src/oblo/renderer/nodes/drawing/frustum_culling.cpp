@@ -54,8 +54,19 @@ namespace oblo
 
         constexpr u32 zero{};
 
-        for (const auto& [draw, drawBuffer] : zip_range(drawCalls, drawBufferData))
+        u32 actualDrawsCount = 0;
+
+        for (usize srcDrawIdx = 0; srcDrawIdx < drawCalls.size(); ++srcDrawIdx)
         {
+            const batch_draw_data& draw = drawCalls[srcDrawIdx];
+
+            if (draw.kind != batch_kind::draw)
+            {
+                continue;
+            }
+
+            draw_buffer_data& drawBuffer = drawBufferData[actualDrawsCount];
+
             drawBuffer = {
                 .drawCallCountBuffer = ctx.create_dynamic_buffer(
                     {
@@ -70,6 +81,15 @@ namespace oblo
                     buffer_usage::storage_write),
                 .sourceData = draw,
             };
+
+            ++actualDrawsCount;
+        }
+
+        drawBufferData = drawBufferData.subspan(0, actualDrawsCount);
+
+        if (drawBufferData.empty())
+        {
+            return;
         }
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
