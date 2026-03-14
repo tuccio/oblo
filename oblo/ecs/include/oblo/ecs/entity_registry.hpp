@@ -36,8 +36,14 @@ namespace oblo::ecs
 
         void init(const type_registry* typeRegistry);
 
+        /// @brief Creates a single entity with the given components and tags signature.
         entity create(const component_and_tag_sets& types);
+
+        /// @brief Creates entities with the given components and tags signature.
         void create(const component_and_tag_sets& types, u32 count, std::span<entity> outEntityIds = {});
+
+        /// @brief Creates entities with ids previously reserved with reserve_ids.
+        void create_with_reserved_ids(const component_and_tag_sets& types, std::span<const entity> entityIds);
 
         template <typename... ComponentsOrTags>
         entity create();
@@ -59,6 +65,14 @@ namespace oblo::ecs
         void remove(entity e);
 
         bool contains(entity e) const;
+
+        /// @brief Reserves entity ids that can be used for creating entities later.
+        /// @see create_with_reserved_ids
+        void reserve_ids(std::span<entity> outEntityIds);
+
+        /// @brief Releases reserved entity ids that were not used for creating entities.
+        /// @remarks The entities must not exist, and the ids must have been reserved with reserve_ids before.
+        void release_reserved_ids(std::span<const entity> reservedIds);
 
         template <typename Component>
         const Component& get(entity e) const;
@@ -136,7 +150,8 @@ namespace oblo::ecs
         struct tags_storage;
         struct entity_data;
 
-        using entities_map = h32_flat_pool_dense_map<entity_handle, entity_data, entity_generation_bits>;
+        using entities_pool = handle_pool<u32, entity_generation_bits>;
+        using entities_map = h32_flat_extpool_dense_map<entity_handle, entity_data, entity_generation_bits>;
 
     private:
         const archetype_storage* find_first_match(const archetype_storage* begin,
@@ -168,9 +183,13 @@ namespace oblo::ecs
 
         void move_archetype(entity_data& entityData, const archetype_storage& newStorage);
 
+        template <typename DoCreateEntity>
+        void create_entities(const component_and_tag_sets& types, u32 count, DoCreateEntity&& doCreate);
+
     private:
         const type_registry* m_typeRegistry{nullptr};
-        unique_ptr<memory_pool> m_pool;
+        unique_ptr<memory_pool> m_memoryPool;
+        entities_pool m_pool;
         entities_map m_entities;
         dynamic_array<archetype_storage> m_componentsStorage;
         u64 m_modificationId{};

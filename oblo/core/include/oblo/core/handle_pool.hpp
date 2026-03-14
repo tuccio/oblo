@@ -40,6 +40,12 @@ namespace oblo
             }
         }
 
+        void clear()
+        {
+            m_handles.clear();
+            m_lastHandle = {};
+        }
+
     private:
         static constexpr T increment_gen(T value);
 
