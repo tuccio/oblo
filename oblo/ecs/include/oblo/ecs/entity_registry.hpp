@@ -344,4 +344,9 @@ namespace oblo::ecs
         return querySets.components.intersection(entitySets.components) == querySets.components &&
             querySets.tags.intersection(entitySets.tags) == querySets.tags;
     }
+
+    inline const type_registry& entity_registry::get_type_registry() const
+    {
+        return *m_typeRegistry;
+    }
 }

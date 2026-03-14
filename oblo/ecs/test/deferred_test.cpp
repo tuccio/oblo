@@ -28,6 +28,11 @@ namespace oblo::ecs
 
             bool operator==(const aligned_uvec4&) const = default;
         };
+
+        struct component_with_reference
+        {
+            entity ref;
+        };
     }
 
     TEST(deferred, basic)
@@ -110,5 +115,59 @@ namespace oblo::ecs
 
             ASSERT_EQ(reg.get<string>(e4), "e4");
         }
+    }
+
+    TEST(deferred, reserved_ids)
+    {
+        type_registry types;
+        entity_registry reg{&types};
+
+        types.get_or_register_component(make_component_type_desc<component_with_reference>());
+
+        const entity e1 = reg.create();
+        const entity e2 = reg.create();
+        const entity e3 = reg.create();
+
+        reg.add<component_with_reference>(e1).ref = e2;
+        reg.add<component_with_reference>(e2).ref = e3;
+
+        deferred d;
+
+        auto&& [d1, c1] = d.create_with_reserved_id<component_with_reference>(reg);
+        auto&& [d2, c2] = d.create_with_reserved_id<component_with_reference>(reg);
+
+        reg.add<component_with_reference>(e3).ref = d1;
+
+        c1.ref = d2;
+        c2.ref = d1;
+
+        ASSERT_TRUE(reg.contains(e1));
+        ASSERT_TRUE(reg.contains(e2));
+        ASSERT_TRUE(reg.contains(e3));
+
+        ASSERT_FALSE(reg.contains(d1));
+        ASSERT_FALSE(reg.contains(d2));
+
+        d.apply(reg);
+
+        ASSERT_TRUE(reg.contains(e1));
+        ASSERT_TRUE(reg.contains(e2));
+        ASSERT_TRUE(reg.contains(e3));
+
+        ASSERT_TRUE(reg.contains(d1));
+        ASSERT_TRUE(reg.contains(d2));
+
+        ASSERT_TRUE(reg.has<component_with_reference>(e1));
+        ASSERT_TRUE(reg.has<component_with_reference>(e2));
+        ASSERT_TRUE(reg.has<component_with_reference>(e3));
+
+        ASSERT_TRUE(reg.has<component_with_reference>(d1));
+        ASSERT_TRUE(reg.has<component_with_reference>(d2));
+
+        ASSERT_EQ(reg.get<component_with_reference>(e1).ref, e2);
+        ASSERT_EQ(reg.get<component_with_reference>(e2).ref, e3);
+        ASSERT_EQ(reg.get<component_with_reference>(e3).ref, d1);
+        ASSERT_EQ(reg.get<component_with_reference>(d1).ref, d2);
+        ASSERT_EQ(reg.get<component_with_reference>(d2).ref, d1);
     }
 }

@@ -27,6 +27,11 @@ namespace oblo::ecs
         template <typename... ComponentsOrTags>
         decltype(auto) create();
 
+        /// @brief Enqueues an entity creation command, but reserves the id and returns it immediately.
+        /// @remarks Because of entity id reservation, this is not thread-safe, unlike create.
+        template <typename... ComponentsOrTags>
+        decltype(auto) create_with_reserved_id(entity_registry& registry);
+
         template <typename... ComponentsOrTags>
         decltype(auto) add(entity e);
 
@@ -41,11 +46,35 @@ namespace oblo::ecs
         void clear();
 
     private:
+        enum class command_type : u8
+        {
+            add,
+            create,
+            create_reserved,
+        };
+
         template <typename T>
         T* allocate_storage();
 
-        template <bool Create, typename... ComponentsOrTags>
+        template <command_type CommandType, typename... ComponentsOrTags>
         decltype(auto) add_or_create(entity e);
+
+        template <typename Tuple>
+        decltype(auto) simplify_returned_tuple(Tuple&& t)
+        {
+            if constexpr (std::tuple_size<Tuple>{} == 0)
+            {
+                return;
+            }
+            else if constexpr (std::tuple_size<Tuple>{} == 1)
+            {
+                return std::get<0>(t);
+            }
+            else
+            {
+                return std::forward<Tuple>(t);
+            }
+        }
 
     private:
         struct command
@@ -70,13 +99,21 @@ namespace oblo::ecs
     template <typename... ComponentsOrTags>
     decltype(auto) deferred::create()
     {
-        return add_or_create<true, ComponentsOrTags...>({});
+        return simplify_returned_tuple(add_or_create<command_type::create, ComponentsOrTags...>({}));
+    }
+
+    template <typename... ComponentsOrTags>
+    inline decltype(auto) deferred::create_with_reserved_id(entity_registry& registry)
+    {
+        entity e{};
+        registry.reserve_ids({&e, 1});
+        return std::tuple_cat(std::tuple{e}, add_or_create<command_type::create_reserved, ComponentsOrTags...>(e));
     }
 
     template <typename... ComponentsOrTags>
     decltype(auto) deferred::add(entity e)
     {
-        return add_or_create<false, ComponentsOrTags...>(e);
+        return simplify_returned_tuple(add_or_create<command_type::add, ComponentsOrTags...>(e));
     }
 
     template <typename T>
@@ -105,45 +142,51 @@ namespace oblo::ecs
         return new (ptr) T;
     }
 
-    template <bool Create, typename... ComponentsOrTags>
+    template <deferred::command_type CommandType, typename... ComponentsOrTags>
     inline decltype(auto) deferred::add_or_create(entity e)
     {
-        using tuple_t = filter_components<ComponentsOrTags...>::value_tuple;
+        using components_tuple_t = filter_components<ComponentsOrTags...>::value_tuple;
 
         // This is used when the command is an add
         struct add_command_data
         {
             entity e;
-            tuple_t components;
-
-            void set_entity(entity entity)
-            {
-                e = entity;
-            }
-
-            entity get_or_create_entity(entity_registry&) const
-            {
-                return e;
-            }
+            components_tuple_t components;
         };
 
         // This is used when the command is a create
         struct create_command_data
         {
-            tuple_t components;
+            entity e;
+            components_tuple_t components;
 
-            void set_entity(entity) const {}
-
-            entity get_or_create_entity(entity_registry& registry) const
+            void acquire_id(entity_registry& registry)
             {
-                return registry.create<ComponentsOrTags...>();
+                registry.reserve_ids({&e, 1});
+            }
+
+            entity create_entity(entity_registry& registry) const
+            {
+                const type_registry& typeRegistry = registry.get_type_registry();
+                const component_and_tag_sets sets = make_type_sets<ComponentsOrTags...>(typeRegistry);
+
+                if constexpr (CommandType == command_type::create)
+                {
+                    return registry.create(sets);
+                }
+                else
+                {
+                    registry.create_with_reserved_ids(sets, {&e, 1});
+                    return e;
+                }
             }
         };
 
-        using add_or_create_command_data = std::conditional_t<Create, create_command_data, add_command_data>;
+        using add_or_create_command_data =
+            std::conditional_t<CommandType == command_type::add, add_command_data, create_command_data>;
 
         add_or_create_command_data* const data = allocate_storage<add_or_create_command_data>();
-        data->set_entity(e);
+        data->e = e;
 
         m_commands.push_back_default() = {
             .userdata = data,
@@ -152,15 +195,24 @@ namespace oblo::ecs
             {
                 add_or_create_command_data* const data = static_cast<add_or_create_command_data*>(userdata);
 
-                const entity e = data->get_or_create_entity(registry);
+                entity e{};
 
-                if constexpr (std::tuple_size_v<tuple_t> == 0)
+                if constexpr (CommandType == command_type::create_reserved || CommandType == command_type::create)
+                {
+                    e = data->create_entity(registry);
+                }
+                else
+                {
+                    e = data->e;
+                }
+
+                if constexpr (std::tuple_size_v<components_tuple_t> == 0)
                 {
                     // When no components are added (e.g. only tags) entity_registry::add returns void
                     // Nothing to do here
                     registry.add<ComponentsOrTags...>(e);
                 }
-                else if constexpr (std::tuple_size_v<tuple_t> == 1)
+                else if constexpr (std::tuple_size_v<components_tuple_t> == 1)
                 {
                     // When we only have 1 component, entity_registry::add returns a reference to it
                     auto& newComponent = registry.add<ComponentsOrTags...>(e);
@@ -187,19 +239,8 @@ namespace oblo::ecs
             },
         };
 
-        if constexpr (std::tuple_size_v<tuple_t> == 0)
-        {
-            return;
-        }
-        else if constexpr (std::tuple_size_v<tuple_t> == 1)
-        {
-            return std::get<0>(data->components);
-        }
-        else
-        {
-            return std::apply([]<typename... T>(T&... component) { return std::tuple<T&...>{component...}; },
-                data->components);
-        }
+        return std::apply([]<typename... T>(T&... component) { return std::tuple<T&...>{component...}; },
+            data->components);
     }
 
     template <typename... ComponentsOrTags>

@@ -422,11 +422,6 @@ namespace oblo::ecs
         return {archetype->tags, archetype->numTags};
     }
 
-    const type_registry& entity_registry::get_type_registry() const
-    {
-        return *m_typeRegistry;
-    }
-
     std::span<const archetype_storage> entity_registry::get_archetypes() const
     {
         return m_componentsStorage;
