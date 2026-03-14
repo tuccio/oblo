@@ -25,6 +25,8 @@ namespace oblo
         tangent,
         bitangent,
         uv0,
+        joint_indices,
+        joint_weights,
         enum_max
     };
 

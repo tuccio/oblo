@@ -61,6 +61,12 @@ namespace oblo
             case attribute_kind::bitangent:
                 return "BITANGENT";
 
+            case attribute_kind::joint_indices:
+                return "JOINTS_0";
+
+            case attribute_kind::joint_weights:
+                return "WEIGHTS_0";
+
             default:
                 unreachable();
             }
@@ -95,11 +101,20 @@ namespace oblo
             case data_format::f64:
                 return TINYGLTF_TYPE_SCALAR;
 
+            case data_format::vec2u:
             case data_format::vec2:
+            case data_format::vec2u16:
                 return TINYGLTF_TYPE_VEC2;
 
             case data_format::vec3:
+            case data_format::vec3u:
+            case data_format::vec3u16:
                 return TINYGLTF_TYPE_VEC3;
+
+            case data_format::vec4:
+            case data_format::vec4u:
+            case data_format::vec4u16:
+                return TINYGLTF_TYPE_VEC4;
 
             default:
                 OBLO_ASSERT(false);
@@ -332,16 +347,23 @@ namespace oblo
                 break;
 
             case data_format::u16:
+            case data_format::vec2u16:
+            case data_format::vec3u16:
+            case data_format::vec4u16:
                 componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
                 break;
 
             case data_format::u32:
+            case data_format::vec2u:
+            case data_format::vec3u:
+            case data_format::vec4u:
                 componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT;
                 break;
 
             case data_format::f32:
             case data_format::vec2:
             case data_format::vec3:
+            case data_format::vec4:
                 componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
                 break;
 
@@ -528,6 +550,24 @@ namespace oblo
                 attributes.push_back({
                     .kind = attribute_kind::microindices,
                     .format = data_format::u8,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::joint_indices))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::joint_indices,
+                    .format = data_format::vec4u16,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::joint_weights))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::joint_weights,
+                    .format = data_format::vec4,
                 });
 
                 sources.emplace_back(accessor);

@@ -56,6 +56,8 @@ namespace oblo
             tangent,
             bitangent,
             uv0,
+            joint_indices,
+            joint_weights,
             enum_max,
         };
 
@@ -80,7 +82,10 @@ namespace oblo
                 return vertex_attributes::tangent;
             case attribute_kind::bitangent:
                 return vertex_attributes::bitangent;
-
+            case attribute_kind::joint_indices:
+                return vertex_attributes::joint_indices;
+            case attribute_kind::joint_weights:
+                return vertex_attributes::joint_weights;
             default:
                 unreachable();
             }
@@ -202,6 +207,16 @@ namespace oblo
         attributes[u32(vertex_attributes::uv0)] = {
             .name = interner.get_or_add("in_UV0"_hsv).rebind<buffer_table_name>(),
             .elementSize = sizeof(f32) * 2,
+        };
+
+        attributes[u32(vertex_attributes::joint_indices)] = {
+            .name = interner.get_or_add("in_JointIndices"_hsv).rebind<buffer_table_name>(),
+            .elementSize = sizeof(u16) * 4,
+        };
+
+        attributes[u32(vertex_attributes::joint_weights)] = {
+            .name = interner.get_or_add("in_JointWeights"_hsv).rebind<buffer_table_name>(),
+            .elementSize = sizeof(f32) * 4,
         };
 
         OBLO_ASSERT(
