@@ -22,7 +22,10 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/components/children_component.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
+#include <oblo/scene/components/tags.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/skeleton.hpp>
@@ -340,51 +343,80 @@ namespace oblo
                         continue;
                     }
 
-                    static_assert(joint_pose_component::max_joints == joint_skinning_transform_component::max_joints);
+                    static_assert(
+                        joint_pose_component::joints_per_chunk == joint_skinning_transform_component::joints_per_chunk);
+
+                    constexpr u32 maxJoints = joint_skinning_transform_chunks_component::max_chunks *
+                        joint_skinning_transform_component::joints_per_chunk;
+
                     const u32 numJoints = skin->invBindPoses.size32();
 
-                    if (numJoints > joint_skinning_transform_component::max_joints)
+                    if (numJoints > maxJoints)
                     {
-                        log::error("Entity {} exceeds the number of joints", e.value);
+                        log::error("Entity {} exceeds the number of joints ({} > {})", e.value, numJoints, maxJoints);
                         continue;
                     }
 
-                    // TODO: Get the "default" position of each joint (i.e. with no animation) from the skeleton
+                    const u32 numChunks = round_up_div(numJoints, joint_skinning_transform_component::joints_per_chunk);
 
-                    joint_skinning_transform_component& jointTransform =
-                        deferred.add<joint_skinning_transform_component>(e);
+                    joint_skinning_transform_chunks_component& jointChunks =
+                        deferred.add<joint_skinning_transform_chunks_component>(e);
 
-                    joint_pose_component& jointPose = deferred.add<joint_pose_component>(e);
-
-                    for (u32 jointIndex = 0; jointIndex < numJoints; ++jointIndex)
+                    if (numChunks > 0)
                     {
-                        const auto& jointName = skin->jointNames[jointIndex];
+                        children_component& childrenComponent = ctx.entities->has<children_component>(e)
+                            ? ctx.entities->get<children_component>(e)
+                            : deferred.add<children_component>(e);
 
-                        auto skeletonJointIt = skeleton->jointsHierarchy.begin();
+                        childrenComponent.children.reserve(childrenComponent.children.size() + numChunks);
 
-                        // Linear search, could cache the skeleton instead and use a map, not sure if it's worth
-                        // persisting the skeletons though
-                        for (; skeletonJointIt != skeleton->jointsHierarchy.end(); ++skeletonJointIt)
+                        for (u32 chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
                         {
-                            if (skeletonJointIt->name == jointName)
+                            auto&& [chunkEntity, parentComponent, jointTransform, jointPose] =
+                                deferred.create_with_reserved_id<parent_component,
+                                    joint_skinning_transform_component,
+                                    joint_pose_component,
+                                    transient_tag>(*ctx.entities);
+
+                            parentComponent.parent = e;
+                            childrenComponent.children.push_back(chunkEntity);
+
+                            jointChunks.chunks[chunkIndex] = chunkEntity;
+
+                            for (u32 globalJointIndex = chunkIndex, localJointIndex = 0;
+                                globalJointIndex < chunkIndex + joint_skinning_transform_component::joints_per_chunk &&
+                                globalJointIndex < numJoints;
+                                ++globalJointIndex, ++localJointIndex)
                             {
-                                break;
+                                const auto& jointName = skin->jointNames[globalJointIndex];
+
+                                auto skeletonJointIt = skeleton->jointsHierarchy.begin();
+
+                                // Linear search, could cache the skeleton instead and use a map, not sure if it's worth
+                                // persisting the skeletons though
+                                for (; skeletonJointIt != skeleton->jointsHierarchy.end(); ++skeletonJointIt)
+                                {
+                                    if (skeletonJointIt->name == jointName)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                if (skeletonJointIt == skeleton->jointsHierarchy.end())
+                                {
+                                    log::error("Unable to find joint {} on entity {}", jointName, e.value);
+                                }
+
+                                const skeleton::joint& skeletonJoint = *skeletonJointIt;
+
+                                jointPose.currentPoses[localJointIndex] = skeletonJoint.transform;
+                                jointPose.defaultPoses[localJointIndex] = skeletonJoint.transform;
+                                jointPose.invBindPoses[localJointIndex] = skin->invBindPoses[globalJointIndex];
+
+                                jointTransform.jointMatrices[localJointIndex] =
+                                    skin->invBindPoses[globalJointIndex] * skeletonJoint.transform;
                             }
                         }
-
-                        if (skeletonJointIt == skeleton->jointsHierarchy.end())
-                        {
-                            log::error("Unable to find joint {} on entity {}", jointName, e.value);
-                        }
-
-                        const skeleton::joint& skeletonJoint = *skeletonJointIt;
-
-                        jointPose.currentPoses[jointIndex] = skeletonJoint.transform;
-                        jointPose.defaultPoses[jointIndex] = skeletonJoint.transform;
-                        jointPose.invBindPoses[jointIndex] = skin->invBindPoses[jointIndex];
-
-                        jointTransform.jointMatrices[jointIndex] =
-                            skin->invBindPoses[jointIndex] * skeletonJoint.transform;
                     }
                 }
             }
