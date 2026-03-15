@@ -54,55 +54,90 @@ namespace oblo::editor
 
             if (ui::property_table::begin())
             {
+                buffered_array<usize, 8> arrayIndices;
+
+                string_builder nameBuilder;
+
                 visit(tree,
                     overload{
-                        [this, &ptr, &tree, &modified](const property_node& node, const property_node_start)
+                        [this, &ptr, &tree, &modified, &nameBuilder, &arrayIndices](const property_node& node,
+                            const property_node_start)
                         {
                             ptr += node.offset;
+
+                            create_property_path(nameBuilder.clear(), tree, node, arrayIndices);
 
                             if (node.type == get_type_id<vec3>())
                             {
                                 if (find_attribute<linear_color_tag>(tree, node))
                                 {
-                                    modified |= build_linear_color_editor(node, ptr);
+                                    modified |= build_linear_color_editor(node, ptr, nameBuilder.c_str());
                                     return visit_result::sibling;
                                 }
 
-                                modified |= build_vec3_editor(node, ptr);
+                                modified |= build_vec3_editor(node, ptr, nameBuilder.c_str());
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<quaternion>())
                             {
-                                modified |= build_quaternion_editor(node, ptr);
+                                modified |= build_quaternion_editor(node, ptr, nameBuilder.c_str());
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<mat4>())
                             {
                                 auto* const v = new (ptr) mat4;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
+                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *v);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<radians>())
                             {
                                 auto* const r = new (ptr) radians;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
+                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<degrees>())
                             {
                                 auto* const r = new (ptr) degrees;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
+                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
                                 return visit_result::sibling;
                             }
 
                             return visit_result::recurse;
                         },
                         [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
-                        [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
+                        [&ptr,
+                            &arrayIndices](const property_node& node, const property_array& array, auto&& visitElement)
+                        {
+                            byte* const parentPtr = ptr;
+                            byte* const arrayPtr = parentPtr + node.offset;
+
+                            const usize arraySize = array.size(arrayPtr);
+
+                            arrayIndices.emplace_back();
+
+                            for (u32 i = 0; i < arraySize; ++i)
+                            {
+                                byte* const elementPtr = static_cast<byte*>(array.at(arrayPtr, i));
+                                ptr = elementPtr;
+
+                                arrayIndices.back() = i;
+
+                                ImGui::PushID(int(hash_mix(node.offset, i)));
+                                visitElement();
+                                ImGui::PopID();
+                            }
+
+                            arrayIndices.pop_back();
+
+                            // We restore here, the property_node_finish will undo the offset we did
+                            ptr = arrayPtr;
+
+                            return visit_result::sibling;
+                        },
                         [this, &ptr, &tree, &modified, &nextStringBufferIdx](const property& property)
                         {
                             const auto makeId = [&property]() -> ui::property_table::id_t
@@ -219,22 +254,22 @@ namespace oblo::editor
         }
 
     private:
-        bool build_quaternion_editor(const property_node& node, std::byte* const data)
+        bool build_quaternion_editor(const property_node& node, std::byte* const data, const char* name)
         {
             auto* const q = new (data) quaternion;
-            return ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *q);
+            return ui::property_table::add(int(hash_mix(node.offset, 0)), name, *q);
         }
 
-        bool build_vec3_editor(const property_node& node, std::byte* const data)
+        bool build_vec3_editor(const property_node& node, std::byte* const data, const char* name)
         {
             auto* const v = new (data) vec3;
-            return ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
+            return ui::property_table::add(int(hash_mix(node.offset, 0)), name, *v);
         }
 
-        bool build_linear_color_editor(const property_node& node, std::byte* const data)
+        bool build_linear_color_editor(const property_node& node, std::byte* const data, const char* name)
         {
             auto* const v = new (data) vec3;
-            return ui::property_table::add_color(int(hash_mix(node.offset, 0)), node.name, *v);
+            return ui::property_table::add_color(int(hash_mix(node.offset, 0)), name, *v);
         }
 
     private:

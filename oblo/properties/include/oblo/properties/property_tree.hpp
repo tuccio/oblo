@@ -65,5 +65,15 @@ namespace oblo
     class string_builder;
 
     void create_property_path(string_builder& builder, const property_tree& tree, const property& property);
-    void create_property_path(string_builder& builder, const property_tree& tree, const property_node& property);
+    void create_property_path(string_builder& builder, const property_tree& tree, const property_node& node);
+
+    void create_property_path(string_builder& builder,
+        const property_tree& tree,
+        const property& property,
+        std::span<const usize> arrayIndices);
+
+    void create_property_path(string_builder& builder,
+        const property_tree& tree,
+        const property_node& node,
+        std::span<const usize> arrayIndices);
 }

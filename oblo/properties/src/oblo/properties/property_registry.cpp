@@ -333,7 +333,8 @@ namespace oblo
 
     namespace
     {
-        void post_visit_append(string_builder& builder, const property_tree& tree, u32 id)
+        void post_visit_append(
+            string_builder& builder, const property_tree& tree, u32 id, std::span<const usize> arrayIndices)
         {
             if (id == 0)
             {
@@ -341,23 +342,53 @@ namespace oblo
             }
 
             const auto& node = tree.nodes[id];
-            post_visit_append(builder, tree, node.parent);
 
-            builder.append(node.name);
-            builder.append(".");
+            const bool withArrayIndex = node.isArray && !arrayIndices.empty();
+
+            post_visit_append(builder,
+                tree,
+                node.parent,
+                withArrayIndex ? arrayIndices.subspan(0, arrayIndices.size() - 1) : arrayIndices);
+
+            if (!node.name.starts_with(meta_properties::prefix))
+            {
+                builder.append(node.name);
+
+                if (withArrayIndex)
+                {
+                    builder.format("[{}]", arrayIndices.back());
+                }
+
+                builder.append(".");
+            }
         }
-
     }
 
     void create_property_path(string_builder& builder, const property_tree& tree, const property& property)
     {
-        post_visit_append(builder, tree, property.parent);
-        builder.append(property.name);
+        create_property_path(builder, tree, property, {});
     }
 
     void create_property_path(string_builder& builder, const property_tree& tree, const property_node& node)
     {
-        post_visit_append(builder, tree, narrow_cast<u32>(&node - tree.nodes.data()));
+        create_property_path(builder, tree, node, {});
+    }
+
+    void create_property_path(string_builder& builder,
+        const property_tree& tree,
+        const property& property,
+        std::span<const usize> arrayIndices)
+    {
+        post_visit_append(builder, tree, property.parent, arrayIndices);
+        builder.append(property.name);
+    }
+
+    void create_property_path(string_builder& builder,
+        const property_tree& tree,
+        const property_node& node,
+        std::span<const usize> arrayIndices)
+    {
+        post_visit_append(builder, tree, narrow_cast<u32>(&node - tree.nodes.data()), arrayIndices);
 
         if (builder.view().ends_with("."))
         {

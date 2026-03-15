@@ -44,7 +44,7 @@ namespace oblo
             vec3 translation;
             quaternion rotation;
             vec3 scale;
-        };
+        } OBLO_REFLECT();
 
         static constexpr u32 joints_per_chunk = 16;
         pose defaultPoses[joints_per_chunk];
