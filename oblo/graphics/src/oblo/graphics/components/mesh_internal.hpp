@@ -1,6 +1,8 @@
 #pragma once
 
 #include <oblo/graphics/components/static_mesh_component.hpp>
+#include <oblo/math/quaternion.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 
 namespace oblo
@@ -37,9 +39,16 @@ namespace oblo
 
     struct joint_pose_component
     {
+        struct pose
+        {
+            vec3 translation;
+            quaternion rotation;
+            vec3 scale;
+        };
+
         static constexpr u32 joints_per_chunk = 16;
-        mat4 defaultPoses[joints_per_chunk];
-        mat4 currentPoses[joints_per_chunk];
+        pose defaultPoses[joints_per_chunk];
+        pose currentPoses[joints_per_chunk];
         mat4 invBindPoses[joints_per_chunk];
     } OBLO_COMPONENT("7f2b0b45-b68f-4ec7-b377-c9af94ae1d27", Transient);
 }

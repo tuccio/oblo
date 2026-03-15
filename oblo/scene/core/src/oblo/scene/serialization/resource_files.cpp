@@ -93,7 +93,9 @@ namespace oblo
             doc.child_value(currentJointNode, "name"_hsv, property_value_wrapper{string_view{joint.name}});
             doc.child_value(currentJointNode, "parentIndex"_hsv, property_value_wrapper{joint.parentIndex});
 
-            write_child_array(doc, currentJointNode, "transform"_hsv, std::span{&joint.transform.columns[0][0], 16});
+            write_child_array(doc, currentJointNode, "translation"_hsv, std::span{&joint.translation[0], 3});
+            write_child_array(doc, currentJointNode, "rotation"_hsv, std::span{&joint.rotation[0], 4});
+            write_child_array(doc, currentJointNode, "scale"_hsv, std::span{&joint.scale[0], 3});
         }
 
         return json::write(doc, destination);
@@ -127,10 +129,14 @@ namespace oblo
             const expected name = doc.read_string(nameNode);
             const expected parentIndex = doc.read_u32(parentIndexNode);
 
-            const expected transform =
-                read_child_array(doc, child, "transform"_hsv, std::span{&joint.transform.columns[0][0], 16});
+            const expected position =
+                read_child_array(doc, child, "translation"_hsv, std::span{&joint.translation[0], 3});
 
-            if (!name || !parentIndex || !transform ||
+            const expected rotation = read_child_array(doc, child, "rotation"_hsv, std::span{&joint.rotation[0], 4});
+
+            const expected scale = read_child_array(doc, child, "scale"_hsv, std::span{&joint.scale[0], 3});
+
+            if (!name || !parentIndex || !position || !rotation || !scale ||
                 *parentIndex != skeleton::joint::no_parent && *parentIndex >= sk.jointsHierarchy.size())
             {
                 return "Invalid data in skeleton"_err;

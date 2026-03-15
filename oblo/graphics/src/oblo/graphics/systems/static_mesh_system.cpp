@@ -15,6 +15,7 @@
 #include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/math/transform.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/renderer/data/components.hpp>
 #include <oblo/renderer/draw/draw_registry.hpp>
@@ -278,6 +279,8 @@ namespace oblo
 
         deferred.apply(*ctx.entities);
 
+        dynamic_array<mat4> jointTransforms{ctx.frameAllocator};
+
         // Process entities that we didn't process yet or we just invalidated
         for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
                  .with<global_transform_component>()
@@ -370,6 +373,13 @@ namespace oblo
 
                         childrenComponent.children.reserve(childrenComponent.children.size() + numChunks);
 
+                        // The joint transforms is indexed by the skeleton joint index (of which skin joints are a
+                        // subset of) We calculate the transforms as we encounter them, since we process in topological
+                        // order
+                        jointTransforms.clear();
+                        jointTransforms.reserve(maxJoints);
+                        jointTransforms.resize(skeleton->jointsHierarchy.size(), mat4::identity());
+
                         for (u32 chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
                         {
                             auto&& [chunkEntity, parentComponent, jointTransform, jointPose, drawInstanceId] =
@@ -382,18 +392,18 @@ namespace oblo
 
                             // This is mostly to make sure we keep track of what was actually filled in by draw_registry
                             drawInstanceId.rtInstanceId = draw_instance_id_component::invalid_id;
-                            
+
                             parentComponent.parent = e;
                             childrenComponent.children.push_back(chunkEntity);
 
                             jointChunks.chunks[chunkIndex] = chunkEntity;
 
-                            for (u32 globalJointIndex = chunkIndex, localJointIndex = 0;
-                                globalJointIndex < chunkIndex + joint_skinning_transform_component::joints_per_chunk &&
-                                globalJointIndex < numJoints;
-                                ++globalJointIndex, ++localJointIndex)
+                            for (u32 skinJointIndex = chunkIndex, localJointIndex = 0;
+                                skinJointIndex < chunkIndex + joint_skinning_transform_component::joints_per_chunk &&
+                                skinJointIndex < numJoints;
+                                ++skinJointIndex, ++localJointIndex)
                             {
-                                const auto& jointName = skin->jointNames[globalJointIndex];
+                                const auto& jointName = skin->jointNames[skinJointIndex];
 
                                 auto skeletonJointIt = skeleton->jointsHierarchy.begin();
 
@@ -412,14 +422,39 @@ namespace oblo
                                     log::error("Unable to find joint {} on entity {}", jointName, e.value);
                                 }
 
+                                const isize skeletonJointIndex = skeletonJointIt - skeleton->jointsHierarchy.begin();
+
                                 const skeleton::joint& skeletonJoint = *skeletonJointIt;
 
-                                jointPose.currentPoses[localJointIndex] = skeletonJoint.transform;
-                                jointPose.defaultPoses[localJointIndex] = skeletonJoint.transform;
-                                jointPose.invBindPoses[localJointIndex] = skin->invBindPoses[globalJointIndex];
+                                jointPose.currentPoses[localJointIndex] = {
+                                    skeletonJoint.translation,
+                                    skeletonJoint.rotation,
+                                    skeletonJoint.scale,
+                                };
+
+                                jointPose.defaultPoses[localJointIndex] = {
+                                    skeletonJoint.translation,
+                                    skeletonJoint.rotation,
+                                    skeletonJoint.scale,
+                                };
+
+                                jointPose.invBindPoses[localJointIndex] = skin->invBindPoses[skinJointIndex];
+
+                                mat4 jointTransformMatrix = make_transform_matrix(skeletonJoint.translation,
+                                    skeletonJoint.rotation,
+                                    skeletonJoint.scale);
+
+                                if (skeletonJoint.parentIndex != skeleton::joint::no_parent)
+                                {
+                                    OBLO_ASSERT(skeletonJoint.parentIndex < skeletonJointIndex);
+                                    jointTransformMatrix =
+                                        jointTransforms[skeletonJoint.parentIndex] * jointTransformMatrix;
+                                }
+
+                                jointTransforms[skeletonJointIndex] = jointTransformMatrix;
 
                                 jointTransform.jointMatrices[localJointIndex] =
-                                    skin->invBindPoses[globalJointIndex] * skeletonJoint.transform;
+                                    skin->invBindPoses[skinJointIndex] * jointTransformMatrix;
                             }
                         }
                     }
