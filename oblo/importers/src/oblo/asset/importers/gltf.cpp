@@ -145,6 +145,83 @@ namespace oblo::importers
                 return fallback;
             }
         }
+
+        enum class gltf_node_flag : u8
+        {
+            joint,
+            enum_max,
+        };
+
+        data_format convert_component_type(int componentType, int type)
+        {
+            switch (type)
+            {
+            case TINYGLTF_TYPE_SCALAR:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_BYTE:
+                    return data_format::i8;
+                case TINYGLTF_COMPONENT_TYPE_SHORT:
+                    return data_format::i16;
+                case TINYGLTF_COMPONENT_TYPE_INT:
+                    return data_format::i32;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                    return data_format::u8;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::u32;
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::f32;
+                case TINYGLTF_COMPONENT_TYPE_DOUBLE:
+                    return data_format::f64;
+                default:
+                    return data_format::enum_max;
+                }
+
+            case TINYGLTF_TYPE_VEC2:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::vec2;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::vec2u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::vec2u;
+                default:
+                    return data_format::enum_max;
+                }
+
+            case TINYGLTF_TYPE_VEC3:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::vec3;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::vec3u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::vec3u;
+                default:
+                    return data_format::enum_max;
+                }
+
+            case TINYGLTF_TYPE_VEC4:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::vec4;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::vec4u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::vec4u;
+                default:
+                    return data_format::enum_max;
+                }
+
+            default:
+                return data_format::enum_max;
+            }
+        }
     }
 
     struct gltf::impl
@@ -166,6 +243,7 @@ namespace oblo::importers
         uuid mainArtifactHint{};
 
         deque<embedded_image> embeddedImages;
+        dynamic_array<flags<gltf_node_flag>> gltfNodeFlags;
 
         void set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
         {
@@ -182,7 +260,22 @@ namespace oblo::importers
             const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
             const usize byteOffset = accessor.byteOffset + bufferView.byteOffset;
 
-            return {reinterpret_cast<const byte*>(buffer.data.data() + byteOffset), bufferView.byteLength};
+            OBLO_ASSERT(bufferView.byteStride == 0);
+            const data_format format = convert_component_type(accessor.componentType, accessor.type);
+            const usize bytes = accessor.count * get_size_and_alignment(format).first;
+
+            OBLO_ASSERT(bytes < bufferView.byteLength);
+            return {reinterpret_cast<const byte*>(buffer.data.data() + byteOffset), bytes};
+        }
+
+        void mark_skeleton(usize root)
+        {
+            gltfNodeFlags[root] |= gltf_node_flag::joint;
+
+            for (const int child : model.nodes[root].children)
+            {
+                mark_skeleton(usize(child));
+            }
         }
     };
 
@@ -360,6 +453,8 @@ namespace oblo::importers
         dynamic_array<skeleton_node_info> skeletonNodeInfo;
         skeletonNodeInfo.resize(m_impl->model.nodes.size());
 
+        m_impl->gltfNodeFlags.resize(m_impl->model.nodes.size());
+
         // Import all the skns, try to reuse skeleton nodes if possible, otherwise import them as new nodes.
         for (usize skinIndex = 0; skinIndex < m_impl->model.skins.size(); ++skinIndex)
         {
@@ -393,6 +488,8 @@ namespace oblo::importers
 
             nodeInfo.isMarkedForImport = true;
             nodeInfo.nodeIndex = preview.nodes.size32();
+
+            m_impl->mark_skeleton(gltfSkin.skeleton);
 
             auto& skeletonNode = m_impl->importSkeletons.emplace_back();
 
@@ -763,47 +860,122 @@ namespace oblo::importers
 
             for (const tinygltf::AnimationChannel& gltfChannel : gltfAnim.channels)
             {
-
                 const int samplerIndex = gltfChannel.sampler;
 
                 if (samplerIndex < 0 || usize(samplerIndex) >= gltfAnim.samplers.size())
                 {
                     log::error("Invalid animation");
                     anyError = true;
-                    continue;
+                    break;
                 }
 
                 const tinygltf::AnimationSampler& sampler = gltfAnim.samplers[samplerIndex];
 
-                const tinygltf::Accessor& keyFramesAccessor = m_impl->model.accessors[sampler.input];
                 const tinygltf::Accessor& dataAccessor = m_impl->model.accessors[sampler.output];
 
-                const data_format format = gltf_format::convert_component_type(dataAccessor.componentType);
+                const data_format format = convert_component_type(dataAccessor.componentType, dataAccessor.type);
 
-                const std::span keyFramesBytes = m_impl->get_data_from_accessor(keyFramesAccessor);
-                const std::span dataBytes = m_impl->get_data_from_accessor(dataAccessor);
+                const tinygltf::Accessor& keyframesAccessor = m_impl->model.accessors[sampler.input];
+                [[maybe_unused]] const data_format keyframeFormat =
+                    convert_component_type(keyframesAccessor.componentType, keyframesAccessor.type);
 
-                const usize samplesCount = keyFramesBytes.size() / sizeof(animation_time_t);
+                const std::span keyframesBytes = m_impl->get_data_from_accessor(keyframesAccessor);
+                const usize keyframesCount = keyframesBytes.size_bytes() / sizeof(animation_time_t);
 
-                const std::span keyFrames{
-                    reinterpret_cast<const animation_time_t*>(keyFramesBytes.data()),
-                    samplesCount,
+                const std::span keyframesData = {
+                    start_lifetime_as_array<animation_time_t>(keyframesBytes.data(), keyframesCount),
+                    keyframesCount,
                 };
+
+                const std::span dataBytes = m_impl->get_data_from_accessor(dataAccessor);
 
                 // TODO: Determine what animation it is, build the name
                 nameBuilder.clear();
 
-                // TODO: Deduce data_format
+                const bool isJointAnimation =
+                    m_impl->gltfNodeFlags[gltfChannel.target_node].contains(gltf_node_flag::joint);
+
+                bool typeMismatch = false;
+
+                if (isJointAnimation)
+                {
+                    nameBuilder.append(animation_data::properties::skeletal_prefix);
+                    nameBuilder.append(m_impl->model.nodes[gltfChannel.target_node].name);
+                }
+
+                if (gltfChannel.target_path == "rotation")
+                {
+                    nameBuilder.append(animation_data::properties::skeletal_rotation);
+                    typeMismatch = typeMismatch || format != data_format::vec4;
+                }
+                else if (gltfChannel.target_path == "translation")
+                {
+                    nameBuilder.append(animation_data::properties::skeletal_translation);
+                    typeMismatch = typeMismatch || format != data_format::vec3;
+                }
+                else if (gltfChannel.target_path == "scale")
+                {
+                    nameBuilder.append(animation_data::properties::skeletal_scale);
+                    typeMismatch = typeMismatch || format != data_format::vec3;
+                }
+                else
+                {
+                    // We don't handle weights (i.e. blend shapes) currently
+                    log::error("Unknown property {} in animation {}",
+                        gltfChannel.target_path,
+                        importedAnimation.animationIndex);
+
+                    anyError = true;
+                    break;
+                }
+
+                if (typeMismatch || format == data_format::enum_max)
+                {
+                    log::error("Property {} in animation {} doesn't match the expected type",
+                        gltfChannel.target_path,
+                        importedAnimation.animationIndex);
+
+                    anyError = true;
+                    break;
+                }
+
+                const usize dataSamplesCount = dataBytes.size_bytes() / get_size_and_alignment(format).first;
+
+                if (keyframesCount != dataSamplesCount)
+                {
+                    log::error("Animation {} has a mismatch of samples and keyframes count ({} vs {})",
+                        importedAnimation.animationIndex,
+                        dataSamplesCount,
+                        keyframesCount);
+
+                    anyError = true;
+                    break;
+                }
 
                 animation_channel& channel = animArtifact.channels.emplace_back();
+
+                if (sampler.interpolation == "LINEAR")
+                {
+                    channel.interpolation = animation_interpolation::linear;
+                }
+                else
+                {
+                    log::error("Unsupported interpolation mode in animation {}: {}",
+                        importedAnimation.animationIndex,
+                        sampler.interpolation);
+
+                    anyError = true;
+                    break;
+                }
+
                 animation_data::set_channel_name(animArtifact, channel, nameBuilder.as<hashed_string_view>());
-                animation_data::set_channel_keyframes(animArtifact, channel, keyFrames);
+                animation_data::set_channel_keyframes(animArtifact, channel, keyframesData);
 
                 if (const expected e = animation_data::set_channel_data(animArtifact, channel, dataBytes, format); !e)
                 {
                     log::error("Failed to parse animation data: {}", e.error().message);
                     anyError = true;
-                    continue;
+                    break;
                 }
             }
 
@@ -1063,6 +1235,12 @@ namespace oblo::importers
             {
                 const auto [parent, nodeIndex] = stack.back();
                 stack.pop_back();
+
+                // Skip the skeleton, we don't need it in the entity hierarchy
+                if (m_impl->gltfNodeFlags[nodeIndex].contains(gltf_node_flag::joint))
+                {
+                    continue;
+                }
 
                 const tinygltf::Node& node = m_impl->model.nodes[nodeIndex];
 

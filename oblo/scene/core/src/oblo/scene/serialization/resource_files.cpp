@@ -247,6 +247,16 @@ namespace oblo
         {
             u64 begin;
             u64 end;
+
+            static animation_data_ref deserialize(const animation_file_ref& r)
+            {
+                return {narrow_cast<usize>(r.begin), narrow_cast<usize>(r.end)};
+            }
+
+            static animation_file_ref serialize(const animation_data_ref& r)
+            {
+                return {u64{r.begin}, u64{r.end}};
+            }
         };
 
         enum class animation_file_array : u8
@@ -282,6 +292,7 @@ namespace oblo
             u32 numChannels;
             u8 _padding1[4];
 
+            ref keyframes;
             ref arrays[max_arrays];
         };
 
@@ -373,10 +384,10 @@ namespace oblo
                 const animation_channel& srcChannel = anim.channels[srcChannelIdx];
 
                 fileChannels[dstChannelIdx] = {
-                    .name = {srcChannel.name.begin, srcChannel.name.end},
-                    .arrayIndices = {srcChannel.arrayIndices.begin, srcChannel.arrayIndices.end},
-                    .data = {srcChannel.data.begin, srcChannel.data.end},
-                    .keyframes = {srcChannel.keyframes.begin, srcChannel.keyframes.end},
+                    .name = animation_file_ref::serialize(srcChannel.name),
+                    .arrayIndices = animation_file_ref::serialize(srcChannel.arrayIndices),
+                    .data = animation_file_ref::serialize(srcChannel.data),
+                    .keyframes = animation_file_ref::serialize(srcChannel.keyframes),
                     .format = srcChannel.format,
                     .interpolation = srcChannel.interpolation,
                     .nameHash = srcChannel.nameHash,
@@ -457,15 +468,18 @@ namespace oblo
                 animation_channel& dst = anim.channels[channelIdx];
 
                 // Reconstruct the views/references
-                dst.name = {src.name.begin, src.name.end};
-                dst.arrayIndices = {src.arrayIndices.begin, src.arrayIndices.end};
-                dst.data = {src.data.begin, src.data.end};
-                dst.keyframes = {src.keyframes.begin, src.keyframes.end};
+                dst.name = animation_file_ref::deserialize(src.name);
+                dst.arrayIndices = animation_file_ref::deserialize(src.arrayIndices);
+                dst.data = animation_file_ref::deserialize(src.data);
+                dst.keyframes = animation_file_ref::deserialize(src.keyframes);
                 dst.format = src.format;
                 dst.interpolation = src.interpolation;
                 dst.nameHash = src.nameHash;
             }
         }
+
+        anim.endianness = header.flags.contains(animation_file_flag::little_endian) ? platform::endian::little
+                                                                                    : platform::endian::big;
 
         return anim;
     }

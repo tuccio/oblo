@@ -34,8 +34,9 @@ namespace oblo
     {
         dynamic_array<animation_channel> channels;
 
-        // The arrays contain elements of the same alignment, thus keeping alignment intact, and can be easily byte-swapped
-        // E.g. vec3 data will end up in align4, together with other similarly aligned elements, such as f32, u32, etc
+        // The arrays contain elements of the same alignment, thus keeping alignment intact, and can be easily
+        // byte-swapped E.g. vec3 data will end up in align4, together with other similarly aligned elements, such as
+        // f32, u32, etc
         dynamic_array<byte> aligned1;
         dynamic_array<byte> aligned4;
 

@@ -8,13 +8,22 @@
 
 namespace oblo::animation_data
 {
-    namespace prefixes
+    namespace properties
     {
         /// @brief Prefix for animation properties that target entities
-        constexpr hashed_string_view entity = "$e.";
+        constexpr string_view entity_prefix = "$e.";
 
         /// @brief Prefix for animation properties that target skeleton joints
-        constexpr hashed_string_view skeletal = "$sk.";
+        constexpr string_view skeletal_prefix = "$sk.";
+
+        /// @brief Suffix for skeletal translation property
+        constexpr string_view skeletal_translation = ".t";
+
+        /// @brief Suffix for skeletal rotation property
+        constexpr string_view skeletal_rotation = ".r";
+
+        /// @brief Suffix for skeletal scale property
+        constexpr string_view skeletal_scale = ".s";
     }
 
     namespace detail
@@ -33,13 +42,16 @@ namespace oblo::animation_data
             };
         }
 
-        inline void set_data_impl(dynamic_array<byte>& dataArray, animation_data_ref& ref, std::span<const byte> data)
+        inline std::span<byte> set_data_impl(
+            dynamic_array<byte>& dataArray, animation_data_ref& ref, std::span<const byte> data)
         {
             const usize begin = dataArray.size();
             dataArray.append(data.data(), data.data() + data.size());
             const usize end = dataArray.size();
 
             ref = {.begin = begin, .end = end};
+
+            return std::span{dataArray}.subspan(begin);
         }
     }
 
@@ -71,19 +83,20 @@ namespace oblo::animation_data
         channel.nameHash = name.hash();
     }
 
-    inline expected<> set_channel_data(
+    inline expected<std::span<byte>> set_channel_data(
         animation& clip, animation_channel& channel, std::span<const byte> data, data_format format)
     {
         const auto [_, alignment] = get_size_and_alignment(format);
+        std::span<byte> result{};
 
         switch (alignment)
         {
         case 1:
-            detail::set_data_impl(clip.aligned1, channel.data, std::span{data});
+            result = detail::set_data_impl(clip.aligned1, channel.data, std::span{data});
             break;
 
         case 4:
-            detail::set_data_impl(clip.aligned4, channel.data, std::span{data});
+            result = detail::set_data_impl(clip.aligned4, channel.data, std::span{data});
             break;
 
         default:
@@ -91,7 +104,7 @@ namespace oblo::animation_data
         }
 
         channel.format = format;
-        return no_error;
+        return result;
     }
 
     inline expected<std::span<const byte>> get_channel_data(const animation& clip, const animation_channel& channel)
@@ -122,7 +135,7 @@ namespace oblo::animation_data
         const animation_channel& channel)
     {
         static_assert(alignof(animation_time_t) == 4);
-        const expected e = detail::get_data_impl(clip.aligned4, channel.data);
+        const expected e = detail::get_data_impl(clip.aligned4, channel.keyframes);
 
         if (!e)
         {

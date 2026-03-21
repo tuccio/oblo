@@ -860,9 +860,4 @@ namespace oblo
 
         return no_error;
     }
-
-    data_format gltf_format::convert_component_type(int gltfComponentType)
-    {
-        return oblo::convert_data_format(gltfComponentType);
-    }
 }
