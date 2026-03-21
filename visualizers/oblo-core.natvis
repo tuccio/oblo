@@ -132,4 +132,28 @@
         </Expand>
     </Type>
 
+    <Type Name="oblo::mat4">
+        <DisplayString>
+            | {columns[0].x,g}, {columns[1].x,g}, {columns[2].x,g}, {columns[3].x,g} | | {columns[0].y,g}, {columns[1].y,g}, {columns[2].y,g}, {columns[3].y,g} | | {columns[0].z,g}, {columns[1].z,g}, {columns[2].z,g}, {columns[3].z,g} | | {columns[0].w,g}, {columns[1].w,g}, {columns[2].w,g}, {columns[3].w,g} |
+        </DisplayString>
+
+        <Expand>
+            <Synthetic Name="row0">
+                <DisplayString>{columns[0].x}, {columns[1].x}, {columns[2].x}, {columns[3].x}</DisplayString>
+            </Synthetic>
+            <Synthetic Name="row1">
+                <DisplayString>{columns[0].y}, {columns[1].y}, {columns[2].y}, {columns[3].y}</DisplayString>
+            </Synthetic>
+            <Synthetic Name="row2">
+                <DisplayString>{columns[0].z}, {columns[1].z}, {columns[2].z}, {columns[3].z}</DisplayString>
+            </Synthetic>
+            <Synthetic Name="row3">
+                <DisplayString>{columns[0].w}, {columns[1].w}, {columns[2].w}, {columns[3].w}</DisplayString>
+            </Synthetic>
+
+            <Item Name="[Array]">(float*)columns,16</Item>
+        </Expand>
+
+    </Type>
+
 </AutoVisualizer>
