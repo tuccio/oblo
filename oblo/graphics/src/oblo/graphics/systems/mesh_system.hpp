@@ -13,7 +13,7 @@ namespace oblo
 
     class resource_registry;
 
-    class static_mesh_system
+    class mesh_system
     {
     public:
         void first_update(const ecs::system_update_context& ctx);

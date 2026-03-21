@@ -1,4 +1,4 @@
-#include <oblo/graphics/systems/static_mesh_system.hpp>
+#include <oblo/graphics/systems/mesh_system.hpp>
 
 #include <oblo/core/array_size.hpp>
 #include <oblo/core/debug.hpp>
@@ -230,7 +230,7 @@ namespace oblo
         }
     }
 
-    void static_mesh_system::first_update(const ecs::system_update_context& ctx)
+    void mesh_system::first_update(const ecs::system_update_context& ctx)
     {
         m_drawRegistry = ctx.services->find<draw_registry>();
         OBLO_ASSERT(m_drawRegistry);
@@ -244,7 +244,7 @@ namespace oblo
         update(ctx);
     }
 
-    void static_mesh_system::update(const ecs::system_update_context& ctx)
+    void mesh_system::update(const ecs::system_update_context& ctx)
     {
         ecs::deferred deferred{ctx.frameAllocator};
 

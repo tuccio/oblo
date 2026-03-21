@@ -9,8 +9,8 @@
 #include <oblo/graphics/systems/draw_registry_system.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/graphics/systems/lighting_system.hpp>
+#include <oblo/graphics/systems/mesh_system.hpp>
 #include <oblo/graphics/systems/skybox_system.hpp>
-#include <oblo/graphics/systems/static_mesh_system.hpp>
 #include <oblo/graphics/systems/viewport_system.hpp>
 #include <oblo/math/color.hpp>
 #include <oblo/modules/module_initializer.hpp>
@@ -85,7 +85,7 @@ namespace oblo
                     .after<barriers::renderer_extract>()
                     .before<barriers::renderer_update>();
 
-                builder.add_system<static_mesh_system>()
+                builder.add_system<mesh_system>()
                     .after<barriers::renderer_extract>()
                     .before<barriers::renderer_update>();
 
