@@ -8,9 +8,16 @@ namespace oblo
     class material;
     class mesh;
     class texture;
+    struct animation;
     struct model;
     struct skeleton;
     struct skin;
+
+    template <>
+    struct resource_traits<animation>
+    {
+        static constexpr uuid uuid = "adb4cf0b-28df-4e2b-930a-cdf758b52625"_uuid;
+    };
 
     template <>
     struct resource_traits<entity_hierarchy>

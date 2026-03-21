@@ -19,6 +19,8 @@
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/scene/resources/animation.hpp>
+#include <oblo/scene/resources/animation_data.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
@@ -26,6 +28,7 @@
 #include <oblo/scene/resources/pbr_properties.hpp>
 #include <oblo/scene/resources/skeleton.hpp>
 #include <oblo/scene/resources/traits.hpp>
+#include <oblo/scene/serialization/animation_file.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
@@ -49,6 +52,12 @@ namespace oblo::importers
         {
             u32 nodeIndex;
             u32 sceneIndex;
+        };
+
+        struct import_animation
+        {
+            u32 nodeIndex;
+            u32 animationIndex;
         };
 
         struct import_model
@@ -142,6 +151,7 @@ namespace oblo::importers
     {
         tinygltf::Model model;
         tinygltf::TinyGLTF loader;
+        dynamic_array<import_animation> importAnimations;
         dynamic_array<import_hierarchy> importHierarchies;
         dynamic_array<import_model> importModels;
         dynamic_array<import_mesh> importMeshes;
@@ -164,6 +174,15 @@ namespace oblo::importers
             {
                 m.set_property(propertyName, resource_ref<texture>(importImages[imageIndex].id));
             }
+        }
+
+        std::span<const byte> get_data_from_accessor(const tinygltf::Accessor& accessor) const
+        {
+            const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+            const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+            const usize byteOffset = accessor.byteOffset + bufferView.byteOffset;
+
+            return {reinterpret_cast<const byte*>(buffer.data.data() + byteOffset), bufferView.byteLength};
         }
     };
 
@@ -304,6 +323,31 @@ namespace oblo::importers
 
                 preview.nodes.emplace_back(resource_type<mesh>, primitiveNameBuilder.as<string>());
             }
+        }
+
+        m_impl->importAnimations.reserve(m_impl->model.animations.size());
+
+        for (usize animationIndex = 0; animationIndex < m_impl->model.animations.size(); ++animationIndex)
+        {
+            const auto& gltfAnimation = m_impl->model.animations[animationIndex];
+
+            nameBuilder.clear();
+
+            if (gltfAnimation.name.empty())
+            {
+                nameBuilder.format("Animation#{}", animationIndex);
+            }
+            else
+            {
+                nameBuilder = gltfAnimation.name;
+            }
+
+            m_impl->importAnimations.push_back({
+                .nodeIndex = u32(preview.nodes.size()),
+                .animationIndex = u32(animationIndex),
+            });
+
+            preview.nodes.emplace_back(resource_type<animation>, nameBuilder.as<string>());
         }
 
         // Find all skeletons referenced by skins
@@ -693,14 +737,109 @@ namespace oblo::importers
 
         usedBuffers.resize(numBuffers);
 
+        // Animations
+
+        for (const auto& importedAnimation : m_impl->importAnimations)
+        {
+            const auto& nodeConfig = importNodeConfigs[importedAnimation.nodeIndex];
+
+            if (!nodeConfig.enabled)
+            {
+                continue;
+            }
+
+            const tinygltf::Animation& gltfAnim = m_impl->model.animations[importedAnimation.animationIndex];
+
+            string_builder nameBuilder;
+
+            animation animArtifact;
+            animArtifact.endianness = platform::endian::native;
+
+            // We could be smarter and merge together data refs that point to the same accessors, that might be
+            // particuarly important for keyframes
+            // For now we simply add the data as we encounter it
+
+            bool anyError = false;
+
+            for (const tinygltf::AnimationChannel& gltfChannel : gltfAnim.channels)
+            {
+
+                const int samplerIndex = gltfChannel.sampler;
+
+                if (samplerIndex < 0 || usize(samplerIndex) >= gltfAnim.samplers.size())
+                {
+                    log::error("Invalid animation");
+                    anyError = true;
+                    continue;
+                }
+
+                const tinygltf::AnimationSampler& sampler = gltfAnim.samplers[samplerIndex];
+
+                const tinygltf::Accessor& keyFramesAccessor = m_impl->model.accessors[sampler.input];
+                const tinygltf::Accessor& dataAccessor = m_impl->model.accessors[sampler.output];
+
+                const data_format format = gltf_format::convert_component_type(dataAccessor.componentType);
+
+                const std::span keyFramesBytes = m_impl->get_data_from_accessor(keyFramesAccessor);
+                const std::span dataBytes = m_impl->get_data_from_accessor(dataAccessor);
+
+                const usize samplesCount = keyFramesBytes.size() / sizeof(animation_time_t);
+
+                const std::span keyFrames{
+                    reinterpret_cast<const animation_time_t*>(keyFramesBytes.data()),
+                    samplesCount,
+                };
+
+                // TODO: Determine what animation it is, build the name
+                nameBuilder.clear();
+
+                // TODO: Deduce data_format
+
+                animation_channel& channel = animArtifact.channels.emplace_back();
+                animation_data::set_channel_name(animArtifact, channel, nameBuilder.as<hashed_string_view>());
+                animation_data::set_channel_keyframes(animArtifact, channel, keyFrames);
+
+                if (const expected e = animation_data::set_channel_data(animArtifact, channel, dataBytes, format); !e)
+                {
+                    log::error("Failed to parse animation data: {}", e.error().message);
+                    anyError = true;
+                    continue;
+                }
+            }
+
+            if (anyError)
+            {
+                continue;
+            }
+
+            string_builder outputPath;
+
+            if (const expected e =
+                    save_animation(animArtifact, ctx.get_output_path(nodeConfig.id, outputPath, ".oanimation"));
+                !e)
+            {
+                log::error("Failed to save animation: {}", e.error().message);
+                continue;
+            }
+
+            m_impl->artifacts.push_back({
+                .id = nodeConfig.id,
+                .type = resource_type<animation>,
+                .name = importNodes[importedAnimation.nodeIndex].name,
+                .path = outputPath.as<string>(),
+            });
+        }
+
+        // Skeletons
+
         dynamic_array<skeleton::joint> jointsBuffer;
         jointsBuffer.reserve(256);
 
         for (const auto& importedSkeleton : m_impl->importSkeletons)
         {
-            const auto& modelNodeConfig = importNodeConfigs[importedSkeleton.nodeIndex];
+            const auto& nodeConfig = importNodeConfigs[importedSkeleton.nodeIndex];
 
-            if (!modelNodeConfig.enabled)
+            if (!nodeConfig.enabled)
             {
                 continue;
             }
@@ -738,15 +877,14 @@ namespace oblo::importers
 
             string_builder outputPath;
 
-            if (!save_skeleton_json(skeletonArtifact,
-                    ctx.get_output_path(modelNodeConfig.id, outputPath, ".oskeleton")))
+            if (!save_skeleton_json(skeletonArtifact, ctx.get_output_path(nodeConfig.id, outputPath, ".oskeleton")))
             {
                 log::error("Failed to save skeleton");
                 continue;
             }
 
             m_impl->artifacts.push_back({
-                .id = modelNodeConfig.id,
+                .id = nodeConfig.id,
                 .type = resource_type<skeleton>,
                 .name = importNodes[importedSkeleton.nodeIndex].name,
                 .path = outputPath.as<string>(),

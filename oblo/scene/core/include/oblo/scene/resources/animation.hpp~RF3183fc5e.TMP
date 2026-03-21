@@ -1,0 +1,21 @@
+#pragma once
+
+#include <oblo/core/data_format.hpp>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/pair.hpp>
+
+namespace oblo
+{
+    struct animation_clip
+    {
+        struct channel;
+
+        dynamic_array<channel> channels;
+        dynamic_array<byte> data;
+    };
+
+    struct animation_clip::channel
+    {
+        data_format format;
+    };
+}

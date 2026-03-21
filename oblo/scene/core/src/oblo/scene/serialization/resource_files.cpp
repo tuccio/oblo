@@ -1,14 +1,20 @@
+#include <oblo/scene/serialization/animation_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
 #include <oblo/scene/serialization/skeleton_file.hpp>
 
+#include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/flags.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
 #include <oblo/properties/serialization/helpers.hpp>
 #include <oblo/properties/serialization/json.hpp>
+#include <oblo/scene/resources/animation.hpp>
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/skeleton.hpp>
+
+#include <array>
 
 namespace oblo
 {
@@ -224,5 +230,243 @@ namespace oblo
         }
 
         return no_error;
+    }
+
+    namespace
+    {
+        enum class animation_file_flag : u8
+        {
+            little_endian,
+            enum_max = 8u,
+        };
+
+        using animation_file_flags_t = flags<animation_file_flag>;
+        static_assert(sizeof(animation_file_flags_t) == 1u);
+
+        struct animation_file_ref
+        {
+            u64 begin;
+            u64 end;
+        };
+
+        enum class animation_file_array : u8
+        {
+            aligned1,
+            align2,
+            aligned4,
+            align8,
+            aligned16,
+            align32,
+        };
+
+        struct animation_file_header
+        {
+            static constexpr u32 max_arrays = 16;
+            static constexpr std::array<char, 4> magic_fourtet{'o', 'a', 'n', 'i'};
+
+            using ref = animation_file_ref;
+
+            struct version
+            {
+                u8 major;
+                u8 minor;
+
+                constexpr bool operator==(const version&) const = default;
+            };
+
+            std::array<char, 4> fourtet;
+            version fileVersion;
+            animation_file_flags_t flags;
+            u8 _padding0[1];
+
+            u32 numChannels;
+            u8 _padding1[4];
+
+            ref arrays[max_arrays];
+        };
+
+        struct animation_file_channel
+        {
+            using ref = animation_file_ref;
+
+            ref name;
+            ref arrayIndices;
+            ref data;
+            ref keyframes;
+            data_format format;
+            animation_interpolation interpolation;
+            u32 nameHash;
+        };
+
+        constexpr animation_file_header::version current_animation_version{0, 1};
+
+        template <animation_file_array Kind>
+        constexpr auto get_animation_member_array() -> dynamic_array<byte>(animation::*)
+        {
+            if constexpr (Kind == animation_file_array::aligned1)
+            {
+                return &animation::aligned1;
+            }
+
+            else if constexpr (Kind == animation_file_array::aligned4)
+            {
+                return &animation::aligned4;
+            }
+        }
+
+        template <animation_file_array Kind>
+        void add_animation_file_header_reference(
+            animation_file_header& header, const animation& anim, u64& currentOffset)
+        {
+            constexpr auto array = get_animation_member_array<Kind>();
+
+            header.arrays[u32(Kind)] = {
+                currentOffset,
+                currentOffset + (anim.*array).size(),
+            };
+
+            currentOffset = header.arrays[u32(Kind)].end;
+        };
+    }
+
+    expected<> save_animation(const animation& anim, cstring_view destination)
+    {
+        animation_file_header header{
+            .fourtet = animation_file_header::magic_fourtet,
+            .fileVersion = current_animation_version,
+            .numChannels = anim.channels.size32(),
+        };
+
+        u64 currentOffset = 0u;
+        add_animation_file_header_reference<animation_file_array::aligned1>(header, anim, currentOffset);
+        add_animation_file_header_reference<animation_file_array::aligned4>(header, anim, currentOffset);
+
+        const filesystem::file_ptr out{filesystem::open_file(destination, "wb")};
+
+        if (!out)
+        {
+            return "Failed to open file for writing"_err;
+        }
+
+        if (fwrite(&header, 1u, sizeof(animation_file_header), out.get()) != sizeof(animation_file_header))
+        {
+            return "Failed to write animation header"_err;
+        }
+
+        // Write the data, we need to respect the order we used for add_animation_file_header_reference
+        if (fwrite(anim.aligned1.data(), 1u, anim.aligned1.size_bytes(), out.get()) != anim.aligned1.size_bytes() ||
+            fwrite(anim.aligned4.data(), 1u, anim.aligned4.size_bytes(), out.get()) != anim.aligned4.size_bytes())
+        {
+            return "Failed to write animation data"_err;
+        }
+
+        constexpr u32 channelsBufferCount = 32;
+        animation_file_channel fileChannels[channelsBufferCount];
+
+        for (u32 srcChannelIdx = 0; srcChannelIdx < header.numChannels;)
+        {
+            u32 writtenChannels = 0;
+
+            for (u32 dstChannelIdx = 0; dstChannelIdx < channelsBufferCount && srcChannelIdx < header.numChannels;
+                ++dstChannelIdx, ++srcChannelIdx)
+            {
+                const animation_channel& srcChannel = anim.channels[srcChannelIdx];
+
+                fileChannels[dstChannelIdx] = {
+                    .name = {srcChannel.name.begin, srcChannel.name.end},
+                    .arrayIndices = {srcChannel.arrayIndices.begin, srcChannel.arrayIndices.end},
+                    .data = {srcChannel.data.begin, srcChannel.data.end},
+                    .keyframes = {srcChannel.keyframes.begin, srcChannel.keyframes.end},
+                    .format = srcChannel.format,
+                    .interpolation = srcChannel.interpolation,
+                    .nameHash = srcChannel.nameHash,
+                };
+
+                ++writtenChannels;
+            }
+
+            if (writtenChannels > 0 &&
+                fwrite(fileChannels, sizeof(animation_file_channel), writtenChannels, out.get()) != writtenChannels)
+            {
+                return "Failed to write animation channel data"_err;
+            }
+        }
+
+        return no_error;
+    }
+
+    expected<animation> load_animation(cstring_view source)
+    {
+        const filesystem::file_ptr in{filesystem::open_file(source, "rb")};
+
+        if (!in)
+        {
+            return "Failed to open file for reading"_err;
+        }
+
+        // Read and validate the header
+        animation_file_header header;
+        if (fread(&header, sizeof(animation_file_header), 1, in.get()) != 1)
+        {
+            return "Failed to read animation header"_err;
+        }
+
+        if (header.fourtet != animation_file_header::magic_fourtet)
+        {
+            return "Invalid animation file format (Magic mismatch)"_err;
+        }
+
+        if (header.fileVersion != current_animation_version)
+        {
+            return "Incompatible animation file version"_err;
+        }
+
+        // Allocate the data arrays
+        animation anim;
+
+        const animation_file_ref aligned1ArrayRef = header.arrays[u32(animation_file_array::aligned1)];
+        const animation_file_ref aligned4ArrayRef = header.arrays[u32(animation_file_array::aligned4)];
+
+        anim.aligned1.resize_default(aligned1ArrayRef.end - aligned1ArrayRef.begin);
+        anim.aligned4.resize_default(aligned4ArrayRef.end - aligned4ArrayRef.begin);
+
+        if (fread(anim.aligned1.data(), 1, anim.aligned1.size_bytes(), in.get()) != anim.aligned1.size_bytes() ||
+            fread(anim.aligned4.data(), 1, anim.aligned4.size_bytes(), in.get()) != anim.aligned4.size_bytes())
+        {
+            return "Failed to read animation data blocks"_err;
+        }
+
+        // Read the channels
+        anim.channels.resize(header.numChannels);
+
+        constexpr u32 channelsBufferCount = 32;
+        animation_file_channel fileChannels[channelsBufferCount];
+
+        for (u32 channelIdx = 0; channelIdx < header.numChannels;)
+        {
+            const u32 toRead = min(channelsBufferCount, header.numChannels - channelIdx);
+
+            if (fread(fileChannels, sizeof(animation_file_channel), toRead, in.get()) != toRead)
+            {
+                return "Failed to read animation channel metadata"_err;
+            }
+
+            for (u32 i = 0; i < toRead; ++i, ++channelIdx)
+            {
+                const animation_file_channel& src = fileChannels[i];
+                animation_channel& dst = anim.channels[channelIdx];
+
+                // Reconstruct the views/references
+                dst.name = {src.name.begin, src.name.end};
+                dst.arrayIndices = {src.arrayIndices.begin, src.arrayIndices.end};
+                dst.data = {src.data.begin, src.data.end};
+                dst.keyframes = {src.keyframes.begin, src.keyframes.end};
+                dst.format = src.format;
+                dst.interpolation = src.interpolation;
+                dst.nameHash = src.nameHash;
+            }
+        }
+
+        return anim;
     }
 }

@@ -20,6 +20,8 @@ namespace oblo
 
     using gltf_accessor = int;
 
+    enum class data_format : u8;
+
     enum class mesh_post_process : u8
     {
         generate_tanget_space,
@@ -37,4 +39,9 @@ namespace oblo
         flags<mesh_post_process> processingFlags);
 
     OBLO_SCENE_API expected<> load_mesh(mesh& mesh, cstring_view source);
+
+    namespace gltf_format
+    {
+        OBLO_SCENE_API data_format convert_component_type(int gltfComponentType);
+    }
 }

@@ -6,6 +6,7 @@
 
 namespace oblo
 {
+    // NOTE: This is serialized as binary, so changes might require rebuilding all artifacts
     enum class data_format : u8
     {
         i8,
