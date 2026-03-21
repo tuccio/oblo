@@ -1,9 +1,12 @@
 #include <oblo/editor/utility/gizmo_handler.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/pair.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/gpu_components.hpp>
+#include <oblo/graphics/components/mesh_internal.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
@@ -32,6 +35,37 @@ namespace oblo::editor
 
             case gizmo_handler::operation::scale:
                 return ImGuizmo::SCALE;
+
+            default:
+                unreachable();
+            }
+        }
+
+        void update_trs(gizmo_handler::operation op, const f32* matrix, vec3& outT, quaternion& outR, vec3& outS)
+        {
+            vec3 translation;
+            vec3 rotation;
+            vec3 scale;
+
+            ImGuizmo::DecomposeMatrixToComponents(matrix, &translation.x, &rotation.x, &scale.x);
+
+            switch (op)
+            {
+            case gizmo_handler::operation::translation:
+                outT = translation;
+                break;
+
+            case gizmo_handler::operation::rotation: {
+                std::swap(rotation.x, rotation.z);
+                const auto q = quaternion::from_euler_zyx_intrinsic(degrees_tag{}, rotation);
+                outR = q;
+            }
+
+            break;
+
+            case gizmo_handler::operation::scale:
+                outS = scale;
+                break;
 
             default:
                 unreachable();
@@ -90,69 +124,81 @@ namespace oblo::editor
             return false;
         }
 
-        auto* positionComp = reg.try_get<position_component>(e);
-        auto* rotationComp = reg.try_get<rotation_component>(e);
-        auto* scaleComp = reg.try_get<scale_component>(e);
-        auto* transformComp = reg.try_get<global_transform_component>(e);
-
-        if (!positionComp || !rotationComp || !scaleComp || !transformComp)
+        const auto calculateViewProjection = [&reg, cameraEntity, size]() -> pair<mat4, mat4>
         {
-            return false;
+            const auto& [camera, cameraWorld] = reg.get<camera_component, global_transform_component>(cameraEntity);
+
+            const mat4 view = inverse(cameraWorld.localToWorld).assert_value_or(mat4::identity());
+
+            const f32 ratio = f32(size.y) / size.x;
+
+            mat4 projection = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
+
+            // Flip Y to change handedness
+            projection.at(1, 1) = -projection.at(1, 1);
+
+            return {view, projection};
+        };
+
+        bool interacting = false;
+
+        if (!interacting && reg.has<joint_pose_component, joint_skinning_transform_component>(e))
+        {
+            const auto [view, projection] = calculateViewProjection();
+
+            auto&& [poseComp, jointTransforms] = reg.get<joint_pose_component, joint_skinning_transform_component>(e);
+
+            static_assert(
+                joint_pose_component::joints_per_chunk == joint_skinning_transform_component::joints_per_chunk);
+
+            for (u32 jointIndex = 0; jointIndex < joint_pose_component::joints_per_chunk; ++jointIndex)
+            {
+                f32* const matrix = &jointTransforms.jointMatrices[jointIndex].at(0, 0);
+
+                ImGuizmo::SetID(int(m_id + jointIndex));
+
+                const bool jointInteracting = ImGuizmo::Manipulate(&view.at(0, 0),
+                    &projection.at(0, 0),
+                    get_imguizmo_operation(m_op),
+                    ImGuizmo::WORLD,
+                    matrix);
+
+                if (jointInteracting)
+                {
+                    interacting = true;
+
+                    /*auto& jointPose = poseComp.currentPoses[jointIndex];
+                    update_trs(m_op, matrix, jointPose.translation, jointPose.rotation, jointPose.scale);*/
+                    reg.notify(e);
+
+                    break;
+                }
+            }
         }
 
-        const auto& camera = reg.get<camera_component>(cameraEntity);
-        const auto& cameraWorld = reg.get<global_transform_component>(cameraEntity);
-
-        const mat4 view = *inverse(cameraWorld.localToWorld);
-
-        const f32 ratio = f32(size.y) / size.x;
-
-        mat4 projection = make_perspective_matrix(camera.fovy, ratio, camera.near, camera.far);
-
-        // Flip Y to change handedness
-        projection.at(1, 1) = -projection.at(1, 1);
-
-        f32* matrix = &transformComp->localToWorld.at(0, 0);
-
-        ImGuizmo::SetID(int(m_id));
-
-        const auto interacting = ImGuizmo::Manipulate(&view.at(0, 0),
-            &projection.at(0, 0),
-            get_imguizmo_operation(m_op),
-            ImGuizmo::WORLD,
-            matrix);
-
-        if (interacting)
+        if (!interacting &&
+            reg.has<position_component, rotation_component, scale_component, global_transform_component>(e))
         {
-            vec3 translation;
-            vec3 rotation;
-            vec3 scale;
+            const auto [view, projection] = calculateViewProjection();
 
-            ImGuizmo::DecomposeMatrixToComponents(matrix, &translation.x, &rotation.x, &scale.x);
+            auto&& [positionComp, rotationComp, scaleComp, transformComp] =
+                reg.get<position_component, rotation_component, scale_component, global_transform_component>(e);
 
-            switch (m_op)
+            f32* const matrix = &transformComp.localToWorld.at(0, 0);
+
+            ImGuizmo::SetID(int(m_id));
+
+            interacting = ImGuizmo::Manipulate(&view.at(0, 0),
+                &projection.at(0, 0),
+                get_imguizmo_operation(m_op),
+                ImGuizmo::WORLD,
+                matrix);
+
+            if (interacting)
             {
-            case gizmo_handler::operation::translation:
-                positionComp->value = translation;
-                break;
-
-            case gizmo_handler::operation::rotation: {
-                std::swap(rotation.x, rotation.z);
-                const auto q = quaternion::from_euler_zyx_intrinsic(degrees_tag{}, rotation);
-                rotationComp->value = q;
+                update_trs(m_op, matrix, positionComp.value, rotationComp.value, scaleComp.value);
+                reg.notify(e);
             }
-
-            break;
-
-            case gizmo_handler::operation::scale:
-                scaleComp->value = scale;
-                break;
-
-            default:
-                unreachable();
-            }
-
-            reg.notify(e);
         }
 
         return interacting || ImGuizmo::IsUsing();

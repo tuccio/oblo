@@ -17,6 +17,7 @@ const uint g_skinningJointsPerChunk = 16;
 struct skinning_joint_chunks
 {
     ecs_entity chunks[g_skinningMaxChunks];
+    uint numJoints;
 };
 
 struct skinning_joint_transform

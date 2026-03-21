@@ -707,11 +707,12 @@ namespace oblo::importers
 
             jointsBuffer.clear();
 
-            const auto gatherSkeleton = [this, &jointsBuffer](auto&& recurse, i32 index, u32 parent) -> void
+            const auto gatherSkeleton =
+                [this, &jointsBuffer](auto&& recurse, i32 index, skeleton_joint_index_t parent) -> void
             {
                 auto& current = m_impl->model.nodes[index];
 
-                const u32 jointIndex = jointsBuffer.size32();
+                const skeleton_joint_index_t jointIndex = narrow_cast<skeleton_joint_index_t>(jointsBuffer.size());
                 auto& joint = jointsBuffer.emplace_back();
                 joint.parentIndex = parent;
                 joint.name = string{current.name};

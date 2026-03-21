@@ -279,7 +279,7 @@ namespace oblo
 
         deferred.apply(*ctx.entities);
 
-        dynamic_array<mat4> jointTransforms{ctx.frameAllocator};
+        dynamic_array<skeleton_joint_index_t> skeletonToSkinMapping{ctx.frameAllocator};
 
         // Process entities that we didn't process yet or we just invalidated
         for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
@@ -365,6 +365,8 @@ namespace oblo
                     joint_skinning_transform_chunks_component& jointChunks =
                         deferred.add<joint_skinning_transform_chunks_component>(e);
 
+                    jointChunks.numJoints = numJoints;
+
                     if (numChunks > 0)
                     {
                         children_component& childrenComponent = ctx.entities->has<children_component>(e)
@@ -373,12 +375,9 @@ namespace oblo
 
                         childrenComponent.children.reserve(childrenComponent.children.size() + numChunks);
 
-                        // The joint transforms is indexed by the skeleton joint index (of which skin joints are a
-                        // subset of) We calculate the transforms as we encounter them, since we process in topological
-                        // order
-                        jointTransforms.clear();
-                        jointTransforms.reserve(maxJoints);
-                        jointTransforms.resize(skeleton->jointsHierarchy.size(), mat4::identity());
+                        skeletonToSkinMapping.clear();
+                        skeletonToSkinMapping.reserve(maxJoints);
+                        skeletonToSkinMapping.resize(skeleton->jointsHierarchy.size(), skeleton::joint::no_parent);
 
                         for (u32 chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
                         {
@@ -423,16 +422,12 @@ namespace oblo
                                 }
 
                                 const isize skeletonJointIndex = skeletonJointIt - skeleton->jointsHierarchy.begin();
+                                skeletonToSkinMapping[skeletonJointIndex] =
+                                    narrow_cast<skeleton_joint_index_t>(skinJointIndex);
 
                                 const skeleton::joint& skeletonJoint = *skeletonJointIt;
 
-                                jointPose.currentPoses[localJointIndex] = {
-                                    skeletonJoint.translation,
-                                    skeletonJoint.rotation,
-                                    skeletonJoint.scale,
-                                };
-
-                                jointPose.defaultPoses[localJointIndex] = {
+                                jointPose.localPoses[localJointIndex] = {
                                     skeletonJoint.translation,
                                     skeletonJoint.rotation,
                                     skeletonJoint.scale,
@@ -440,21 +435,12 @@ namespace oblo
 
                                 jointPose.invBindPoses[localJointIndex] = skin->invBindPoses[skinJointIndex];
 
-                                mat4 jointTransformMatrix = make_transform_matrix(skeletonJoint.translation,
-                                    skeletonJoint.rotation,
-                                    skeletonJoint.scale);
+                                const skeleton_joint_index_t parentSkinJointIndex =
+                                    skeletonJoint.parentIndex != skeleton::joint::no_parent
+                                    ? skeletonToSkinMapping[skeletonJoint.parentIndex]
+                                    : skeleton::joint::no_parent;
 
-                                if (skeletonJoint.parentIndex != skeleton::joint::no_parent)
-                                {
-                                    OBLO_ASSERT(skeletonJoint.parentIndex < skeletonJointIndex);
-                                    jointTransformMatrix =
-                                        jointTransforms[skeletonJoint.parentIndex] * jointTransformMatrix;
-                                }
-
-                                jointTransforms[skeletonJointIndex] = jointTransformMatrix;
-
-                                jointTransform.jointMatrices[localJointIndex] =
-                                    skin->invBindPoses[skinJointIndex] * jointTransformMatrix;
+                                jointPose.parentJointIndices[localJointIndex] = parentSkinJointIndex;
                             }
                         }
                     }
@@ -463,6 +449,59 @@ namespace oblo
         }
 
         deferred.apply(*ctx.entities);
+
+        constexpr u32 maxJoints = joint_skinning_transform_chunks_component::max_chunks *
+            joint_skinning_transform_component::joints_per_chunk;
+
+        dynamic_array<mat4> jointTransforms{ctx.frameAllocator};
+        jointTransforms.reserve(maxJoints);
+
+        for (auto&& chunk : ctx.entities->range<joint_skinning_transform_chunks_component>())
+        {
+            for (auto&& [e, jointChunk] : chunk.zip<ecs::entity, joint_skinning_transform_chunks_component>())
+            {
+                jointTransforms.clear();
+
+                u32 jointIndex = 0;
+
+                for (const ecs::entity child : jointChunk.chunks)
+                {
+                    if (!child)
+                    {
+                        break;
+                    }
+
+                    if (!ctx.entities->has<joint_skinning_transform_component, joint_pose_component>(child))
+                    {
+                        log::error("Failed to find joint components on entity {}", child.value);
+                        break;
+                    }
+
+                    auto&& [jointTransform, jointPose] =
+                        ctx.entities->get<joint_skinning_transform_component, joint_pose_component>(child);
+
+                    for (u32 localJointIndex = 0; localJointIndex < joint_pose_component::joints_per_chunk;
+                        ++localJointIndex, ++jointIndex)
+                    {
+                        const auto& pose = jointPose.localPoses[localJointIndex];
+
+                        mat4 jointTransformMatrix = make_transform_matrix(pose.translation, pose.rotation, pose.scale);
+
+                        if (const skeleton_joint_index_t parentIndex = jointPose.parentJointIndices[localJointIndex];
+                            parentIndex != skeleton::joint::no_parent)
+                        {
+                            jointTransformMatrix = jointTransforms[parentIndex] * jointTransformMatrix;
+                        }
+
+                        OBLO_ASSERT(jointTransforms.size() == jointIndex);
+                        jointTransforms.emplace_back(jointTransformMatrix);
+
+                        jointTransform.jointMatrices[localJointIndex] =
+                            jointPose.invBindPoses[localJointIndex] * jointTransformMatrix;
+                    }
+                }
+            }
+        }
 
         // We could decide to delete the mesh_resource after processing, but we need to double-check how often we are
         // updating materials

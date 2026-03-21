@@ -17,12 +17,14 @@ namespace oblo
         dynamic_array<joint> jointsHierarchy;
     } OBLO_RESOURCE();
 
+    using skeleton_joint_index_t = u16;
+
     struct skeleton::joint
     {
-        static constexpr u32 no_parent = ~0u;
+        static constexpr skeleton_joint_index_t no_parent = ~skeleton_joint_index_t{};
 
         string name;
-        u32 parentIndex;
+        skeleton_joint_index_t parentIndex;
 
         vec3 translation;
         quaternion rotation;

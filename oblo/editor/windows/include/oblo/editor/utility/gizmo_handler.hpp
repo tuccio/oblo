@@ -5,6 +5,11 @@
 
 #include <span>
 
+namespace oblo
+{
+    class resource_registry;
+}
+
 namespace oblo::ecs
 {
     class entity_registry;

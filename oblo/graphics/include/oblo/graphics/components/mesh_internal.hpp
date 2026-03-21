@@ -12,6 +12,8 @@ namespace oblo
     struct skeleton;
     struct skin;
 
+    using skeleton_joint_index_t = u16;
+
     struct mesh_resources
     {
         resource_ptr<material> material;
@@ -47,8 +49,8 @@ namespace oblo
         } OBLO_REFLECT();
 
         static constexpr u32 joints_per_chunk = 16;
-        pose defaultPoses[joints_per_chunk];
-        pose currentPoses[joints_per_chunk];
+        pose localPoses[joints_per_chunk];
         mat4 invBindPoses[joints_per_chunk];
+        skeleton_joint_index_t parentJointIndices[joints_per_chunk];
     } OBLO_COMPONENT("7f2b0b45-b68f-4ec7-b377-c9af94ae1d27", Transient);
 }
