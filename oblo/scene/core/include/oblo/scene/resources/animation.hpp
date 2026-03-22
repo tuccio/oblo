@@ -12,22 +12,35 @@ namespace oblo
         usize end;
     };
 
+    enum class animation_target : u8
+    {
+        component,
+        joint,
+    };
+
     enum class animation_interpolation : u8
     {
         linear,
+        cubic,
     };
 
     struct animation_channel
     {
-        // Channels identify properties, and properties are identified by name and array indices (e.g.
-        // mycomponent::property1.array1[index1].property2).
-        animation_data_ref name;
-        animation_data_ref arrayIndices;
+        // Channels identify properties, and properties are identified by name and array indices
+        // (e.g.property1.array1[index1].property2).
+        animation_data_ref propertyName;
+        animation_data_ref propertyArrayIndices;
         animation_data_ref data;
         animation_data_ref keyframes;
+
+        /// @brief The joint name, only valid if the target is animation_target::joint
+        animation_data_ref jointName;
         data_format format;
+        animation_target target;
         animation_interpolation interpolation;
-        u32 nameHash;
+
+        /// @brief The component uuid, only valid if the target is animation_target::component
+        uuid componentUuid;
     };
 
     struct animation

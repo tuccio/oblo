@@ -300,13 +300,17 @@ namespace oblo
         {
             using ref = animation_file_ref;
 
-            ref name;
-            ref arrayIndices;
+            ref propertyName;
+            ref propertyArrayIndices;
             ref data;
             ref keyframes;
             data_format format;
+            animation_target target;
             animation_interpolation interpolation;
-            u32 nameHash;
+            union {
+                uuid componentUuid;
+                ref jointName;
+            };
         };
 
         constexpr animation_file_header::version current_animation_version{0, 1};
@@ -384,14 +388,27 @@ namespace oblo
                 const animation_channel& srcChannel = anim.channels[srcChannelIdx];
 
                 fileChannels[dstChannelIdx] = {
-                    .name = animation_file_ref::serialize(srcChannel.name),
-                    .arrayIndices = animation_file_ref::serialize(srcChannel.arrayIndices),
+                    .propertyName = animation_file_ref::serialize(srcChannel.propertyName),
+                    .propertyArrayIndices = animation_file_ref::serialize(srcChannel.propertyArrayIndices),
                     .data = animation_file_ref::serialize(srcChannel.data),
                     .keyframes = animation_file_ref::serialize(srcChannel.keyframes),
                     .format = srcChannel.format,
                     .interpolation = srcChannel.interpolation,
-                    .nameHash = srcChannel.nameHash,
                 };
+
+                switch (srcChannel.target)
+                {
+                case animation_target::component:
+                    fileChannels[dstChannelIdx].componentUuid = srcChannel.componentUuid;
+                    break;
+
+                case animation_target::joint:
+                    fileChannels[dstChannelIdx].jointName = animation_file_ref::serialize(srcChannel.jointName);
+                    break;
+
+                default:
+                    return "Invalid target type"_err;
+                }
 
                 ++writtenChannels;
             }
@@ -468,13 +485,26 @@ namespace oblo
                 animation_channel& dst = anim.channels[channelIdx];
 
                 // Reconstruct the views/references
-                dst.name = animation_file_ref::deserialize(src.name);
-                dst.arrayIndices = animation_file_ref::deserialize(src.arrayIndices);
+                dst.propertyName = animation_file_ref::deserialize(src.propertyName);
+                dst.propertyArrayIndices = animation_file_ref::deserialize(src.propertyArrayIndices);
                 dst.data = animation_file_ref::deserialize(src.data);
                 dst.keyframes = animation_file_ref::deserialize(src.keyframes);
                 dst.format = src.format;
                 dst.interpolation = src.interpolation;
-                dst.nameHash = src.nameHash;
+
+                switch (src.target)
+                {
+                case animation_target::joint:
+                    dst.jointName = animation_file_ref::deserialize(src.jointName);
+                    break;
+
+                case animation_target::component:
+                    dst.componentUuid = src.componentUuid;
+                    break;
+
+                default:
+                    return "Invalid animation target"_err;
+                }
             }
         }
 

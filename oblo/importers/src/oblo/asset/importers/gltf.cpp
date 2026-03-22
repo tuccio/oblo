@@ -19,6 +19,9 @@
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/scene/components/position_component.hpp>
+#include <oblo/scene/components/rotation_component.hpp>
+#include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/resources/animation.hpp>
 #include <oblo/scene/resources/animation_data.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
@@ -221,6 +224,19 @@ namespace oblo::importers
             default:
                 return data_format::enum_max;
             }
+        }
+
+        consteval string_view strip_namespace(string_view name)
+        {
+            const auto pos = name.find_last_of("::");
+
+            if (pos == string_view::npos)
+            {
+                // Since it's consteval, we throw to fail compilation
+                throw;
+            }
+
+            return {name.begin() + pos + 2, name.end()};
         }
     }
 
@@ -847,8 +863,6 @@ namespace oblo::importers
 
             const tinygltf::Animation& gltfAnim = m_impl->model.animations[importedAnimation.animationIndex];
 
-            string_builder nameBuilder;
-
             animation animArtifact;
             animArtifact.endianness = platform::endian::native;
 
@@ -889,33 +903,33 @@ namespace oblo::importers
 
                 const std::span dataBytes = m_impl->get_data_from_accessor(dataAccessor);
 
-                // TODO: Determine what animation it is, build the name
-                nameBuilder.clear();
-
-                const bool isJointAnimation =
-                    m_impl->gltfNodeFlags[gltfChannel.target_node].contains(gltf_node_flag::joint);
+                string_view jointAnimationName;
+                string_view componentPropertyName;
+                uuid componentUuid;
 
                 bool typeMismatch = false;
 
-                if (isJointAnimation)
-                {
-                    nameBuilder.append(animation_data::properties::skeletal_prefix);
-                    nameBuilder.append(m_impl->model.nodes[gltfChannel.target_node].name);
-                }
+#define OBLO_GLTF_NAMEOF_PROPERTY(FullName) strip_namespace(OBLO_STRINGIZE(FullName));
 
                 if (gltfChannel.target_path == "rotation")
                 {
-                    nameBuilder.append(animation_data::properties::skeletal_rotation);
+                    jointAnimationName = animation_data::properties::joint_rotation;
+                    componentUuid = "7ef5fc6a-7b9c-491c-837f-d619747e9b50"_uuid;
+                    componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(position_component::value);
                     typeMismatch = typeMismatch || format != data_format::vec4;
                 }
                 else if (gltfChannel.target_path == "translation")
                 {
-                    nameBuilder.append(animation_data::properties::skeletal_translation);
+                    jointAnimationName = animation_data::properties::joint_translation;
+                    componentUuid = "06d70f31-13c7-4c19-a1ca-19af48c5eb37"_uuid;
+                    componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(rotation_component::value);
                     typeMismatch = typeMismatch || format != data_format::vec3;
                 }
                 else if (gltfChannel.target_path == "scale")
                 {
-                    nameBuilder.append(animation_data::properties::skeletal_scale);
+                    jointAnimationName = animation_data::properties::joint_scale;
+                    componentUuid = "3db97c8e-d984-494f-8644-026eb4bfa006"_uuid;
+                    componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(scale_component::value);
                     typeMismatch = typeMismatch || format != data_format::vec3;
                 }
                 else
@@ -939,6 +953,9 @@ namespace oblo::importers
                     break;
                 }
 
+                const bool isJointAnimation =
+                    m_impl->gltfNodeFlags[gltfChannel.target_node].contains(gltf_node_flag::joint);
+
                 const usize dataSamplesCount = dataBytes.size_bytes() / get_size_and_alignment(format).first;
 
                 if (keyframesCount != dataSamplesCount)
@@ -958,6 +975,15 @@ namespace oblo::importers
                 {
                     channel.interpolation = animation_interpolation::linear;
                 }
+                else if (sampler.interpolation == "STEP")
+                {
+                    channel.interpolation = animation_interpolation::cubic;
+
+                    log::error("A cubic interpolation was found, but they are not fully supported yet");
+
+                    anyError = true;
+                    break;
+                }
                 else
                 {
                     log::error("Unsupported interpolation mode in animation {}: {}",
@@ -968,8 +994,19 @@ namespace oblo::importers
                     break;
                 }
 
-                animation_data::set_channel_name(animArtifact, channel, nameBuilder.as<hashed_string_view>());
                 animation_data::set_channel_keyframes(animArtifact, channel, keyframesData);
+
+                if (isJointAnimation)
+                {
+                    channel.target = animation_target::joint;
+                    animation_data::set_channel_joint_name(animArtifact, channel, jointAnimationName);
+                }
+                else
+                {
+                    channel.target = animation_target::component;
+                    channel.componentUuid = componentUuid;
+                    animation_data::set_channel_property_name(animArtifact, channel, componentPropertyName);
+                }
 
                 if (const expected e = animation_data::set_channel_data(animArtifact, channel, dataBytes, format); !e)
                 {

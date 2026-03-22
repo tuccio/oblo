@@ -3,27 +3,22 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/span.hpp>
-#include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/core/string/string_view.hpp>
+#include <oblo/core/uuid.hpp>
 #include <oblo/scene/resources/animation.hpp>
 
 namespace oblo::animation_data
 {
     namespace properties
     {
-        /// @brief Prefix for animation properties that target entities
-        constexpr string_view entity_prefix = "$e.";
+        /// @brief Name for joint translation property
+        constexpr string_view joint_translation = "translation";
 
-        /// @brief Prefix for animation properties that target skeleton joints
-        constexpr string_view skeletal_prefix = "$sk.";
+        /// @brief Name for joint rotation property
+        constexpr string_view joint_rotation = "rotation";
 
-        /// @brief Suffix for skeletal translation property
-        constexpr string_view skeletal_translation = ".t";
-
-        /// @brief Suffix for skeletal rotation property
-        constexpr string_view skeletal_rotation = ".r";
-
-        /// @brief Suffix for skeletal scale property
-        constexpr string_view skeletal_scale = ".s";
+        /// @brief Name for joint scale property
+        constexpr string_view joint_scale = "scale";
     }
 
     namespace detail
@@ -55,32 +50,44 @@ namespace oblo::animation_data
         }
     }
 
-    inline expected<hashed_string_view> get_channel_name(const animation& clip, const animation_channel& channel)
+    inline expected<string_view> get_channel_joint_name(const animation& clip, const animation_channel& channel)
     {
-        const expected data = detail::get_data_impl(clip.aligned1, channel.name);
+        const expected data = detail::get_data_impl(clip.aligned1, channel.jointName);
 
         if (!data)
         {
             return data.error();
         }
 
-        const string_view view{
+        return string_view{
             reinterpret_cast<const char*>(data->data()),
             data->size(),
         };
+    }
 
-        OBLO_ASSERT(hashed_string_view{view}.hash() == channel.nameHash);
+    inline void set_channel_joint_name(animation& clip, animation_channel& channel, string_view name)
+    {
+        detail::set_data_impl(clip.aligned1, channel.jointName, as_bytes(std::span{name}));
+    }
 
-        return hashed_string_view{
-            view,
-            channel.nameHash,
+    inline expected<string_view> get_channel_property_name(const animation& clip, const animation_channel& channel)
+    {
+        const expected data = detail::get_data_impl(clip.aligned1, channel.propertyName);
+
+        if (!data)
+        {
+            return data.error();
+        }
+
+        return string_view{
+            reinterpret_cast<const char*>(data->data()),
+            data->size(),
         };
     }
 
-    inline void set_channel_name(animation& clip, animation_channel& channel, hashed_string_view name)
+    inline void set_channel_property_name(animation& clip, animation_channel& channel, string_view name)
     {
-        detail::set_data_impl(clip.aligned1, channel.name, as_bytes(std::span{name}));
-        channel.nameHash = name.hash();
+        detail::set_data_impl(clip.aligned1, channel.propertyName, as_bytes(std::span{name}));
     }
 
     inline expected<std::span<byte>> set_channel_data(
