@@ -230,6 +230,19 @@ namespace oblo
         }
     }
 
+    struct mesh_system::skin_info
+    {
+        resource_ptr<skin> skin;
+        resource_ptr<skeleton> skeleton;
+        bool isFullyInitialized;
+
+        std::unordered_map<string_view, skeleton_joint_index_t, hash<string_view>> jointNameToIndex;
+    };
+
+    mesh_system::mesh_system() = default;
+
+    mesh_system::~mesh_system() = default;
+
     void mesh_system::first_update(const ecs::system_update_context& ctx)
     {
         m_drawRegistry = ctx.services->find<draw_registry>();
@@ -308,6 +321,13 @@ namespace oblo
                 for (auto&& [e, meshComponent, skinComponent] :
                     zip_range(chunk.get<ecs::entity>(), chunk.get<static_mesh_component>(), skinComponents))
                 {
+                    const skin_info* const skinInfo = get_or_add_skin(skinComponent.skin);
+
+                    if (!skinInfo)
+                    {
+                        continue;
+                    }
+
                     constexpr bool withSkin = true;
 
                     const bool meshAdded = try_add_mesh<withSkin>(m_resourceRegistry,
@@ -323,34 +343,14 @@ namespace oblo
                         continue;
                     }
 
-                    const resource_ptr skin = m_resourceRegistry->get_resource(skinComponent.skin);
-
-                    // This shouldn't be doing anything really, since we used it in try_add_mesh
-                    OBLO_ASSERT(skin.is_successfully_loaded());
-                    skin.load_sync();
-
-                    if (!skin.is_successfully_loaded())
-                    {
-                        log::error("Failed to load skin on entity {}", e.value);
-                        continue;
-                    }
-
-                    const resource_ptr skeleton = m_resourceRegistry->get_resource(skin->skeleton);
-
-                    OBLO_ASSERT(skeleton.is_successfully_loaded());
-                    skeleton.load_sync();
-
-                    if (!skeleton.is_successfully_loaded())
-                    {
-                        log::error("Failed to load skeleton on entity {}", e.value);
-                        continue;
-                    }
-
                     static_assert(
                         joint_pose_component::joints_per_chunk == joint_skinning_transform_component::joints_per_chunk);
 
                     constexpr u32 maxJoints = joint_skinning_transform_chunks_component::max_chunks *
                         joint_skinning_transform_component::joints_per_chunk;
+
+                    const resource_ptr<skin>& skin = skinInfo->skin;
+                    const resource_ptr<skeleton>& skeleton = skinInfo->skeleton;
 
                     const u32 numJoints = skin->invBindPoses.size32();
 
@@ -505,5 +505,63 @@ namespace oblo
 
         // We could decide to delete the mesh_resource after processing, but we need to double-check how often we are
         // updating materials
+    }
+
+    const mesh_system::skin_info* mesh_system::get_or_add_skin(resource_ref<skin> skin)
+    {
+        auto& entry = m_skinInfo[skin.id];
+
+        if (entry.isFullyInitialized)
+        {
+            return &entry;
+        }
+
+        if (!entry.skin)
+        {
+            entry.skin = m_resourceRegistry->get_resource(skin);
+            entry.skin.load_start_async();
+        }
+
+        if (entry.skin.is_currently_loading())
+        {
+            return nullptr;
+        }
+
+        if (!entry.skin.is_successfully_loaded())
+        {
+            log::error("Failed to load skin");
+            return nullptr;
+        }
+
+        if (!entry.skeleton)
+        {
+            entry.skeleton = m_resourceRegistry->get_resource(entry.skin->skeleton);
+            entry.skeleton.load_start_async();
+        }
+
+        if (entry.skeleton.is_currently_loading())
+        {
+            return nullptr;
+        }
+
+        if (!entry.skeleton.is_successfully_loaded())
+        {
+            log::error("Failed to load skeleton");
+            return nullptr;
+        }
+
+        skeleton_joint_index_t jointIndex = 0;
+
+        for (const string_view jointName : entry.skin->jointNames)
+        {
+            // It's ok to cache these here since resources are immutable and they don't move in memory as long as we
+            // hold the resource_ptr
+            entry.jointNameToIndex[jointName] = jointIndex;
+            ++jointIndex;
+        }
+
+        entry.isFullyInitialized = true;
+
+        return &entry;
     }
 }
