@@ -53,10 +53,10 @@ namespace oblo
             kindLookups.emplace(get_type_id<u32>(), property_kind::u32);
             kindLookups.emplace(get_type_id<u64>(), property_kind::u64);
 
-            kindLookups.emplace(get_type_id<i8>(), property_kind::u8);
-            kindLookups.emplace(get_type_id<i16>(), property_kind::u16);
-            kindLookups.emplace(get_type_id<i32>(), property_kind::u32);
-            kindLookups.emplace(get_type_id<i64>(), property_kind::u64);
+            kindLookups.emplace(get_type_id<i8>(), property_kind::i8);
+            kindLookups.emplace(get_type_id<i16>(), property_kind::i16);
+            kindLookups.emplace(get_type_id<i32>(), property_kind::i32);
+            kindLookups.emplace(get_type_id<i64>(), property_kind::i64);
 
             kindLookups.emplace(get_type_id<uuid>(), property_kind::uuid);
             kindLookups.emplace(get_type_id<string>(), property_kind::string);

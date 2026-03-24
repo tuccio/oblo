@@ -42,11 +42,11 @@ namespace oblo::editor
 
         void end() {}
 
-        bool build_property_table(const property_tree& tree, std::byte* const data)
+        bool build_property_table(const property_tree& tree, byte* const data)
         {
             bool modified = false;
 
-            auto* ptr = data;
+            byte* ptr = data;
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
@@ -88,21 +88,24 @@ namespace oblo::editor
                             if (node.type == get_type_id<mat4>())
                             {
                                 auto* const v = new (ptr) mat4;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *v);
+                                modified |=
+                                    ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *v);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<radians>())
                             {
                                 auto* const r = new (ptr) radians;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
+                                modified |=
+                                    ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<degrees>())
                             {
                                 auto* const r = new (ptr) degrees;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
+                                modified |=
+                                    ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
                                 return visit_result::sibling;
                             }
 
@@ -133,8 +136,7 @@ namespace oblo::editor
 
                             arrayIndices.pop_back();
 
-                            // We restore here, the property_node_finish will undo the offset we did
-                            ptr = arrayPtr;
+                            ptr = parentPtr;
 
                             return visit_result::sibling;
                         },
@@ -177,8 +179,20 @@ namespace oblo::editor
                                 modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) f32);
                                 break;
 
+                            case property_kind::i32:
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) i32);
+                                break;
+
+                            case property_kind::i64:
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) i64);
+                                break;
+
                             case property_kind::u32:
                                 modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) u32);
+                                break;
+
+                            case property_kind::u64:
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) u64);
                                 break;
 
                             case property_kind::boolean:

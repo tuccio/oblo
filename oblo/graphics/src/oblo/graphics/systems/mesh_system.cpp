@@ -10,6 +10,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
+#include <oblo/graphics/components/animation_component.hpp>
 #include <oblo/graphics/components/gpu_components.hpp>
 #include <oblo/graphics/components/mesh_internal.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
@@ -449,6 +450,69 @@ namespace oblo
         }
 
         deferred.apply(*ctx.entities);
+
+        // Apply the animations
+        for (auto&& chunk : ctx.entities->range<const skin_component,
+                 const joint_skinning_transform_chunks_component,
+                 const animation_progress_component>())
+        {
+            for (auto&& [e, skinComponent, jointChunk, progress] : chunk.zip<ecs::entity,
+                     skin_component,
+                     joint_skinning_transform_chunks_component,
+                     animation_progress_component>())
+            {
+                auto* const skinInfo = get_or_add_skin(skinComponent.skin);
+
+                if (!skinInfo)
+                {
+                    continue;
+                }
+
+                for (auto&& jointAnimation : progress.jointAnimations)
+                {
+                    const string_view jointName = jointAnimation.jointName;
+
+                    const auto jointIt = skinInfo->jointNameToIndex.find(jointName);
+
+                    if (jointIt == skinInfo->jointNameToIndex.end())
+                    {
+                        continue;
+                    }
+
+                    const usize jointChunkIdx = jointIt->second / joint_pose_component::joints_per_chunk;
+                    const usize jointLocalIdx = jointIt->second % joint_pose_component::joints_per_chunk;
+
+                    if (jointChunkIdx >= joint_skinning_transform_chunks_component::max_chunks ||
+                        !jointChunk.chunks[jointChunkIdx])
+                    {
+                        continue;
+                    }
+
+                    joint_pose_component* const pose =
+                        ctx.entities->try_get<joint_pose_component>(jointChunk.chunks[jointChunkIdx]);
+
+                    if (!pose)
+                    {
+                        continue;
+                    }
+
+                    switch (jointAnimation.target)
+                    {
+                    case animation_progress_component::joint_animation::property::translation:
+                        pose->localPoses[jointLocalIdx].translation = jointAnimation.translation;
+                        break;
+
+                    case animation_progress_component::joint_animation::property::rotation:
+                        pose->localPoses[jointLocalIdx].rotation = jointAnimation.rotation;
+                        break;
+
+                    case animation_progress_component::joint_animation::property::scale:
+                        pose->localPoses[jointLocalIdx].scale = jointAnimation.scale;
+                        break;
+                    }
+                }
+            }
+        }
 
         constexpr u32 maxJoints = joint_skinning_transform_chunks_component::max_chunks *
             joint_skinning_transform_component::joints_per_chunk;

@@ -46,9 +46,9 @@ namespace oblo
             };
         };
 
-        resource_ptr<animation> animationPtr;
         i64 progressHns;
-        dynamic_array<joint_animation> jointAnimations;
         animation_status currentStatus;
+        dynamic_array<joint_animation> jointAnimations;
+        resource_ptr<animation> animationPtr;
     } OBLO_COMPONENT("a4e465b0-8dfb-49a7-93bc-7c96864d2571", Transient);
 }

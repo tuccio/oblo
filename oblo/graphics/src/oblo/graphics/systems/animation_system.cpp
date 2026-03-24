@@ -93,7 +93,7 @@ namespace oblo
 
                 // Avoid dividing by zero or even close to zero, we just ignore very small durations
                 const f32 duration = nextTime - previousTime;
-                const f32 alpha = duration < 1e-5f ? 0.f : (currentTime - previousTime) / duration;
+                const f32 alpha = duration < 1e-5f ? 0.f : max(0.f, min(1.f, (currentTime - previousTime) / duration));
 
                 switch (channel.dataKind)
                 {
@@ -252,16 +252,22 @@ namespace oblo
                                 {
                                     OBLO_ASSERT(channel.format == data_format::vec3);
                                     jointAnimation.translation = result.v3;
+                                    jointAnimation.target =
+                                        animation_progress_component::joint_animation::property::translation;
                                 }
                                 else if (*propertyName == animation_data::properties::joint_rotation)
                                 {
                                     OBLO_ASSERT(channel.format == data_format::vec4);
                                     jointAnimation.rotation = result.q;
+                                    jointAnimation.target =
+                                        animation_progress_component::joint_animation::property::rotation;
                                 }
                                 else if (*propertyName == animation_data::properties::joint_scale)
                                 {
                                     OBLO_ASSERT(channel.format == data_format::vec3);
                                     jointAnimation.scale = result.v3;
+                                    jointAnimation.target =
+                                        animation_progress_component::joint_animation::property::scale;
                                 }
                                 else [[unlikely]]
                                 {
