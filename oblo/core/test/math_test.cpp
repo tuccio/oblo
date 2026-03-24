@@ -2,6 +2,8 @@
 
 #include <oblo/math/mat4.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/math/transform.hpp>
+#include <oblo/math/vec3.hpp>
 
 #include <Eigen/Geometry>
 #include <unsupported/Eigen/EulerAngles>
@@ -267,5 +269,60 @@ namespace oblo
                 assert_near_adaptive(p, e);
             }
         }
+    }
+
+    TEST(mat4, decomposition)
+    {
+        std::default_random_engine rng{1337};
+        // Keep scale and translation in a reasonable range for stability
+        std::uniform_real_distribution<float> posDist{-100.f, 100.f};
+        std::uniform_real_distribution<float> scaleDist{0.1f, 10.f};
+        std::uniform_real_distribution<float> rotDist{-pi, pi};
+
+        constexpr u32 N = 1024;
+
+        for (u32 i = 0; i < N; ++i)
+        {
+            const vec3 expectedT = random_vec3(rng, posDist);
+
+            const vec3 angles = random_vec3(rng, rotDist);
+            const quaternion expectedR = normalize(quaternion::from_euler_zyx_intrinsic(radians_tag{}, angles));
+
+            const vec3 expectedS = random_vec3(rng, scaleDist);
+
+            const mat4 mat = make_transform_matrix(expectedT, expectedR, expectedS);
+
+            vec3 actualT, actualS;
+            quaternion actualR;
+
+            const expected result = decompose_matrix(mat, actualT, actualR, actualS);
+
+            ASSERT_TRUE(result.has_value());
+
+            ASSERT_NEAR(expectedT.x, actualT.x, Tolerance);
+            ASSERT_NEAR(expectedT.y, actualT.y, Tolerance);
+            ASSERT_NEAR(expectedT.z, actualT.z, Tolerance);
+
+            ASSERT_NEAR(expectedS.x, actualS.x, Tolerance);
+            ASSERT_NEAR(expectedS.y, actualS.y, Tolerance);
+            ASSERT_NEAR(expectedS.z, actualS.z, Tolerance);
+
+            ASSERT_NEAR(std::abs(dot(expectedR, actualR)), 1.f, Tolerance);
+        }
+    }
+
+    TEST(mat4, decomposition_singular)
+    {
+        const vec3 T{0, 0, 0};
+        const quaternion R = quaternion::identity();
+        const vec3 S{1, 0, 1};
+
+        const mat4 mat = make_transform_matrix(T, R, S);
+
+        vec3 aT, aS;
+        quaternion aR;
+        const expected result = decompose_matrix(mat, aT, aR, aS);
+
+        ASSERT_FALSE(result.has_value());
     }
 }
