@@ -16,6 +16,7 @@
 #include <oblo/log/log.hpp>
 #include <oblo/math/mat4.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/math/transform.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
@@ -280,7 +281,7 @@ namespace oblo::importers
             const data_format format = convert_component_type(accessor.componentType, accessor.type);
             const usize bytes = accessor.count * get_size_and_alignment(format).first;
 
-            OBLO_ASSERT(bytes < bufferView.byteLength);
+            OBLO_ASSERT(bytes <= bufferView.byteLength);
             return {reinterpret_cast<const byte*>(buffer.data.data() + byteOffset), bytes};
         }
 
@@ -1290,9 +1291,32 @@ namespace oblo::importers
 
                 const tinygltf::Node& node = m_impl->model.nodes[nodeIndex];
 
-                const vec3 translation = get_vec3_or(node.translation, vec3::splat(0.f));
-                const quaternion rotation = get_quaternion_or(node.rotation, quaternion::identity());
-                const vec3 scale = get_vec3_or(node.scale, vec3::splat(1.f));
+                vec3 translationFallback{};
+                quaternion rotationFallback{quaternion::identity()};
+                vec3 scaleFallback{vec3::splat(1.f)};
+
+                // GLTF can have either matrices or separate TRS fields
+                // We account for both here
+                if (node.matrix.size() == 16)
+                {
+                    mat4 matrix;
+                    for (u32 i = 0; i < 4; ++i)
+                    {
+                        for (u32 j = 0; j < 4; ++j)
+                        {
+                            matrix.columns[i][j] = f32(node.matrix[i * 4 + j]);
+                        }
+                    }
+
+                    if (!decompose_matrix(matrix, translationFallback, rotationFallback, scaleFallback))
+                    {
+                        log::error("Faled to decompose matrix for node {}", node.name);
+                    }
+                }
+
+                const vec3 translation = get_vec3_or(node.translation, translationFallback);
+                const quaternion rotation = get_quaternion_or(node.rotation, rotationFallback);
+                const vec3 scale = get_vec3_or(node.scale, scaleFallback);
 
                 const auto e = ecs_utility::create_named_physical_entity(reg,
                     node.name.c_str(),
