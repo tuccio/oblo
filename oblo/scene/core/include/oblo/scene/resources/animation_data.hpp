@@ -124,7 +124,7 @@ namespace oblo::animation_data
             return detail::get_data_impl(clip.aligned1, channel.data);
 
         case 4:
-            return detail::get_data_impl(clip.aligned1, channel.data);
+            return detail::get_data_impl(clip.aligned4, channel.data);
 
         default:
             return "Unsupported alignment value"_err;

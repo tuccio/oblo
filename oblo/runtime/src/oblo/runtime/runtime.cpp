@@ -43,7 +43,7 @@ namespace oblo
 
             if (!g)
             {
-                return "Runtime operation failed"_err;
+                return g.error();
             }
 
             return g->instantiate();

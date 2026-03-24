@@ -6,6 +6,7 @@
 #include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/graphics/services/scene_renderer.hpp>
+#include <oblo/graphics/systems/animation_system.hpp>
 #include <oblo/graphics/systems/draw_registry_system.hpp>
 #include <oblo/graphics/systems/graphics_options.hpp>
 #include <oblo/graphics/systems/lighting_system.hpp>
@@ -77,6 +78,8 @@ namespace oblo
             .systems =
                 [](ecs::system_graph_builder& builder)
             {
+                builder.add_system<animation_system>().before<barriers::transform_update>();
+
                 builder.add_system<lighting_system>()
                     .after<barriers::renderer_extract>()
                     .before<barriers::renderer_update>();

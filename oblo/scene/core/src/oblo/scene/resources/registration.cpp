@@ -177,6 +177,7 @@ namespace oblo
 
     void fetch_scene_resource_types(deque<resource_type_descriptor>& outResourceTypes)
     {
+        outResourceTypes.push_back(make_resource_type_desc<animation>());
         outResourceTypes.push_back(make_resource_type_desc<entity_hierarchy>());
         outResourceTypes.push_back(make_resource_type_desc<material>());
         outResourceTypes.push_back(make_resource_type_desc<mesh>());

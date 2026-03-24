@@ -50,7 +50,7 @@ namespace oblo::ecs
 
         if (!topological_sort(m_systems, vertices))
         {
-            return "System operation failed"_err;
+            return "The system graph is not a DAG"_err;
         }
 
         for (const auto v : reverse_range(vertices))

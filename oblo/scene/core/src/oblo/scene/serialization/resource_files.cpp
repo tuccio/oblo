@@ -305,6 +305,7 @@ namespace oblo
             ref data;
             ref keyframes;
             data_format format;
+            animation_data_kind dataKind;
             animation_target target;
             animation_interpolation interpolation;
             union {
@@ -335,12 +336,13 @@ namespace oblo
         {
             constexpr auto array = get_animation_member_array<Kind>();
 
-            header.arrays[u32(Kind)] = {
+            const animation_file_ref dataRef = {
                 currentOffset,
                 currentOffset + (anim.*array).size(),
             };
 
-            currentOffset = header.arrays[u32(Kind)].end;
+            header.arrays[u32(Kind)] = dataRef;
+            currentOffset = dataRef.end;
         };
     }
 
@@ -351,6 +353,11 @@ namespace oblo
             .fileVersion = current_animation_version,
             .numChannels = anim.channels.size32(),
         };
+
+        if (anim.endianness == platform::endian::little)
+        {
+            header.flags |= animation_file_flag::little_endian;
+        }
 
         u64 currentOffset = 0u;
         add_animation_file_header_reference<animation_file_array::aligned1>(header, anim, currentOffset);
@@ -393,6 +400,8 @@ namespace oblo
                     .data = animation_file_ref::serialize(srcChannel.data),
                     .keyframes = animation_file_ref::serialize(srcChannel.keyframes),
                     .format = srcChannel.format,
+                    .dataKind = srcChannel.dataKind,
+                    .target = srcChannel.target,
                     .interpolation = srcChannel.interpolation,
                 };
 
@@ -423,7 +432,7 @@ namespace oblo
         return no_error;
     }
 
-    expected<animation> load_animation(cstring_view source)
+    expected<> load_animation(animation& anim, cstring_view source)
     {
         const filesystem::file_ptr in{filesystem::open_file(source, "rb")};
 
@@ -450,16 +459,17 @@ namespace oblo
         }
 
         // Allocate the data arrays
-        animation anim;
-
         const animation_file_ref aligned1ArrayRef = header.arrays[u32(animation_file_array::aligned1)];
         const animation_file_ref aligned4ArrayRef = header.arrays[u32(animation_file_array::aligned4)];
 
-        anim.aligned1.resize_default(aligned1ArrayRef.end - aligned1ArrayRef.begin);
-        anim.aligned4.resize_default(aligned4ArrayRef.end - aligned4ArrayRef.begin);
+        const usize sizeAligned1 = aligned1ArrayRef.end - aligned1ArrayRef.begin;
+        const usize sizeAligned4 = aligned4ArrayRef.end - aligned4ArrayRef.begin;
 
-        if (fread(anim.aligned1.data(), 1, anim.aligned1.size_bytes(), in.get()) != anim.aligned1.size_bytes() ||
-            fread(anim.aligned4.data(), 1, anim.aligned4.size_bytes(), in.get()) != anim.aligned4.size_bytes())
+        anim.aligned1.resize_default(sizeAligned1);
+        anim.aligned4.resize_default(sizeAligned4);
+
+        if (fread(anim.aligned1.data(), 1, sizeAligned1, in.get()) != sizeAligned1 ||
+            fread(anim.aligned4.data(), 1, sizeAligned4, in.get()) != sizeAligned4)
         {
             return "Failed to read animation data blocks"_err;
         }
@@ -490,6 +500,8 @@ namespace oblo
                 dst.data = animation_file_ref::deserialize(src.data);
                 dst.keyframes = animation_file_ref::deserialize(src.keyframes);
                 dst.format = src.format;
+                dst.dataKind = src.dataKind;
+                dst.target = src.target;
                 dst.interpolation = src.interpolation;
 
                 switch (src.target)
@@ -510,7 +522,6 @@ namespace oblo
 
         anim.endianness = header.flags.contains(animation_file_flag::little_endian) ? platform::endian::little
                                                                                     : platform::endian::big;
-
-        return anim;
+        return no_error;
     }
 }

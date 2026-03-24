@@ -3,6 +3,8 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/platform/core.hpp>
+#include <oblo/core/uuid.hpp>
+#include <oblo/reflection/codegen/annotations.hpp>
 
 namespace oblo
 {
@@ -24,6 +26,12 @@ namespace oblo
         cubic,
     };
 
+    enum class animation_data_kind : u8
+    {
+        any_vector,
+        quaternion,
+    };
+
     struct animation_channel
     {
         // Channels identify properties, and properties are identified by name and array indices
@@ -36,6 +44,7 @@ namespace oblo
         /// @brief The joint name, only valid if the target is animation_target::joint
         animation_data_ref jointName;
         data_format format;
+        animation_data_kind dataKind;
         animation_target target;
         animation_interpolation interpolation;
 
@@ -54,7 +63,7 @@ namespace oblo
         dynamic_array<byte> aligned4;
 
         platform::endian endianness = platform::endian::native;
-    };
+    } OBLO_RESOURCE();
 
     using animation_time_t = f32;
 }

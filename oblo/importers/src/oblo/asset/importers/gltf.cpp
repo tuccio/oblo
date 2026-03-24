@@ -906,6 +906,7 @@ namespace oblo::importers
                 string_view jointAnimationName;
                 string_view componentPropertyName;
                 uuid componentUuid;
+                animation_data_kind dataKind;
 
                 bool typeMismatch = false;
 
@@ -917,6 +918,7 @@ namespace oblo::importers
                     componentUuid = "7ef5fc6a-7b9c-491c-837f-d619747e9b50"_uuid;
                     componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(position_component::value);
                     typeMismatch = typeMismatch || format != data_format::vec4;
+                    dataKind = animation_data_kind::quaternion;
                 }
                 else if (gltfChannel.target_path == "translation")
                 {
@@ -924,6 +926,7 @@ namespace oblo::importers
                     componentUuid = "06d70f31-13c7-4c19-a1ca-19af48c5eb37"_uuid;
                     componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(rotation_component::value);
                     typeMismatch = typeMismatch || format != data_format::vec3;
+                    dataKind = animation_data_kind::any_vector;
                 }
                 else if (gltfChannel.target_path == "scale")
                 {
@@ -931,6 +934,7 @@ namespace oblo::importers
                     componentUuid = "3db97c8e-d984-494f-8644-026eb4bfa006"_uuid;
                     componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(scale_component::value);
                     typeMismatch = typeMismatch || format != data_format::vec3;
+                    dataKind = animation_data_kind::any_vector;
                 }
                 else
                 {
@@ -994,12 +998,17 @@ namespace oblo::importers
                     break;
                 }
 
+                channel.format = format;
+                channel.dataKind = dataKind;
+
                 animation_data::set_channel_keyframes(animArtifact, channel, keyframesData);
 
                 if (isJointAnimation)
                 {
+                    const auto& jointName = m_impl->model.nodes[gltfChannel.target_node].name;
                     channel.target = animation_target::joint;
-                    animation_data::set_channel_joint_name(animArtifact, channel, jointAnimationName);
+                    animation_data::set_channel_joint_name(animArtifact, channel, jointName.c_str());
+                    animation_data::set_channel_property_name(animArtifact, channel, jointAnimationName);
                 }
                 else
                 {
