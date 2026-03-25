@@ -11,6 +11,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
+#include <oblo/graphics/components/animation_component.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/log/log.hpp>
@@ -260,7 +261,14 @@ namespace oblo::importers
         uuid mainArtifactHint{};
 
         deque<embedded_image> embeddedImages;
-        dynamic_array<flags<gltf_node_flag>> gltfNodeFlags;
+
+        struct gltf_node_info
+        {
+            flags<gltf_node_flag> flags;
+            resource_ref<animation> animation;
+        };
+
+        dynamic_array<gltf_node_info> gltfNodeFlags;
 
         void set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
         {
@@ -287,7 +295,7 @@ namespace oblo::importers
 
         void mark_skeleton(usize root)
         {
-            gltfNodeFlags[root] |= gltf_node_flag::joint;
+            gltfNodeFlags[root].flags |= gltf_node_flag::joint;
 
             for (const int child : model.nodes[root].children)
             {
@@ -961,8 +969,13 @@ namespace oblo::importers
                     break;
                 }
 
-                const bool isJointAnimation =
-                    m_impl->gltfNodeFlags[gltfChannel.target_node].contains(gltf_node_flag::joint);
+                impl::gltf_node_info& targetNodeInfo = m_impl->gltfNodeFlags[gltfChannel.target_node];
+                const bool isJointAnimation = targetNodeInfo.flags.contains(gltf_node_flag::joint);
+
+                if (!targetNodeInfo.animation)
+                {
+                    targetNodeInfo.animation = {.id = nodeConfig.id};
+                }
 
                 const usize dataSamplesCount = dataBytes.size_bytes() / get_size_and_alignment(format).first;
 
@@ -1292,8 +1305,10 @@ namespace oblo::importers
                 const auto [parent, nodeIndex] = stack.back();
                 stack.pop_back();
 
+                const impl::gltf_node_info& gltfNodeInfo = m_impl->gltfNodeFlags[nodeIndex];
+
                 // Skip the skeleton, we don't need it in the entity hierarchy
-                if (m_impl->gltfNodeFlags[nodeIndex].contains(gltf_node_flag::joint))
+                if (gltfNodeInfo.flags.contains(gltf_node_flag::joint))
                 {
                     continue;
                 }
@@ -1379,6 +1394,11 @@ namespace oblo::importers
                             }
                         }
                     }
+                }
+
+                if (gltfNodeInfo.animation)
+                {
+                    reg.add<animation_component>(e) = {.animation = gltfNodeInfo.animation};
                 }
 
                 for (auto child : node.children)
