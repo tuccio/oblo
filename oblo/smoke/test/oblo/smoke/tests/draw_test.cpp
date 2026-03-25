@@ -5,7 +5,10 @@
 #include <oblo/asset/asset_registry.hpp>
 #include <oblo/core/iterator/enum_range.hpp>
 #include <oblo/ecs/entity_registry.hpp>
+#include <oblo/ecs/range.hpp>
+#include <oblo/graphics/components/animation_component.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -13,9 +16,12 @@
 #include <oblo/properties/serialization/common.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/components/entity_hierarchy_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/resources/animation.hpp>
+#include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/traits.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
@@ -141,4 +147,89 @@ namespace oblo::smoke
     };
 
     OBLO_SMOKE_TEST(draw_and_remove)
+
+    class draw_skinned final : public test
+    {
+    public:
+        test_task run(const test_context& ctx) override
+        {
+            auto& assetRegistry = ctx.get_asset_registry();
+            auto& resourceRegistry = ctx.get_resource_registry();
+
+            // Using a model with skinning and animation
+            constexpr cstring_view sourceFile =
+                OBLO_GLTF_SAMPLE_MODELS "/Models/CesiumMan/glTF-Embedded/CesiumMan.gltf";
+
+            const auto assetId = assetRegistry.import(sourceFile, OBLO_ASSET_PATH("assets/"), "CesiumMan", {});
+            OBLO_SMOKE_TRUE(assetId);
+
+            co_await wait_for_asset_processing(ctx, assetRegistry);
+
+            const auto prefabPtr =
+                find_first_resource_from_asset<entity_hierarchy>(resourceRegistry, assetRegistry, *assetId);
+
+            const auto animationPtr =
+                find_first_resource_from_asset<animation>(resourceRegistry, assetRegistry, *assetId);
+
+            OBLO_SMOKE_TRUE(prefabPtr);
+            OBLO_SMOKE_TRUE(animationPtr);
+
+            prefabPtr.load_sync();
+            animationPtr.load_sync();
+
+            OBLO_SMOKE_TRUE(prefabPtr.is_successfully_loaded());
+            OBLO_SMOKE_TRUE(animationPtr.is_successfully_loaded());
+
+            auto& entities = ctx.get_entity_registry();
+
+            const ecs::entity animatedEntity =
+                ecs_utility::create_named_physical_entity<entity_hierarchy_component>(entities,
+                    "CesiumMan",
+                    {},
+                    vec3{.z = -5.f},
+                    quaternion::identity(),
+                    vec3::splat(1.f));
+
+            entities.get<entity_hierarchy_component>(animatedEntity).hierarchy = prefabPtr.as_ref();
+
+            dynamic_array<ecs::entity> entitiesWithSkins;
+
+            for (int i = 0; i < 120; ++i)
+            {
+                co_await ctx.next_frame();
+
+                const auto range = entities.range<skin_component, static_mesh_component>();
+
+                for (auto&& chunk : range)
+                {
+                    for (const ecs::entity e : chunk.get<ecs::entity>())
+                    {
+                        entitiesWithSkins.emplace_back(e);
+                    }
+                }
+
+                if (!entitiesWithSkins.empty())
+                {
+                    break;
+                }
+            }
+
+            OBLO_SMOKE_EQ(entitiesWithSkins.size(), 1);
+
+            // Setup the animation
+            entities.add<animation_component>(entitiesWithSkins[0]) = {
+                .animation = animationPtr.as_ref(),
+                .loop = true,
+                .statusOnLoad = animation_status::play,
+            };
+
+            // Let it animate
+            for (int i = 0; i < 120; ++i)
+            {
+                co_await ctx.next_frame();
+            }
+        }
+    };
+
+    OBLO_SMOKE_TEST(draw_skinned)
 }
