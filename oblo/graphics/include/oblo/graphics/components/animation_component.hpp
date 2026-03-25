@@ -48,6 +48,7 @@ namespace oblo
 
         i64 progressHns;
         animation_status currentStatus;
+        bool loop;
         dynamic_array<joint_animation> jointAnimations;
         resource_ptr<animation> animationPtr;
     } OBLO_COMPONENT("a4e465b0-8dfb-49a7-93bc-7c96864d2571", Transient);

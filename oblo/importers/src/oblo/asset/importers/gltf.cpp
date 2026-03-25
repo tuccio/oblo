@@ -229,7 +229,7 @@ namespace oblo::importers
 
         consteval string_view strip_namespace(string_view name)
         {
-            const auto pos = name.find_last_of("::");
+            const auto pos = name.find_last_of(':');
 
             if (pos == string_view::npos)
             {
@@ -237,7 +237,7 @@ namespace oblo::importers
                 throw;
             }
 
-            return {name.begin() + pos + 2, name.end()};
+            return {name.begin() + pos + 1, name.end()};
         }
     }
 

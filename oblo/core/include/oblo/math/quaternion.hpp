@@ -261,9 +261,9 @@ namespace oblo
         };
     }
 
-    inline quaternion nlerp(const quaternion& a, const quaternion& b, f32 t)
+    constexpr quaternion nlerp(const quaternion& a, const quaternion& b, f32 t)
     {
-        f32 cosTheta = dot(a, b);
+        const f32 cosTheta = dot(a, b);
         quaternion end = b;
 
         // Still take the shortest path by flipping the sign if needed

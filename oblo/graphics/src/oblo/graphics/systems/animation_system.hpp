@@ -7,6 +7,7 @@ namespace oblo::ecs
 
 namespace oblo
 {
+    class property_registry;
     class resource_registry;
     class resource_cache;
 
@@ -18,5 +19,6 @@ namespace oblo
 
     private:
         const resource_registry* m_resourceRegistry{};
+        const property_registry* m_propertyRegistry{};
     };
 }

@@ -1,7 +1,9 @@
 #include <oblo/graphics/systems/animation_system.hpp>
 
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/range.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/utility/deferred.hpp>
@@ -11,6 +13,9 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/math/vec4.hpp>
+#include <oblo/properties/property_registry.hpp>
+#include <oblo/properties/property_tree.hpp>
+#include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/resources/animation.hpp>
@@ -65,7 +70,7 @@ namespace oblo
                 return false;
             }
 
-            out = slerp(s1, s2, alpha);
+            out = nlerp(s1, s2, alpha);
             return true;
         }
 
@@ -78,7 +83,7 @@ namespace oblo
 
         [[nodiscard]] bool interpolate_sample(animation_sample_buffer& buffer,
             std::span<const animation_time_t> keyframes,
-            time currentTimeHns,
+            animation_time_t currentTime,
             std::span<const byte> samples,
             usize previousSampleIdx,
             usize nextSampleIdx,
@@ -89,7 +94,6 @@ namespace oblo
             case animation_interpolation::linear: {
                 const animation_time_t nextTime = keyframes[nextSampleIdx];
                 const animation_time_t previousTime = keyframes[previousSampleIdx];
-                const animation_time_t currentTime = to_f32_seconds(currentTimeHns);
 
                 // Avoid dividing by zero or even close to zero, we just ignore very small durations
                 const f32 duration = nextTime - previousTime;
@@ -144,6 +148,9 @@ namespace oblo
         m_resourceRegistry = ctx.services->find<const resource_registry>();
         OBLO_ASSERT(m_resourceRegistry);
 
+        m_propertyRegistry = ctx.services->find<const property_registry>();
+        OBLO_ASSERT(m_propertyRegistry);
+
         update(ctx);
     }
 
@@ -171,6 +178,7 @@ namespace oblo
                     progress.animationPtr = std::move(animationRes);
                     progress.progressHns = 0;
                     progress.currentStatus = animComponent.statusOnLoad;
+                    progress.loop = animComponent.loop;
                 }
             }
         }
@@ -189,10 +197,10 @@ namespace oblo
                     {
                         const animation& anim = *progress.animationPtr;
 
-                        const time newTime = {.hns = progress.progressHns + ctx.dt.hns};
-                        const animation_time_t newAnimTime = to_f32_seconds(newTime);
+                        const time newGlobalTime = {.hns = progress.progressHns + ctx.dt.hns};
+                        const animation_time_t newGlobalAnimTime = to_f32_seconds(newGlobalTime);
 
-                        progress.progressHns = newTime.hns;
+                        progress.progressHns = newGlobalTime.hns;
 
                         for (const animation_channel& channel : anim.channels)
                         {
@@ -211,10 +219,18 @@ namespace oblo
                                 continue;
                             }
 
+                            animation_time_t channelAnimTime = newGlobalAnimTime;
+
+                            // When looping, consider the highest keyframe time and fmod to loop around
+                            if (progress.loop && newGlobalAnimTime > keyframes->back())
+                            {
+                                channelAnimTime = std::fmod(to_f32_seconds(newGlobalTime), keyframes->back());
+                            }
+
                             animation_sample_buffer result;
 
                             const auto nextSampleIt =
-                                std::upper_bound(keyframes->begin(), keyframes->end(), newAnimTime);
+                                std::upper_bound(keyframes->begin(), keyframes->end(), channelAnimTime);
 
                             const usize nextSampleIdx = nextSampleIt == keyframes->end()
                                 ? keyframes->size() - 1
@@ -224,7 +240,7 @@ namespace oblo
 
                             if (!interpolate_sample(result,
                                     *keyframes,
-                                    newTime,
+                                    channelAnimTime,
                                     *samples,
                                     previousSampleIdx,
                                     nextSampleIdx,
@@ -273,6 +289,125 @@ namespace oblo
                                 {
                                     log::error("Unknown joint property {}", *propertyName);
                                     continue;
+                                }
+                            }
+                            else if (channel.target == animation_target::component)
+                            {
+                                if (channel.propertyArrayIndices.begin != channel.propertyArrayIndices.end) [[unlikely]]
+                                {
+                                    log::error("Animated array properties are not supported yet");
+                                    continue;
+                                }
+
+                                // Just a naive approach for now, find the property and set it
+                                const ecs::type_registry& typeRegistry = ctx.entities->get_type_registry();
+
+                                const ecs::component_type componentType =
+                                    typeRegistry.find_component(channel.componentUuid);
+
+                                if (!componentType) [[unlikely]]
+                                {
+                                    log::error("Unable to find component type with uuid {}", channel.componentUuid);
+                                    continue;
+                                }
+
+                                const ecs::component_type_desc& componentTypeDesc =
+                                    typeRegistry.get_component_type_desc(componentType);
+
+                                byte* const componentPtr = ctx.entities->try_get(e, componentType);
+
+                                if (!componentPtr) [[unlikely]]
+                                {
+                                    log::debug("Entity {} has no component {} to animate",
+                                        e.value,
+                                        componentTypeDesc.type.name);
+                                    continue;
+                                }
+
+                                const property_tree* const propertyTree =
+                                    m_propertyRegistry->try_get(componentTypeDesc.type);
+
+                                if (!propertyTree) [[unlikely]]
+                                    [[unlikely]]
+                                    {
+                                        log::error("Unable to find property tree for component type {}",
+                                            componentTypeDesc.type.name);
+                                        continue;
+                                    }
+
+                                const property_node* propertyNode{};
+                                const property* property{};
+
+                                const bool hasPropertyOrNode = find_property_or_node_by_path(*propertyTree,
+                                    *propertyName,
+                                    &propertyNode,
+                                    &property);
+
+                                if (!hasPropertyOrNode) [[unlikely]]
+                                {
+                                    log::error("Unable to find property {} in component type {}",
+                                        *propertyName,
+                                        componentTypeDesc.type.name);
+                                    continue;
+                                }
+
+                                const pair animationSizeAndAlignment = get_size_and_alignment(channel.format);
+
+                                if (property)
+                                {
+                                    const pair propertySizeAndAlignment = get_size_and_alignment(property->kind);
+
+                                    if (propertySizeAndAlignment != animationSizeAndAlignment) [[unlikely]]
+                                    {
+                                        log::error(
+                                            "Mismatching types in animation of property {} in component type {} on "
+                                            "entity {}",
+                                            *propertyName,
+                                            componentTypeDesc.type.name,
+                                            e.value);
+                                        continue;
+                                    }
+
+                                    std::memcpy(componentPtr + property->offset,
+                                        &result,
+                                        propertySizeAndAlignment.first);
+                                }
+                                else if (propertyNode)
+                                {
+                                    data_format format = data_format::enum_max;
+
+                                    if (propertyNode->type == get_type_id<vec3>())
+                                    {
+                                        format = data_format::vec3;
+                                    }
+                                    else if (propertyNode->type == get_type_id<quaternion>() ||
+                                        propertyNode->type == get_type_id<vec4>())
+                                    {
+                                        format = data_format::vec4;
+                                    }
+
+                                    if (format == data_format::enum_max) [[unlikely]]
+                                    {
+                                        log::error("Property node type is not handled: {}", propertyNode->type.name);
+                                        continue;
+                                    }
+
+                                    const pair propertySizeAndAlignment = get_size_and_alignment(format);
+
+                                    if (propertySizeAndAlignment != animationSizeAndAlignment) [[unlikely]]
+                                    {
+                                        log::error(
+                                            "Mismatching types in animation of property {} in component type {} on "
+                                            "entity {}",
+                                            *propertyName,
+                                            componentTypeDesc.type.name,
+                                            e.value);
+                                        continue;
+                                    }
+
+                                    std::memcpy(componentPtr + propertyNode->offset,
+                                        &result,
+                                        propertySizeAndAlignment.first);
                                 }
                             }
                         }
