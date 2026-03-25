@@ -52,6 +52,8 @@ namespace oblo
         uuid componentUuid;
     };
 
+    using animation_time_t = f32;
+
     struct animation
     {
         dynamic_array<animation_channel> channels;
@@ -62,8 +64,10 @@ namespace oblo
         dynamic_array<byte> aligned1;
         dynamic_array<byte> aligned4;
 
+        animation_time_t timeStart;
+        animation_time_t timeEnd;
+
         platform::endian endianness = platform::endian::native;
     } OBLO_RESOURCE();
 
-    using animation_time_t = f32;
 }

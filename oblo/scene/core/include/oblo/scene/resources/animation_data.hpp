@@ -154,4 +154,9 @@ namespace oblo::animation_data
             reinterpret_cast<const animation_time_t*>(e->data() + e->size()),
         };
     }
+
+    constexpr animation_time_t get_duration(const animation& clip)
+    {
+        return clip.timeEnd >= clip.timeStart ? clip.timeEnd - clip.timeStart : 0.f;
+    }
 }

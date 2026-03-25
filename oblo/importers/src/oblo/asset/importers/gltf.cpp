@@ -867,6 +867,9 @@ namespace oblo::importers
             animation animArtifact;
             animArtifact.endianness = platform::endian::native;
 
+            animArtifact.timeStart = std::numeric_limits<animation_time_t>::max();
+            animArtifact.timeEnd = std::numeric_limits<animation_time_t>::lowest();
+
             // We could be smarter and merge together data refs that point to the same accessors, that might be
             // particuarly important for keyframes
             // For now we simply add the data as we encounter it
@@ -1001,6 +1004,12 @@ namespace oblo::importers
 
                 channel.format = format;
                 channel.dataKind = dataKind;
+
+                if (!keyframesData.empty())
+                {
+                    animArtifact.timeStart = min(keyframesData.front(), animArtifact.timeStart);
+                    animArtifact.timeEnd = max(keyframesData.back(), animArtifact.timeEnd);
+                }
 
                 animation_data::set_channel_keyframes(animArtifact, channel, keyframesData);
 

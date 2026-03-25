@@ -206,10 +206,15 @@ namespace oblo
 
                 // We calculate the "global" time for this animation
                 // When looping, each channel uses this time modulo the duration, which will be the "local" one
-                const time newGlobalTime = {.hns = progress.progressHns + ctx.dt.hns};
-                const animation_time_t newGlobalAnimTime = to_f32_seconds(newGlobalTime);
+                const time newGlobalTimeHns = {.hns = progress.progressHns + ctx.dt.hns};
+                const animation_time_t newGlobalTimeAnim = to_f32_seconds(newGlobalTimeHns);
 
-                progress.progressHns = newGlobalTime.hns;
+                // When looping, consider the animation duration and fmod to loop around
+                const animation_time_t newTimeAnim = progress.loop
+                    ? std::fmod(newGlobalTimeAnim, animation_data::get_duration(anim))
+                    : newGlobalTimeAnim;
+
+                progress.progressHns = newGlobalTimeHns.hns;
 
                 for (const animation_channel& channel : anim.channels)
                 {
@@ -228,16 +233,8 @@ namespace oblo
                         continue;
                     }
 
-                    animation_time_t channelAnimTime = newGlobalAnimTime;
-
-                    // When looping, consider the highest keyframe time and fmod to loop around
-                    if (progress.loop && newGlobalAnimTime > keyframes->back())
-                    {
-                        channelAnimTime = std::fmod(to_f32_seconds(newGlobalTime), keyframes->back());
-                    }
-
                     // Find the previous and next sample to interpolate between
-                    const auto nextSampleIt = std::upper_bound(keyframes->begin(), keyframes->end(), channelAnimTime);
+                    const auto nextSampleIt = std::upper_bound(keyframes->begin(), keyframes->end(), newTimeAnim);
 
                     const usize nextSampleIdx = nextSampleIt == keyframes->end()
                         ? keyframes->size() - 1
@@ -249,7 +246,7 @@ namespace oblo
 
                     if (!interpolate_sample(result,
                             *keyframes,
-                            channelAnimTime,
+                            newTimeAnim,
                             *samples,
                             previousSampleIdx,
                             nextSampleIdx,

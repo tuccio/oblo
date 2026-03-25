@@ -290,7 +290,8 @@ namespace oblo
             u8 _padding0[1];
 
             u32 numChannels;
-            u8 _padding1[4];
+            animation_time_t timeStart;
+            animation_time_t timeEnd;
 
             ref keyframes;
             ref arrays[max_arrays];
@@ -352,6 +353,8 @@ namespace oblo
             .fourtet = animation_file_header::magic_fourtet,
             .fileVersion = current_animation_version,
             .numChannels = anim.channels.size32(),
+            .timeStart = anim.timeStart,
+            .timeEnd = anim.timeEnd,
         };
 
         if (anim.endianness == platform::endian::little)
@@ -458,6 +461,12 @@ namespace oblo
             return "Incompatible animation file version"_err;
         }
 
+        anim.timeStart = header.timeStart;
+        anim.timeEnd = header.timeEnd;
+
+        anim.endianness = header.flags.contains(animation_file_flag::little_endian) ? platform::endian::little
+                                                                                    : platform::endian::big;
+
         // Allocate the data arrays
         const animation_file_ref aligned1ArrayRef = header.arrays[u32(animation_file_array::aligned1)];
         const animation_file_ref aligned4ArrayRef = header.arrays[u32(animation_file_array::aligned4)];
@@ -520,8 +529,6 @@ namespace oblo
             }
         }
 
-        anim.endianness = header.flags.contains(animation_file_flag::little_endian) ? platform::endian::little
-                                                                                    : platform::endian::big;
         return no_error;
     }
 }
