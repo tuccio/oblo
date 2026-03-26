@@ -531,8 +531,6 @@ namespace oblo
                      skin_component>())
             {
                 const auto skinInfoIt = m_skinInfo.find(skin.skin.id);
-                // const mat4 rootTransform = skinInfoIt->second.skeleton->rootTransform;
-                // const mat4 invRootTransform = inverse(rootTransform).value_or(mat4::identity());
 
                 u32 jointIndex = 0;
 
@@ -573,7 +571,6 @@ namespace oblo
 
                         jointTransform.jointMatrices[localJointIndex] =
                             jointTransformMatrix * jointPose.invBindPoses[localJointIndex];
-                        // jointTransformMatrix* rootTransform* jointPose.invBindPoses[localJointIndex];
                     }
                 }
             }

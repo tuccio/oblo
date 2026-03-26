@@ -240,6 +240,49 @@ namespace oblo::importers
 
             return {name.begin() + pos + 1, name.end()};
         }
+
+        struct transform_trs
+        {
+            vec3 translation;
+            quaternion rotation;
+            vec3 scale;
+        };
+
+        transform_trs decompose_node_transform(const tinygltf::Node& node)
+        {
+            vec3 translationFallback{};
+            quaternion rotationFallback{quaternion::identity()};
+            vec3 scaleFallback{vec3::splat(1.f)};
+
+            // GLTF can have either matrices or separate TRS fields
+            // We account for both here
+            if (node.matrix.size() == 16)
+            {
+                mat4 matrix;
+                for (u32 i = 0; i < 4; ++i)
+                {
+                    for (u32 j = 0; j < 4; ++j)
+                    {
+                        matrix.columns[i][j] = f32(node.matrix[i * 4 + j]);
+                    }
+                }
+
+                if (!decompose_matrix(matrix, translationFallback, rotationFallback, scaleFallback))
+                {
+                    log::error("Faled to decompose matrix for node {}", node.name);
+                }
+            }
+
+            const vec3 translation = get_vec3_or(node.translation, translationFallback);
+            const quaternion rotation = get_quaternion_or(node.rotation, rotationFallback);
+            const vec3 scale = get_vec3_or(node.scale, scaleFallback);
+
+            return {
+                translation,
+                rotation,
+                scale,
+            };
+        }
     }
 
     struct gltf::impl
@@ -489,10 +532,12 @@ namespace oblo::importers
 
             if (gltfSkin.skeleton < 0)
             {
+                log::debug("A skin does not specify the skeleton root, this is currently not supported");
                 skinNode.skipped = true;
                 continue;
             }
 
+            const i32 gltfSkeletonIndex = gltfSkin.skeleton;
             nameBuilder = gltfSkin.name;
 
             if (nameBuilder.empty())
@@ -503,7 +548,7 @@ namespace oblo::importers
             skinNode.nodeIndex = preview.nodes.size32();
             preview.nodes.emplace_back(resource_type<skin>, nameBuilder.as<string>());
 
-            auto& nodeInfo = skeletonNodeInfo[gltfSkin.skeleton];
+            auto& nodeInfo = skeletonNodeInfo[gltfSkeletonIndex];
 
             if (nodeInfo.isMarkedForImport)
             {
@@ -514,7 +559,7 @@ namespace oblo::importers
             nodeInfo.isMarkedForImport = true;
             nodeInfo.nodeIndex = preview.nodes.size32();
 
-            m_impl->mark_skeleton(gltfSkin.skeleton);
+            m_impl->mark_skeleton(gltfSkeletonIndex);
 
             auto& skeletonNode = m_impl->importSkeletons.emplace_back();
 
@@ -522,7 +567,7 @@ namespace oblo::importers
             skeletonNode.nodeIndex = nodeInfo.nodeIndex;
             skinNode.skeletonNodeIndex = nodeInfo.nodeIndex;
 
-            nameBuilder = m_impl->model.nodes[nodeInfo.nodeIndex].name;
+            nameBuilder = m_impl->model.nodes[gltfSkeletonIndex].name;
 
             if (nameBuilder.empty())
             {
@@ -659,6 +704,8 @@ namespace oblo::importers
             return false;
         }
 
+        // Parse config
+
         gltf_import_config cfg{};
 
         const auto& settings = ctx.get_settings();
@@ -671,6 +718,9 @@ namespace oblo::importers
 
         const std::span importNodeConfigs = ctx.get_import_node_configs();
         const std::span importNodes = ctx.get_import_nodes();
+
+        // Associate image indices to the import uuids, since materials will need to refer to them, but import of
+        // textures happens in parallel
 
         for (usize i = 0; i < m_impl->importImages.size(); ++i)
         {
@@ -1097,13 +1147,20 @@ namespace oblo::importers
                 joint.parentIndex = parent;
                 joint.name = string{current.name};
 
-                const vec3 translation = get_vec3_or(current.translation, vec3::splat(0.f));
-                const quaternion rotation = get_quaternion_or(current.rotation, quaternion::identity());
-                const vec3 scale = get_vec3_or(current.scale, vec3::splat(1.f));
+                if (parent != skeleton::joint::no_parent)
+                {
+                    const auto [translation, rotation, scale] = decompose_node_transform(current);
 
-                joint.translation = translation;
-                joint.rotation = rotation;
-                joint.scale = scale;
+                    joint.translation = translation;
+                    joint.rotation = rotation;
+                    joint.scale = scale;
+                }
+                else
+                {
+                    joint.translation = vec3::splat(0.f);
+                    joint.rotation = quaternion::identity();
+                    joint.scale = vec3::splat(1.f);
+                }
 
                 for (const i32 child : current.children)
                 {
@@ -1315,32 +1372,7 @@ namespace oblo::importers
 
                 const tinygltf::Node& node = m_impl->model.nodes[nodeIndex];
 
-                vec3 translationFallback{};
-                quaternion rotationFallback{quaternion::identity()};
-                vec3 scaleFallback{vec3::splat(1.f)};
-
-                // GLTF can have either matrices or separate TRS fields
-                // We account for both here
-                if (node.matrix.size() == 16)
-                {
-                    mat4 matrix;
-                    for (u32 i = 0; i < 4; ++i)
-                    {
-                        for (u32 j = 0; j < 4; ++j)
-                        {
-                            matrix.columns[i][j] = f32(node.matrix[i * 4 + j]);
-                        }
-                    }
-
-                    if (!decompose_matrix(matrix, translationFallback, rotationFallback, scaleFallback))
-                    {
-                        log::error("Faled to decompose matrix for node {}", node.name);
-                    }
-                }
-
-                const vec3 translation = get_vec3_or(node.translation, translationFallback);
-                const quaternion rotation = get_quaternion_or(node.rotation, rotationFallback);
-                const vec3 scale = get_vec3_or(node.scale, scaleFallback);
+                const auto [translation, rotation, scale] = decompose_node_transform(node);
 
                 const auto e = ecs_utility::create_named_physical_entity(reg,
                     node.name.c_str(),
