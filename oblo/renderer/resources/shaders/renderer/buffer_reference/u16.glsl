@@ -9,4 +9,9 @@ layout(buffer_reference) buffer U16AttributeType
     uint16_t values[];
 };
 
+layout(buffer_reference) buffer U16Vec4AttributeType
+{
+    u16vec4 values[];
+};
+
 #endif
