@@ -1,5 +1,7 @@
 #include <oblo/core/platform/shared_library.hpp>
 
+#include <oblo/core/string/string_builder.hpp>
+
 #if defined(WIN32)
     #define NOMINMAX
     #include <Windows.h>
@@ -95,6 +97,33 @@ namespace oblo::platform
         return reinterpret_cast<void*>(GetProcAddress(HMODULE(m_handle), name));
 #else
         return dlsym(m_handle, name);
+#endif
+    }
+
+    bool shared_library::get_path(string_builder& path) const
+    {
+#ifdef _WIN32
+        wchar_t wPath[MAX_PATH];
+        const DWORD length = GetModuleFileNameW(HMODULE(m_handle), wPath, MAX_PATH);
+
+        if (length == 0 || length == MAX_PATH)
+        {
+            return false;
+        }
+
+        path.assign(wPath, wPath + length);
+        return true;
+
+#else
+        Dl_info info;
+        // Use the address of the current function
+        if (dladdr(m_handle, &info) == 0)
+        {
+            return false;
+        }
+
+        path = info.dli_fname;
+        return true;
 #endif
     }
 }
