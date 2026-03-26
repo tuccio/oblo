@@ -29,7 +29,7 @@ namespace oblo::editor
     public:
         ~viewport();
 
-        void init(const window_update_context& ctx);
+        bool init(const window_update_context& ctx);
         bool update(const window_update_context& ctx);
 
         vec3 get_spawn_location() const;

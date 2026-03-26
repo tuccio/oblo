@@ -90,6 +90,26 @@ namespace oblo
         return rhs * lhs;
     }
 
+    constexpr f32 dot(const vec2& lhs, const vec2& rhs) noexcept
+    {
+        return lhs.x * rhs.x + lhs.y * rhs.y;
+    }
+
+    constexpr float length2(const vec2& v)
+    {
+        return dot(v, v);
+    }
+
+    inline float length(const vec2& v) noexcept
+    {
+        return std::sqrt(dot(v, v));
+    }
+
+    inline vec2 normalize(const vec2& v) noexcept
+    {
+        return v / length(v);
+    }
+
     template <>
     constexpr vec2 min<vec2>(const vec2 lhs, const vec2 rhs) noexcept
     {

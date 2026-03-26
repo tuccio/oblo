@@ -39,6 +39,7 @@ namespace oblo
             },
         }};
     }
+
     inline expected<> decompose_matrix(const mat4& m, vec3& t, quaternion& r, vec3& s)
     {
         // 1. Extract Translation from the 4th column (index 3)
