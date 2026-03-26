@@ -283,6 +283,19 @@ namespace oblo::importers
                 scale,
             };
         }
+
+        cstring_view make_or_get_joint_name(
+            string_builder& jointNameBuilder, std::span<tinygltf::Node> nodes, i32 nodeIndex)
+        {
+            const tinygltf::Node& node = nodes[nodeIndex];
+
+            if (node.name.empty())
+            {
+                return jointNameBuilder.clear().format("unnamed_joint_{}", nodeIndex).as<cstring_view>();
+            }
+
+            return {node.name.c_str(), node.name.length()};
+        }
     }
 
     struct gltf::impl
@@ -910,6 +923,7 @@ namespace oblo::importers
         usedBuffers.resize(numBuffers);
 
         // Animations
+        string_builder jointNameBuilder;
 
         for (const auto& importedAnimation : m_impl->importAnimations)
         {
@@ -1078,7 +1092,8 @@ namespace oblo::importers
 
                 if (isJointAnimation)
                 {
-                    const auto& jointName = m_impl->model.nodes[gltfChannel.target_node].name;
+                    const cstring_view jointName =
+                        make_or_get_joint_name(jointNameBuilder, m_impl->model.nodes, gltfChannel.target_node);
                     channel.target = animation_target::joint;
                     animation_data::set_channel_joint_name(animArtifact, channel, jointName.c_str());
                     animation_data::set_channel_property_name(animArtifact, channel, jointAnimationName);
@@ -1137,15 +1152,16 @@ namespace oblo::importers
 
             jointsBuffer.clear();
 
-            const auto gatherSkeleton =
-                [this, &jointsBuffer](auto&& recurse, i32 index, skeleton_joint_index_t parent) -> void
+            const auto gatherSkeleton = [this, &jointsBuffer, &jointNameBuilder](auto&& recurse,
+                                            i32 index,
+                                            skeleton_joint_index_t parent) -> void
             {
                 auto& current = m_impl->model.nodes[index];
 
                 const skeleton_joint_index_t jointIndex = narrow_cast<skeleton_joint_index_t>(jointsBuffer.size());
                 auto& joint = jointsBuffer.emplace_back();
                 joint.parentIndex = parent;
-                joint.name = string{current.name};
+                joint.name = make_or_get_joint_name(jointNameBuilder, m_impl->model.nodes, index).as<string>();
 
                 if (parent != skeleton::joint::no_parent)
                 {
@@ -1239,8 +1255,9 @@ namespace oblo::importers
 
             for (const i32 jointNodeIndex : gltfSkin.joints)
             {
-                const auto& jointNode = m_impl->model.nodes[jointNodeIndex];
-                skinArtifact.jointNames.emplace_back(jointNode.name);
+                const cstring_view jointName =
+                    make_or_get_joint_name(jointNameBuilder, m_impl->model.nodes, jointNodeIndex);
+                skinArtifact.jointNames.emplace_back(jointName);
             }
 
             skinArtifact.skeleton = resource_ref<skeleton>{importNodeConfigs[importedSkin.skeletonNodeIndex].id};

@@ -142,10 +142,11 @@ namespace oblo::editor
                         parentTransform = &transforms[parentIndex];
                     }
 
-                    transforms[jointIndex] = *parentTransform * localMatrix;
+                    const mat4 worldMatrix = *parentTransform * localMatrix;
+                    transforms[jointIndex] = worldMatrix;
 
                     const vec2 previousPoint = project2d(*parentTransform * vec4(0, 0, 0, 1));
-                    const vec2 nextPoint = project2d(transforms[jointIndex] * vec4(0, 0, 0, 1));
+                    const vec2 nextPoint = project2d(worldMatrix * vec4(0, 0, 0, 1));
 
                     constexpr f32 jointThickness = 4.f;
 
