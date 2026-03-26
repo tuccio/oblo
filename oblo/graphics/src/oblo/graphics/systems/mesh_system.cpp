@@ -398,7 +398,8 @@ namespace oblo
 
                             jointChunks.chunks[chunkIndex] = chunkEntity;
 
-                            for (u32 skinJointIndex = chunkIndex, localJointIndex = 0;
+                            for (u32 skinJointIndex = chunkIndex * joint_pose_component::joints_per_chunk,
+                                     localJointIndex = 0;
                                 skinJointIndex < chunkIndex + joint_skinning_transform_component::joints_per_chunk &&
                                 skinJointIndex < numJoints;
                                 ++skinJointIndex, ++localJointIndex)

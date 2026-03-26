@@ -70,7 +70,7 @@ namespace oblo
                 return false;
             }
 
-            out = nlerp(s1, s2, alpha);
+            out = slerp(s1, s2, alpha);
             return true;
         }
 
