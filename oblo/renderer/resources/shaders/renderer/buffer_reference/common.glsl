@@ -28,9 +28,4 @@ layout(buffer_reference) buffer U32AttributeType
     uint values[];
 };
 
-layout(buffer_reference) buffer UVec2AttributeType
-{
-    uvec2 values[];
-};
-
 #endif

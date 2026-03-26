@@ -400,7 +400,7 @@ namespace oblo
 
                             for (u32 skinJointIndex = chunkIndex * joint_pose_component::joints_per_chunk,
                                      localJointIndex = 0;
-                                skinJointIndex < chunkIndex + joint_skinning_transform_component::joints_per_chunk &&
+                                localJointIndex < joint_skinning_transform_component::joints_per_chunk &&
                                 skinJointIndex < numJoints;
                                 ++skinJointIndex, ++localJointIndex)
                             {
@@ -519,13 +519,20 @@ namespace oblo
             joint_skinning_transform_component::joints_per_chunk;
 
         dynamic_array<mat4> jointTransforms{ctx.frameAllocator};
-        jointTransforms.reserve(maxJoints);
+        jointTransforms.resize_default(maxJoints);
 
-        for (auto&& chunk : ctx.entities->range<joint_skinning_transform_chunks_component>())
+        for (auto&& chunk : ctx.entities->range<joint_skinning_transform_chunks_component,
+                 const global_transform_component,
+                 const skin_component>())
         {
-            for (auto&& [e, jointChunk] : chunk.zip<ecs::entity, joint_skinning_transform_chunks_component>())
+            for (auto&& [e, jointChunk, transformComp, skin] : chunk.zip<ecs::entity,
+                     joint_skinning_transform_chunks_component,
+                     global_transform_component,
+                     skin_component>())
             {
-                jointTransforms.clear();
+                const auto skinInfoIt = m_skinInfo.find(skin.skin.id);
+                // const mat4 rootTransform = skinInfoIt->second.skeleton->rootTransform;
+                // const mat4 invRootTransform = inverse(rootTransform).value_or(mat4::identity());
 
                 u32 jointIndex = 0;
 
@@ -557,12 +564,16 @@ namespace oblo
                         {
                             jointTransformMatrix = jointTransforms[parentIndex] * jointTransformMatrix;
                         }
+                        else
+                        {
+                            jointTransformMatrix = transformComp.localToWorld * jointTransformMatrix;
+                        }
 
-                        OBLO_ASSERT(jointTransforms.size() == jointIndex);
-                        jointTransforms.emplace_back(jointTransformMatrix);
+                        jointTransforms[jointIndex] = jointTransformMatrix;
 
                         jointTransform.jointMatrices[localJointIndex] =
-                            jointPose.invBindPoses[localJointIndex] * jointTransformMatrix;
+                            jointTransformMatrix * jointPose.invBindPoses[localJointIndex];
+                        // jointTransformMatrix* rootTransform* jointPose.invBindPoses[localJointIndex];
                     }
                 }
             }

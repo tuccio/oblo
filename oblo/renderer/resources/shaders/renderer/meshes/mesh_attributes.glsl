@@ -33,14 +33,17 @@ vec4 mesh_get_vec4_attribute(in mesh_table t, in uint attributeId, in uint verte
     return attributeBuffer.values[vertexId];
 }
 
-uvec2 mesh_get_uvec2_attribute(in mesh_table t, in uint attributeId, in uint vertexId)
+uvec4 mesh_get_u16vec4_attribute_as_uvec4(in mesh_table t, in uint attributeId, in uint vertexId)
 {
+    // We might want to use GL_EXT_shader_16bit_storage instead, if it simplifies
+    // For now we just read the u32 values and unpack them manually
     const uint64_t address = t.vertexDataAddress + t.attributeOffsets[attributeId];
-    UVec2AttributeType attributeBuffer = UVec2AttributeType(address);
-    return attributeBuffer.values[vertexId];
+    U32AttributeType attributeBuffer = U32AttributeType(address);
+    const uint baseIndex = 2 * vertexId;
+    const uint a = attributeBuffer.values[baseIndex];
+    const uint b = attributeBuffer.values[baseIndex + 1];
+    return uvec4(a & 0xffff, a >> 16, b & 0xffff, b >> 16);
 }
-
-// Vertex attributes fetch
 
 vec3 mesh_get_position(in mesh_table t, in uint vertexId)
 {
@@ -69,8 +72,7 @@ vec2 mesh_get_uv0(in mesh_table t, in uint vertexId)
 
 uvec4 mesh_get_joint_indices(in mesh_table t, in uint vertexId)
 {
-    const uvec2 indicesPacked = mesh_get_uvec2_attribute(t, OBLO_VERTEX_ATTRIBUTE_JOINT_INDICES, vertexId);
-    return uvec4(indicesPacked[0] >> 16, indicesPacked[0] & 0xffff, indicesPacked[1] >> 16, indicesPacked[1] & 0xffff);
+    return mesh_get_u16vec4_attribute_as_uvec4(t, OBLO_VERTEX_ATTRIBUTE_JOINT_INDICES, vertexId);
 }
 
 vec4 mesh_get_joint_weights(in mesh_table t, in uint vertexId)

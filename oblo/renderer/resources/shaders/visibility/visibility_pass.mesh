@@ -74,10 +74,6 @@ void main()
     const uint meshletVertexBegin = gl_GlobalInvocationID.x * maxVerticesPerThread;
     const uint meshletVertexEnd = min(meshletVertexBegin + maxVerticesPerThread, meshletRange.vertexCount);
 
-    const transform instanceTransform =
-        OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, preCullingId);
-
-    const mat4 localToWorld = instanceTransform.localToWorld;
     const uint baseVertex = meshRange.vertexOffset + meshletRange.vertexOffset;
 
     const bool hasSkinningInstanceData =
@@ -103,7 +99,7 @@ void main()
 
             const mat4 skinningMatrix = skinning_calculate_weighted_matrix(chunks, inJointIndices, inJointWeights);
 
-            const vec4 positionWS = localToWorld * skinningMatrix * vec4(inPosition, 1);
+            const vec4 positionWS = skinningMatrix * vec4(inPosition, 1);
             const vec4 positionNDC = g_Camera.viewProjection * positionWS;
 
             gl_MeshVerticesEXT[meshletVertexId].gl_Position = positionNDC;
@@ -111,6 +107,11 @@ void main()
     }
     else
     {
+        const transform instanceTransform =
+            OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, preCullingId);
+
+        const mat4 localToWorld = instanceTransform.localToWorld;
+
         for (uint meshletVertexId = meshletVertexBegin; meshletVertexId < meshletVertexEnd; ++meshletVertexId)
         {
             const uint meshVertexId = baseVertex + meshletVertexId;
