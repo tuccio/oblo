@@ -156,4 +156,12 @@
 
     </Type>
 
+    <Type Name="oblo::resource_ptr&lt;*&gt;">
+        <DisplayString>{{ resource={m_resource} }}</DisplayString>
+        <Expand>
+            <Item Name="[resource]" ExcludeView="simple">m_resource</Item>
+            <Item Name="[ptr]" ExcludeView="simple">*($T1**)m_resource</Item>
+        </Expand>
+    </Type>
+
 </AutoVisualizer>
