@@ -77,6 +77,112 @@ namespace oblo::editor
                 unreachable();
             }
         }
+
+        void draw_joints(
+            const resource_registry& resources, ecs::entity_registry& reg, ecs::entity e, const mat4 viewProj)
+        {
+            auto&& [transformComp, skinningChunks] =
+                reg.get<global_transform_component, joint_skinning_transform_chunks_component>(e);
+
+            const skin_component* skinComp = reg.try_get<skin_component>(e);
+
+            resource_ptr<skin> skinPtr;
+
+            if (skinComp)
+            {
+                skinPtr = resources.get_resource(skinComp->skin);
+                skinPtr.load_sync();
+
+                if (!skinPtr.is_successfully_loaded())
+                {
+                    skinPtr = {};
+                }
+            }
+
+            dynamic_array<mat4> transforms;
+            transforms.resize_default(skinningChunks.numJoints);
+
+            const auto project2d = [&viewProj, pos = ImGui::GetWindowPos(), size = ImGui::GetWindowSize()](
+                                       const vec4& p) -> vec2
+            {
+                const vec4 projected = viewProj * p;
+                const vec2 ndc = vec2{projected.x, projected.y} / projected.w;
+
+                return vec2{
+                    pos.x + (ndc.x + 1.f) * .5f * size.x,
+                    pos.y + (1.f - (ndc.y + 1.f) * .5f) * size.y,
+                };
+            };
+
+            auto* const drawList = ImGui::GetWindowDrawList();
+
+            string_builder nameBuilder;
+
+            for (u32 jointIndex = 0; jointIndex < skinningChunks.numJoints; ++jointIndex)
+            {
+                const u32 chunkIndex = jointIndex / joint_pose_component::joints_per_chunk;
+                const u32 jointLocalIndex = jointIndex % joint_pose_component::joints_per_chunk;
+
+                const ecs::entity chunkEntity = skinningChunks.chunks[chunkIndex];
+                const joint_pose_component* pose = reg.try_get<joint_pose_component>(chunkEntity);
+
+                if (pose)
+                {
+                    const auto& localPose = pose->localPoses[jointLocalIndex];
+
+                    const mat4 localMatrix =
+                        make_transform_matrix(localPose.translation, localPose.rotation, localPose.scale);
+
+                    const u32 parentIndex = pose->parentJointIndices[jointLocalIndex];
+
+                    const mat4* parentTransform = &transformComp.localToWorld;
+
+                    if (parentIndex != joint_pose_component::no_parent)
+                    {
+                        parentTransform = &transforms[parentIndex];
+                    }
+
+                    transforms[jointIndex] = *parentTransform * localMatrix;
+
+                    const vec2 previousPoint = project2d(*parentTransform * vec4(0, 0, 0, 1));
+                    const vec2 nextPoint = project2d(transforms[jointIndex] * vec4(0, 0, 0, 1));
+
+                    constexpr f32 jointThickness = 4.f;
+
+                    static constexpr ImU32 colors[13] = {
+                        IM_COL32(99, 110, 250, 255),  // Blue (#636EFA)
+                        IM_COL32(239, 85, 59, 255),   // Red (#EF553B)
+                        IM_COL32(0, 204, 150, 255),   // Green (#00CC96)
+                        IM_COL32(171, 99, 250, 255),  // Purple (#AB63FA)
+                        IM_COL32(255, 161, 90, 255),  // Orange (#FFA15A)
+                        IM_COL32(25, 211, 243, 255),  // Cyan (#19D3F3)
+                        IM_COL32(255, 102, 146, 255), // Pink (#FF6692)
+                        IM_COL32(182, 232, 128, 255), // Light Green (#B6E880)
+                        IM_COL32(255, 151, 255, 255), // Light Pink (#FF97FF)
+                        IM_COL32(254, 203, 82, 255),  // Yellow (#FECB52)
+                        IM_COL32(31, 119, 180, 255),  // Dark Blue (#1F77B4)
+                        IM_COL32(23, 190, 207, 255),  // Teal (#17BECF)
+                        IM_COL32(157, 0, 255, 255)    // Violet (#9D00FF)
+                    };
+
+                    const auto jointColor = colors[jointIndex % array_size(colors)];
+
+                    drawList->AddLine({previousPoint.x, previousPoint.y},
+                        {nextPoint.x, nextPoint.y},
+                        jointColor,
+                        jointThickness);
+
+                    if (skinPtr)
+                    {
+                        const vec2 jointDirection = normalize(nextPoint - previousPoint);
+                        const vec2 textPos = nextPoint - jointDirection * vec2{16.f, 16.f};
+
+                        nameBuilder.clear().format("{} [{}]", skinPtr->jointNames[jointIndex], jointIndex);
+                        drawList->AddText({textPos.x, textPos.y}, jointColor, nameBuilder.begin(), nameBuilder.end());
+                    }
+                }
+            }
+        }
     }
 
     void gizmo_handler::set_id(u32 id)
@@ -187,112 +293,20 @@ namespace oblo::editor
                     break;
                 }
             }
+
+            if (auto* const parent = reg.try_get<parent_component>(e))
+            {
+                // if (reg.has<joint_pose_component, joint_skinning_transform_component>(parent->parent))
+                {
+                    draw_joints(resources, reg, parent->parent, projection * view);
+                }
+            }
         }
 
         if (!interacting && reg.has<joint_skinning_transform_chunks_component>(e))
         {
-            auto&& [transformComp, skinningChunks] =
-                reg.get<global_transform_component, joint_skinning_transform_chunks_component>(e);
-
-            const skin_component* skinComp = reg.try_get<skin_component>(e);
-
-            resource_ptr<skin> skinPtr;
-
-            if (skinComp)
-            {
-                skinPtr = resources.get_resource(skinComp->skin);
-                skinPtr.load_sync();
-
-                if (!skinPtr.is_successfully_loaded())
-                {
-                    skinPtr = {};
-                }
-            }
-
-            dynamic_array<mat4> transforms;
-            transforms.resize_default(skinningChunks.numJoints);
-
             const auto [view, projection] = calculateViewProjection();
-
-            const auto project2d = [viewProj = projection * view,
-                                       pos = ImGui::GetWindowPos(),
-                                       size = ImGui::GetWindowSize()](const vec4& p) -> vec2
-            {
-                const vec4 projected = viewProj * p;
-                const vec2 ndc = vec2{projected.x, projected.y} / projected.w;
-
-                return vec2{
-                    pos.x + (ndc.x + 1.f) * .5f * size.x,
-                    pos.y + (1.f - (ndc.y + 1.f) * .5f) * size.y,
-                };
-            };
-
-            auto* const drawList = ImGui::GetWindowDrawList();
-
-            for (u32 jointIndex = 0; jointIndex < skinningChunks.numJoints; ++jointIndex)
-            {
-                const u32 chunkIndex = jointIndex / joint_pose_component::joints_per_chunk;
-                const u32 jointLocalIndex = jointIndex % joint_pose_component::joints_per_chunk;
-
-                const ecs::entity chunkEntity = skinningChunks.chunks[chunkIndex];
-                const joint_pose_component* pose = reg.try_get<joint_pose_component>(chunkEntity);
-
-                if (pose)
-                {
-                    const auto& localPose = pose->localPoses[jointLocalIndex];
-
-                    const mat4 localMatrix =
-                        make_transform_matrix(localPose.translation, localPose.rotation, localPose.scale);
-
-                    const u32 parentIndex = pose->parentJointIndices[jointLocalIndex];
-
-                    const mat4* parentTransform = &transformComp.localToWorld;
-
-                    if (parentIndex != joint_pose_component::no_parent)
-                    {
-                        parentTransform = &transforms[parentIndex];
-                    }
-
-                    transforms[jointIndex] = *parentTransform * localMatrix;
-
-                    const vec2 previousPoint = project2d(*parentTransform * vec4(0, 0, 0, 1));
-                    const vec2 nextPoint = project2d(transforms[jointIndex] * vec4(0, 0, 0, 1));
-
-                    constexpr f32 jointThickness = 4.f;
-
-                    static constexpr ImU32 colors[13] = {
-                        IM_COL32(99, 110, 250, 255),  // Blue (#636EFA)
-                        IM_COL32(239, 85, 59, 255),   // Red (#EF553B)
-                        IM_COL32(0, 204, 150, 255),   // Green (#00CC96)
-                        IM_COL32(171, 99, 250, 255),  // Purple (#AB63FA)
-                        IM_COL32(255, 161, 90, 255),  // Orange (#FFA15A)
-                        IM_COL32(25, 211, 243, 255),  // Cyan (#19D3F3)
-                        IM_COL32(255, 102, 146, 255), // Pink (#FF6692)
-                        IM_COL32(182, 232, 128, 255), // Light Green (#B6E880)
-                        IM_COL32(255, 151, 255, 255), // Light Pink (#FF97FF)
-                        IM_COL32(254, 203, 82, 255),  // Yellow (#FECB52)
-                        IM_COL32(31, 119, 180, 255),  // Dark Blue (#1F77B4)
-                        IM_COL32(23, 190, 207, 255),  // Teal (#17BECF)
-                        IM_COL32(157, 0, 255, 255)    // Violet (#9D00FF)
-                    };
-
-                    const auto jointColor = colors[jointIndex % array_size(colors)];
-
-                    drawList->AddLine({previousPoint.x, previousPoint.y},
-                        {nextPoint.x, nextPoint.y},
-                        jointColor,
-                        jointThickness);
-
-                    if (skinPtr)
-                    {
-                        const vec2 jointDirection = normalize(nextPoint - previousPoint);
-                        const vec2 textPos = nextPoint - jointDirection * vec2{16.f, 16.f};
-
-                        const auto& jointName = skinPtr->jointNames[jointIndex];
-                        drawList->AddText({textPos.x, textPos.y}, jointColor, jointName.begin(), jointName.end());
-                    }
-                }
-            }
+            draw_joints(resources, reg, e, projection * view);
         }
 
         if (!interacting &&
