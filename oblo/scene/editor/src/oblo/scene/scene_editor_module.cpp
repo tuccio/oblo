@@ -8,6 +8,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/struct_apply.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
+#include <oblo/editor/providers/resource_viewer_provider.hpp>
 #include <oblo/editor/providers/service_provider.hpp>
 #include <oblo/graphics/components/light_component.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -18,6 +19,7 @@
 #include <oblo/scene/assets/traits.hpp>
 #include <oblo/scene/editor/commands.hpp>
 #include <oblo/scene/editor/material_editor.hpp>
+#include <oblo/scene/editor/mesh_inspector.hpp>
 #include <oblo/scene/editor/scene_editor.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
@@ -174,6 +176,17 @@ namespace oblo
             }
         };
 
+        class scene_resource_viewer_provider final : public editor::resource_viewer_provider
+        {
+            void fetch(deque<editor::resource_viewer_descriptor>& out) const override
+            {
+                out.push_back(editor::resource_viewer_descriptor{
+                    .resourceType = resource_type<mesh>,
+                    .createViewer = []() -> unique_ptr<editor::resource_viewer>
+                    { return allocate_unique<editor::mesh_inspector>(); },
+                });
+            }
+        };
         class editor_service_registrant final : public editor::service_provider
         {
             void fetch(deque<editor::service_provider_descriptor>& out) const override
@@ -188,6 +201,7 @@ namespace oblo
     {
         initializer.services->add<scene_asset_provider>().as<native_asset_provider>().unique();
         initializer.services->add<scene_asset_editor_provider>().as<editor::asset_editor_provider>().unique();
+        initializer.services->add<scene_resource_viewer_provider>().as<editor::resource_viewer_provider>().unique();
         initializer.services->add<editor_service_registrant>().as<editor::service_provider>().unique();
 
         return true;

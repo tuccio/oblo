@@ -651,7 +651,8 @@ namespace oblo::editor
         globalRegistry.add<registered_commands>().unique();
         globalRegistry.add<incremental_id_pool>().unique();
         globalRegistry.add<update_subscriptions>().externally_owned(&m_updateDispatcher);
-        auto* const assetEditorManager = globalRegistry.add<asset_editor_manager>().unique(m_assetRegistry);
+        auto* const assetEditorManager = globalRegistry.add<asset_editor_manager>().unique(m_assetRegistry,
+            m_runtimeRegistry.get_resource_registry());
 
         string_builder temporaryDir;
         temporaryDir.append(m_editorModule->get_project_directory()).append_path(".oblo").append_path(".temp");

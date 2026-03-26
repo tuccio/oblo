@@ -937,7 +937,7 @@ namespace oblo::editor
                         if (!meta.nativeAssetType.is_nil())
                         {
                             const auto r =
-                                assetEditors->open_editor(ctx.windowManager, meta.assetId, meta.nativeAssetType);
+                                assetEditors->open_asset(ctx.windowManager, meta.assetId, meta.nativeAssetType);
 
                             shouldExpandAsset =
                                 !r.has_value() && r.error() == asset_editor_manager::open_error::no_such_type;
@@ -1030,7 +1030,7 @@ namespace oblo::editor
                             const auto artifactColorId = hash_all<hash>(artifactMeta.type) % array_size(g_Colors);
                             const auto artifactColor = g_Colors[artifactColorId];
 
-                            big_icon_widget(g_FileColor,
+                            const bool isPressed = big_icon_widget(g_FileColor,
                                 ICON_FA_FILE_LINES,
                                 artifactColor,
                                 artifactName,
@@ -1043,6 +1043,13 @@ namespace oblo::editor
                                 const auto payload = payloads::pack_artifact(artifactMeta.artifactId);
                                 ImGui::SetDragDropPayload(payloads::Artifact, &payload, sizeof(drag_and_drop_payload));
                                 ImGui::EndDragDropSource();
+                            }
+
+                            if (isPressed)
+                            {
+                                assetEditors
+                                    ->open_resource(ctx.windowManager, artifactMeta.artifactId, artifactMeta.type)
+                                    .value_or(no_error);
                             }
 
                             if (ImGui::BeginItemTooltip())
