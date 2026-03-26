@@ -9,7 +9,7 @@
 #include <renderer/meshes/mesh_table>
 
 // This needs to match joint_skinning_transform_chunks_component::max_chunks
-const uint g_skinningMaxChunks = 16;
+const uint g_skinningMaxChunks = 31;
 
 // This needs to match joint_skinning_transform_component::joints_per_chunk
 const uint g_skinningJointsPerChunk = 16;

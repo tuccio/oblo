@@ -41,6 +41,9 @@ namespace oblo
 
     struct joint_pose_component
     {
+        // Same as skeleton::joint::no_parent
+        static constexpr skeleton_joint_index_t no_parent = ~skeleton_joint_index_t{};
+
         struct pose
         {
             vec3 translation;
