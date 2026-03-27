@@ -133,162 +133,178 @@ namespace oblo::editor
         string_builder builder;
         builder.format("Mesh Inspector##{}", m_id);
 
-        if (ImGui::Begin(builder.c_str(), &isOpen) && m_meshPtr.is_successfully_loaded())
+        if (ImGui::Begin(builder.c_str(), &isOpen))
         {
-            const mesh& mesh = *m_meshPtr;
-
-            if (ImGui::CollapsingHeader("Topology", ImGuiTreeNodeFlags_DefaultOpen))
+            if (!m_meshPtr || m_meshPtr.is_invalidated())
             {
-                constexpr const attribute_kind kinds[] = {
-                    attribute_kind::indices,
-                    attribute_kind::microindices,
-                };
+                ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_NavHighlight));
+                ImGui::TextUnformatted("The mesh was invalidated, please reload to load the new resource");
+                ImGui::PopStyleColor();
 
-                constexpr const char* labels[] = {"Indices", "Microindices"};
-
-                for (u32 i = 0; i < 2; ++i)
+                if (ImGui::Button("Reload"))
                 {
-                    const auto kind = kinds[i];
-
-                    if (!mesh.has_attribute(kind))
-                    {
-                        continue;
-                    }
-
-                    if (ImGui::TreeNode(labels[i]))
-                    {
-                        const auto bytes = mesh.get_attribute(kind);
-                        const auto format = mesh.get_attribute_format(kind);
-                        const u32 count = mesh.get_elements_count(kind);
-
-                        if (ImGui::BeginTable("topology_table",
-                                2,
-                                ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
-                                ImVec2(0, 150)))
-                        {
-                            ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 40.0f);
-                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                            ImGui::TableHeadersRow();
-
-                            ImGuiListClipper clipper;
-                            clipper.Begin(count);
-
-                            while (clipper.Step())
-                            {
-                                for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
-                                {
-                                    ImGui::TableNextRow();
-                                    ImGui::TableSetColumnIndex(0);
-                                    ImGui::TextDisabled("[%d]", row);
-
-                                    ImGui::TableSetColumnIndex(1);
-                                    builder.clear();
-
-                                    format_element(builder, bytes.data(), format, row);
-                                    ImGui::TextUnformatted(builder.c_str());
-                                }
-                            }
-
-                            ImGui::EndTable();
-                        }
-
-                        ImGui::TreePop();
-                    }
+                    m_meshPtr = m_resourceRegistry->get_resource(m_resourceId).as<mesh>();
+                    m_meshPtr.load_start_async();
                 }
             }
 
-            if (ImGui::CollapsingHeader("Vertex Attributes", ImGuiTreeNodeFlags_DefaultOpen))
+            if (m_meshPtr.is_successfully_loaded())
             {
-                constexpr const char* labels[] = {
-                    "Indices",
-                    "Microindices",
-                    "Position",
-                    "Normal",
-                    "Tangent",
-                    "Bitangent",
-                    "UV0",
-                    "Joint Indices",
-                    "Joint Weights",
-                };
+                const mesh& mesh = *m_meshPtr;
 
-                ImGui::TextUnformatted("Columns:");
-                ImGui::SameLine();
-
-                u32 activeColumns = 1;
-
-                for (const attribute_kind kind : enum_range<attribute_kind>{})
+                if (ImGui::CollapsingHeader("Topology", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    if (is_vertex_attribute(kind) && mesh.has_attribute(kind))
+                    constexpr const attribute_kind kinds[] = {
+                        attribute_kind::indices,
+                        attribute_kind::microindices,
+                    };
+
+                    constexpr const char* labels[] = {"Indices", "Microindices"};
+
+                    for (u32 i = 0; i < 2; ++i)
                     {
-                        bool isEnabled = m_enabledAttributesMask.contains(kind);
+                        const auto kind = kinds[i];
 
-                        if (ImGui::Checkbox(labels[u8(kind)], &isEnabled))
+                        if (!mesh.has_attribute(kind))
                         {
-                            m_enabledAttributesMask.assign(kind, isEnabled);
+                            continue;
                         }
 
-                        if (isEnabled)
+                        if (ImGui::TreeNode(labels[i]))
                         {
-                            ++activeColumns;
-                        }
+                            const auto bytes = mesh.get_attribute(kind);
+                            const auto format = mesh.get_attribute_format(kind);
+                            const u32 count = mesh.get_elements_count(kind);
 
-                        ImGui::SameLine();
+                            if (ImGui::BeginTable("topology_table",
+                                    2,
+                                    ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+                                    ImVec2(0, 150)))
+                            {
+                                ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+                                ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                                ImGui::TableHeadersRow();
+
+                                ImGuiListClipper clipper;
+                                clipper.Begin(count);
+
+                                while (clipper.Step())
+                                {
+                                    for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
+                                    {
+                                        ImGui::TableNextRow();
+                                        ImGui::TableSetColumnIndex(0);
+                                        ImGui::TextDisabled("[%d]", row);
+
+                                        ImGui::TableSetColumnIndex(1);
+                                        builder.clear();
+
+                                        format_element(builder, bytes.data(), format, row);
+                                        ImGui::TextUnformatted(builder.c_str());
+                                    }
+                                }
+
+                                ImGui::EndTable();
+                            }
+
+                            ImGui::TreePop();
+                        }
                     }
                 }
 
-                ImGui::NewLine();
-
-                if (ImGui::BeginTable("vertex_table",
-                        activeColumns,
-                        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY |
-                            ImGuiTableFlags_Resizable))
+                if (ImGui::CollapsingHeader("Vertex Attributes", ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    ImGui::TableSetupScrollFreeze(0, 1);
-                    ImGui::TableSetupColumn("Vertex", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+                    constexpr const char* labels[] = {
+                        "Indices",
+                        "Microindices",
+                        "Position",
+                        "Normal",
+                        "Tangent",
+                        "Bitangent",
+                        "UV0",
+                        "Joint Indices",
+                        "Joint Weights",
+                    };
+
+                    ImGui::TextUnformatted("Columns:");
+                    ImGui::SameLine();
+
+                    u32 activeColumns = 1;
 
                     for (const attribute_kind kind : enum_range<attribute_kind>{})
                     {
-                        if (is_vertex_attribute(kind) && mesh.has_attribute(kind) &&
-                            m_enabledAttributesMask.contains(kind))
+                        if (is_vertex_attribute(kind) && mesh.has_attribute(kind))
                         {
-                            ImGui::TableSetupColumn(labels[u8(kind)]);
+                            bool isEnabled = m_enabledAttributesMask.contains(kind);
+
+                            if (ImGui::Checkbox(labels[u8(kind)], &isEnabled))
+                            {
+                                m_enabledAttributesMask.assign(kind, isEnabled);
+                            }
+
+                            if (isEnabled)
+                            {
+                                ++activeColumns;
+                            }
+
+                            ImGui::SameLine();
                         }
                     }
 
-                    ImGui::TableHeadersRow();
+                    ImGui::NewLine();
 
-                    const u32 vertex_count = mesh.get_vertex_count();
-                    ImGuiListClipper clipper;
-                    clipper.Begin(vertex_count);
-
-                    while (clipper.Step())
+                    if (ImGui::BeginTable("vertex_table",
+                            activeColumns,
+                            ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY |
+                                ImGuiTableFlags_Resizable))
                     {
-                        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
+                        ImGui::TableSetupScrollFreeze(0, 1);
+                        ImGui::TableSetupColumn("Vertex", ImGuiTableColumnFlags_WidthFixed, 45.0f);
+
+                        for (const attribute_kind kind : enum_range<attribute_kind>{})
                         {
-                            ImGui::TableNextRow();
-                            ImGui::TableSetColumnIndex(0);
-                            ImGui::TextDisabled("%d", row);
-
-                            u32 current_col = 1;
-                            for (const attribute_kind kind : enum_range<attribute_kind>{})
+                            if (is_vertex_attribute(kind) && mesh.has_attribute(kind) &&
+                                m_enabledAttributesMask.contains(kind))
                             {
-                                if (is_vertex_attribute(kind) && mesh.has_attribute(kind) &&
-                                    m_enabledAttributesMask.contains(kind))
+                                ImGui::TableSetupColumn(labels[u8(kind)]);
+                            }
+                        }
+
+                        ImGui::TableHeadersRow();
+
+                        const u32 vertex_count = mesh.get_vertex_count();
+                        ImGuiListClipper clipper;
+                        clipper.Begin(vertex_count);
+
+                        while (clipper.Step())
+                        {
+                            for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
+                            {
+                                ImGui::TableNextRow();
+                                ImGui::TableSetColumnIndex(0);
+                                ImGui::TextDisabled("%d", row);
+
+                                u32 current_col = 1;
+                                for (const attribute_kind kind : enum_range<attribute_kind>{})
                                 {
-                                    ImGui::TableSetColumnIndex(current_col++);
+                                    if (is_vertex_attribute(kind) && mesh.has_attribute(kind) &&
+                                        m_enabledAttributesMask.contains(kind))
+                                    {
+                                        ImGui::TableSetColumnIndex(current_col++);
 
-                                    const auto bytes = mesh.get_attribute(kind);
-                                    const auto format = mesh.get_attribute_format(kind);
+                                        const auto bytes = mesh.get_attribute(kind);
+                                        const auto format = mesh.get_attribute_format(kind);
 
-                                    builder.clear();
-                                    format_element(builder, bytes.data(), format, row);
-                                    ImGui::TextUnformatted(builder.c_str());
+                                        builder.clear();
+                                        format_element(builder, bytes.data(), format, row);
+                                        ImGui::TextUnformatted(builder.c_str());
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    ImGui::EndTable();
+                        ImGui::EndTable();
+                    }
                 }
             }
         }
