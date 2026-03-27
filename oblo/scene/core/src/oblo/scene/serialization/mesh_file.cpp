@@ -621,12 +621,28 @@ namespace oblo
 
             const auto* const data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
 
-            const auto expectedSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
-                tinygltf::GetNumComponentsInType(accessor.type) * accessor.count;
+            const i32 elementSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
+                tinygltf::GetNumComponentsInType(accessor.type);
+
+            const auto expectedSize = elementSize * accessor.count;
 
             if (expectedSize == bytes.size())
             {
-                std::memcpy(bytes.data(), data, bytes.size());
+                // If the byte s tride is 0, the buffer is tightly packed and we can memcpy the whole thing
+                if (const i32 inputStride = bufferView.byteStride; inputStride == 0)
+                {
+                    std::memcpy(bytes.data(), data, bytes.size());
+                }
+                else
+                {
+                    const u8* in = data;
+                    byte* out = bytes.data();
+
+                    for (usize elementIdx = 0; elementIdx < accessor.count; ++elementIdx)
+                    {
+                        std::memcpy(out + elementIdx * elementSize, in + elementIdx * inputStride, elementSize);
+                    }
+                }
             }
             else if (attributeKind == attribute_kind::tangent &&
                 accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT && accessor.type == TINYGLTF_TYPE_VEC4)
