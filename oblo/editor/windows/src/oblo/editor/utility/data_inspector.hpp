@@ -109,6 +109,51 @@ namespace oblo::editor
                                 return visit_result::sibling;
                             }
 
+                            // Just for the purpose of inspecting values
+                            if (node.type.name.starts_with("oblo::handle"))
+                            {
+                                const reflection::type_handle typeHandle = m_reflection->find_type(node.type);
+
+                                if (typeHandle)
+                                {
+                                    const reflection::type_data typeData = m_reflection->get_type_data(typeHandle);
+
+                                    union {
+                                        u32 u32;
+                                        u64 u64;
+                                    } value;
+
+                                    switch (typeData.size)
+                                    {
+                                    case sizeof(u32):
+                                        std::memcpy(&value.u32, ptr, sizeof(u32));
+
+                                        ImGui::BeginDisabled();
+
+                                        ui::property_table::add(int(hash_mix(node.offset, 0)),
+                                            nameBuilder.c_str(),
+                                            value.u32);
+
+                                        ImGui::EndDisabled();
+
+                                        return visit_result::sibling;
+
+                                    case sizeof(u64):
+                                        std::memcpy(&value.u64, ptr, sizeof(u64));
+
+                                        ImGui::BeginDisabled();
+
+                                        ui::property_table::add(int(hash_mix(node.offset, 0)),
+                                            nameBuilder.c_str(),
+                                            value.u64);
+
+                                        ImGui::EndDisabled();
+
+                                        return visit_result::sibling;
+                                    }
+                                }
+                            }
+
                             return visit_result::recurse;
                         },
                         [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
