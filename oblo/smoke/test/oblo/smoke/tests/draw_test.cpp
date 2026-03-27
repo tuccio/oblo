@@ -8,8 +8,8 @@
 #include <oblo/ecs/range.hpp>
 #include <oblo/graphics/components/animation_component.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
@@ -58,14 +58,14 @@ namespace oblo::smoke
 
             auto& entities = ctx.get_entity_registry();
 
-            const auto triangleEntity = ecs_utility::create_named_physical_entity<static_mesh_component>(entities,
+            const auto triangleEntity = ecs_utility::create_named_physical_entity<mesh_component>(entities,
                 "triangle",
                 {},
                 vec3{.z = -2.f},
                 quaternion::identity(),
                 vec3::splat(1.f));
 
-            auto& mesh = entities.get<static_mesh_component>(triangleEntity);
+            auto& mesh = entities.get<mesh_component>(triangleEntity);
             mesh.material = triangle->materials[0];
             mesh.mesh = triangle->meshes[0];
 
@@ -123,14 +123,14 @@ namespace oblo::smoke
 
             for (u32 i = 0; i < std::size(triangles); ++i)
             {
-                const auto triangleEntity = ecs_utility::create_named_physical_entity<static_mesh_component>(entities,
+                const auto triangleEntity = ecs_utility::create_named_physical_entity<mesh_component>(entities,
                     "triangle",
                     {},
                     vec3{.x = -1.f + i * 1.f, .z = -2.f},
                     quaternion::identity(),
                     vec3::splat(1.f));
 
-                auto& mesh = entities.get<static_mesh_component>(triangleEntity);
+                auto& mesh = entities.get<mesh_component>(triangleEntity);
                 mesh.material = triangle->materials[0];
                 mesh.mesh = triangle->meshes[0];
 
@@ -140,7 +140,7 @@ namespace oblo::smoke
             co_await ctx.next_frame();
 
             // TODO: (#30) Removing this should remove the mesh from rendering, but it does not currently
-            entities.remove<static_mesh_component>(triangles[0]);
+            entities.remove<mesh_component>(triangles[0]);
 
             co_await ctx.next_frame();
         }
@@ -198,7 +198,7 @@ namespace oblo::smoke
             {
                 co_await ctx.next_frame();
 
-                const auto range = entities.range<skin_component, static_mesh_component>();
+                const auto range = entities.range<skin_component, mesh_component>();
 
                 for (auto&& chunk : range)
                 {

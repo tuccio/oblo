@@ -16,8 +16,8 @@
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
 #include <oblo/graphics/components/skybox_component.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/input/input_queue.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -410,14 +410,14 @@ namespace oblo::editor
                 {
                     const auto name = meshRes.get_name();
 
-                    const auto e = ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
+                    const auto e = ecs_utility::create_named_physical_entity<mesh_component>(*m_entities,
                         name.empty() ? "New Mesh" : name,
                         {},
                         vec3{},
                         quaternion::identity(),
                         vec3::splat(1));
 
-                    auto& sm = m_entities->get<static_mesh_component>(e);
+                    auto& sm = m_entities->get<mesh_component>(e);
                     sm.mesh = mesh;
                     sm.material = material;
 

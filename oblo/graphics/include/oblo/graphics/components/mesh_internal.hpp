@@ -1,6 +1,6 @@
 #pragma once
 
-#include <oblo/graphics/components/static_mesh_component.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/resource/resource_ptr.hpp>
@@ -28,7 +28,7 @@ namespace oblo
 
     struct processed_mesh_resources
     {
-        static processed_mesh_resources from(const static_mesh_component& c)
+        static processed_mesh_resources from(const mesh_component& c)
         {
             return {c.material, c.mesh};
         }

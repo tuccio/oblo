@@ -14,7 +14,7 @@
     #include <oblo/dotnet/components/dotnet_behaviour_component.hpp>
     #include <oblo/ecs/entity_registry.hpp>
     #include <oblo/graphics/components/camera_component.hpp>
-    #include <oblo/graphics/components/static_mesh_component.hpp>
+    #include <oblo/graphics/components/mesh_component.hpp>
     #include <oblo/graphics/components/viewport_component.hpp>
     #include <oblo/math/quaternion.hpp>
     #include <oblo/math/vec3.hpp>

@@ -12,8 +12,8 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/graphics/components/animation_component.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/mat4.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -1403,7 +1403,7 @@ namespace oblo::importers
                         for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives;
                             ++meshIndex)
                         {
-                            const auto m = ecs_utility::create_named_physical_entity<static_mesh_component>(reg,
+                            const auto m = ecs_utility::create_named_physical_entity<mesh_component>(reg,
                                 node.name.c_str(),
                                 e,
                                 vec3::splat(0.f),
@@ -1416,7 +1416,7 @@ namespace oblo::importers
                             const auto& primitive =
                                 m_impl->model.meshes[importMesh.meshIndex].primitives[importMesh.primitiveIndex];
 
-                            auto& sm = reg.get<static_mesh_component>(m);
+                            auto& sm = reg.get<mesh_component>(m);
                             sm.mesh = resource_ref<mesh>{meshNodeConfig.id};
                             sm.material = resource_ref<material>{
                                 primitive.material >= 0 ? m_impl->importMaterials[primitive.material].id : uuid{}};

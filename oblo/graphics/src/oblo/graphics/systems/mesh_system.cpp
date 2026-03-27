@@ -12,9 +12,9 @@
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/graphics/components/animation_component.hpp>
 #include <oblo/graphics/components/gpu_components.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
 #include <oblo/graphics/components/mesh_internal.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/transform.hpp>
 #include <oblo/math/vec3.hpp>
@@ -113,7 +113,7 @@ namespace oblo
             resource_cache* resourceCache,
             draw_registry& drawRegistry,
             ecs::entity entity,
-            const static_mesh_component& meshComponent,
+            const mesh_component& meshComponent,
             [[maybe_unused]] const skin_component* skinComponent,
             ecs::deferred& deferred)
         {
@@ -266,8 +266,8 @@ namespace oblo
         {
             // Just invalidate all entities that we already processed, instead of trying to figure which one use the
             // resources that were invalidated
-            for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
-                     .with<global_transform_component, mesh_processed_tag>())
+            for (auto&& chunk :
+                ctx.entities->range<const mesh_component>().with<global_transform_component, mesh_processed_tag>())
             {
                 for (auto&& e : chunk.get<ecs::entity>())
                 {
@@ -277,12 +277,12 @@ namespace oblo
         }
 
         // Process entities we already processed, in order to react to changes
-        for (auto&& chunk : ctx.entities->range<const processed_mesh_resources, const static_mesh_component>()
+        for (auto&& chunk : ctx.entities->range<const processed_mesh_resources, const mesh_component>()
                  .with<mesh_processed_tag>()
                  .notified())
         {
             for (auto&& [e, cachedRefs, meshComponent] :
-                chunk.zip<ecs::entity, processed_mesh_resources, static_mesh_component>())
+                chunk.zip<ecs::entity, processed_mesh_resources, mesh_component>())
             {
                 if (processed_mesh_resources::from(meshComponent) != cachedRefs)
                 {
@@ -296,7 +296,7 @@ namespace oblo
         dynamic_array<skeleton_joint_index_t> skeletonToSkinMapping{ctx.frameAllocator};
 
         // Process entities that we didn't process yet or we just invalidated
-        for (auto&& chunk : ctx.entities->range<const static_mesh_component>()
+        for (auto&& chunk : ctx.entities->range<const mesh_component>()
                  .with<global_transform_component>()
                  .exclude<mesh_processed_tag>())
         {
@@ -304,7 +304,7 @@ namespace oblo
 
             if (skinComponents.empty())
             {
-                for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, static_mesh_component>())
+                for (auto&& [e, meshComponent] : chunk.zip<ecs::entity, mesh_component>())
                 {
                     constexpr bool withSkin = false;
 
@@ -320,7 +320,7 @@ namespace oblo
             else
             {
                 for (auto&& [e, meshComponent, skinComponent] :
-                    zip_range(chunk.get<ecs::entity>(), chunk.get<static_mesh_component>(), skinComponents))
+                    zip_range(chunk.get<ecs::entity>(), chunk.get<mesh_component>(), skinComponents))
                 {
                     const skin_info* const skinInfo = get_or_add_skin(skinComponent.skin);
 
