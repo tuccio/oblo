@@ -1163,20 +1163,11 @@ namespace oblo::importers
                 joint.parentIndex = parent;
                 joint.name = make_or_get_joint_name(jointNameBuilder, m_impl->model.nodes, index).as<string>();
 
-                if (parent != skeleton::joint::no_parent)
-                {
-                    const auto [translation, rotation, scale] = decompose_node_transform(current);
+                const auto [translation, rotation, scale] = decompose_node_transform(current);
 
-                    joint.translation = translation;
-                    joint.rotation = rotation;
-                    joint.scale = scale;
-                }
-                else
-                {
-                    joint.translation = vec3::splat(0.f);
-                    joint.rotation = quaternion::identity();
-                    joint.scale = vec3::splat(1.f);
-                }
+                joint.translation = translation;
+                joint.rotation = rotation;
+                joint.scale = scale;
 
                 for (const i32 child : current.children)
                 {
