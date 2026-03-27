@@ -21,6 +21,9 @@ namespace oblo::gpu
         case VK_ERROR_DEVICE_LOST:
             return error::device_lost;
 
+        case VK_ERROR_OUT_OF_DATE_KHR:
+            return error::out_of_date;
+
         default:
             return error::undefined;
         }

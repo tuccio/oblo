@@ -2332,6 +2332,15 @@ namespace oblo::gpu::vk
             }
         }
 
+        buffered_array<VkResult, 8> results;
+        VkResult* vkResults{};
+
+        if (!descriptor.outResults.empty())
+        {
+            results.resize_default(waitSemaphores.size());
+            vkResults = results.data();
+        }
+
         const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .waitSemaphoreCount = waitSemaphores.size32(),
@@ -2339,10 +2348,21 @@ namespace oblo::gpu::vk
             .swapchainCount = acquiredSwapchains.size32(),
             .pSwapchains = acquiredSwapchains.data(),
             .pImageIndices = acquiredImageIndices.data(),
-            .pResults = nullptr,
+            .pResults = vkResults,
         };
 
-        return translate_result(vkQueuePresentKHR(get_queue(universal_queue_id).queue, &presentInfo));
+        const result<> r = translate_result(vkQueuePresentKHR(get_queue(universal_queue_id).queue, &presentInfo));
+
+        if (vkResults)
+        {
+            for (usize i = 0; i < results.size(); ++i)
+            {
+                const VkResult r = results[i];
+                descriptor.outResults[i] = translate_result(r);
+            }
+        }
+
+        return r;
     }
 
     result<> vulkan_instance::wait_idle()

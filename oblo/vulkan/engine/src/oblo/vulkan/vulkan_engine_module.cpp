@@ -69,6 +69,32 @@ namespace oblo::vk
             return true;
         }
 
+        void wait_gpu_idle(gpu::gpu_instance& ctx)
+        {
+            OBLO_PROFILE_SCOPE();
+
+            if (!ctx.wait_idle())
+            {
+                log::error("Failed to wait for GPU idle");
+            }
+        }
+
+        gpu::result<> wait_gpu_submit(gpu::gpu_instance& ctx, u64 submitIndex)
+        {
+            OBLO_PROFILE_SCOPE();
+            return ctx.wait_for_submit_completion(submitIndex);
+        }
+
+        void wait_for_last_gpu_submission(gpu::gpu_instance& ctx)
+        {
+            OBLO_PROFILE_SCOPE();
+
+            if (!ctx.wait_for_submit_completion(ctx.get_submit_index()))
+            {
+                log::error("Failed to wait for last GPU submission");
+            }
+        }
+
         struct renderer_options
         {
             // We only read this at startup, any change requires a reset
@@ -91,7 +117,7 @@ namespace oblo::vk
             string outName;
 
             bool swapchainVisible = true;
-            bool swapchainResized = false;
+            bool shouldRecreate = false;
             bool markedForDestruction = false;
 
             bool initialize(gpu::gpu_instance& ctx, native_window_handle wh, u32 w, u32 h)
@@ -149,7 +175,7 @@ namespace oblo::vk
             void shutdown(gpu::gpu_instance& ctx)
             {
                 // Should probably just delay defer destruction through the context instead
-                ctx.wait_idle().assert_value();
+                wait_gpu_idle(ctx);
 
                 if (swapchain)
                 {
@@ -176,6 +202,14 @@ namespace oblo::vk
             {
                 do
                 {
+                    if (!swapchain)
+                    {
+                        if (!create_swapchain(ctx) || !swapchain)
+                        {
+                            return "Failed to re-create swapchain"_err;
+                        }
+                    }
+
                     const expected r = ctx.acquire_swapchain_image(swapchain, acquiredImageSemaphores[semaphoreIndex]);
 
                     if (r)
@@ -184,13 +218,8 @@ namespace oblo::vk
                     }
                     else if (r.error() == gpu::error::out_of_date)
                     {
-                        ctx.wait_idle().assert_value();
+                        wait_for_last_gpu_submission(ctx);
                         destroy_swapchain(ctx);
-
-                        if (!create_swapchain(ctx))
-                        {
-                            return "Failed to create swapchain after it went out of date"_err;
-                        }
 
                         // Try again
                         continue;
@@ -212,7 +241,7 @@ namespace oblo::vk
             {
                 width = w;
                 height = h;
-                swapchainResized = true;
+                shouldRecreate = true;
             }
 
             void on_destroy() override
@@ -385,7 +414,7 @@ namespace oblo::vk
     {
         if (isFullyInitialized)
         {
-            ctx.wait_idle().assert_value();
+            wait_gpu_idle(ctx);
 
             for (auto& windowContext : windowContexts)
             {
@@ -504,7 +533,7 @@ namespace oblo::vk
         acquiredImageSemaphores.clear();
         contextsToRender.clear();
 
-        const expected waitResult = ctx.wait_for_submit_completion(presentDoneSubmitIndex[semaphoreIndex]);
+        const expected waitResult = wait_gpu_submit(ctx, presentDoneSubmitIndex[semaphoreIndex]);
 
         if (!waitResult)
         {
@@ -530,11 +559,12 @@ namespace oblo::vk
                 continue;
             }
 
-            if (windowCtx->swapchainResized)
+            if (windowCtx->shouldRecreate)
             {
+                wait_for_last_gpu_submission(ctx);
                 windowCtx->destroy_swapchain(ctx);
                 windowCtx->create_swapchain(ctx);
-                windowCtx->swapchainResized = false;
+                windowCtx->shouldRecreate = false;
                 continue;
             }
 
@@ -602,14 +632,31 @@ namespace oblo::vk
                })
             .assert_value();
 
+        buffered_array<gpu::result<>, 8> results;
+        results.assign(acquiredSwapchains.size(), no_error);
+
         const expected presentResult = ctx.present({
             .swapchains = acquiredSwapchains,
             .waitSemaphores = {&frameCompletedSemaphore[semaphoreIndex], 1},
+            .outResults = results,
         });
 
-        if (!presentResult && presentResult.error() != gpu::error::out_of_date)
+        if (!presentResult)
         {
-            log::error("Failed to present GPU back-buffer");
+            if (presentResult.error() == gpu::error::out_of_date)
+            {
+                for (usize i = 0; i < results.size(); ++i)
+                {
+                    if (results[i])
+                    {
+                        windowContexts[i]->shouldRecreate = true;
+                    }
+                }
+            }
+            else
+            {
+                log::error("Failed to present GPU back-buffer");
+            }
         }
 
         semaphoreIndex = (semaphoreIndex + 1) % g_SwapchainImages;

@@ -5,6 +5,7 @@
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/variant.hpp>
 #include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/math/vec2i.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -136,6 +137,7 @@ namespace oblo::gpu
     {
         std::span<const h32<swapchain>> swapchains;
         std::span<const h32<semaphore>> waitSemaphores;
+        std::span<result<>> outResults;
     };
 
     struct queue_submit_descriptor
