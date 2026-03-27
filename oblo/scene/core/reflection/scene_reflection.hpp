@@ -11,9 +11,11 @@
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
 #include <oblo/scene/components/tags.hpp>
+#include <oblo/scene/resources/animation.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/registration.hpp>
+#include <oblo/scene/resources/skeleton.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/flags.hpp>
+#include <oblo/core/forward.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 
 namespace oblo::platform
@@ -64,6 +65,11 @@ namespace oblo::platform
         /// @param name The name of the symbol to retrieve.
         /// @return Pointer to the symbol, or nullptr if not found.
         void* symbol(const char* name) const;
+
+        /// @brief Gets the path to the shared library on filesystem.
+        /// @param path A string builder that will be used to output the path.
+        /// @return True on success, false on failure.
+        bool get_path(string_builder& path) const;
 
     private:
         void* m_handle{};

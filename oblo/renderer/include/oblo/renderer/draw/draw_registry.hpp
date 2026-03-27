@@ -40,11 +40,18 @@ namespace oblo
         u32 count;
     };
 
+    enum class batch_kind : u8
+    {
+        instance_data,
+        draw,
+    };
+
     struct batch_draw_data
     {
         draw_instance_buffers instanceBuffers;
         u32 instanceTableId;
         u32 numInstances;
+        batch_kind kind;
     };
 
     class draw_registry

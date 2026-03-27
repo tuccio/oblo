@@ -124,6 +124,7 @@ namespace oblo::ecs
 
         const u32 numEntitiesPerChunk = u32((ChunkSize - paddingWorstCase) / columnsSizeSum);
         storage->numEntitiesPerChunk = numEntitiesPerChunk;
+        OBLO_ASSERT(numEntitiesPerChunk != 0);
 
         u32 currentOffset = 0;
 

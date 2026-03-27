@@ -42,11 +42,11 @@ namespace oblo::editor
 
         void end() {}
 
-        bool build_property_table(const property_tree& tree, std::byte* const data)
+        bool build_property_table(const property_tree& tree, byte* const data)
         {
             bool modified = false;
 
-            auto* ptr = data;
+            byte* ptr = data;
 
             ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
 
@@ -54,55 +54,137 @@ namespace oblo::editor
 
             if (ui::property_table::begin())
             {
+                buffered_array<usize, 8> arrayIndices;
+
+                string_builder nameBuilder;
+
                 visit(tree,
                     overload{
-                        [this, &ptr, &tree, &modified](const property_node& node, const property_node_start)
+                        [this, &ptr, &tree, &modified, &nameBuilder, &arrayIndices](const property_node& node,
+                            const property_node_start)
                         {
                             ptr += node.offset;
+
+                            create_property_path(nameBuilder.clear(), tree, node, arrayIndices);
 
                             if (node.type == get_type_id<vec3>())
                             {
                                 if (find_attribute<linear_color_tag>(tree, node))
                                 {
-                                    modified |= build_linear_color_editor(node, ptr);
+                                    modified |= build_linear_color_editor(node, ptr, nameBuilder.c_str());
                                     return visit_result::sibling;
                                 }
 
-                                modified |= build_vec3_editor(node, ptr);
+                                modified |= build_vec3_editor(node, ptr, nameBuilder.c_str());
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<quaternion>())
                             {
-                                modified |= build_quaternion_editor(node, ptr);
+                                modified |= build_quaternion_editor(node, ptr, nameBuilder.c_str());
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<mat4>())
                             {
                                 auto* const v = new (ptr) mat4;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
+                                modified |=
+                                    ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *v);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<radians>())
                             {
                                 auto* const r = new (ptr) radians;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
+                                modified |=
+                                    ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
                                 return visit_result::sibling;
                             }
 
                             if (node.type == get_type_id<degrees>())
                             {
                                 auto* const r = new (ptr) degrees;
-                                modified |= ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *r);
+                                modified |=
+                                    ui::property_table::add(int(hash_mix(node.offset, 0)), nameBuilder.c_str(), *r);
                                 return visit_result::sibling;
+                            }
+
+                            // Just for the purpose of inspecting values
+                            if (node.type.name.starts_with("oblo::handle"))
+                            {
+                                const reflection::type_handle typeHandle = m_reflection->find_type(node.type);
+
+                                if (typeHandle)
+                                {
+                                    const reflection::type_data typeData = m_reflection->get_type_data(typeHandle);
+
+                                    union {
+                                        u32 u32;
+                                        u64 u64;
+                                    } value;
+
+                                    switch (typeData.size)
+                                    {
+                                    case sizeof(u32):
+                                        std::memcpy(&value.u32, ptr, sizeof(u32));
+
+                                        ImGui::BeginDisabled();
+
+                                        ui::property_table::add(int(hash_mix(node.offset, 0)),
+                                            nameBuilder.c_str(),
+                                            value.u32);
+
+                                        ImGui::EndDisabled();
+
+                                        return visit_result::sibling;
+
+                                    case sizeof(u64):
+                                        std::memcpy(&value.u64, ptr, sizeof(u64));
+
+                                        ImGui::BeginDisabled();
+
+                                        ui::property_table::add(int(hash_mix(node.offset, 0)),
+                                            nameBuilder.c_str(),
+                                            value.u64);
+
+                                        ImGui::EndDisabled();
+
+                                        return visit_result::sibling;
+                                    }
+                                }
                             }
 
                             return visit_result::recurse;
                         },
                         [&ptr](const property_node& node, const property_node_finish) { ptr -= node.offset; },
-                        [](const property_node&, const property_array&, auto&&) { return visit_result::sibling; },
+                        [&ptr,
+                            &arrayIndices](const property_node& node, const property_array& array, auto&& visitElement)
+                        {
+                            byte* const parentPtr = ptr;
+                            byte* const arrayPtr = parentPtr + node.offset;
+
+                            const usize arraySize = array.size(arrayPtr);
+
+                            arrayIndices.emplace_back();
+
+                            for (u32 i = 0; i < arraySize; ++i)
+                            {
+                                byte* const elementPtr = static_cast<byte*>(array.at(arrayPtr, i));
+                                ptr = elementPtr;
+
+                                arrayIndices.back() = i;
+
+                                ImGui::PushID(int(hash_mix(node.offset, i)));
+                                visitElement();
+                                ImGui::PopID();
+                            }
+
+                            arrayIndices.pop_back();
+
+                            ptr = parentPtr;
+
+                            return visit_result::sibling;
+                        },
                         [this, &ptr, &tree, &modified, &nextStringBufferIdx](const property& property)
                         {
                             const auto makeId = [&property]() -> ui::property_table::id_t
@@ -142,8 +224,20 @@ namespace oblo::editor
                                 modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) f32);
                                 break;
 
+                            case property_kind::i32:
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) i32);
+                                break;
+
+                            case property_kind::i64:
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) i64);
+                                break;
+
                             case property_kind::u32:
                                 modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) u32);
+                                break;
+
+                            case property_kind::u64:
+                                modified |= ui::property_table::add(makeId(), property.name, *new (propertyPtr) u64);
                                 break;
 
                             case property_kind::boolean:
@@ -219,22 +313,22 @@ namespace oblo::editor
         }
 
     private:
-        bool build_quaternion_editor(const property_node& node, std::byte* const data)
+        bool build_quaternion_editor(const property_node& node, std::byte* const data, const char* name)
         {
             auto* const q = new (data) quaternion;
-            return ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *q);
+            return ui::property_table::add(int(hash_mix(node.offset, 0)), name, *q);
         }
 
-        bool build_vec3_editor(const property_node& node, std::byte* const data)
+        bool build_vec3_editor(const property_node& node, std::byte* const data, const char* name)
         {
             auto* const v = new (data) vec3;
-            return ui::property_table::add(int(hash_mix(node.offset, 0)), node.name, *v);
+            return ui::property_table::add(int(hash_mix(node.offset, 0)), name, *v);
         }
 
-        bool build_linear_color_editor(const property_node& node, std::byte* const data)
+        bool build_linear_color_editor(const property_node& node, std::byte* const data, const char* name)
         {
             auto* const v = new (data) vec3;
-            return ui::property_table::add_color(int(hash_mix(node.offset, 0)), node.name, *v);
+            return ui::property_table::add_color(int(hash_mix(node.offset, 0)), name, *v);
         }
 
     private:

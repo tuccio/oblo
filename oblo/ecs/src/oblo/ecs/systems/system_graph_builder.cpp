@@ -65,7 +65,7 @@ namespace oblo::ecs
 
                 if (it == m_barrier.end())
                 {
-                    return "System operation failed"_err;
+                    return "Failed to find system barrier"_err;
                 }
 
                 for (const auto self : systems.identity)
@@ -83,7 +83,7 @@ namespace oblo::ecs
 
                 if (it == m_barrier.end())
                 {
-                    return "System operation failed"_err;
+                    return "Failed to find system barrier"_err;
                 }
 
                 for (const auto self : systems.identity)

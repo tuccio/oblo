@@ -13,22 +13,22 @@ namespace oblo
         template <u32 Size>
         consteval auto choose_underlying_type()
         {
-            if constexpr (Size < 8)
+            if constexpr (Size <= 8)
             {
                 return u8{};
             }
 
-            else if constexpr (Size < 16)
+            else if constexpr (Size <= 16)
             {
                 return u16{};
             }
 
-            else if constexpr (Size < 32)
+            else if constexpr (Size <= 32)
             {
                 return u32{};
             }
 
-            else if constexpr (Size < 64)
+            else if constexpr (Size <= 64)
             {
                 return u64{};
             }

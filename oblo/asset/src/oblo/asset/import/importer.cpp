@@ -215,8 +215,6 @@ namespace oblo
 
         if (m_isReimport)
         {
-            OBLO_ASSERT(destination.empty());
-
             auto* const assetFSPath = registry.get_asset_filesystem_path(m_assetId);
 
             if (!assetFSPath)

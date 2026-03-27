@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/forward.hpp>
+#include <oblo/core/types.hpp>
 
 namespace oblo::platform
 {
@@ -42,7 +43,7 @@ namespace oblo::platform
         return is_linux();
     }
 
-    constexpr bool is_x86_64() noexcept
+    consteval bool is_x86_64() noexcept
     {
 #if defined(__x86_64__) || defined(_M_X64)
         return true;
@@ -51,7 +52,7 @@ namespace oblo::platform
 #endif
     }
 
-    constexpr bool is_avx2() noexcept
+    consteval bool is_avx2() noexcept
     {
 #if defined(__AVX2__)
         return true;
@@ -59,4 +60,24 @@ namespace oblo::platform
         return false;
 #endif
     }
+
+    consteval bool is_little_endian() noexcept
+    {
+        constexpr u32 little{0x41424344u};
+        constexpr u32 native{'ABCD'};
+
+        return native == little;
+    }
+
+    consteval bool is_big_endian() noexcept
+    {
+        return !is_little_endian();
+    }
+
+    enum class endian : u8
+    {
+        little,
+        big,
+        native = is_little_endian() ? little : big,
+    };
 }

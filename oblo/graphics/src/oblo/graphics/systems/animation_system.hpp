@@ -7,21 +7,18 @@ namespace oblo::ecs
 
 namespace oblo
 {
-    class draw_registry;
-    class resource_cache;
-    struct draw_buffer;
-
+    class property_registry;
     class resource_registry;
+    class resource_cache;
 
-    class static_mesh_system
+    class animation_system
     {
     public:
         void first_update(const ecs::system_update_context& ctx);
         void update(const ecs::system_update_context& ctx);
 
     private:
-        draw_registry* m_drawRegistry{};
-        const resource_registry* m_resourceRegistry;
-        resource_cache* m_resourceCache;
+        const resource_registry* m_resourceRegistry{};
+        const property_registry* m_propertyRegistry{};
     };
 }

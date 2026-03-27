@@ -47,4 +47,9 @@ mesh_table mesh_table_fetch(in mesh_handle h)
     return g_MeshTables[mesh_handle_as_table_index(h)];
 }
 
+bool mesh_table_has_attributes(in mesh_table t, in uint meshAttributes)
+{
+    return (t.attributesMask & meshAttributes) != 0;
+}
+
 #endif

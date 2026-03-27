@@ -5,6 +5,11 @@
 
 #include <span>
 
+namespace oblo
+{
+    class resource_registry;
+}
+
 namespace oblo::ecs
 {
     class entity_registry;
@@ -31,7 +36,8 @@ namespace oblo::editor
         operation get_operation() const;
         void set_operation(operation op);
 
-        bool handle(ecs::entity_registry& reg,
+        bool handle(const resource_registry& resources,
+            ecs::entity_registry& reg,
             std::span<const ecs::entity> entities,
             vec2 origin,
             vec2 size,

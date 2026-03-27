@@ -45,7 +45,9 @@ namespace oblo::editor::ui
 
         bool add(id_t id, string_view name, bool& v);
         bool add(id_t id, string_view name, i32& v);
+        bool add(id_t id, string_view name, i64& v);
         bool add(id_t id, string_view name, u32& v);
+        bool add(id_t id, string_view name, u64& v);
         bool add(id_t id, string_view name, f32& v);
 
         bool add(id_t id, string_view name, vec2& v);

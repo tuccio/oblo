@@ -74,7 +74,15 @@ void main()
         return;
     }
 
+    // We assume the i_MeshHandles is here, the draw call generation should make sure to process only compatible meshes
     const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, drawId);
+
+    // There are some error cases where this might end up not being set, so it's better to be defensive, since we'd end
+    // up trying to read the AABB out-of-bounds and potentially crashing
+    if (meshHandle.value == 0)
+    {
+        return;
+    }
 
     // Instance id and draw id are the same since we don't support instancing currently
     const transform instanceTransform = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_TransformBuffer, drawId);

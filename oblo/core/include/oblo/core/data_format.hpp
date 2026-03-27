@@ -1,10 +1,12 @@
 #pragma once
 
+#include <oblo/core/pair.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unreachable.hpp>
 
 namespace oblo
 {
+    // NOTE: This is serialized as binary, so changes might require rebuilding all artifacts
     enum class data_format : u8
     {
         i8,
@@ -19,10 +21,17 @@ namespace oblo
         f64,
         vec2,
         vec3,
+        vec4,
+        vec2u16,
+        vec3u16,
+        vec4u16,
+        vec2u,
+        vec3u,
+        vec4u,
         enum_max
     };
 
-    constexpr std::pair<usize, usize> get_size_and_alignment(data_format format)
+    constexpr pair<usize, usize> get_size_and_alignment(data_format format)
     {
         switch (format)
         {
@@ -46,10 +55,28 @@ namespace oblo
             return {sizeof(f32), alignof(f32)};
         case data_format::f64:
             return {sizeof(f64), alignof(f64)};
+
         case data_format::vec2:
             return {sizeof(f32) * 2, alignof(f32)};
         case data_format::vec3:
             return {sizeof(f32) * 3, alignof(f32)};
+        case data_format::vec4:
+            return {sizeof(f32) * 4, alignof(f32)};
+
+        case data_format::vec2u:
+            return {sizeof(u32) * 2, alignof(u32)};
+        case data_format::vec3u:
+            return {sizeof(u32) * 3, alignof(u32)};
+        case data_format::vec4u:
+            return {sizeof(u32) * 4, alignof(u32)};
+
+        case data_format::vec2u16:
+            return {sizeof(u16) * 2, alignof(u16)};
+        case data_format::vec3u16:
+            return {sizeof(u16) * 3, alignof(u16)};
+        case data_format::vec4u16:
+            return {sizeof(u16) * 4, alignof(u16)};
+
         default:
             unreachable();
         }

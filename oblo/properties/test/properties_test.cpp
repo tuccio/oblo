@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <oblo/core/overload.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/variant.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
@@ -55,46 +55,6 @@ namespace oblo
             three_ints c;
             both d;
         };
-
-        const property* find_property(const property_tree& tree, std::initializer_list<const string_view> chain)
-        {
-            const property* res{};
-
-            auto it = chain.begin();
-
-            visit(tree,
-                overload{
-                    [](auto&&...) { return visit_result::recurse; },
-                    [&it](const property_node& node, const property_node_start)
-                    {
-                        if (node.name == *it)
-                        {
-                            ++it;
-                            return visit_result::recurse;
-                        }
-
-                        return visit_result::sibling;
-                    },
-                    [](const property_node&, const property_node_finish) {},
-                    [&it, &chain, &res](const property& property)
-                    {
-                        if (property.name == *it)
-                        {
-                            if (++it == chain.end())
-                            {
-                                res = &property;
-                            }
-
-                            return visit_result::terminate;
-                        }
-
-                        return visit_result::sibling;
-                    },
-                });
-
-            return res;
-        }
-
     }
 
     TEST(properties, hierarchical)
@@ -127,10 +87,26 @@ namespace oblo
 
         ASSERT_EQ(tree->properties.size(), 11);
 
-        const auto* ab = find_property(*tree, {"a", "b"});
-        ASSERT_TRUE(ab);
+        {
+            const property_node* aResult{};
+            const property* aDummy{};
 
-        ASSERT_EQ(ab->kind, property_kind::boolean);
+            ASSERT_TRUE(find_property_or_node_by_path(*tree, "a", &aResult, &aDummy));
+            ASSERT_TRUE(aResult);
+            ASSERT_FALSE(aDummy);
+            ASSERT_EQ(aResult->name, "a");
+        }
+
+        {
+            const property_node* bDummy{};
+            const property* bResult{};
+
+            ASSERT_TRUE(find_property_or_node_by_path(*tree, "a.b", &bDummy, &bResult));
+            ASSERT_TRUE(bResult);
+            ASSERT_FALSE(bDummy);
+            ASSERT_EQ(bResult->name, "b");
+            ASSERT_EQ(bResult->kind, property_kind::boolean);
+        }
     }
 
     TEST(properties, flat_pod)

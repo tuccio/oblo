@@ -16,8 +16,8 @@
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
 #include <oblo/graphics/components/skybox_component.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/input/input_queue.hpp>
 #include <oblo/math/quaternion.hpp>
@@ -49,7 +49,7 @@ namespace oblo::editor
         on_close();
     }
 
-    void viewport::init(const window_update_context& ctx)
+    bool viewport::init(const window_update_context& ctx)
     {
         m_editorWorld = ctx.services.find<editor_world>();
         OBLO_ASSERT(m_editorWorld);
@@ -74,6 +74,11 @@ namespace oblo::editor
         auto* const reflection = ctx.services.find<const reflection::reflection_registry>();
         const auto viewportMode = reflection->find_enum<viewport_mode>();
 
+        if (!viewportMode)
+        {
+            return false;
+        }
+
         const std::span viewportModeNames = reflection->get_enumerator_names(viewportMode);
         const std::span viewportModeValues = reflection->get_enumerator_values(viewportMode);
 
@@ -86,6 +91,8 @@ namespace oblo::editor
 
             m_viewportModes[value] = viewportModeNames[i];
         }
+
+        return true;
     }
 
     bool viewport::update(const window_update_context& ctx)
@@ -158,7 +165,8 @@ namespace oblo::editor
                 // Maybe use item size?
                 m_gizmoHandler.set_id(m_viewportId);
 
-                const auto gizmoActive = m_gizmoHandler.handle(*m_entities,
+                const auto gizmoActive = m_gizmoHandler.handle(*m_resources,
+                    *m_entities,
                     m_selection->get(),
                     {viewportPos.x, viewportPos.y},
                     {windowSize.x, windowSize.y},
@@ -402,14 +410,14 @@ namespace oblo::editor
                 {
                     const auto name = meshRes.get_name();
 
-                    const auto e = ecs_utility::create_named_physical_entity<static_mesh_component>(*m_entities,
+                    const auto e = ecs_utility::create_named_physical_entity<mesh_component>(*m_entities,
                         name.empty() ? "New Mesh" : name,
                         {},
                         vec3{},
                         quaternion::identity(),
                         vec3::splat(1));
 
-                    auto& sm = m_entities->get<static_mesh_component>(e);
+                    auto& sm = m_entities->get<mesh_component>(e);
                     sm.mesh = mesh;
                     sm.material = material;
 

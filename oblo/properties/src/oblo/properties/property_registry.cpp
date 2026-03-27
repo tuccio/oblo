@@ -53,10 +53,10 @@ namespace oblo
             kindLookups.emplace(get_type_id<u32>(), property_kind::u32);
             kindLookups.emplace(get_type_id<u64>(), property_kind::u64);
 
-            kindLookups.emplace(get_type_id<i8>(), property_kind::u8);
-            kindLookups.emplace(get_type_id<i16>(), property_kind::u16);
-            kindLookups.emplace(get_type_id<i32>(), property_kind::u32);
-            kindLookups.emplace(get_type_id<i64>(), property_kind::u64);
+            kindLookups.emplace(get_type_id<i8>(), property_kind::i8);
+            kindLookups.emplace(get_type_id<i16>(), property_kind::i16);
+            kindLookups.emplace(get_type_id<i32>(), property_kind::i32);
+            kindLookups.emplace(get_type_id<i64>(), property_kind::i64);
 
             kindLookups.emplace(get_type_id<uuid>(), property_kind::uuid);
             kindLookups.emplace(get_type_id<string>(), property_kind::string);
@@ -333,7 +333,8 @@ namespace oblo
 
     namespace
     {
-        void post_visit_append(string_builder& builder, const property_tree& tree, u32 id)
+        void post_visit_append(
+            string_builder& builder, const property_tree& tree, u32 id, std::span<const usize> arrayIndices)
         {
             if (id == 0)
             {
@@ -341,27 +342,147 @@ namespace oblo
             }
 
             const auto& node = tree.nodes[id];
-            post_visit_append(builder, tree, node.parent);
 
-            builder.append(node.name);
-            builder.append(".");
+            const bool withArrayIndex = node.isArray && !arrayIndices.empty();
+
+            post_visit_append(builder,
+                tree,
+                node.parent,
+                withArrayIndex ? arrayIndices.subspan(0, arrayIndices.size() - 1) : arrayIndices);
+
+            if (!node.name.starts_with(meta_properties::prefix))
+            {
+                builder.append(node.name);
+
+                if (withArrayIndex)
+                {
+                    builder.format("[{}]", arrayIndices.back());
+                }
+
+                builder.append(".");
+            }
         }
-
     }
 
     void create_property_path(string_builder& builder, const property_tree& tree, const property& property)
     {
-        post_visit_append(builder, tree, property.parent);
-        builder.append(property.name);
+        create_property_path(builder, tree, property, {});
     }
 
     void create_property_path(string_builder& builder, const property_tree& tree, const property_node& node)
     {
-        post_visit_append(builder, tree, narrow_cast<u32>(&node - tree.nodes.data()));
+        create_property_path(builder, tree, node, {});
+    }
+
+    void create_property_path(string_builder& builder,
+        const property_tree& tree,
+        const property& property,
+        std::span<const usize> arrayIndices)
+    {
+        post_visit_append(builder, tree, property.parent, arrayIndices);
+        builder.append(property.name);
+    }
+
+    void create_property_path(string_builder& builder,
+        const property_tree& tree,
+        const property_node& node,
+        std::span<const usize> arrayIndices)
+    {
+        post_visit_append(builder, tree, narrow_cast<u32>(&node - tree.nodes.data()), arrayIndices);
 
         if (builder.view().ends_with("."))
         {
             builder.pop_back();
         }
+    }
+
+    [[nodiscard]] bool find_property_or_node_by_path(
+        const property_tree& tree, string_view path, const property_node** outNode, const property** outProperty)
+    {
+        usize end = path.find_first_of('.');
+        usize begin = 0u;
+
+        u32 nodeIdx = 0;
+
+        while (true)
+        {
+            if (nodeIdx >= tree.nodes.size())
+            {
+                return false;
+            }
+
+            const string_view currentTarget = path.substr(begin, end);
+
+            const bool isLastProperty = end == string_view::npos;
+
+            bool found = false;
+
+            for (u32 childIdx = tree.nodes[nodeIdx].firstChild; childIdx != 0;)
+            {
+                const property_node& child = tree.nodes[childIdx];
+
+                if (child.name == currentTarget)
+                {
+                    if (isLastProperty)
+                    {
+                        if (outNode)
+                        {
+                            *outNode = &child;
+                        }
+
+                        return true;
+                    }
+
+                    nodeIdx = childIdx;
+                    found = true;
+                    break;
+                }
+
+                childIdx = child.firstSibling;
+            }
+
+            if (found)
+            {
+                continue;
+            }
+
+            if (isLastProperty)
+            {
+                for (u32 childPropertyIdx = tree.nodes[nodeIdx].firstProperty; childPropertyIdx != 0;)
+                {
+                    const property& child = tree.properties[childPropertyIdx];
+
+                    if (child.name == currentTarget)
+                    {
+                        if (outProperty)
+                        {
+                            *outProperty = &child;
+                        }
+
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            OBLO_ASSERT(end != string_view::npos, "We should handle this case earlier");
+            // End here points to a '.', so we skip forward by one
+            begin = end + 1;
+
+            // Find the next '.' for the next iteration, we lave it to npos if none is found
+            end = string_view::npos;
+
+            for (usize i = begin; i != path.size(); ++i)
+            {
+                if (path[i] == '.')
+                {
+                    end = i;
+                    break;
+                }
+            }
+        }
+
+        return false;
     }
 }

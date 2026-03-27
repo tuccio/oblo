@@ -1,20 +1,13 @@
 #include <oblo/editor/windows/inspector.hpp>
 
-#include <oblo/core/array_size.hpp>
-#include <oblo/core/hash.hpp>
-#include <oblo/core/overload.hpp>
 #include <oblo/core/string/string_builder.hpp>
-#include <oblo/core/utility.hpp>
-#include <oblo/core/uuid.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
-#include <oblo/ecs/tag_type_desc.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/services/component_factory.hpp>
 #include <oblo/editor/services/editor_world.hpp>
 #include <oblo/editor/services/selected_entities.hpp>
 #include <oblo/editor/ui/artifact_picker.hpp>
-#include <oblo/editor/ui/property_table.hpp>
 #include <oblo/editor/utility/data_inspector.hpp>
 #include <oblo/editor/utility/entity_utility.hpp>
 #include <oblo/editor/window_update_context.hpp>

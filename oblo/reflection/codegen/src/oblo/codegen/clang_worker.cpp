@@ -325,8 +325,8 @@ namespace oblo::gen
         {
             target_data& targetReflection = *reinterpret_cast<target_data*>(userdata);
 
-            if (clang_isCursorDefinition(cursor) && cursor.kind == CXCursor_ClassDecl ||
-                cursor.kind == CXCursor_StructDecl)
+            if (clang_isCursorDefinition(cursor) &&
+                (cursor.kind == CXCursor_ClassDecl || cursor.kind == CXCursor_StructDecl))
             {
                 // TODO: We should determine whether the definition belongs to the project (i.e. is the file it's
                 // defined in within the project directory?)

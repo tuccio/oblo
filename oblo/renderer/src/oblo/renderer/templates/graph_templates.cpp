@@ -50,6 +50,7 @@ namespace oblo::main_view
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceTables, InInstanceTables);
         graph.make_input(viewBuffers, &view_buffers_node::inInstanceBuffers, InInstanceBuffers);
         graph.make_input(viewBuffers, &view_buffers_node::inMeshDatabase, InMeshDatabase);
+        graph.make_input(viewBuffers, &view_buffers_node::inMeshDatabase, InMeshDatabase);
 
         // View light data node
         graph.make_input(viewLightData, &view_light_data_provider::inLights, InLights);
@@ -65,6 +66,8 @@ namespace oblo::main_view
         graph.make_input(renderWorldData, &render_world_provider::inOutRenderWorld, InRenderWorld);
 
         // Visibility pass outputs, useful for other graphs (e.g shadows)
+        graph.make_input(visibilityPass, &visibility_pass::inEntitySetBuffer, InEcsEntitySetBuffer);
+
         graph.make_output(visibilityPass, &visibility_pass::outVisibilityBuffer, OutVisibilityBuffer);
         graph.make_output(visibilityPass, &visibility_pass::outDepthBuffer, OutDepthBuffer);
         graph.make_output(visibilityPass, &visibility_pass::outLastFrameDepthBuffer, OutLastFrameDepthBuffer);

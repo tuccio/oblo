@@ -7,7 +7,7 @@
 #include <oblo/core/data_format.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/string_builder.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec3.hpp>
@@ -484,7 +484,7 @@ namespace oblo::importers
                         const auto& importMesh = m_impl->importMeshes[meshIndex];
                         const auto& meshNode = importNodes[importMesh.nodeIndex];
 
-                        const auto m = ecs_utility::create_named_physical_entity<static_mesh_component>(reg,
+                        const auto m = ecs_utility::create_named_physical_entity<mesh_component>(reg,
                             meshNode.name,
                             e,
                             vec3::splat(0.f),
@@ -495,7 +495,7 @@ namespace oblo::importers
 
                         const auto& meshNodeConfig = importNodeConfigs[importMesh.nodeIndex];
 
-                        auto& sm = reg.get<static_mesh_component>(m);
+                        auto& sm = reg.get<mesh_component>(m);
                         sm.mesh = resource_ref<mesh>{meshNodeConfig.id};
                         sm.material = resource_ref<material>{materialIndex < scene->mNumMaterials
                                 ? importNodeConfigs[m_impl->importMaterials[materialIndex].nodeIndex].id

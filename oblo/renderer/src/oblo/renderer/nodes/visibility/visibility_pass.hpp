@@ -19,6 +19,7 @@ namespace oblo
 
         pin::buffer inCameraBuffer;
         pin::buffer inMeshDatabase;
+        pin::buffer inEntitySetBuffer;
 
         pin::buffer inInstanceTables;
         pin::data<instance_data_table_buffers_span> inInstanceBuffers;

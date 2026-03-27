@@ -93,12 +93,32 @@ namespace oblo::editor::ui
         return r;
     }
 
+    bool property_table::add(id_t id, string_view name, i64& v)
+    {
+        setup_property(name);
+
+        ImGui::PushID(id);
+        const bool r = ImGui::DragScalar("", ImGuiDataType_S64, &v);
+        ImGui::PopID();
+        return r;
+    }
+
     bool property_table::add(id_t id, string_view name, u32& v)
     {
         setup_property(name);
 
         ImGui::PushID(id);
         const bool r = ImGui::DragScalar("", ImGuiDataType_U32, &v);
+        ImGui::PopID();
+        return r;
+    }
+
+    bool property_table::add(id_t id, string_view name, u64& v)
+    {
+        setup_property(name);
+
+        ImGui::PushID(id);
+        const bool r = ImGui::DragScalar("", ImGuiDataType_U64, &v);
         ImGui::PopID();
         return r;
     }

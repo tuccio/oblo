@@ -18,6 +18,11 @@ layout(buffer_reference) buffer Vec3AttributeType
     vec3_attribute values[];
 };
 
+layout(buffer_reference) buffer Vec4AttributeType
+{
+    vec4 values[];
+};
+
 layout(buffer_reference) buffer U32AttributeType
 {
     uint values[];

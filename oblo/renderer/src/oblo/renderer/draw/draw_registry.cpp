@@ -56,6 +56,8 @@ namespace oblo
             tangent,
             bitangent,
             uv0,
+            joint_indices,
+            joint_weights,
             enum_max,
         };
 
@@ -80,7 +82,10 @@ namespace oblo
                 return vertex_attributes::tangent;
             case attribute_kind::bitangent:
                 return vertex_attributes::bitangent;
-
+            case attribute_kind::joint_indices:
+                return vertex_attributes::joint_indices;
+            case attribute_kind::joint_weights:
+                return vertex_attributes::joint_weights;
             default:
                 unreachable();
             }
@@ -204,6 +209,16 @@ namespace oblo
             .elementSize = sizeof(f32) * 2,
         };
 
+        attributes[u32(vertex_attributes::joint_indices)] = {
+            .name = interner.get_or_add("in_JointIndices"_hsv).rebind<buffer_table_name>(),
+            .elementSize = sizeof(u16) * 4,
+        };
+
+        attributes[u32(vertex_attributes::joint_weights)] = {
+            .name = interner.get_or_add("in_JointWeights"_hsv).rebind<buffer_table_name>(),
+            .elementSize = sizeof(f32) * 4,
+        };
+
         OBLO_ASSERT(
             [&attributes]
             {
@@ -274,6 +289,13 @@ namespace oblo
         for (const auto& [type, info] : instanceDataTypeRegistry)
         {
             const auto componentType = m_typeRegistry->find_component(type);
+
+            if (!componentType)
+            {
+                log::error("Failed to find component type for instance data type {}", type.name);
+                OBLO_ASSERT(componentType);
+                continue;
+            }
 
             m_instanceDataTypeNames.emplace(componentType, info.gpuBufferId);
             m_instanceDataTypes.add(componentType);
@@ -364,7 +386,7 @@ namespace oblo
 
             if (const auto kind = meshAttribute.kind; is_vertex_attribute(kind))
             {
-                const auto a = convert_vertex_attribute(kind);
+                const vertex_attributes a = convert_vertex_attribute(kind);
                 meshAttributes[vertexAttributesCount] = kind;
                 attributeIds[vertexAttributesCount] = u32(a);
                 attributeFlags |= a;
@@ -518,6 +540,8 @@ namespace oblo
 
     void draw_registry::defer_upload(const std::span<const byte> data, const gpu::buffer_range& b)
     {
+        OBLO_ASSERT(b.size == data.size());
+
         // Do we need info on pipeline barriers?
         [[maybe_unused]] const auto result = m_stagingBuffer->stage(data);
 
@@ -605,7 +629,11 @@ namespace oblo
         {
             const ecs::component_and_tag_sets typeSets = ecs::get_component_and_tag_sets(archetype);
 
-            if (!typeSets.components.contains(m_instanceComponent))
+            const bool isDrawBatch = typeSets.components.contains(m_instanceComponent);
+
+            // We filter which archetypes to upload to GPU. Anything that we might want to access in the shader as
+            // instance data should be included here.
+            if (!isDrawBatch && typeSets.components.intersection(m_instanceDataTypes).is_empty())
             {
                 continue;
             }
@@ -617,13 +645,14 @@ namespace oblo
                 continue;
             }
 
-            ++currentDrawBatch;
-
-            *currentDrawBatch = {};
-
             const std::span componentTypes = ecs::get_component_types(archetype);
 
-            currentDrawBatch->instanceTableId = drawBatches;
+            ++currentDrawBatch;
+
+            *currentDrawBatch = {
+                .instanceTableId = drawBatches,
+            };
+
             ++drawBatches;
 
             // TODO: Don't blindly update all instance buffers every frame
@@ -712,6 +741,7 @@ namespace oblo
 
             currentDrawBatch->instanceBuffers = instanceBuffers;
             currentDrawBatch->numInstances = numProcessedEntities;
+            currentDrawBatch->kind = isDrawBatch ? batch_kind::draw : batch_kind::instance_data;
         }
 
         m_drawData = frameDrawData;

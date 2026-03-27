@@ -362,12 +362,18 @@ namespace oblo
 
             if (const auto buffers = t.meshes->vertex_attribute_buffer_subranges(); !buffers.empty())
             {
-                gpuTable.vertexDataAddress = m_gpu->get_device_address(t.meshes->vertex_buffer());
-                gpuTable.mask = get_mesh_attribute_mask_from_id(t.id);
+                const u32 attributesMask = get_mesh_attribute_mask_from_id(t.id);
 
-                for (u32 v = 0; v < buffers.size(); ++v)
+                gpuTable.vertexDataAddress = m_gpu->get_device_address(t.meshes->vertex_buffer());
+                gpuTable.mask = attributesMask;
+
+                u32 pendingAttributesMask = attributesMask;
+
+                for (const buffer_table_subrange& subrange : buffers)
                 {
-                    gpuTable.attributeOffsets[v] = narrow_cast<u32>(buffers[v].begin);
+                    const u32 attributeId = std::countr_zero(pendingAttributesMask);
+                    gpuTable.attributeOffsets[attributeId] = narrow_cast<u32>(subrange.begin);
+                    pendingAttributesMask &= ~(1u << attributeId);
                 }
             }
 

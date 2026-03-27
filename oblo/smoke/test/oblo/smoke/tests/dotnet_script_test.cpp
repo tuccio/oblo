@@ -7,25 +7,15 @@
     #include <oblo/asset/asset_path.hpp>
     #include <oblo/asset/asset_registry.hpp>
     #include <oblo/core/filesystem/file.hpp>
-    #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/formatters/uuid_formatter.hpp>
-    #include <oblo/core/iterator/enum_range.hpp>
     #include <oblo/dotnet/assets/dotnet_script_asset.hpp>
     #include <oblo/dotnet/components/dotnet_behaviour_component.hpp>
     #include <oblo/ecs/entity_registry.hpp>
-    #include <oblo/graphics/components/camera_component.hpp>
-    #include <oblo/graphics/components/static_mesh_component.hpp>
-    #include <oblo/graphics/components/viewport_component.hpp>
     #include <oblo/math/quaternion.hpp>
     #include <oblo/math/vec3.hpp>
     #include <oblo/properties/serialization/common.hpp>
     #include <oblo/resource/resource_ptr.hpp>
-    #include <oblo/resource/resource_registry.hpp>
-    #include <oblo/scene/components/position_component.hpp>
-    #include <oblo/scene/components/rotation_component.hpp>
-    #include <oblo/scene/components/scale_component.hpp>
     #include <oblo/scene/resources/model.hpp>
-    #include <oblo/scene/resources/traits.hpp>
     #include <oblo/scene/utility/ecs_utility.hpp>
     #include <oblo/smoke/tests/asset_utility.hpp>
 
@@ -124,7 +114,7 @@ public class TotallyNormalDuckBehaviour : IBehaviour
         {{
             _duck = ctx.EntityRegistry.CreateNamedPhysicalEntity(_name, EntityId.Invalid, Vector3.Zero, Quaternion.Identity, new Vector3(.01f));
 
-            var meshComponent = _duck.AddComponent<StaticMeshComponent>();
+            var meshComponent = _duck.AddComponent<MeshComponent>();
 
             meshComponent.Mesh = new ResourceRef<Mesh>(Uuid.Parse(_meshUuid));
             meshComponent.Material = new ResourceRef<Material>(Uuid.Parse(_materialUuid));

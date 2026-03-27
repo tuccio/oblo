@@ -17,6 +17,16 @@ namespace oblo
 
         constexpr bool operator==(const quaternion&) const = default;
 
+        constexpr f32& operator[](u32 index)
+        {
+            return *(&x + index);
+        }
+
+        constexpr const f32& operator[](u32 index) const
+        {
+            return *(&x + index);
+        }
+
         static constexpr quaternion identity();
 
         static quaternion from_axis_angle(const vec3& axis, radians angle);
@@ -210,4 +220,70 @@ namespace oblo
         };
     }
 
+    inline quaternion slerp(const quaternion& a, const quaternion& b, f32 t)
+    {
+        f32 cosTheta = dot(a, b);
+        quaternion end = b;
+
+        // If the dot product is negative, slerp will take the long way around.
+        // We invert one quaternion to take the shortest path instead.
+        if (cosTheta < 0.f)
+        {
+            cosTheta = -cosTheta;
+            end.x = -b.x;
+            end.y = -b.y;
+            end.z = -b.z;
+            end.w = -b.w;
+        }
+
+        // If the quaternions are very close, use linear interpolation to avoid division by zero
+        if (cosTheta > 0.9995f)
+        {
+            return normalize(quaternion{
+                .x = a.x + t * (end.x - a.x),
+                .y = a.y + t * (end.y - a.y),
+                .z = a.z + t * (end.z - a.z),
+                .w = a.w + t * (end.w - a.w),
+            });
+        }
+
+        // Standard Slerp formula
+        const f32 theta = std::acos(cosTheta);
+        const f32 sinTheta = std::sin(theta);
+        const f32 t0 = std::sin((1.f - t) * theta) / sinTheta;
+        const f32 t1 = std::sin(t * theta) / sinTheta;
+
+        return {
+            .x = a.x * t0 + end.x * t1,
+            .y = a.y * t0 + end.y * t1,
+            .z = a.z * t0 + end.z * t1,
+            .w = a.w * t0 + end.w * t1,
+        };
+    }
+
+    constexpr quaternion nlerp(const quaternion& a, const quaternion& b, f32 t)
+    {
+        const f32 cosTheta = dot(a, b);
+        quaternion end = b;
+
+        // Still take the shortest path by flipping the sign if needed
+        if (cosTheta < 0.f)
+        {
+            end.x = -b.x;
+            end.y = -b.y;
+            end.z = -b.z;
+            end.w = -b.w;
+        }
+
+        // Linearly interpolate the components
+        const quaternion result = {
+            .x = a.x + t * (end.x - a.x),
+            .y = a.y + t * (end.y - a.y),
+            .z = a.z + t * (end.z - a.z),
+            .w = a.w + t * (end.w - a.w),
+        };
+
+        // Project the result back onto the unit sphere
+        return normalize(result);
+    }
 }

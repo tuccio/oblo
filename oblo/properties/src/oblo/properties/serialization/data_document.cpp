@@ -421,6 +421,25 @@ namespace oblo
         return hashed_string_view{string_view{n.key, n.keyLen}, n.keyHash};
     }
 
+    expected<std::span<const byte>, data_document::error> data_document::read_value(u32 node) const
+    {
+        if (node >= m_nodes.size())
+        {
+            return error::node_invalid;
+        }
+
+        auto& n = m_nodes[node];
+
+        if (n.kind != data_node_kind::value)
+        {
+            return error::node_kind_mismatch;
+        }
+
+        const auto sizeAndAlignment = get_size_and_alignment(n.valueKind);
+
+        return std::span<const byte>{reinterpret_cast<const byte*>(n.value.data), sizeAndAlignment.first};
+    }
+
     expected<data_string, data_document::error> data_document::read_string(u32 node) const
     {
         if (node >= m_nodes.size())

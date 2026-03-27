@@ -11,21 +11,33 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
-#include <oblo/graphics/components/static_mesh_component.hpp>
+#include <oblo/graphics/components/animation_component.hpp>
+#include <oblo/graphics/components/mesh_component.hpp>
+#include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/math/mat4.hpp>
 #include <oblo/math/quaternion.hpp>
+#include <oblo/math/transform.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
+#include <oblo/scene/components/position_component.hpp>
+#include <oblo/scene/components/rotation_component.hpp>
+#include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/resources/animation.hpp>
+#include <oblo/scene/resources/animation_data.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/model.hpp>
 #include <oblo/scene/resources/pbr_properties.hpp>
+#include <oblo/scene/resources/skeleton.hpp>
 #include <oblo/scene/resources/traits.hpp>
+#include <oblo/scene/serialization/animation_file.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
+#include <oblo/scene/serialization/skeleton_file.hpp>
 #include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/thread/parallel_for.hpp>
 
@@ -45,6 +57,12 @@ namespace oblo::importers
         {
             u32 nodeIndex;
             u32 sceneIndex;
+        };
+
+        struct import_animation
+        {
+            u32 nodeIndex;
+            u32 animationIndex;
         };
 
         struct import_model
@@ -76,6 +94,19 @@ namespace oblo::importers
             uuid id;
         };
 
+        struct import_skin
+        {
+            u32 nodeIndex;
+            u32 skeletonNodeIndex;
+            bool skipped;
+        };
+
+        struct import_skeleton
+        {
+            u32 nodeIndex;
+            i32 sceneNodeRootIndex;
+        };
+
         int find_image_from_texture(const tinygltf::Model& model, int textureIndex)
         {
             if (textureIndex < 0)
@@ -102,17 +133,183 @@ namespace oblo::importers
                 return fallback;
             }
         }
+
+        quaternion get_quaternion_or(const std::vector<double>& value, quaternion fallback)
+        {
+            if (value.size() == 4)
+            {
+                return {
+                    f32(value[0]),
+                    f32(value[1]),
+                    f32(value[2]),
+                    f32(value[3]),
+                };
+            }
+            else
+            {
+                return fallback;
+            }
+        }
+
+        enum class gltf_node_flag : u8
+        {
+            joint,
+            enum_max,
+        };
+
+        data_format convert_component_type(int componentType, int type)
+        {
+            switch (type)
+            {
+            case TINYGLTF_TYPE_SCALAR:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_BYTE:
+                    return data_format::i8;
+                case TINYGLTF_COMPONENT_TYPE_SHORT:
+                    return data_format::i16;
+                case TINYGLTF_COMPONENT_TYPE_INT:
+                    return data_format::i32;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+                    return data_format::u8;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::u32;
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::f32;
+                case TINYGLTF_COMPONENT_TYPE_DOUBLE:
+                    return data_format::f64;
+                default:
+                    return data_format::enum_max;
+                }
+
+            case TINYGLTF_TYPE_VEC2:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::vec2;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::vec2u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::vec2u;
+                default:
+                    return data_format::enum_max;
+                }
+
+            case TINYGLTF_TYPE_VEC3:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::vec3;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::vec3u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::vec3u;
+                default:
+                    return data_format::enum_max;
+                }
+
+            case TINYGLTF_TYPE_VEC4:
+                switch (componentType)
+                {
+                case TINYGLTF_COMPONENT_TYPE_FLOAT:
+                    return data_format::vec4;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+                    return data_format::vec4u16;
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+                    return data_format::vec4u;
+                default:
+                    return data_format::enum_max;
+                }
+
+            default:
+                return data_format::enum_max;
+            }
+        }
+
+        consteval string_view strip_namespace(string_view name)
+        {
+            const auto pos = name.find_last_of(':');
+
+            if (pos == string_view::npos)
+            {
+                // Since it's consteval, we throw to fail compilation
+                throw;
+            }
+
+            return {name.begin() + pos + 1, name.end()};
+        }
+
+        struct transform_trs
+        {
+            vec3 translation;
+            quaternion rotation;
+            vec3 scale;
+        };
+
+        transform_trs decompose_node_transform(const tinygltf::Node& node)
+        {
+            vec3 translationFallback{};
+            quaternion rotationFallback{quaternion::identity()};
+            vec3 scaleFallback{vec3::splat(1.f)};
+
+            // GLTF can have either matrices or separate TRS fields
+            // We account for both here
+            if (node.matrix.size() == 16)
+            {
+                mat4 matrix;
+                for (u32 i = 0; i < 4; ++i)
+                {
+                    for (u32 j = 0; j < 4; ++j)
+                    {
+                        matrix.columns[i][j] = f32(node.matrix[i * 4 + j]);
+                    }
+                }
+
+                if (!decompose_matrix(matrix, translationFallback, rotationFallback, scaleFallback))
+                {
+                    log::error("Faled to decompose matrix for node {}", node.name);
+                }
+            }
+
+            const vec3 translation = get_vec3_or(node.translation, translationFallback);
+            const quaternion rotation = get_quaternion_or(node.rotation, rotationFallback);
+            const vec3 scale = get_vec3_or(node.scale, scaleFallback);
+
+            return {
+                translation,
+                rotation,
+                scale,
+            };
+        }
+
+        cstring_view make_or_get_joint_name(
+            string_builder& jointNameBuilder, std::span<tinygltf::Node> nodes, i32 nodeIndex)
+        {
+            const tinygltf::Node& node = nodes[nodeIndex];
+
+            if (node.name.empty())
+            {
+                return jointNameBuilder.clear().format("unnamed_joint_{}", nodeIndex).as<cstring_view>();
+            }
+
+            return {node.name.c_str(), node.name.length()};
+        }
     }
 
     struct gltf::impl
     {
         tinygltf::Model model;
         tinygltf::TinyGLTF loader;
+        dynamic_array<import_animation> importAnimations;
         dynamic_array<import_hierarchy> importHierarchies;
         dynamic_array<import_model> importModels;
         dynamic_array<import_mesh> importMeshes;
         dynamic_array<import_material> importMaterials;
         dynamic_array<import_image> importImages;
+        dynamic_array<import_skeleton> importSkeletons;
+        dynamic_array<import_skin> importSkins;
 
         dynamic_array<import_artifact> artifacts;
         dynamic_array<string> sourceFiles;
@@ -121,12 +318,44 @@ namespace oblo::importers
 
         deque<embedded_image> embeddedImages;
 
+        struct gltf_node_info
+        {
+            flags<gltf_node_flag> flags;
+            resource_ref<animation> animation;
+        };
+
+        dynamic_array<gltf_node_info> gltfNodeFlags;
+
         void set_texture(material& m, hashed_string_view propertyName, int textureIndex) const
         {
             if (const auto imageIndex = find_image_from_texture(model, textureIndex);
                 imageIndex >= 0 && usize(imageIndex) < importImages.size() && !importImages[imageIndex].id.is_nil())
             {
                 m.set_property(propertyName, resource_ref<texture>(importImages[imageIndex].id));
+            }
+        }
+
+        std::span<const byte> get_data_from_accessor(const tinygltf::Accessor& accessor) const
+        {
+            const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+            const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+            const usize byteOffset = accessor.byteOffset + bufferView.byteOffset;
+
+            OBLO_ASSERT(bufferView.byteStride == 0);
+            const data_format format = convert_component_type(accessor.componentType, accessor.type);
+            const usize bytes = accessor.count * get_size_and_alignment(format).first;
+
+            OBLO_ASSERT(bytes <= bufferView.byteLength);
+            return {reinterpret_cast<const byte*>(buffer.data.data() + byteOffset), bytes};
+        }
+
+        void mark_skeleton(usize root)
+        {
+            gltfNodeFlags[root].flags |= gltf_node_flag::joint;
+
+            for (const int child : model.nodes[root].children)
+            {
+                mark_skeleton(usize(child));
             }
         }
     };
@@ -270,6 +499,97 @@ namespace oblo::importers
             }
         }
 
+        m_impl->importAnimations.reserve(m_impl->model.animations.size());
+
+        for (usize animationIndex = 0; animationIndex < m_impl->model.animations.size(); ++animationIndex)
+        {
+            const auto& gltfAnimation = m_impl->model.animations[animationIndex];
+
+            nameBuilder.clear();
+
+            if (gltfAnimation.name.empty())
+            {
+                nameBuilder.format("Animation#{}", animationIndex);
+            }
+            else
+            {
+                nameBuilder = gltfAnimation.name;
+            }
+
+            m_impl->importAnimations.push_back({
+                .nodeIndex = u32(preview.nodes.size()),
+                .animationIndex = u32(animationIndex),
+            });
+
+            preview.nodes.emplace_back(resource_type<animation>, nameBuilder.as<string>());
+        }
+
+        // Find all skeletons referenced by skins
+        struct skeleton_node_info
+        {
+            bool isMarkedForImport{};
+            u32 nodeIndex{};
+        };
+
+        dynamic_array<skeleton_node_info> skeletonNodeInfo;
+        skeletonNodeInfo.resize(m_impl->model.nodes.size());
+
+        m_impl->gltfNodeFlags.resize(m_impl->model.nodes.size());
+
+        // Import all the skns, try to reuse skeleton nodes if possible, otherwise import them as new nodes.
+        for (usize skinIndex = 0; skinIndex < m_impl->model.skins.size(); ++skinIndex)
+        {
+            const tinygltf::Skin& gltfSkin = m_impl->model.skins[skinIndex];
+
+            auto& skinNode = m_impl->importSkins.emplace_back();
+
+            if (gltfSkin.skeleton < 0)
+            {
+                log::debug("A skin does not specify the skeleton root, this is currently not supported");
+                skinNode.skipped = true;
+                continue;
+            }
+
+            const i32 gltfSkeletonIndex = gltfSkin.skeleton;
+            nameBuilder = gltfSkin.name;
+
+            if (nameBuilder.empty())
+            {
+                nameBuilder.format("Skin #{}", m_impl->importSkins.size() - 1);
+            }
+
+            skinNode.nodeIndex = preview.nodes.size32();
+            preview.nodes.emplace_back(resource_type<skin>, nameBuilder.as<string>());
+
+            auto& nodeInfo = skeletonNodeInfo[gltfSkeletonIndex];
+
+            if (nodeInfo.isMarkedForImport)
+            {
+                skinNode.skeletonNodeIndex = nodeInfo.nodeIndex;
+                continue;
+            }
+
+            nodeInfo.isMarkedForImport = true;
+            nodeInfo.nodeIndex = preview.nodes.size32();
+
+            m_impl->mark_skeleton(gltfSkeletonIndex);
+
+            auto& skeletonNode = m_impl->importSkeletons.emplace_back();
+
+            skeletonNode.sceneNodeRootIndex = gltfSkin.skeleton;
+            skeletonNode.nodeIndex = nodeInfo.nodeIndex;
+            skinNode.skeletonNodeIndex = nodeInfo.nodeIndex;
+
+            nameBuilder = m_impl->model.nodes[gltfSkeletonIndex].name;
+
+            if (nameBuilder.empty())
+            {
+                nameBuilder.format("Skeleton #{}", m_impl->importSkeletons.size() - 1);
+            }
+
+            preview.nodes.emplace_back(resource_type<skeleton>, nameBuilder.as<string>());
+        }
+
         m_impl->importImages.resize(m_impl->model.images.size());
 
         for (auto& embeddedImage : m_impl->embeddedImages)
@@ -397,6 +717,8 @@ namespace oblo::importers
             return false;
         }
 
+        // Parse config
+
         gltf_import_config cfg{};
 
         const auto& settings = ctx.get_settings();
@@ -409,6 +731,9 @@ namespace oblo::importers
 
         const std::span importNodeConfigs = ctx.get_import_node_configs();
         const std::span importNodes = ctx.get_import_nodes();
+
+        // Associate image indices to the import uuids, since materials will need to refer to them, but import of
+        // textures happens in parallel
 
         for (usize i = 0; i < m_impl->importImages.size(); ++i)
         {
@@ -597,6 +922,352 @@ namespace oblo::importers
 
         usedBuffers.resize(numBuffers);
 
+        // Animations
+        string_builder jointNameBuilder;
+
+        for (const auto& importedAnimation : m_impl->importAnimations)
+        {
+            const auto& nodeConfig = importNodeConfigs[importedAnimation.nodeIndex];
+
+            if (!nodeConfig.enabled)
+            {
+                continue;
+            }
+
+            const tinygltf::Animation& gltfAnim = m_impl->model.animations[importedAnimation.animationIndex];
+
+            animation animArtifact;
+            animArtifact.endianness = platform::endian::native;
+
+            animArtifact.timeStart = std::numeric_limits<animation_time_t>::max();
+            animArtifact.timeEnd = std::numeric_limits<animation_time_t>::lowest();
+
+            // We could be smarter and merge together data refs that point to the same accessors, that might be
+            // particuarly important for keyframes
+            // For now we simply add the data as we encounter it
+
+            bool anyError = false;
+
+            for (const tinygltf::AnimationChannel& gltfChannel : gltfAnim.channels)
+            {
+                const int samplerIndex = gltfChannel.sampler;
+
+                if (samplerIndex < 0 || usize(samplerIndex) >= gltfAnim.samplers.size())
+                {
+                    log::error("Invalid animation");
+                    anyError = true;
+                    break;
+                }
+
+                const tinygltf::AnimationSampler& sampler = gltfAnim.samplers[samplerIndex];
+
+                const tinygltf::Accessor& dataAccessor = m_impl->model.accessors[sampler.output];
+
+                const data_format format = convert_component_type(dataAccessor.componentType, dataAccessor.type);
+
+                const tinygltf::Accessor& keyframesAccessor = m_impl->model.accessors[sampler.input];
+                [[maybe_unused]] const data_format keyframeFormat =
+                    convert_component_type(keyframesAccessor.componentType, keyframesAccessor.type);
+
+                const std::span keyframesBytes = m_impl->get_data_from_accessor(keyframesAccessor);
+                const usize keyframesCount = keyframesBytes.size_bytes() / sizeof(animation_time_t);
+
+                const std::span keyframesData = {
+                    start_lifetime_as_array<animation_time_t>(keyframesBytes.data(), keyframesCount),
+                    keyframesCount,
+                };
+
+                const std::span dataBytes = m_impl->get_data_from_accessor(dataAccessor);
+
+                string_view jointAnimationName;
+                string_view componentPropertyName;
+                uuid componentUuid;
+                animation_data_kind dataKind;
+
+                bool typeMismatch = false;
+
+#define OBLO_GLTF_NAMEOF_PROPERTY(FullName) strip_namespace(OBLO_STRINGIZE(FullName));
+
+                if (gltfChannel.target_path == "rotation")
+                {
+                    jointAnimationName = animation_data::properties::joint_rotation;
+                    componentUuid = "7ef5fc6a-7b9c-491c-837f-d619747e9b50"_uuid;
+                    componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(position_component::value);
+                    typeMismatch = typeMismatch || format != data_format::vec4;
+                    dataKind = animation_data_kind::quaternion;
+                }
+                else if (gltfChannel.target_path == "translation")
+                {
+                    jointAnimationName = animation_data::properties::joint_translation;
+                    componentUuid = "06d70f31-13c7-4c19-a1ca-19af48c5eb37"_uuid;
+                    componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(rotation_component::value);
+                    typeMismatch = typeMismatch || format != data_format::vec3;
+                    dataKind = animation_data_kind::any_vector;
+                }
+                else if (gltfChannel.target_path == "scale")
+                {
+                    jointAnimationName = animation_data::properties::joint_scale;
+                    componentUuid = "3db97c8e-d984-494f-8644-026eb4bfa006"_uuid;
+                    componentPropertyName = OBLO_GLTF_NAMEOF_PROPERTY(scale_component::value);
+                    typeMismatch = typeMismatch || format != data_format::vec3;
+                    dataKind = animation_data_kind::any_vector;
+                }
+                else
+                {
+                    // We don't handle weights (i.e. blend shapes) currently
+                    log::error("Unknown property {} in animation {}",
+                        gltfChannel.target_path,
+                        importedAnimation.animationIndex);
+
+                    anyError = true;
+                    break;
+                }
+
+                if (typeMismatch || format == data_format::enum_max)
+                {
+                    log::error("Property {} in animation {} doesn't match the expected type",
+                        gltfChannel.target_path,
+                        importedAnimation.animationIndex);
+
+                    anyError = true;
+                    break;
+                }
+
+                impl::gltf_node_info& targetNodeInfo = m_impl->gltfNodeFlags[gltfChannel.target_node];
+                const bool isJointAnimation = targetNodeInfo.flags.contains(gltf_node_flag::joint);
+
+                if (!targetNodeInfo.animation)
+                {
+                    targetNodeInfo.animation = {.id = nodeConfig.id};
+                }
+
+                const usize dataSamplesCount = dataBytes.size_bytes() / get_size_and_alignment(format).first;
+
+                if (keyframesCount != dataSamplesCount)
+                {
+                    log::error("Animation {} has a mismatch of samples and keyframes count ({} vs {})",
+                        importedAnimation.animationIndex,
+                        dataSamplesCount,
+                        keyframesCount);
+
+                    anyError = true;
+                    break;
+                }
+
+                animation_channel& channel = animArtifact.channels.emplace_back();
+
+                if (sampler.interpolation == "LINEAR")
+                {
+                    channel.interpolation = animation_interpolation::linear;
+                }
+                else if (sampler.interpolation == "STEP")
+                {
+                    channel.interpolation = animation_interpolation::cubic;
+
+                    log::error("A cubic interpolation was found, but they are not fully supported yet");
+
+                    anyError = true;
+                    break;
+                }
+                else
+                {
+                    log::error("Unsupported interpolation mode in animation {}: {}",
+                        importedAnimation.animationIndex,
+                        sampler.interpolation);
+
+                    anyError = true;
+                    break;
+                }
+
+                channel.format = format;
+                channel.dataKind = dataKind;
+
+                if (!keyframesData.empty())
+                {
+                    animArtifact.timeStart = min(keyframesData.front(), animArtifact.timeStart);
+                    animArtifact.timeEnd = max(keyframesData.back(), animArtifact.timeEnd);
+                }
+
+                animation_data::set_channel_keyframes(animArtifact, channel, keyframesData);
+
+                if (isJointAnimation)
+                {
+                    const cstring_view jointName =
+                        make_or_get_joint_name(jointNameBuilder, m_impl->model.nodes, gltfChannel.target_node);
+                    channel.target = animation_target::joint;
+                    animation_data::set_channel_joint_name(animArtifact, channel, jointName.c_str());
+                    animation_data::set_channel_property_name(animArtifact, channel, jointAnimationName);
+                }
+                else
+                {
+                    channel.target = animation_target::component;
+                    channel.componentUuid = componentUuid;
+                    animation_data::set_channel_property_name(animArtifact, channel, componentPropertyName);
+                }
+
+                if (const expected e = animation_data::set_channel_data(animArtifact, channel, dataBytes, format); !e)
+                {
+                    log::error("Failed to parse animation data: {}", e.error().message);
+                    anyError = true;
+                    break;
+                }
+            }
+
+            if (anyError)
+            {
+                continue;
+            }
+
+            string_builder outputPath;
+
+            if (const expected e =
+                    save_animation(animArtifact, ctx.get_output_path(nodeConfig.id, outputPath, ".oanimation"));
+                !e)
+            {
+                log::error("Failed to save animation: {}", e.error().message);
+                continue;
+            }
+
+            m_impl->artifacts.push_back({
+                .id = nodeConfig.id,
+                .type = resource_type<animation>,
+                .name = importNodes[importedAnimation.nodeIndex].name,
+                .path = outputPath.as<string>(),
+            });
+        }
+
+        // Skeletons
+
+        dynamic_array<skeleton::joint> jointsBuffer;
+        jointsBuffer.reserve(256);
+
+        for (const auto& importedSkeleton : m_impl->importSkeletons)
+        {
+            const auto& nodeConfig = importNodeConfigs[importedSkeleton.nodeIndex];
+
+            if (!nodeConfig.enabled)
+            {
+                continue;
+            }
+
+            jointsBuffer.clear();
+
+            const auto gatherSkeleton = [this, &jointsBuffer, &jointNameBuilder](auto&& recurse,
+                                            i32 index,
+                                            skeleton_joint_index_t parent) -> void
+            {
+                auto& current = m_impl->model.nodes[index];
+
+                const skeleton_joint_index_t jointIndex = narrow_cast<skeleton_joint_index_t>(jointsBuffer.size());
+                auto& joint = jointsBuffer.emplace_back();
+                joint.parentIndex = parent;
+                joint.name = make_or_get_joint_name(jointNameBuilder, m_impl->model.nodes, index).as<string>();
+
+                const auto [translation, rotation, scale] = decompose_node_transform(current);
+
+                joint.translation = translation;
+                joint.rotation = rotation;
+                joint.scale = scale;
+
+                for (const i32 child : current.children)
+                {
+                    recurse(recurse, child, jointIndex);
+                }
+            };
+
+            gatherSkeleton(gatherSkeleton, importedSkeleton.sceneNodeRootIndex, skeleton::joint::no_parent);
+
+            skeleton skeletonArtifact;
+            skeletonArtifact.jointsHierarchy.assign(jointsBuffer.begin(), jointsBuffer.end());
+
+            string_builder outputPath;
+
+            if (!save_skeleton_json(skeletonArtifact, ctx.get_output_path(nodeConfig.id, outputPath, ".oskeleton")))
+            {
+                log::error("Failed to save skeleton");
+                continue;
+            }
+
+            m_impl->artifacts.push_back({
+                .id = nodeConfig.id,
+                .type = resource_type<skeleton>,
+                .name = importNodes[importedSkeleton.nodeIndex].name,
+                .path = outputPath.as<string>(),
+            });
+        }
+
+        for (u32 skinIndex = 0; skinIndex < m_impl->importSkins.size32(); ++skinIndex)
+        {
+            const auto& importedSkin = m_impl->importSkins[skinIndex];
+
+            if (importedSkin.skipped)
+            {
+                continue;
+            }
+
+            const auto& modelNodeConfig = importNodeConfigs[importedSkin.nodeIndex];
+
+            if (!modelNodeConfig.enabled)
+            {
+                continue;
+            }
+
+            const tinygltf::Skin& gltfSkin = m_impl->model.skins[skinIndex];
+
+            const usize numJoints = gltfSkin.joints.size();
+
+            skin skinArtifact;
+            skinArtifact.invBindPoses.resize_default(numJoints);
+            skinArtifact.jointNames.reserve(numJoints);
+
+            if (gltfSkin.inverseBindMatrices < 0)
+            {
+                skinArtifact.invBindPoses.assign(numJoints, mat4::identity());
+            }
+            else
+            {
+                const auto& accessor = m_impl->model.accessors[gltfSkin.inverseBindMatrices];
+                const auto& bufferView = m_impl->model.bufferViews[accessor.bufferView];
+                const auto& buffer = m_impl->model.buffers[bufferView.buffer];
+                const usize byteOffset = accessor.byteOffset + bufferView.byteOffset;
+
+                const usize expectedSize = numJoints * sizeof(mat4);
+
+                if (expectedSize != bufferView.byteLength)
+                {
+                    log::error("Failed to read inverse bind poses for skin '{}'", gltfSkin.name);
+                    skinArtifact.invBindPoses.assign(numJoints, mat4::identity());
+                }
+                else
+                {
+                    std::memcpy(skinArtifact.invBindPoses.data(), buffer.data.data() + byteOffset, expectedSize);
+                }
+            }
+
+            for (const i32 jointNodeIndex : gltfSkin.joints)
+            {
+                const cstring_view jointName =
+                    make_or_get_joint_name(jointNameBuilder, m_impl->model.nodes, jointNodeIndex);
+                skinArtifact.jointNames.emplace_back(jointName);
+            }
+
+            skinArtifact.skeleton = resource_ref<skeleton>{importNodeConfigs[importedSkin.skeletonNodeIndex].id};
+
+            string_builder outputPath;
+            if (!save_skin_json(skinArtifact, ctx.get_output_path(modelNodeConfig.id, outputPath, ".oskin")))
+            {
+                log::error("Failed to save skin");
+                continue;
+            }
+
+            m_impl->artifacts.push_back({
+                .id = modelNodeConfig.id,
+                .type = resource_type<skin>,
+                .name = importNodes[importedSkin.nodeIndex].name,
+                .path = outputPath.as<string>(),
+            });
+        }
+
         for (const auto& model : m_impl->importModels)
         {
             const auto& modelNodeConfig = importNodeConfigs[model.nodeIndex];
@@ -699,31 +1370,17 @@ namespace oblo::importers
                 const auto [parent, nodeIndex] = stack.back();
                 stack.pop_back();
 
-                auto& node = m_impl->model.nodes[nodeIndex];
+                const impl::gltf_node_info& gltfNodeInfo = m_impl->gltfNodeFlags[nodeIndex];
 
-                vec3 translation = vec3::splat(0.f);
-                quaternion rotation = quaternion::identity();
-                vec3 scale = vec3::splat(1.f);
-
-                if (node.translation.size() == 3)
+                // Skip the skeleton, we don't need it in the entity hierarchy
+                if (gltfNodeInfo.flags.contains(gltf_node_flag::joint))
                 {
-                    translation = {f32(node.translation[0]), f32(node.translation[1]), f32(node.translation[2])};
+                    continue;
                 }
 
-                if (node.scale.size() == 3)
-                {
-                    scale = {f32(node.scale[0]), f32(node.scale[1]), f32(node.scale[2])};
-                }
+                const tinygltf::Node& node = m_impl->model.nodes[nodeIndex];
 
-                if (node.rotation.size() == 4)
-                {
-                    rotation = {
-                        f32(node.rotation[0]),
-                        f32(node.rotation[1]),
-                        f32(node.rotation[2]),
-                        f32(node.rotation[3]),
-                    };
-                }
+                const auto [translation, rotation, scale] = decompose_node_transform(node);
 
                 const auto e = ecs_utility::create_named_physical_entity(reg,
                     node.name.c_str(),
@@ -746,7 +1403,7 @@ namespace oblo::importers
                         for (u32 meshIndex = model.primitiveBegin; meshIndex < model.primitiveBegin + numPrimitives;
                             ++meshIndex)
                         {
-                            const auto m = ecs_utility::create_named_physical_entity<static_mesh_component>(reg,
+                            const auto m = ecs_utility::create_named_physical_entity<mesh_component>(reg,
                                 node.name.c_str(),
                                 e,
                                 vec3::splat(0.f),
@@ -759,12 +1416,29 @@ namespace oblo::importers
                             const auto& primitive =
                                 m_impl->model.meshes[importMesh.meshIndex].primitives[importMesh.primitiveIndex];
 
-                            auto& sm = reg.get<static_mesh_component>(m);
+                            auto& sm = reg.get<mesh_component>(m);
                             sm.mesh = resource_ref<mesh>{meshNodeConfig.id};
                             sm.material = resource_ref<material>{
                                 primitive.material >= 0 ? m_impl->importMaterials[primitive.material].id : uuid{}};
+
+                            if (node.skin >= 0)
+                            {
+                                const import_skin& importSkin = m_impl->importSkins[node.skin];
+
+                                if (!importSkin.skipped)
+                                {
+                                    const auto& skinNode = importNodeConfigs[importSkin.nodeIndex];
+                                    skin_component& skinComponent = reg.add<skin_component>(m);
+                                    skinComponent.skin = resource_ref<skin>{skinNode.id};
+                                }
+                            }
                         }
                     }
+                }
+
+                if (gltfNodeInfo.animation)
+                {
+                    reg.add<animation_component>(e) = {.animation = gltfNodeInfo.animation};
                 }
 
                 for (auto child : node.children)

@@ -38,7 +38,7 @@ namespace oblo::editor
             {
                 // Either we need to adjust the dependencies, or this should be some sort of extension point
                 constexpr uuid sceneAssetType = "9d257a82-a911-43c8-b8fb-1babd7117620"_uuid;
-                sceneAssetId = assetEditorManager->find_unique_type_editor(sceneAssetType);
+                sceneAssetId = assetEditorManager->find_unique_asset_editor(sceneAssetType);
             }
 
             return sceneAssetId;
@@ -176,7 +176,7 @@ namespace oblo::editor
 
                         if (!sceneAssetId.is_nil())
                         {
-                            const auto h = m_assetEditorManager->get_window(sceneAssetId);
+                            const auto h = m_assetEditorManager->get_asset_window(sceneAssetId);
 
                             if (h)
                             {

@@ -4,26 +4,52 @@
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/resources/animation.hpp>
 #include <oblo/scene/resources/entity_hierarchy.hpp>
 #include <oblo/scene/resources/material.hpp>
 #include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/model.hpp>
+#include <oblo/scene/resources/skeleton.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/traits.hpp>
+#include <oblo/scene/serialization/animation_file.hpp>
 #include <oblo/scene/serialization/ecs_serializer.hpp>
 #include <oblo/scene/serialization/entity_hierarchy_serialization_context.hpp>
 #include <oblo/scene/serialization/mesh_file.hpp>
 #include <oblo/scene/serialization/model_file.hpp>
+#include <oblo/scene/serialization/skeleton_file.hpp>
 
 namespace oblo
 {
     namespace
     {
         template <typename>
-        struct meta;
+        struct resource_descriptor_helper;
 
         template <>
-        struct meta<entity_hierarchy>
+        struct resource_descriptor_helper<animation>
+        {
+            static expected<> load(animation& anim, cstring_view source, const any&)
+            {
+                const expected e = load_animation(anim, source);
+
+                if (e.has_value() && anim.endianness != platform::endian::native)
+                {
+                    // We don't convert endianness currently
+                    return "Animation file has incorrect endianness"_err;
+                }
+
+                return e;
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
+            }
+        };
+
+        template <>
+        struct resource_descriptor_helper<entity_hierarchy>
         {
             static expected<> load(entity_hierarchy& hierarchy, cstring_view source, const any& ctx)
             {
@@ -51,7 +77,7 @@ namespace oblo
         };
 
         template <>
-        struct meta<material>
+        struct resource_descriptor_helper<material>
         {
             static expected<> load(material& material, cstring_view source, const any&)
             {
@@ -65,7 +91,7 @@ namespace oblo
         };
 
         template <>
-        struct meta<mesh>
+        struct resource_descriptor_helper<mesh>
         {
             static expected<> load(mesh& mesh, cstring_view source, const any&)
             {
@@ -79,7 +105,7 @@ namespace oblo
         };
 
         template <>
-        struct meta<model>
+        struct resource_descriptor_helper<model>
         {
             static expected<> load(model& model, cstring_view source, const any&)
             {
@@ -93,7 +119,35 @@ namespace oblo
         };
 
         template <>
-        struct meta<texture>
+        struct resource_descriptor_helper<skeleton>
+        {
+            static expected<> load(skeleton& sk, cstring_view source, const any&)
+            {
+                return load_skeleton(sk, source);
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
+            }
+        };
+
+        template <>
+        struct resource_descriptor_helper<skin>
+        {
+            static expected<> load(skin& sk, cstring_view source, const any&)
+            {
+                return load_skin(sk, source);
+            }
+
+            static any make_load_userdata()
+            {
+                return {};
+            }
+        };
+
+        template <>
+        struct resource_descriptor_helper<texture>
         {
             static expected<> load(texture& texture, cstring_view source, const any&)
             {
@@ -116,17 +170,20 @@ namespace oblo
             .create = []() -> void* { return new T{}; },
             .destroy = [](void* ptr) { delete static_cast<T*>(ptr); },
             .load = [](void* ptr, cstring_view source, const any& ctx) -> expected<>
-            { return meta<T>::load(*static_cast<T*>(ptr), source, ctx); },
-            .userdata = meta<T>::make_load_userdata(),
+            { return resource_descriptor_helper<T>::load(*static_cast<T*>(ptr), source, ctx); },
+            .userdata = resource_descriptor_helper<T>::make_load_userdata(),
         };
     }
 
     void fetch_scene_resource_types(deque<resource_type_descriptor>& outResourceTypes)
     {
+        outResourceTypes.push_back(make_resource_type_desc<animation>());
         outResourceTypes.push_back(make_resource_type_desc<entity_hierarchy>());
         outResourceTypes.push_back(make_resource_type_desc<material>());
         outResourceTypes.push_back(make_resource_type_desc<mesh>());
         outResourceTypes.push_back(make_resource_type_desc<model>());
+        outResourceTypes.push_back(make_resource_type_desc<skeleton>());
+        outResourceTypes.push_back(make_resource_type_desc<skin>());
         outResourceTypes.push_back(make_resource_type_desc<texture>());
     }
 }

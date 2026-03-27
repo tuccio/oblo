@@ -2,6 +2,7 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/forward.hpp>
+
 namespace oblo
 {
     struct model;

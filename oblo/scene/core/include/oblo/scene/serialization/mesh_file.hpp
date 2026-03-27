@@ -20,6 +20,8 @@ namespace oblo
 
     using gltf_accessor = int;
 
+    enum class data_format : u8;
+
     enum class mesh_post_process : u8
     {
         generate_tanget_space,

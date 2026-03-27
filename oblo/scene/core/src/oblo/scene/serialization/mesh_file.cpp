@@ -61,6 +61,12 @@ namespace oblo
             case attribute_kind::bitangent:
                 return "BITANGENT";
 
+            case attribute_kind::joint_indices:
+                return "JOINTS_0";
+
+            case attribute_kind::joint_weights:
+                return "WEIGHTS_0";
+
             default:
                 unreachable();
             }
@@ -95,11 +101,20 @@ namespace oblo
             case data_format::f64:
                 return TINYGLTF_TYPE_SCALAR;
 
+            case data_format::vec2u:
             case data_format::vec2:
+            case data_format::vec2u16:
                 return TINYGLTF_TYPE_VEC2;
 
             case data_format::vec3:
+            case data_format::vec3u:
+            case data_format::vec3u16:
                 return TINYGLTF_TYPE_VEC3;
+
+            case data_format::vec4:
+            case data_format::vec4u:
+            case data_format::vec4u16:
+                return TINYGLTF_TYPE_VEC4;
 
             default:
                 OBLO_ASSERT(false);
@@ -332,16 +347,23 @@ namespace oblo
                 break;
 
             case data_format::u16:
+            case data_format::vec2u16:
+            case data_format::vec3u16:
+            case data_format::vec4u16:
                 componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
                 break;
 
             case data_format::u32:
+            case data_format::vec2u:
+            case data_format::vec3u:
+            case data_format::vec4u:
                 componentType = TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT;
                 break;
 
             case data_format::f32:
             case data_format::vec2:
             case data_format::vec3:
+            case data_format::vec4:
                 componentType = TINYGLTF_COMPONENT_TYPE_FLOAT;
                 break;
 
@@ -532,6 +554,24 @@ namespace oblo
 
                 sources.emplace_back(accessor);
             }
+            else if (attribute == get_attribute_name(attribute_kind::joint_indices))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::joint_indices,
+                    .format = data_format::vec4u16,
+                });
+
+                sources.emplace_back(accessor);
+            }
+            else if (attribute == get_attribute_name(attribute_kind::joint_weights))
+            {
+                attributes.push_back({
+                    .kind = attribute_kind::joint_weights,
+                    .format = data_format::vec4,
+                });
+
+                sources.emplace_back(accessor);
+            }
         }
 
         const auto numAttributesFromFile = attributes.size();
@@ -581,12 +621,28 @@ namespace oblo
 
             const auto* const data = buffer.data.data() + bufferView.byteOffset + accessor.byteOffset;
 
-            const auto expectedSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
-                tinygltf::GetNumComponentsInType(accessor.type) * accessor.count;
+            const i32 elementSize = tinygltf::GetComponentSizeInBytes(accessor.componentType) *
+                tinygltf::GetNumComponentsInType(accessor.type);
+
+            const auto expectedSize = elementSize * accessor.count;
 
             if (expectedSize == bytes.size())
             {
-                std::memcpy(bytes.data(), data, bytes.size());
+                // If the byte s tride is 0, the buffer is tightly packed and we can memcpy the whole thing
+                if (const i32 inputStride = bufferView.byteStride; inputStride == 0)
+                {
+                    std::memcpy(bytes.data(), data, bytes.size());
+                }
+                else
+                {
+                    const u8* in = data;
+                    byte* out = bytes.data();
+
+                    for (usize elementIdx = 0; elementIdx < accessor.count; ++elementIdx)
+                    {
+                        std::memcpy(out + elementIdx * elementSize, in + elementIdx * inputStride, elementSize);
+                    }
+                }
             }
             else if (attributeKind == attribute_kind::tangent &&
                 accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT && accessor.type == TINYGLTF_TYPE_VEC4)

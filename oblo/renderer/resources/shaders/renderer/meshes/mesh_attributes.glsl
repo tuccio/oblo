@@ -26,7 +26,14 @@ vec3 mesh_get_vec3_attribute(in mesh_table t, in uint attributeId, in uint verte
     return vec3(a.x, a.y, a.z);
 }
 
-// Vertex attributes fetch
+vec4 mesh_get_vec4_attribute(in mesh_table t, in uint attributeId, in uint vertexId)
+{
+    const uint64_t address = t.vertexDataAddress + t.attributeOffsets[attributeId];
+    Vec4AttributeType attributeBuffer = Vec4AttributeType(address);
+    return attributeBuffer.values[vertexId];
+}
+
+
 
 vec3 mesh_get_position(in mesh_table t, in uint vertexId)
 {
