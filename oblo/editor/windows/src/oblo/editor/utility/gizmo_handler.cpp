@@ -81,8 +81,16 @@ namespace oblo::editor
         void draw_joints(
             const resource_registry& resources, ecs::entity_registry& reg, ecs::entity e, const mat4 viewProj)
         {
-            auto&& [transformComp, skinningChunks] =
-                reg.get<global_transform_component, joint_skinning_transform_chunks_component>(e);
+            auto* const transformCompPtr = reg.try_get<global_transform_component>(e);
+            auto* const skinningChunksPtr = reg.try_get<joint_skinning_transform_chunks_component>(e);
+
+            if (!transformCompPtr || !skinningChunksPtr)
+            {
+                return;
+            }
+
+            global_transform_component& transformComp = *transformCompPtr;
+            joint_skinning_transform_chunks_component& skinningChunks = *skinningChunksPtr;
 
             const skin_component* skinComp = reg.try_get<skin_component>(e);
 
@@ -297,10 +305,7 @@ namespace oblo::editor
 
             if (auto* const parent = reg.try_get<parent_component>(e))
             {
-                // if (reg.has<joint_pose_component, joint_skinning_transform_component>(parent->parent))
-                {
-                    draw_joints(resources, reg, parent->parent, projection * view);
-                }
+                draw_joints(resources, reg, parent->parent, projection * view);
             }
         }
 

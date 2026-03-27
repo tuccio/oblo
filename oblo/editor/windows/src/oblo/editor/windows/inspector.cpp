@@ -175,12 +175,6 @@ namespace oblo::editor
 
                             if (propertyTree)
                             {
-                                static bool shouldBreak = false;
-                                if (shouldBreak && desc.stableId == "a4e465b0-8dfb-49a7-93bc-7c96864d2571"_uuid)
-                                {
-                                    __debugbreak();
-                                }
-
                                 auto* const data = entityRegistry->try_get(e, type);
 
                                 ImGui::PushID(int(type.value));
