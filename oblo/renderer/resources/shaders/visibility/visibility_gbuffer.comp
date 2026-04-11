@@ -8,6 +8,7 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_KHR_shader_subgroup_quad : require
 #extension GL_EXT_control_flow_attributes : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int16 : require
 
 #include <deferred/gbuffer>
 #include <renderer/geometry/barycentric>
@@ -20,6 +21,7 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
+#include <renderer/meshes/skinning>
 #include <renderer/quad>
 #include <renderer/shading/normal_mapping>
 #include <renderer/shading/pbr>
@@ -79,6 +81,8 @@ void main()
     const transform transform = OBLO_INSTANCE_DATA(vb.instanceTableId, i_TransformBuffer, vb.instanceId);
     const gpu_material material = OBLO_INSTANCE_DATA(vb.instanceTableId, i_MaterialBuffer, vb.instanceId);
 
+    const bool hasSkinningInstanceData = OBLO_HAS_INSTANCE_DATA(vb.instanceTableId, i_JointSkinningChunksBuffer);
+
     triangle triangleWS;
     vec2 triangleUV0[3];
     vec3 triangleNormal[3];
@@ -88,6 +92,9 @@ void main()
     // Read the mesh data
     const mesh_table meshTable = mesh_table_fetch(mesh);
     const uvec3 vertexIndices = mesh_get_meshlet_indices(meshTable, mesh, vb.meshletId, vb.meshletTriangleId);
+
+    const bool hasSkinningMeshAttributes = mesh_table_has_attributes(meshTable,
+        (1u << OBLO_VERTEX_ATTRIBUTE_JOINT_INDICES) | (1u << OBLO_VERTEX_ATTRIBUTE_JOINT_WEIGHTS));
 
     // Read the vertex data and transform everything in world space, we do lighting calculation in that space
     [[unroll]] for (uint i = 0; i < 3; ++i)
@@ -107,6 +114,29 @@ void main()
         triangleBitangent[i] = vertexBitangent;
 
         triangleUV0[i] = mesh_get_uv0(meshTable, vertexId);
+    }
+
+    const bool performSkinning = hasSkinningInstanceData && hasSkinningMeshAttributes;
+
+    if (performSkinning)
+    {
+        const skinning_joint_chunks chunks =
+            OBLO_INSTANCE_DATA(vb.instanceTableId, i_JointSkinningChunksBuffer, vb.instanceId);
+
+        [[unroll]] for (uint i = 0; i < 3; ++i)
+        {
+            const uint vertexId = vertexIndices[i];
+            const vec3 inPosition = mesh_get_position(meshTable, vertexId);
+
+            const uvec4 inJointIndices = mesh_get_joint_indices(meshTable, vertexId);
+            const vec4 inJointWeights = mesh_get_joint_weights(meshTable, vertexId);
+
+            const mat4 skinningMatrix = skinning_calculate_weighted_matrix(chunks, inJointIndices, inJointWeights);
+
+            const vec4 positionWS = skinningMatrix * vec4(inPosition, 1);
+
+            triangleWS.v[i] = positionWS.xyz;
+        }
     }
 
     barycentric_coords bc, bcDDX, bcDDY;

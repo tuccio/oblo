@@ -155,6 +155,11 @@ namespace oblo::main_view
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, shadingPass, &T::inVisibilityBuffer);
         };
 
+        graph.connect(visibilityPass,
+            &visibility_pass::inEntitySetBuffer,
+            visibilityGBuffer,
+            &visibility_gbuffer::inEntitySetBuffer);
+
         connectVisibilityShadingPass(visibilityGBuffer, h32<visibility_gbuffer>{});
         connectVisibilityShadingPass(visibilityDebug, h32<visibility_debug>{});
 

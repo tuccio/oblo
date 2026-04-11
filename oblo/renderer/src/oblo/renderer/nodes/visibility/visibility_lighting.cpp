@@ -67,6 +67,7 @@ namespace oblo
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+        ctx.acquire(inEntitySetBuffer, buffer_usage::storage_read);
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
     }
@@ -79,6 +80,7 @@ namespace oblo
             {"b_InstanceTables"_hsv, inInstanceTables},
             {"b_MeshTables"_hsv, inMeshDatabase},
             {"b_CameraBuffer"_hsv, inCameraBuffer},
+            {"b_EcsEntitySet"_hsv, inEntitySetBuffer},
         });
 
         bindingTable.bind_textures({
