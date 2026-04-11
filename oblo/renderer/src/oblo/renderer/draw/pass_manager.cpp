@@ -1040,9 +1040,15 @@ namespace oblo
         buffered_array<gpu::bind_group_data, 32> bindGroupData;
         bindGroupData.reserve(pipeline.descriptorSetBindings.size());
 
+        gpu::bindable_object bindableObject{};
+
         for (const auto& binding : pipeline.descriptorSetBindings)
         {
-            const auto bindableObject = locateBinding(binding);
+            if (!locateBinding(binding, bindableObject))
+            {
+                log::debug("[{}] No binding for {} was found", pipeline.label, interner->str(binding.name));
+                continue;
+            }
 
             switch (bindableObject.kind)
             {

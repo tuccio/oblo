@@ -38,7 +38,7 @@ namespace oblo
     class pass_manager
     {
     public:
-        using locate_binding_fn = function_ref<gpu::bindable_object(const named_shader_binding&)>;
+        using locate_binding_fn = function_ref<bool(const named_shader_binding&, gpu::bindable_object&)>;
 
     public:
         pass_manager();
