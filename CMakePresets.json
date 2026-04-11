@@ -1,8 +1,8 @@
 {
     "version": 6,
     "cmakeMinimumRequired": {
-        "major": 3,
-        "minor": 23,
+        "major": 4,
+        "minor": 0,
         "patch": 0
     },
     "configurePresets": [
@@ -13,8 +13,7 @@
             "binaryDir": "${sourceDir}/.build/${presetName}",
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
-                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/oblo.cmake",
-                "CONAN_INSTALL_ARGS": "--build=missing;-o;oblo/*:is_multiconfig=$env{OBLO_CONAN_MULTICONFIG};-o;oblo/*:with_tracy=True;-o;oblo/*:with_dotnet=$env{OBLO_WITH_DOTNET}"
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/oblo.cmake"
             }
         },
         {
@@ -31,9 +30,6 @@
                 "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/linux-x64-clang",
                 "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/linux-x64-clang",
                 "OBLO_WITH_DOTNET": false
-            },
-            "environment": {
-                "OBLO_WITH_DOTNET": "False"
             }
         },
         {
@@ -48,11 +44,8 @@
             },
             "cacheVariables": {
                 "OBLO_WITH_DOTNET": true,
-                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/win-x64-msvc",
-                "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/win-x64-msvc"
-            },
-            "environment": {
-                "OBLO_WITH_DOTNET": "True"
+                "CONAN_HOST_PROFILE": "${sourceDir}/conan/profiles/win-x64-clang",
+                "CONAN_BUILD_PROFILE": "${sourceDir}/conan/profiles/win-x64-clang"
             }
         },
         {
@@ -61,9 +54,6 @@
             "generator": "Visual Studio 18 2026",
             "inherits": "conf-windows-common",
             "toolset": "ClangCL",
-            "environment": {
-                "OBLO_CONAN_MULTICONFIG": "True"
-            },
             "cacheVariables": {
                 "OBLO_GENERATE_CSHARP": true
             }
@@ -72,10 +62,7 @@
             "name": "conf-ninja",
             "description": "Settings for Ninja configurations",
             "hidden": true,
-            "generator": "Ninja Multi-Config",
-            "environment": {
-                "OBLO_CONAN_MULTICONFIG": "True"
-            }
+            "generator": "Ninja Multi-Config"
         },
         {
             "name": "conf-windows-ninja",
