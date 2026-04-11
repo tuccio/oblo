@@ -13,15 +13,103 @@
 
 namespace oblo
 {
-    void visibility_lighting::init(const frame_graph_init_context& ctx)
+    void visibility_gbuffer::init(const frame_graph_init_context& ctx)
     {
-        lightingPass = ctx.register_compute_pass({
-            .name = "Lighting Pass",
-            .shaderSourcePath = "./vulkan/shaders/visibility/visibility_lighting.comp",
+        gbufferPass = ctx.register_compute_pass({
+            .name = "GBuffer Pass",
+            .shaderSourcePath = "./vulkan/shaders/visibility/visibility_gbuffer.comp",
         });
     }
 
-    void visibility_lighting::build(const frame_graph_build_context& ctx)
+    void visibility_gbuffer::build(const frame_graph_build_context& ctx)
+    {
+        gbufferPassInstance = ctx.compute_pass(gbufferPass, {});
+
+        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
+
+        const auto resolution = ctx.access(inResolution);
+
+        ctx.create(outGBuffer0,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = gpu::image_format::r16g16b16a16_sfloat,
+                .debugLabel = "GBuffer 0",
+            },
+            texture_usage::storage_write);
+
+        ctx.create(outGBuffer1,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = gpu::image_format::r16g16b16a16_sfloat,
+                .debugLabel = "GBuffer 1",
+            },
+            texture_usage::storage_write);
+
+        ctx.create(outGBuffer2,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = gpu::image_format::r16g16b16a16_sfloat,
+                .debugLabel = "GBuffer 2",
+            },
+            texture_usage::storage_write);
+
+        ctx.create(outGBuffer3,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = gpu::image_format::r16g16b16a16_sfloat,
+                .debugLabel = "GBuffer 3",
+            },
+            texture_usage::storage_write);
+
+        ctx.acquire(inCameraBuffer, buffer_usage::uniform);
+        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
+
+        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+    }
+
+    void visibility_gbuffer::execute(const frame_graph_execute_context& ctx)
+    {
+        binding_table bindingTable;
+
+        bindingTable.bind_buffers({
+            {"b_InstanceTables"_hsv, inInstanceTables},
+            {"b_MeshTables"_hsv, inMeshDatabase},
+            {"b_CameraBuffer"_hsv, inCameraBuffer},
+        });
+
+        bindingTable.bind_textures({
+            {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+            {"t_OutGBuffer0"_hsv, outGBuffer0},
+            {"t_OutGBuffer1"_hsv, outGBuffer1},
+            {"t_OutGBuffer2"_hsv, outGBuffer2},
+            {"t_OutGBuffer3"_hsv, outGBuffer3},
+        });
+
+        if (const auto pass = ctx.begin_pass(gbufferPassInstance))
+        {
+            const auto resolution = ctx.access(inResolution);
+
+            ctx.bind_descriptor_sets(bindingTable);
+
+            ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
+
+            ctx.end_pass();
+        }
+    }
+
+    void deferred_lighting::init(const frame_graph_init_context& ctx)
+    {
+        lightingPass = ctx.register_compute_pass({
+            .name = "Lighting Pass",
+            .shaderSourcePath = "./vulkan/shaders/deferred/deferred_lighting.comp",
+        });
+    }
+
+    void deferred_lighting::build(const frame_graph_build_context& ctx)
     {
         const bool withGI = ctx.has_source(inSurfelsGrid);
 
@@ -33,8 +121,6 @@ namespace oblo
         }
 
         lightingPassInstance = ctx.compute_pass(lightingPass, {.defines = defines});
-
-        ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
         const auto resolution = ctx.access(inResolution);
 
@@ -51,8 +137,6 @@ namespace oblo
         ctx.acquire(inLightBuffer, buffer_usage::storage_read);
         ctx.acquire(inSkyboxSettingsBuffer, buffer_usage::uniform);
 
-        ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
-
         if (withGI)
         {
             ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
@@ -63,8 +147,6 @@ namespace oblo
 
             ctx.acquire(inAmbientOcclusion, texture_usage::shader_read);
         }
-
-        acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
         const auto lights = ctx.access(inLights);
 
@@ -83,24 +165,30 @@ namespace oblo
                 .data = as_bytes(shadowMaps),
             },
             buffer_usage::storage_read);
+
+        ctx.acquire(inGBuffer0, texture_usage::shader_read);
+        ctx.acquire(inGBuffer1, texture_usage::shader_read);
+        ctx.acquire(inGBuffer2, texture_usage::shader_read);
+        ctx.acquire(inGBuffer3, texture_usage::shader_read);
     }
 
-    void visibility_lighting::execute(const frame_graph_execute_context& ctx)
+    void deferred_lighting::execute(const frame_graph_execute_context& ctx)
     {
         binding_table bindingTable;
 
         bindingTable.bind_buffers({
             {"b_LightData"_hsv, inLightBuffer},
             {"b_LightConfig"_hsv, inLightConfig},
-            {"b_InstanceTables"_hsv, inInstanceTables},
-            {"b_MeshTables"_hsv, inMeshDatabase},
             {"b_CameraBuffer"_hsv, inCameraBuffer},
             {"b_ShadowMaps"_hsv, outShadowMaps},
             {"b_SkyboxSettings"_hsv, inSkyboxSettingsBuffer},
         });
 
         bindingTable.bind_textures({
-            {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+            {"t_InGBuffer0"_hsv, inGBuffer0},
+            {"t_InGBuffer1"_hsv, inGBuffer1},
+            {"t_InGBuffer2"_hsv, inGBuffer2},
+            {"t_InGBuffer3"_hsv, inGBuffer3},
             {"t_OutShadedImage"_hsv, outShadedImage},
         });
 

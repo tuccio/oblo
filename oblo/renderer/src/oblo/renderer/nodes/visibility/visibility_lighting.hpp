@@ -14,7 +14,34 @@
 
 namespace oblo
 {
-    struct visibility_lighting
+    struct visibility_gbuffer
+    {
+        pin::data<vec2u> inResolution;
+
+        pin::buffer inCameraBuffer;
+        pin::buffer inMeshDatabase;
+
+        pin::texture inVisibilityBuffer;
+
+        pin::buffer inInstanceTables;
+        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        pin::texture outGBuffer0;
+        pin::texture outGBuffer1;
+        pin::texture outGBuffer2;
+        pin::texture outGBuffer3;
+
+        h32<compute_pass> gbufferPass;
+        h32<compute_pass_instance> gbufferPassInstance;
+
+        void init(const frame_graph_init_context& ctx);
+
+        void build(const frame_graph_build_context& ctx);
+
+        void execute(const frame_graph_execute_context& ctx);
+    };
+
+    struct deferred_lighting
     {
         pin::data<vec2u> inResolution;
 
@@ -37,12 +64,11 @@ namespace oblo
         // We might not use it for now, but we still forward it to debug views
         pin::buffer inSurfelsLightEstimatorData;
 
-        pin::buffer inMeshDatabase;
+        pin::texture inGBuffer0;
+        pin::texture inGBuffer1;
+        pin::texture inGBuffer2;
+        pin::texture inGBuffer3;
 
-        pin::buffer inInstanceTables;
-        pin::data<instance_data_table_buffers_span> inInstanceBuffers;
-
-        pin::texture inVisibilityBuffer;
         pin::texture inAmbientOcclusion;
         pin::texture outShadedImage;
 

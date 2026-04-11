@@ -1,0 +1,175 @@
+#version 460
+
+#extension GL_ARB_gpu_shader_int64 : require
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_nonuniform_qualifier : require
+#extension GL_EXT_shader_8bit_storage : require
+#extension GL_EXT_samplerless_texture_functions : require
+#extension GL_GOOGLE_include_directive : require
+#extension GL_KHR_shader_subgroup_quad : require
+#extension GL_EXT_control_flow_attributes : enable
+
+#include <deferred/gbuffer>
+#include <renderer/camera>
+#include <renderer/constants>
+#include <renderer/lights>
+#include <renderer/material>
+#include <renderer/math>
+#include <renderer/quad>
+#include <renderer/shading/normal_mapping>
+#include <renderer/shading/pbr>
+#include <renderer/shading/pbr_utility>
+#include <renderer/textures>
+#include <renderer/transform>
+#include <skybox/skybox>
+#include <visibility/visibility_buffer>
+#include <visibility/visibility_utils>
+
+#ifdef SURFELS_GI
+    #include <surfels/contribution>
+#endif
+
+layout(binding = 0) uniform b_LightConfig
+{
+    light_config g_LightConfig;
+};
+
+layout(std430, binding = 1) restrict readonly buffer b_LightData
+{
+    light_data g_Lights[];
+};
+
+layout(std430, binding = 2) restrict readonly buffer b_ShadowMaps
+{
+    uint g_ShadowMaps[];
+};
+
+layout(binding = 3) uniform b_SkyboxSettings
+{
+    vec3 g_SkyboxMultiplier;
+    uint g_SkyboxTexture;
+};
+
+#ifdef SURFELS_GI
+layout(binding = 5) uniform texture2D t_InAmbientOcclusion;
+#endif
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(binding = 16) uniform b_CameraBuffer
+{
+    camera_buffer g_Camera;
+};
+
+layout(binding = 12, rgba16f) uniform restrict readonly image2D t_InGBuffer0;
+layout(binding = 13, rgba16f) uniform restrict readonly image2D t_InGBuffer1;
+layout(binding = 14, rgba16f) uniform restrict readonly image2D t_InGBuffer2;
+layout(binding = 15, rgba16f) uniform restrict readonly image2D t_InGBuffer3;
+
+layout(binding = 10, rgba8) uniform restrict writeonly image2D t_OutShadedImage;
+
+vec4 sample_skybox(uvec2 screenPos, uvec2 resolution);
+
+void main()
+{
+    const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
+    const ivec2 screenPos = ivec2(gl_WorkGroupID.xy * 8 + localGroupId);
+    const uvec2 resolution = imageSize(t_InGBuffer0);
+
+    if (screenPos.x >= resolution.x || screenPos.y >= resolution.y)
+    {
+        return;
+    }
+
+    const vec4 texGBuffer0 = imageLoad(t_InGBuffer0, screenPos);
+
+    gbuffer0 g0;
+    gbuffer_unpack(g0, texGBuffer0);
+
+    if (g0.roughness < 0.f)
+    {
+        const vec4 skybox = sample_skybox(uvec2(screenPos), resolution);
+        imageStore(t_OutShadedImage, screenPos, skybox);
+        return;
+    }
+
+    const vec4 texGBuffer1 = imageLoad(t_InGBuffer1, screenPos);
+    const vec4 texGBuffer2 = imageLoad(t_InGBuffer2, screenPos);
+    const vec4 texGBuffer3 = imageLoad(t_InGBuffer3, screenPos);
+
+    gbuffer1 g1;
+    gbuffer2 g2;
+    gbuffer3 g3;
+
+    gbuffer_unpack(g1, texGBuffer1);
+    gbuffer_unpack(g2, texGBuffer2);
+    gbuffer_unpack(g3, texGBuffer3);
+
+    pbr_material pbr;
+    pbr.albedo = g2.albedo;
+    pbr.metalness = g2.metalness;
+    pbr.roughness = g0.roughness;
+    pbr.ior = g3.ior;
+    pbr.emissive = g3.emissive;
+
+    vec3 reflected = vec3(0);
+    const vec3 viewWS = normalize(g_Camera.position - g0.position);
+
+    const vec2 screenUV = (vec2(screenPos) + .5f) / resolution;
+
+    for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
+    {
+        float visibility = 1.f;
+
+        const uint visibilityMap = g_ShadowMaps[lightIndex];
+
+        if (visibilityMap != 0)
+        {
+            visibility = texture_sample_2d(visibilityMap, OBLO_SAMPLER_NEAREST, screenUV).r;
+        }
+
+        vec3 L;
+
+        const vec3 contribution = light_contribution(g_Lights[lightIndex], g0.position, L);
+        const vec3 brdf = pbr_brdf(g1.normal, viewWS, L, pbr);
+
+        reflected += visibility * contribution * brdf;
+    }
+
+#ifdef SURFELS_GI
+    const float ao = texture(sampler2D(t_InAmbientOcclusion, g_Samplers[OBLO_SAMPLER_LINEAR_REPEAT]), screenUV).r;
+    const vec3 giContribution = surfel_calculate_contribution(g0.position, g1.normal);
+    reflected += ao * giContribution * pbr_brdf(g1.normal, viewWS, g1.normal, pbr);
+#endif
+
+    const vec3 outLight = reflected;
+    // const vec3 outLight = pbr.emissive + reflected;
+
+    imageStore(t_OutShadedImage, screenPos, vec4(outLight, 1));
+}
+
+vec4 sample_skybox(uvec2 screenPos, uvec2 resolution)
+{
+    const vec2 ndc = screen_to_ndc(screenPos, resolution);
+    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+    // Generate sphere UVs to sample the skybox
+    const vec2 uv = skybox_uv_from_ray_direction(cameraRay.direction);
+
+    const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
+    const vec2 uvQuadY = subgroupQuadSwapVertical(uv);
+
+#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap
+      // manually instead
+    const vec2 uvDDX = uv - uvQuadX;
+    const vec2 uvDDY = uv - uvQuadY;
+
+    const vec4 color = texture_sample_2d_grad(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, uvDDX, uvDDY);
+
+#else
+    const uint lod = 0;
+    const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, 0);
+#endif
+
+    return vec4(color.xyz * g_SkyboxMultiplier, 1);
+}
