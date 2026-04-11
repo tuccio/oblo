@@ -85,8 +85,9 @@ vec4 visibility_shade(in visibility_shade_context ctx)
     barycentric_coords bc, bcDDX, bcDDY;
     vec3 positionWS;
 
-    if (!calculate_position_and_barycentric_coords(ctx.screenPos,
+    if (!visibility_calculate_position_and_barycentric_coords(ctx.screenPos,
             ctx.resolution,
+            g_Camera,
             triangleWS,
             positionWS,
             bc,
