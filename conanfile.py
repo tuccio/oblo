@@ -35,13 +35,13 @@ class ObloConanRecipe(ConanFile):
         self.requires("iconfontcppheaders/cci.20240128")
         self.requires("imgui/1.92.5-docking", override=True)
         self.requires("imguizmo/cci.20231114")
-        self.requires("ktx/4.0.0")
+        self.requires("ktx/4.4.2")
         self.requires("meshoptimizer/0.20")
         self.requires("rapidjson/cci.20230929")
-        self.requires("vulkan-headers/1.3.296.0", override=True)
-        self.requires("vulkan-loader/1.3.290.0")
-        self.requires("vulkan-memory-allocator/3.0.0")
-        self.requires("spirv-cross/1.3.296.0")
+        self.requires("vulkan-headers/1.4.313.0", override=True)
+        self.requires("vulkan-loader/1.4.313.0")
+        self.requires("vulkan-memory-allocator/3.3.0")
+        self.requires("spirv-cross/1.4.313.0")
         self.requires("stb/cci.20230920")
         self.requires("tinygltf/2.8.13")
         self.requires("utfcpp/4.0.1")
@@ -145,8 +145,10 @@ class ObloConanRecipe(ConanFile):
         _dotnet_dir = os.path.join(dir, "dotnet")
         mkdir(self, _dotnet_dir)
 
-        copy(self, "*", _dotnet.cpp_info.components["hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
-        copy(self, "*", _dotnet.cpp_info.components["runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
+        copy(
+            self, "*", _dotnet.cpp_info.components["hostfxr"].bindirs[0], os.path.join(_dotnet_dir, "host"))
+        copy(
+            self, "*", _dotnet.cpp_info.components["runtime"].bindirs[0], os.path.join(_dotnet_dir, "shared"))
 
     def _find_recipe(self, conan_api: ConanAPI, package_ref: str) -> bool:
         try:
