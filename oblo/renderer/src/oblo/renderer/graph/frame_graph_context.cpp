@@ -307,7 +307,7 @@ namespace oblo
             {
             }
 
-            gpu::bindable_object operator()(const named_shader_binding& binding) const
+            bool operator()(const named_shader_binding& binding, gpu::bindable_object& result) const
             {
                 const hashed_string_view str = m_interner.h_str(binding.name);
 
@@ -326,7 +326,8 @@ namespace oblo
                         OBLO_ASSERT(r->accelerationStructure == g_globalTLAS,
                             "Only the global TLAS is supported at the moment");
 
-                        return gpu::make_bindable_object(m_frameGraph.globalTLAS);
+                        result = gpu::make_bindable_object(m_frameGraph.globalTLAS);
+                        return true;
                     }
 
                     case gpu::bindable_resource_kind::buffer: {
@@ -347,11 +348,13 @@ namespace oblo
                         }
 
 #endif
-                        return gpu::make_bindable_object(gpu::bindable_buffer{
+                        result = gpu::make_bindable_object(gpu::bindable_buffer{
                             .buffer = b.handle,
                             .offset = b.offset,
                             .size = b.size,
                         });
+
+                        return true;
                     }
 
                     case gpu::bindable_resource_kind::image: {
@@ -362,10 +365,12 @@ namespace oblo
                         [[maybe_unused]] const bool hasState = m_imageStateTracker.try_get_state(t.handle, state);
                         OBLO_ASSERT(hasState);
 
-                        return gpu::make_bindable_object(gpu::bindable_image{
+                        result = gpu::make_bindable_object(gpu::bindable_image{
                             .image = t.handle,
                             .state = state,
                         });
+
+                        return true;
                     }
 
                     default:
@@ -373,7 +378,7 @@ namespace oblo
                     }
                 }
 
-                return {};
+                return false;
             }
 
         private:

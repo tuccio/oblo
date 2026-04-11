@@ -40,7 +40,8 @@ namespace oblo::main_view
         const auto viewLightData = graph.add_node<view_light_data_provider>();
         const auto renderWorldData = graph.add_node<render_world_provider>();
         const auto visibilityPass = graph.add_node<visibility_pass>();
-        const auto visibilityLighting = graph.add_node<visibility_lighting>();
+        const auto visibilityGBuffer = graph.add_node<visibility_gbuffer>();
+        const auto deferredLighting = graph.add_node<deferred_lighting>();
         const auto visibilityDebug = graph.add_node<visibility_debug>();
 
         // Hacky view buffers node
@@ -73,7 +74,7 @@ namespace oblo::main_view
         graph.make_output(visibilityPass, &visibility_pass::outLastFrameDepthBuffer, OutLastFrameDepthBuffer);
 
         // Visibility shading inputs
-        graph.make_input(visibilityLighting, &visibility_lighting::inShadowSink, InShadowSink);
+        graph.make_input(deferredLighting, &deferred_lighting::inShadowSink, InShadowSink);
 
         graph.make_input(visibilityDebug, &visibility_debug::inDebugMode, InDebugMode);
 
@@ -105,9 +106,21 @@ namespace oblo::main_view
         {
             graph.connect(viewBuffers, &view_buffers_node::outCameraBuffer, shadingPass, &T::inCameraBuffer);
             graph.connect(viewBuffers, &view_buffers_node::inResolution, shadingPass, &T::inResolution);
-            graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, shadingPass, &T::inInstanceTables);
-            graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, shadingPass, &T::inInstanceBuffers);
-            graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, shadingPass, &T::inMeshDatabase);
+
+            if constexpr (requires { &T::inInstanceTables; })
+            {
+                graph.connect(viewBuffers, &view_buffers_node::inInstanceTables, shadingPass, &T::inInstanceTables);
+            }
+
+            if constexpr (requires { &T::inInstanceBuffers; })
+            {
+                graph.connect(viewBuffers, &view_buffers_node::inInstanceBuffers, shadingPass, &T::inInstanceBuffers);
+            }
+
+            if constexpr (requires { &T::inMeshDatabase; })
+            {
+                graph.connect(viewBuffers, &view_buffers_node::inMeshDatabase, shadingPass, &T::inMeshDatabase);
+            }
 
             if constexpr (requires { &T::inLights; })
             {
@@ -142,12 +155,40 @@ namespace oblo::main_view
             graph.connect(visibilityPass, &visibility_pass::outVisibilityBuffer, shadingPass, &T::inVisibilityBuffer);
         };
 
-        connectVisibilityShadingPass(visibilityLighting, h32<visibility_lighting>{});
+        graph.connect(visibilityPass,
+            &visibility_pass::inEntitySetBuffer,
+            visibilityGBuffer,
+            &visibility_gbuffer::inEntitySetBuffer);
+
+        connectVisibilityShadingPass(visibilityGBuffer, h32<visibility_gbuffer>{});
         connectVisibilityShadingPass(visibilityDebug, h32<visibility_debug>{});
+
+        // Connect visibility_gbuffer to deferred_lighting
+        connectShadingPass(deferredLighting, h32<deferred_lighting>{});
+
+        graph.connect(visibilityGBuffer,
+            &visibility_gbuffer::outGBuffer0,
+            deferredLighting,
+            &deferred_lighting::inGBuffer0);
+
+        graph.connect(visibilityGBuffer,
+            &visibility_gbuffer::outGBuffer1,
+            deferredLighting,
+            &deferred_lighting::inGBuffer1);
+
+        graph.connect(visibilityGBuffer,
+            &visibility_gbuffer::outGBuffer2,
+            deferredLighting,
+            &deferred_lighting::inGBuffer2);
+
+        graph.connect(visibilityGBuffer,
+            &visibility_gbuffer::outGBuffer3,
+            deferredLighting,
+            &deferred_lighting::inGBuffer3);
 
         // Outputs of the main passes
         const auto toneMapping = graph.add_node<tone_mapping_node>();
-        graph.connect(visibilityLighting, &visibility_lighting::outShadedImage, toneMapping, &tone_mapping_node::inHDR);
+        graph.connect(deferredLighting, &deferred_lighting::outShadedImage, toneMapping, &tone_mapping_node::inHDR);
 
         // Copies to the output textures
         graph.make_output(toneMapping, &tone_mapping_node::outLDR, OutLitImage);
@@ -344,8 +385,8 @@ namespace oblo::main_view
             // We also use the blurred output as AO for this frame
             graph.connect(aoFilter,
                 &gaussian_blur::outBlurred,
-                visibilityLighting,
-                &visibility_lighting::inAmbientOcclusion);
+                deferredLighting,
+                &deferred_lighting::inAmbientOcclusion);
         }
 
         // Surfels GI
@@ -390,20 +431,18 @@ namespace oblo::main_view
 
             graph.connect(surfelsTiling,
                 &surfel_tiling::inSurfelsGrid,
-                visibilityLighting,
-                &visibility_lighting::inSurfelsGrid);
+                deferredLighting,
+                &deferred_lighting::inSurfelsGrid);
 
             // Visibility lighting setup (we should get rid of)
-            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
-            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsGridData, InUpdatedSurfelsGridData);
-            graph.make_input(visibilityLighting, &visibility_lighting::inSurfelsData, InUpdatedSurfelsData);
-            graph.make_input(visibilityLighting,
-                &visibility_lighting::inSurfelsLightingData,
-                InUpdatedSurfelsLightingData);
-            graph.make_input(visibilityLighting,
-                &visibility_lighting::inSurfelsLightEstimatorData,
+            graph.make_input(deferredLighting, &deferred_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
+            graph.make_input(deferredLighting, &deferred_lighting::inSurfelsGridData, InUpdatedSurfelsGridData);
+            graph.make_input(deferredLighting, &deferred_lighting::inSurfelsData, InUpdatedSurfelsData);
+            graph.make_input(deferredLighting, &deferred_lighting::inSurfelsLightingData, InUpdatedSurfelsLightingData);
+            graph.make_input(deferredLighting,
+                &deferred_lighting::inSurfelsLightEstimatorData,
                 InUpdatedSurfelsLightEstimatorData);
-            graph.make_input(visibilityLighting, &visibility_lighting::inOutSurfelsLastUsage, InSurfelsLastUsage);
+            graph.make_input(deferredLighting, &deferred_lighting::inOutSurfelsLastUsage, InSurfelsLastUsage);
 
             {
                 constexpr string_view outputs[] = {
@@ -467,13 +506,13 @@ namespace oblo::main_view
                         surfelsDebug,
                         &surfel_debug::inVisibilityBuffer);
 
-                    graph.connect(visibilityLighting,
-                        &visibility_lighting::inSurfelsLightingData,
+                    graph.connect(deferredLighting,
+                        &deferred_lighting::inSurfelsLightingData,
                         surfelsDebug,
                         &surfel_debug::inSurfelsLightingData);
 
-                    graph.connect(visibilityLighting,
-                        &visibility_lighting::inSurfelsLightEstimatorData,
+                    graph.connect(deferredLighting,
+                        &deferred_lighting::inSurfelsLightEstimatorData,
                         surfelsDebug,
                         &surfel_debug::inSurfelsLightEstimatorData);
 
@@ -872,7 +911,8 @@ namespace oblo
         registry.register_node<frustum_culling>();
         registry.register_node<visibility_pass>();
         registry.register_node<visibility_debug>();
-        registry.register_node<visibility_lighting>();
+        registry.register_node<visibility_gbuffer>();
+        registry.register_node<deferred_lighting>();
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();
         registry.register_node<raytracing_debug>();
