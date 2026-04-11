@@ -400,6 +400,14 @@ function(oblo_init_reflection)
     set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
 endfunction(oblo_init_reflection)
 
+macro(_oblo_make_python_boolean_literal check var)
+    if(${check})
+        set(${var} True)
+    else()
+        set(${var} False)
+    endif()
+endmacro()
+
 function(oblo_init_conan)
     if(OBLO_CONAN_FORCE_INSTALL)
         message(STATUS "Conan install will not be skipped due to CMake configuration")
@@ -422,6 +430,20 @@ function(oblo_init_conan)
         message(STATUS "Conan install required: last hash was ${OBLO_CONAN_LAST_INSTALL_ID}, current is ${_conanfile_hash}")
         set_property(GLOBAL PROPERTY OBLO_CONAN_PENDING_HASH "${_conanfile_hash}")
     endif()
+
+    get_property(isMultiConfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+    _oblo_make_python_boolean_literal(${isMultiConfig} isMultiConfigPyBool)
+    _oblo_make_python_boolean_literal(${OBLO_WITH_DOTNET} withDotNetPyBool)
+
+    set(CONAN_INSTALL_ARGS
+        --build=missing
+        -o oblo/*:is_multiconfig=${isMultiConfigPyBool}
+        -o oblo/*:with_tracy=True
+        -o oblo/*:with_dotnet=${withDotNetPyBool}
+        CACHE
+        STRING "Conan install args configured for the build"
+        FORCE
+    )
 endfunction()
 
 function(oblo_init)
