@@ -1,5 +1,5 @@
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
 
@@ -13,6 +13,7 @@ include(build_configurations)
 include(module_loaders)
 
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
+option(OBLO_ENABLE_HOTRELOADING "Enables hot-reloading of dynamic libraries" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
 option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requiring users to run codegen manually" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
@@ -215,10 +216,16 @@ function(oblo_add_executable name)
     endif(MSVC)
 endfunction(oblo_add_executable target)
 
+function(_oblo_setup_hotreloading target)
+    set_target_properties(${target} PROPERTIES
+        OUTPUT_NAME "${target}_hotreload"
+    )
+endfunction()
+
 function(oblo_add_library name)
     cmake_parse_arguments(
         OBLO_LIB
-        "GENERATE_HEADERS_TARGET;SHARED;MODULE;TEST_MAIN"
+        "GENERATE_HEADERS_TARGET;SHARED;MODULE;TEST_MAIN;HOTRELOAD"
         "NAMESPACE"
         ""
         ${ARGN}
@@ -312,6 +319,10 @@ function(oblo_add_library name)
             else()
                 target_compile_definitions(${_target} INTERFACE "${_api_define}=")
                 target_compile_definitions(${_target} PRIVATE "${_api_define}=")
+            endif()
+
+            if(OBLO_ENABLE_HOTRELOADING AND OBLO_LIB_HOTRELOAD)
+                _oblo_setup_hotreloading(${_target})
             endif()
         else()
             target_compile_definitions(${_target} INTERFACE "${_api_define}=")

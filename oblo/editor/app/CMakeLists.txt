@@ -38,3 +38,10 @@ oblo_symlink_to_data_folder(oblo oblo::renderer::vulkan_shaders "$<TARGET_FILE_D
 if(OBLO_WITH_DOTNET)
     oblo_symlink_to_data_folder(oblo oblo::dotnet::runtime::data "$<TARGET_FILE_DIR:oblo>/dotnet")
 endif()
+
+if(OBLO_ENABLE_HOTRELOADING)
+    target_compile_definitions(oblo
+        PRIVATE
+        OBLO_ENABLE_HOTRELOADING
+    )
+endif()

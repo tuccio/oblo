@@ -15,6 +15,11 @@ namespace oblo
     class string;
     class module_interface;
 
+    struct module_manager_config
+    {
+        bool hotReloading{false};
+    };
+
     class module_manager
     {
     public:
@@ -22,6 +27,7 @@ namespace oblo
 
     public:
         OBLO_MODULES_API module_manager();
+        OBLO_MODULES_API module_manager(const module_manager_config& cfg);
         module_manager(const module_manager&) = delete;
         module_manager(module_manager&&) noexcept = delete;
 
@@ -50,7 +56,10 @@ namespace oblo
         template <typename T>
         T* find_unique_service() const;
 
+        OBLO_MODULES_API void poll_hotreload();
+
     private:
+        struct hotreload_impl;
         struct module_storage;
         struct scoped_state_change;
         struct service_storage;
@@ -76,6 +85,8 @@ namespace oblo
         deque<string> m_loadPaths;
         u32 m_nextLoadIndex{};
         state m_state{state::idle};
+        module_manager_config m_cfg{};
+        unique_ptr<hotreload_impl> m_hotreloadImpl;
     };
 
     template <typename T>

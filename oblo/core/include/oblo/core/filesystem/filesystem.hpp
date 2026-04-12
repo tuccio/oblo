@@ -51,6 +51,10 @@ namespace oblo::filesystem
 
     void current_path(string_builder& out);
 
+    expected<> canonical(string_view path, string_builder& out);
+
+    expected<time> last_write_time(string_view path);
+
     [[nodiscard]] bool search_file_in_paths(
         string_builder& out, string_view fileName, std::span<const string_view> extraPaths);
 

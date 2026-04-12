@@ -275,12 +275,30 @@ namespace oblo::editor
             project m_project;
             string_builder m_projectDir;
         };
+
+        consteval bool can_hotreload()
+        {
+#ifdef OBLO_ENABLE_HOTRELOADING
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        constexpr module_manager_config make_module_manager_config()
+        {
+            module_manager_config cfg{
+                .hotReloading = can_hotreload(),
+            };
+
+            return cfg;
+        }
     }
 
     struct app::impl
     {
         run_config m_runConfig;
-        module_manager m_moduleManager;
+        module_manager m_moduleManager{make_module_manager_config()};
         log_queue* m_logQueue{};
         job_manager m_jobManager;
         window_manager m_windowManager;
@@ -471,6 +489,11 @@ namespace oblo::editor
         for (; OBLO_PROFILE_FRAME_BEGIN(); OBLO_PROFILE_FRAME_END())
         {
             m_impl->m_mainWindow->set_is_maximized(mainWindow.is_maximized());
+
+            if constexpr (can_hotreload())
+            {
+                m_impl->m_moduleManager.poll_hotreload();
+            }
 
             if (!app.process_events())
             {
