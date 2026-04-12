@@ -6,7 +6,6 @@ oblo_add_executable(
 target_link_libraries(
     obindgen
     PRIVATE
-    oblo::dotnet::behaviour
     oblo::ecs
     oblo::graphics
     oblo::modules

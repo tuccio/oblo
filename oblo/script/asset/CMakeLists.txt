@@ -1,5 +1,5 @@
 oblo_add_library(
-    asset MODULE
+    asset SHARED
     NAMESPACE oblo::script
 )
 

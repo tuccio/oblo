@@ -1,5 +1,5 @@
 oblo_add_library(
-    resource MODULE
+    resource SHARED
     NAMESPACE oblo::script
 )
 

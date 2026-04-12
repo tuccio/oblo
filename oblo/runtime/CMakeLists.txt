@@ -1,4 +1,4 @@
-oblo_add_library(runtime MODULE)
+oblo_add_library(runtime SHARED)
 
 oblo_register_core_module_loader(oblo::runtime)
 

@@ -218,7 +218,7 @@ endfunction(oblo_add_executable target)
 function(oblo_add_library name)
     cmake_parse_arguments(
         OBLO_LIB
-        "GENERATE_HEADERS_TARGET;MODULE;TEST_MAIN"
+        "GENERATE_HEADERS_TARGET;SHARED;MODULE;TEST_MAIN"
         "NAMESPACE"
         ""
         ${ARGN}
@@ -291,8 +291,10 @@ function(oblo_add_library name)
         # Regular C++ library
         set(_kind "STATIC")
 
-        if(OBLO_LIB_MODULE)
+        if(OBLO_LIB_SHARED)
             set(_kind "SHARED")
+        elseif(OBLO_LIB_MODULE)
+            set(_kind "MODULE")
         endif()
 
         add_library(${_target} ${_kind})
@@ -303,7 +305,7 @@ function(oblo_add_library name)
         string(TOUPPER ${_target} _upper_name)
         set(_api_define "${_upper_name}_API")
 
-        if(OBLO_LIB_MODULE)
+        if(OBLO_LIB_MODULE OR OBLO_LIB_SHARED)
             if(MSVC)
                 target_compile_definitions(${_target} INTERFACE "${_api_define}=__declspec(dllimport)")
                 target_compile_definitions(${_target} PRIVATE "${_api_define}=__declspec(dllexport)")

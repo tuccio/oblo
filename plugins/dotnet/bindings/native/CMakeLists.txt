@@ -1,5 +1,5 @@
 oblo_add_library(
-    bindings MODULE
+    bindings SHARED
     NAMESPACE oblo::dotnet
 )
 
