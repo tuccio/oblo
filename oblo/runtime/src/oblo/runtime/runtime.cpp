@@ -16,58 +16,8 @@ namespace oblo
 {
     namespace
     {
-        constexpr bool g_InjectHotreloadTrampoline = true;
-
-        struct system_trampoline
-        {
-            static void* create(void* userdata)
-            {
-                auto* const self = reinterpret_cast<system_trampoline*>(userdata);
-                self->system = self->wrappedSystem.create(self->wrappedSystem.userdata);
-                return self;
-            }
-
-            static void destroy(void*, void* ptr)
-            {
-                auto* const self = reinterpret_cast<system_trampoline*>(ptr);
-
-                if (self->system)
-                {
-                    self->wrappedSystem.destroy(self->wrappedSystem.userdata, self->system);
-                }
-            }
-
-            static void first_update(void*, void* ptr, const ecs::system_update_context* ctx)
-            {
-                auto* const self = reinterpret_cast<system_trampoline*>(ptr);
-
-                if (self->wrappedSystem.firstUpdate)
-                {
-                    self->wrappedSystem.firstUpdate(self->wrappedSystem.userdata, self->system, ctx);
-                }
-                else if (self->wrappedSystem.update)
-                {
-                    self->wrappedSystem.update(self->wrappedSystem.userdata, self->system, ctx);
-                }
-            }
-
-            static void update(void*, void* ptr, const ecs::system_update_context* ctx)
-            {
-                auto* const self = reinterpret_cast<system_trampoline*>(ptr);
-
-                if (self->wrappedSystem.update)
-                {
-                    self->wrappedSystem.update(self->wrappedSystem.userdata, self->system, ctx);
-                }
-            }
-
-            void* system;
-            ecs::system_descriptor wrappedSystem;
-        };
-
         expected<ecs::system_seq_executor> create_system_executor(std::span<ecs::world_builder* const> worldBuilders,
-            ecs::system_graph_usages usages,
-            dynamic_array<system_trampoline>& outTrampolines)
+            ecs::system_graph_usages usages)
         {
             ecs::system_graph_builder builder{std::move(usages)};
 
@@ -88,46 +38,12 @@ namespace oblo
                 return g.error();
             }
 
-            if constexpr (g_InjectHotreloadTrampoline)
-            {
-                dynamic_array<h32<ecs::system>> handles;
-                g->fetch_systems(handles);
-
-                OBLO_ASSERT(outTrampolines.empty(), "This shouldn't really be growing, we give out pointers to this");
-                outTrampolines.resize(handles.size());
-
-                auto* trampolineIt = outTrampolines.data();
-
-                for (const h32 system : handles)
-                {
-                    auto& desc = g->get_system_descriptor(system);
-
-                    // Barriers will appear in this list, which are not real systems, we don't need to do anything on
-                    // those
-                    if (desc.create)
-                    {
-                        trampolineIt->wrappedSystem = desc;
-
-                        desc.create = system_trampoline::create;
-                        desc.destroy = system_trampoline::destroy;
-                        desc.firstUpdate = system_trampoline::first_update;
-                        desc.update = system_trampoline::update;
-                        desc.userdata = trampolineIt;
-
-                        ++trampolineIt;
-                    }
-                }
-            }
-
             return g->instantiate();
         }
     }
 
     struct runtime::impl
     {
-        // This array has to be destroyed after the world and executor, since we use this to replace systems
-        dynamic_array<system_trampoline> trampolines;
-
         frame_allocator frameAllocator;
         ecs::system_seq_executor executor;
         ecs::entity_registry entities;
@@ -151,8 +67,7 @@ namespace oblo
             usages = *initializer.usages;
         }
 
-        dynamic_array<system_trampoline> trampolines;
-        auto executor = create_system_executor(initializer.worldBuilders, std::move(usages), trampolines);
+        auto executor = create_system_executor(initializer.worldBuilders, std::move(usages));
 
         if (!executor)
         {
@@ -168,7 +83,6 @@ namespace oblo
         }
 
         m_impl->entities.init(initializer.typeRegistry);
-        m_impl->trampolines = std::move(trampolines);
 
         m_impl->services.add<ecs::entity_registry>().externally_owned(&m_impl->entities);
         m_impl->services.add<const resource_registry>().externally_owned(initializer.resourceRegistry);
