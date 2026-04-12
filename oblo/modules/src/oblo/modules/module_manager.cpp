@@ -82,7 +82,9 @@ namespace oblo
         struct hotreload_info
         {
             string moduleName;
-            time lastWriteTime;
+            time lastWriteTime{};
+            u32 uniqueId{};
+            platform::shared_library current;
         };
 
         transparent_unordered_map<string, hotreload_info> fullPathToModuleInfo;
@@ -322,12 +324,56 @@ namespace oblo
 
             if (*t > moduleInfo.lastWriteTime)
             {
-                report_error("Library {} has been modified since last check ({} > {})",
-                    path,
-                    t->hns,
-                    moduleInfo.lastWriteTime.hns);
-
                 moduleInfo.lastWriteTime = *t;
+                const u32 uniqueId = ++moduleInfo.uniqueId;
+
+                string_builder targetPath;
+                filesystem::parent_path(path, targetPath);
+
+                const string_view hotReloadableName = filesystem::stem(path);
+                const string_view fileExtension = filesystem::extension(path);
+
+                targetPath.append_path(hotReloadableName).format("_{}", uniqueId).append(fileExtension);
+
+                const expected r =
+                    filesystem::copy_file(path, targetPath.view(), filesystem::copy_options::overwrite_existing);
+
+                if (!r)
+                {
+                    report_error("Error while hotreloading module {}: failed to copy {} -> {}",
+                        moduleInfo.moduleName,
+                        path,
+                        targetPath);
+                    continue;
+                }
+
+                platform::shared_library tmp{targetPath};
+
+                if (!tmp)
+                {
+                    report_error("Failed to hotreload library from {}", targetPath);
+                    continue;
+                }
+
+                auto* const hotreloadFn = tmp.symbol(OBLO_STRINGIZE(OBLO_MODULE_HOTRELOAD_SYM));
+
+                if (hotreloadFn)
+                {
+                    using hotreload_fn = void (*)(module_interface* m);
+
+                    const auto moduleIt = m_modules.find(hashed_string_view{moduleInfo.moduleName});
+
+                    if (moduleIt == m_modules.end())
+                    {
+                        report_error("Failed to hotreload module {}: module not found in manager",
+                            moduleInfo.moduleName);
+                        continue;
+                    }
+
+                    reinterpret_cast<hotreload_fn>(hotreloadFn)(moduleIt->second.ptr.get());
+                }
+
+                moduleInfo.current = std::move(tmp);
             }
         }
     }
