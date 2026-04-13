@@ -23,6 +23,9 @@ namespace oblo
     class module_manager
     {
     public:
+        using log_fn = void (*)(string_view);
+
+    public:
         OBLO_MODULES_API static module_manager& get();
 
     public:
@@ -58,6 +61,8 @@ namespace oblo
 
         OBLO_MODULES_API void poll_hotreload();
 
+        OBLO_MODULES_API void set_log_callback(log_fn log);
+
     private:
         struct hotreload_impl;
         struct module_storage;
@@ -87,6 +92,7 @@ namespace oblo
         state m_state{state::idle};
         module_manager_config m_cfg{};
         unique_ptr<hotreload_impl> m_hotreloadImpl;
+        log_fn m_logFn{};
     };
 
     template <typename T>

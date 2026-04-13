@@ -60,17 +60,25 @@ namespace oblo
             std::sort(out.begin(), out.end(), f);
         }
 
-        void report_error(cstring_view err)
+        void report_error(module_manager::log_fn log, string_view err)
         {
-            std::puts(err.c_str());
+            if (log)
+            {
+                log(err);
+            }
         }
 
         template <typename... Args>
-        void report_error(std::format_string<Args...> fmt, Args&&... args)
+        void report_error(module_manager::log_fn log, std::format_string<Args...> fmt, Args&&... args)
         {
+            if (!log)
+            {
+                return;
+            }
+
             string_builder b;
             b.format(fmt, std::forward<Args>(args)...);
-            report_error(b.as<cstring_view>());
+            report_error(log, b.as<cstring_view>());
         }
     }
 
@@ -89,7 +97,7 @@ namespace oblo
 
         transparent_unordered_map<string, hotreload_info> fullPathToModuleInfo;
 
-        [[maybe_unused]] void prepare_for_hotreloading(string_view path)
+        [[maybe_unused]] void prepare_for_hotreloading(log_fn log, string_view path)
         {
             constexpr string_view hotreloadSuffix = "_hotreload";
 
@@ -121,7 +129,8 @@ namespace oblo
 
                 if (!r)
                 {
-                    report_error("Error while loading module {}: failed to copy {} -> {}",
+                    report_error(log,
+                        "Error while loading module {}: failed to copy {} -> {}",
                         path,
                         fullPathToBin,
                         targetPath);
@@ -212,7 +221,7 @@ namespace oblo
     {
         if (m_cfg.hotReloading)
         {
-            m_hotreloadImpl->prepare_for_hotreloading(path);
+            m_hotreloadImpl->prepare_for_hotreloading(m_logFn, path);
         }
 
         platform::shared_library lib{path};
@@ -340,7 +349,8 @@ namespace oblo
 
                 if (!r)
                 {
-                    report_error("Error while hotreloading module {}: failed to copy {} -> {}",
+                    report_error(m_logFn,
+                        "Error while hotreloading module {}: failed to copy {} -> {}",
                         moduleInfo.moduleName,
                         path,
                         targetPath);
@@ -351,7 +361,7 @@ namespace oblo
 
                 if (!tmp)
                 {
-                    report_error("Failed to hotreload library from {}", targetPath);
+                    report_error(m_logFn, "Failed to hotreload library from {}", targetPath);
                     continue;
                 }
 
@@ -365,7 +375,8 @@ namespace oblo
 
                     if (moduleIt == m_modules.end())
                     {
-                        report_error("Failed to hotreload module {}: module not found in manager",
+                        report_error(m_logFn,
+                            "Failed to hotreload module {}: module not found in manager",
                             moduleInfo.moduleName);
                         continue;
                     }
@@ -376,6 +387,11 @@ namespace oblo
                 moduleInfo.current = std::move(tmp);
             }
         }
+    }
+
+    void module_manager::set_log_callback(log_fn log)
+    {
+        m_logFn = log;
     }
 
     module_interface* module_manager::find(const hashed_string_view& id) const
