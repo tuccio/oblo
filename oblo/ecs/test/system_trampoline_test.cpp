@@ -38,7 +38,7 @@ namespace oblo::ecs
         intrusive_list<system_trampoline> instantiatedSystems{};
 
         system_graph_builder builder{system_graph_usages{}};
-        builder.add_system_trampoline<system_a>(&instantiatedSystems);
+        builder.add_system_trampoline(ecs::make_system_descriptor<system_a>(), &instantiatedSystems);
 
         ASSERT_TRUE(instantiatedSystems.empty());
         const expected g = builder.build();

@@ -34,8 +34,7 @@ namespace oblo::ecs
         template <typename T>
         barrier_builder add_system();
 
-        template <typename T>
-        barrier_builder add_system_trampoline(intrusive_list<system_trampoline>* list);
+        barrier_builder add_system_trampoline(const system_descriptor& desc, intrusive_list<system_trampoline>* list);
 
         template <typename T>
         barrier_builder add_barrier();
@@ -87,12 +86,11 @@ namespace oblo::ecs
         return add_system(make_system_descriptor<T>(), {}, {}, {});
     }
 
-    template <typename T>
-    system_graph_builder::barrier_builder system_graph_builder::add_system_trampoline(
-        intrusive_list<system_trampoline>* list)
+    inline system_graph_builder::barrier_builder system_graph_builder::add_system_trampoline(
+        const system_descriptor& desc, intrusive_list<system_trampoline>* list)
     {
         const system_descriptor trampolineDesc = make_system_trampoline_descriptor({
-            .wrapped = make_system_descriptor<T>(),
+            .wrapped = desc,
             .list = list,
         });
 
