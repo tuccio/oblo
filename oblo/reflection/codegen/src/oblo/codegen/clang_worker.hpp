@@ -4,6 +4,7 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
 
@@ -24,7 +25,7 @@ namespace oblo::gen
 
         ~clang_worker();
 
-        expected<target_data> parse_code(cstring_view sourceFile, const dynamic_array<const char*> args);
+        expected<target_data> parse_code(cstring_view sourceFile, std::span<const char* const> args);
 
         cstring_view get_errors() const;
 

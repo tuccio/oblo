@@ -391,7 +391,7 @@ namespace oblo::gen
         }
     }
 
-    expected<target_data> clang_worker::parse_code(cstring_view sourceFile, const dynamic_array<const char*> args)
+    expected<target_data> clang_worker::parse_code(cstring_view sourceFile, std::span<const char* const> args)
     {
         m_errors.clear();
 
