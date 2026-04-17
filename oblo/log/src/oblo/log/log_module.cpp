@@ -6,11 +6,12 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/log/log.hpp>
 #include <oblo/log/log_internal.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/thread/job_manager.hpp>
 
 #include <moodycamel/concurrentqueue.h>
 
-#include <cstdio>
+#include <cstdlib>
 
 namespace oblo::log
 {
@@ -111,11 +112,15 @@ namespace oblo::log
                 });
         }
 
+        module_manager::get().set_log_callback([](string_view message) { log::debug("{}", message); });
+
         return true;
     }
 
     void log_module::shutdown()
     {
+        module_manager::get().set_log_callback({});
+
         if (g_isAsync)
         {
             g_stopFlushJob = true;

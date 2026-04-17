@@ -6,8 +6,6 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/systems/system_descriptor.hpp>
 
-#include <vector>
-
 namespace oblo::ecs
 {
     class system;
@@ -33,7 +31,12 @@ namespace oblo::ecs
 
         void add_edge(h32<system> from, h32<system> to);
 
+        const system_descriptor& get_system_descriptor(h32<system> handle) const;
+        system_descriptor& get_system_descriptor(h32<system> handle);
+
         expected<system_seq_executor> instantiate() const;
+
+        void fetch_systems(dynamic_array<h32<system>>& outSystems) const;
 
     private:
         directed_graph<system> m_systems;
@@ -45,15 +48,15 @@ namespace oblo::ecs
         system_descriptor desc{
             .name = get_type_id<T>().name,
             .typeId = get_type_id<T>(),
-            .create = []() -> void* { return new T{}; },
-            .destroy = [](void* ptr) { delete static_cast<T*>(ptr); },
+            .create = [](void*) -> void* { return new T{}; },
+            .destroy = [](void*, void* ptr) { delete static_cast<T*>(ptr); },
         };
 
-        desc.update = [](void* ptr, const system_update_context* ctx) { static_cast<T*>(ptr)->update(*ctx); };
+        desc.update = [](void*, void* ptr, const system_update_context* ctx) { static_cast<T*>(ptr)->update(*ctx); };
 
         if constexpr (requires(T& s, const system_update_context& ctx) { s.first_update(ctx); })
         {
-            desc.firstUpdate = [](void* ptr, const system_update_context* ctx)
+            desc.firstUpdate = [](void*, void* ptr, const system_update_context* ctx)
             { static_cast<T*>(ptr)->first_update(*ctx); };
         }
         else

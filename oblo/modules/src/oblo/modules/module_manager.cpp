@@ -2,9 +2,13 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/filesystem/filesystem.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
+#include <oblo/core/time/time.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
@@ -12,7 +16,6 @@
 
 #include <algorithm>
 #include <iterator>
-#include <vector>
 
 namespace oblo
 {
@@ -56,7 +59,100 @@ namespace oblo
 
             std::sort(out.begin(), out.end(), f);
         }
+
+        void report_error(module_manager::log_fn log, string_view err)
+        {
+            if (log)
+            {
+                log(err);
+            }
+        }
+
+        template <typename... Args>
+        void report_error(module_manager::log_fn log, std::format_string<Args...> fmt, Args&&... args)
+        {
+            if (!log)
+            {
+                return;
+            }
+
+            string_builder b;
+            b.format(fmt, std::forward<Args>(args)...);
+            report_error(log, b.as<cstring_view>());
+        }
     }
+
+    template <typename K, typename V>
+    using transparent_unordered_map = std::unordered_map<K, V, transparent_string_hash, std::equal_to<>>;
+
+    struct module_manager::hotreload_impl
+    {
+        struct hotreload_info
+        {
+            string moduleName;
+            time lastWriteTime{};
+            u32 uniqueId{};
+            platform::shared_library current;
+        };
+
+        transparent_unordered_map<string, hotreload_info> fullPathToModuleInfo;
+
+        [[maybe_unused]] void prepare_for_hotreloading(log_fn log, string_view path)
+        {
+            constexpr string_view hotreloadSuffix = "_hotreload";
+
+            string_builder hotReloadingPath;
+            hotReloadingPath.append(path).append(hotreloadSuffix);
+
+            const platform::shared_library tmp{hotReloadingPath};
+
+            if (tmp)
+            {
+                tmp.get_path(hotReloadingPath.clear());
+
+                const string_view fullPathToBin{hotReloadingPath};
+
+                string_builder targetPath;
+                filesystem::parent_path(fullPathToBin, targetPath);
+
+                const string_view hotReloadableName = filesystem::stem(fullPathToBin);
+                const string_view fileExtension = filesystem::extension(fullPathToBin);
+
+                string_view libraryName = hotReloadableName;
+                libraryName.remove_suffix(hotreloadSuffix.size());
+
+                targetPath.append_path(libraryName).append(fileExtension);
+
+                const expected r = filesystem::copy_file(fullPathToBin,
+                    targetPath.view(),
+                    filesystem::copy_options::overwrite_existing);
+
+                if (!r)
+                {
+                    report_error(log,
+                        "Error while loading module {}: failed to copy {} -> {}",
+                        path,
+                        fullPathToBin,
+                        targetPath);
+                }
+                else
+                {
+                    string_builder canonicalPath;
+
+                    if (filesystem::canonical(fullPathToBin, canonicalPath))
+                    {
+                        const expected t = filesystem::last_write_time(canonicalPath.view());
+
+                        fullPathToModuleInfo.emplace(canonicalPath.as<string>(),
+                            hotreload_info{
+                                .moduleName = string{path},
+                                .lastWriteTime = t.value_or({}),
+                            });
+                    }
+                }
+            }
+        }
+    };
 
     struct module_manager::scoped_state_change
     {
@@ -100,6 +196,19 @@ namespace oblo
         g_instance = this;
     }
 
+    module_manager::module_manager(const module_manager_config& cfg) : module_manager{}
+    {
+        m_cfg = cfg;
+
+        if (cfg.hotReloading)
+        {
+            string_builder cwd;
+            filesystem::current_path(cwd);
+
+            m_hotreloadImpl = allocate_unique<hotreload_impl>();
+        }
+    }
+
     module_manager::~module_manager()
     {
         shutdown();
@@ -110,6 +219,11 @@ namespace oblo
 
     module_interface* module_manager::load(cstring_view path)
     {
+        if (m_cfg.hotReloading)
+        {
+            m_hotreloadImpl->prepare_for_hotreloading(m_logFn, path);
+        }
+
         platform::shared_library lib{path};
 
         if (!lib)
@@ -199,6 +313,85 @@ namespace oblo
         }
 
         m_services.clear();
+    }
+
+    void module_manager::poll_hotreload()
+    {
+        if (!m_hotreloadImpl)
+        {
+            return;
+        }
+
+        for (auto& [path, moduleInfo] : m_hotreloadImpl->fullPathToModuleInfo)
+        {
+            const expected<time> t = filesystem::last_write_time(path);
+
+            if (!t)
+            {
+                continue;
+            }
+
+            if (*t > moduleInfo.lastWriteTime)
+            {
+                moduleInfo.lastWriteTime = *t;
+                const u32 uniqueId = ++moduleInfo.uniqueId;
+
+                string_builder targetPath;
+                filesystem::parent_path(path, targetPath);
+
+                const string_view hotReloadableName = filesystem::stem(path);
+                const string_view fileExtension = filesystem::extension(path);
+
+                targetPath.append_path(hotReloadableName).format("_{}", uniqueId).append(fileExtension);
+
+                const expected r =
+                    filesystem::copy_file(path, targetPath.view(), filesystem::copy_options::overwrite_existing);
+
+                if (!r)
+                {
+                    report_error(m_logFn,
+                        "Error while hotreloading module {}: failed to copy {} -> {}",
+                        moduleInfo.moduleName,
+                        path,
+                        targetPath);
+                    continue;
+                }
+
+                platform::shared_library tmp{targetPath};
+
+                if (!tmp)
+                {
+                    report_error(m_logFn, "Failed to hotreload library from {}", targetPath);
+                    continue;
+                }
+
+                auto* const hotreloadFn = tmp.symbol(OBLO_STRINGIZE(OBLO_MODULE_HOTRELOAD_SYM));
+
+                if (hotreloadFn)
+                {
+                    using hotreload_fn = void (*)(module_interface* m);
+
+                    const auto moduleIt = m_modules.find(hashed_string_view{moduleInfo.moduleName});
+
+                    if (moduleIt == m_modules.end())
+                    {
+                        report_error(m_logFn,
+                            "Failed to hotreload module {}: module not found in manager",
+                            moduleInfo.moduleName);
+                        continue;
+                    }
+
+                    reinterpret_cast<hotreload_fn>(hotreloadFn)(moduleIt->second.ptr.get());
+                }
+
+                moduleInfo.current = std::move(tmp);
+            }
+        }
+    }
+
+    void module_manager::set_log_callback(log_fn log)
+    {
+        m_logFn = log;
     }
 
     module_interface* module_manager::find(const hashed_string_view& id) const

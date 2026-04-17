@@ -4,6 +4,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/forward.hpp>
 #include <oblo/ecs/systems/system_graph_usages.hpp>
+#include <oblo/ecs/systems/system_trampoline.hpp>
 
 #include <span>
 #include <unordered_map>
@@ -32,6 +33,8 @@ namespace oblo::ecs
 
         template <typename T>
         barrier_builder add_system();
+
+        barrier_builder add_system_trampoline(const system_descriptor& desc, intrusive_list<system_trampoline>* list);
 
         template <typename T>
         barrier_builder add_barrier();
@@ -81,6 +84,17 @@ namespace oblo::ecs
     system_graph_builder::barrier_builder system_graph_builder::add_system()
     {
         return add_system(make_system_descriptor<T>(), {}, {}, {});
+    }
+
+    inline system_graph_builder::barrier_builder system_graph_builder::add_system_trampoline(
+        const system_descriptor& desc, intrusive_list<system_trampoline>* list)
+    {
+        const system_descriptor trampolineDesc = make_system_trampoline_descriptor({
+            .wrapped = desc,
+            .list = list,
+        });
+
+        return add_system(trampolineDesc, {}, {}, {});
     }
 
     template <typename T>

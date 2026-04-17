@@ -41,6 +41,18 @@ namespace oblo::ecs
         }
     }
 
+    const system_descriptor& system_graph::get_system_descriptor(h32<system> handle) const
+    {
+        const auto v = system_graph_vertex{handle.value};
+        return m_systems.get(v).descriptor;
+    }
+
+    system_descriptor& system_graph::get_system_descriptor(h32<system> handle)
+    {
+        const auto v = system_graph_vertex{handle.value};
+        return m_systems.get(v).descriptor;
+    }
+
     expected<system_seq_executor> system_graph::instantiate() const
     {
         system_seq_executor executor;
@@ -67,5 +79,15 @@ namespace oblo::ecs
         }
 
         return executor;
+    }
+
+    void system_graph::fetch_systems(dynamic_array<h32<system>>& outSystems) const
+    {
+        outSystems.reserve(outSystems.size() + m_systems.get_vertex_count());
+
+        for (const h32 v : m_systems.get_vertices())
+        {
+            outSystems.emplace_back(v.value);
+        }
     }
 }

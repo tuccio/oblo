@@ -1,5 +1,5 @@
 oblo_add_library(
-    runtime MODULE
+    runtime SHARED
     NAMESPACE oblo::dotnet
 )
 

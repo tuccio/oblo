@@ -4,6 +4,7 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/platform/platform_win32.hpp>
+#include <oblo/core/time/time.hpp>
 #include <oblo/core/unreachable.hpp>
 
 #include <utf8cpp/utf8.h>
@@ -431,6 +432,51 @@ namespace oblo::filesystem
     {
         const auto p = std::filesystem::current_path();
         out.clear().append(p.c_str());
+    }
+
+    expected<> canonical(string_view path, string_builder& out)
+    {
+        const std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
+
+        std::error_code ec;
+        const std::filesystem::path r = std::filesystem::canonical(p, ec);
+
+        if (ec)
+        {
+            return "A filesystem error occurred"_err;
+        }
+
+        out = r.native().c_str();
+        return no_error;
+    }
+
+    namespace
+    {
+        time convert_stl_time(std::filesystem::file_time_type t)
+        {
+            using stl_hns = std::ratio<1, 10'000'000>;
+            using stl_duration = std::chrono::duration<i64, stl_hns>;
+
+            const auto d = t.time_since_epoch();
+            const auto hns = std::chrono::duration_cast<stl_duration>(d);
+
+            return {.hns = hns.count()};
+        }
+    }
+
+    expected<time> last_write_time(string_view path)
+    {
+        const std::filesystem::path p{std::u8string_view{path.u8data(), path.size()}};
+
+        std::error_code ec;
+        const std::filesystem::file_time_type t = std::filesystem::last_write_time(p, ec);
+
+        if (ec)
+        {
+            return "A filesystem error occurred"_err;
+        }
+
+        return convert_stl_time(t);
     }
 
     bool search_file_in_paths(string_builder& out, string_view fileName, std::span<const string_view> extraPaths)

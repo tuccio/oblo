@@ -1,5 +1,5 @@
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/out/lib)
 
@@ -13,15 +13,14 @@ include(build_configurations)
 include(module_loaders)
 
 option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
+option(OBLO_ENABLE_HOTRELOADING "Enables hot-reloading of dynamic libraries" OFF)
 option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
-option(OBLO_SKIP_CODEGEN "Disables the codegen dependencies on project, requiring users to run codegen manually" OFF)
 option(OBLO_DEBUG "Activates code useful for debugging" OFF)
 option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
 option(OBLO_CONAN_FORCE_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
 set(OBLO_EXTRA_MODULE_DIRS "" CACHE STRING "A list of directories for extra modules to include in the project")
 
-define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_definitions BRIEF_DOCS "C++ compile definitions for oblo targets")
 
@@ -32,8 +31,6 @@ set(OBLO_FOLDER_TESTS "3 - Tests")
 set(OBLO_FOLDER_THIRDPARTY "4 - Third-party")
 set(OBLO_FOLDER_CMAKE "5 - CMake")
 set(OBLO_FOLDER_INTERNAL "6 - Internal")
-
-set(OBLO_CODEGEN_CUSTOM_TARGET run-codegen)
 
 macro(_oblo_remove_cxx_flag _option_regex)
     string(TOUPPER ${CMAKE_BUILD_TYPE} _build_type)
@@ -169,12 +166,6 @@ function(_oblo_configure_cxx_target target)
     )
 endfunction()
 
-function(_oblo_add_codegen_dependency target)
-    if(NOT OBLO_SKIP_CODEGEN)
-        add_dependencies(${target} ${OBLO_CODEGEN_CUSTOM_TARGET})
-    endif()
-endfunction(_oblo_add_codegen_dependency)
-
 macro(_oblo_deduce_subfolder_from_namespace namespace fallback)
     set(_target_subfolder "${fallback}")
 
@@ -215,10 +206,16 @@ function(oblo_add_executable name)
     endif(MSVC)
 endfunction(oblo_add_executable target)
 
+function(_oblo_setup_hotreloading target)
+    set_target_properties(${target} PROPERTIES
+        OUTPUT_NAME "${target}_hotreload"
+    )
+endfunction()
+
 function(oblo_add_library name)
     cmake_parse_arguments(
         OBLO_LIB
-        "GENERATE_HEADERS_TARGET;MODULE;TEST_MAIN"
+        "GENERATE_HEADERS_TARGET;SHARED;MODULE;TEST_MAIN;HOTRELOAD"
         "NAMESPACE"
         ""
         ${ARGN}
@@ -242,29 +239,33 @@ function(oblo_add_library name)
         endif()
 
         set(_reflection_file ${CMAKE_CURRENT_BINARY_DIR}/${_target}.gen.cpp)
-        file(TOUCH ${_reflection_file})
+        set(_depfile ${CMAKE_CURRENT_BINARY_DIR}/${_target}.gen.d)
+
         list(APPEND _oblo_reflection_src ${_reflection_file})
 
-        set_property(GLOBAL APPEND PROPERTY oblo_reflection_targets ${_target})
+        set_property(TARGET oblo::cmake::meta APPEND PROPERTY reflection_projects ${_target})
 
-        get_target_property(
-            _global_codegen_config
-            ${OBLO_CODEGEN_CUSTOM_TARGET}
-            oblo_codegen_config_content
-        )
-
-        list(APPEND _global_codegen_config
-            "{\n\
-\"target\": \"${_target}\",\n\
-\"source_file\": \"${_oblo_reflection_includes}\",\n\
-\"output_file\": \"${_reflection_file}\",\n\
-\"include_directories\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},INCLUDE_DIRECTORIES>,REPLACE,(.+),\"-I\\0\">>,$<COMMA>> ],\n\
-\"compile_definitions\": [ $<JOIN:$<REMOVE_DUPLICATES:$<LIST:TRANSFORM,$<TARGET_PROPERTY:${_target},COMPILE_DEFINITIONS>,REPLACE,(.+),\"-D\\0\">>,$<COMMA>> ]\n\
-}")
-
-        set_target_properties(
-            ${OBLO_CODEGEN_CUSTOM_TARGET}
-            PROPERTIES oblo_codegen_config_content "${_global_codegen_config}"
+        add_custom_command(
+            OUTPUT
+            ${_reflection_file}
+            BYPRODUCTS
+            ${_depfile}
+            COMMAND $<TARGET_FILE:ocodegen>
+            ${_target}
+            ${_oblo_reflection_includes}
+            ${_reflection_file}
+            $<LIST:TRANSFORM,$<LIST:FILTER,$<TARGET_PROPERTY:${_target},INCLUDE_DIRECTORIES>,EXCLUDE,^$>,PREPEND,-I>
+            $<LIST:TRANSFORM,$<LIST:FILTER,$<TARGET_PROPERTY:${_target},COMPILE_DEFINITIONS>,EXCLUDE,^$>,PREPEND,-D>
+            -std=c++${CMAKE_CXX_STANDARD}
+            -DOBLO_CODEGEN
+            -MMD
+            -MF${_depfile}
+            DEPENDS
+            ${_oblo_reflection_includes}
+            DEPFILE ${_depfile}
+            VERBATIM
+            COMMAND_EXPAND_LISTS
+            COMMENT "Generating reflection for ${_target}"
         )
 
         set(_withReflection TRUE)
@@ -291,8 +292,10 @@ function(oblo_add_library name)
         # Regular C++ library
         set(_kind "STATIC")
 
-        if(OBLO_LIB_MODULE)
+        if(OBLO_LIB_SHARED)
             set(_kind "SHARED")
+        elseif(OBLO_LIB_MODULE)
+            set(_kind "MODULE")
         endif()
 
         add_library(${_target} ${_kind})
@@ -303,13 +306,17 @@ function(oblo_add_library name)
         string(TOUPPER ${_target} _upper_name)
         set(_api_define "${_upper_name}_API")
 
-        if(OBLO_LIB_MODULE)
+        if(OBLO_LIB_MODULE OR OBLO_LIB_SHARED)
             if(MSVC)
                 target_compile_definitions(${_target} INTERFACE "${_api_define}=__declspec(dllimport)")
                 target_compile_definitions(${_target} PRIVATE "${_api_define}=__declspec(dllexport)")
             else()
                 target_compile_definitions(${_target} INTERFACE "${_api_define}=")
                 target_compile_definitions(${_target} PRIVATE "${_api_define}=")
+            endif()
+
+            if(OBLO_ENABLE_HOTRELOADING AND OBLO_LIB_HOTRELOAD)
+                _oblo_setup_hotreloading(${_target})
             endif()
         else()
             target_compile_definitions(${_target} INTERFACE "${_api_define}=")
@@ -318,7 +325,6 @@ function(oblo_add_library name)
 
         if(_withReflection)
             target_link_libraries(${_target} PUBLIC oblo::annotations PRIVATE oblo::reflection)
-            _oblo_add_codegen_dependency(${_target})
         endif()
 
         target_compile_definitions(${_target} PRIVATE "OBLO_PROJECT_NAME=${_target}")
@@ -389,17 +395,6 @@ function(oblo_symlink_to_data_folder target data_target destination)
     )
 endfunction()
 
-function(oblo_init_reflection)
-    set(_codegen_exe_target ocodegen)
-    set(_codegen_config_file ${CMAKE_CURRENT_BINARY_DIR}/reflection_config-$<CONFIG>.json)
-    file(GENERATE OUTPUT ${_codegen_config_file} CONTENT [\n$<GENEX_EVAL:$<JOIN:$<TARGET_PROPERTY:${OBLO_CODEGEN_CUSTOM_TARGET},oblo_codegen_config_content>,$<COMMA>\n>>\n])
-
-    add_custom_target(${OBLO_CODEGEN_CUSTOM_TARGET} ALL COMMAND $<TARGET_FILE:${_codegen_exe_target}> ${_codegen_config_file})
-    set_target_properties(${OBLO_CODEGEN_CUSTOM_TARGET} PROPERTIES oblo_codegen_config_content "" FOLDER ${OBLO_FOLDER_BUILD})
-
-    set_property(GLOBAL PROPERTY oblo_codegen_config ${_codegen_config_file})
-endfunction(oblo_init_reflection)
-
 macro(_oblo_make_python_boolean_literal check var)
     if(${check})
         set(${var} True)
@@ -451,6 +446,7 @@ function(oblo_init)
     set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${OBLO_FOLDER_CMAKE})
 
     add_custom_target(cmake_configure COMMAND ${CMAKE_COMMAND} ${CMAKE_BINARY_DIR})
+    add_library(oblo::cmake::meta IMPORTED INTERFACE)
 
     set_target_properties(
         cmake_configure PROPERTIES
@@ -459,7 +455,6 @@ function(oblo_init)
     )
 
     oblo_init_build_configurations()
-    oblo_init_reflection()
     oblo_init_conan()
 
     get_property(_is_multiconfig GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)

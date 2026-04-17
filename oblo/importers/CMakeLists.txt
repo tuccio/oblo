@@ -1,4 +1,4 @@
-oblo_add_library(importers MODULE)
+oblo_add_library(importers SHARED)
 
 find_package(assimp REQUIRED)
 find_package(meshoptimizer REQUIRED)

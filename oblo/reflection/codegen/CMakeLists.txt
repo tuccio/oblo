@@ -4,14 +4,12 @@ oblo_add_executable(
 )
 
 find_package(LibClang REQUIRED)
-find_package(RapidJSON REQUIRED)
 
 target_link_libraries(
     ocodegen
     PRIVATE
     oblo::core
     llvm::libclang
-    rapidjson
 )
 
 get_property(_codegen_config_file GLOBAL PROPERTY oblo_codegen_config)

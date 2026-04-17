@@ -1,4 +1,4 @@
-oblo_add_library(thread MODULE)
+oblo_add_library(thread SHARED)
 
 find_package(concurrentqueue)
 

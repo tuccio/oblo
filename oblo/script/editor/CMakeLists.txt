@@ -1,5 +1,5 @@
 oblo_add_library(
-    editor MODULE
+    editor SHARED
     NAMESPACE oblo::script
 )
 

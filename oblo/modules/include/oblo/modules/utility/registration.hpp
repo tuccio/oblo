@@ -15,3 +15,6 @@
         void* const ptr = allocator->allocate(sizeof(T), alignof(T));                                                  \
         return new (ptr) T{};                                                                                          \
     }
+
+#define OBLO_MODULE_HOTRELOAD_SYM _oblo_hotreload_module
+#define OBLO_MODULE_HOTRELOAD_FN extern "C" OBLO_SHARED_LIBRARY_EXPORT void OBLO_MODULE_HOTRELOAD_SYM

@@ -1,4 +1,4 @@
-oblo_add_library(editor MODULE
+oblo_add_library(editor SHARED
     NAMESPACE oblo::dotnet
 )
 

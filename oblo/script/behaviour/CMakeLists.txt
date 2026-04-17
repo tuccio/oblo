@@ -1,5 +1,5 @@
 oblo_add_library(
-    behaviour MODULE
+    behaviour SHARED
     NAMESPACE oblo::script
 )
 

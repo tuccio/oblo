@@ -3,22 +3,14 @@
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/service_registry_builder.hpp>
-#include <oblo/ecs/component_type_desc.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/services/world_builder.hpp>
 #include <oblo/ecs/systems/system_graph.hpp>
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/ecs/systems/system_seq_executor.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
-#include <oblo/ecs/type_registry.hpp>
-#include <oblo/ecs/utility/registration.hpp>
-#include <oblo/graphics/graphics_module.hpp>
-#include <oblo/reflection/reflection_registry.hpp>
-#include <oblo/scene/components/name_component.hpp>
-#include <oblo/scene/scene_module.hpp>
-#include <oblo/scene/utility/ecs_utility.hpp>
 #include <oblo/trace/profile.hpp>
-#include <oblo/renderer/draw/draw_registry.hpp>
 
 namespace oblo
 {

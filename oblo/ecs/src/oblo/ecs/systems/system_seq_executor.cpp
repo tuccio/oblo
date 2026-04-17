@@ -38,7 +38,7 @@ namespace oblo::ecs
 
             ctx.entities->set_modification_id(++m_modificationId);
 
-            (desc.*updateFunc)(system, &ctx);
+            (desc.*updateFunc)(desc.userdata, system, &ctx);
         }
     }
 
@@ -46,7 +46,7 @@ namespace oblo::ecs
     {
         for (const auto& [desc, system] : m_systems)
         {
-            desc.destroy(system);
+            desc.destroy(desc.userdata, system);
         }
 
         m_systems.clear();
@@ -54,7 +54,7 @@ namespace oblo::ecs
 
     void system_seq_executor::push(const system_descriptor& desc)
     {
-        void* const system = desc.create();
+        void* const system = desc.create(desc.userdata);
         m_systems.emplace_back(desc, system);
     }
 

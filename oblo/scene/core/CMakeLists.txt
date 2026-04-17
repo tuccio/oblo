@@ -1,4 +1,4 @@
-oblo_add_library(scene MODULE
+oblo_add_library(scene SHARED
     GENERATE_HEADERS_TARGET
 )
 

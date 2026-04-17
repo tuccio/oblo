@@ -30,4 +30,6 @@ namespace oblo
 
     template <typename T, typename D>
     class unique_ptr;
+
+    struct time;
 }

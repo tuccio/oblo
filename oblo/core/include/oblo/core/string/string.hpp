@@ -1,7 +1,5 @@
 #pragma once
 
-#include <bit>
-
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
@@ -227,5 +225,14 @@ namespace oblo
 
     private:
         buffered_array<char, 32> m_string;
+    };
+
+    template <>
+    struct hash<string>
+    {
+        constexpr hash_type operator()(const string& s) const noexcept
+        {
+            return hashed_string_view{s}.hash();
+        }
     };
 }

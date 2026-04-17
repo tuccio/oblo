@@ -1,4 +1,4 @@
-oblo_add_library(log MODULE)
+oblo_add_library(log SHARED)
 
 find_package(concurrentqueue)
 

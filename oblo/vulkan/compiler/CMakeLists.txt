@@ -1,5 +1,5 @@
 oblo_add_library(
-    compiler MODULE
+    compiler SHARED
     NAMESPACE oblo::vulkan
 )
 
