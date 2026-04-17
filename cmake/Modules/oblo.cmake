@@ -21,7 +21,6 @@ option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
 option(OBLO_CONAN_FORCE_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
 set(OBLO_EXTRA_MODULE_DIRS "" CACHE STRING "A list of directories for extra modules to include in the project")
 
-define_property(GLOBAL PROPERTY oblo_codegen_config BRIEF_DOCS "Codegen config file" FULL_DOCS "The path to the generated config file used to generate reflection code")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_definitions BRIEF_DOCS "C++ compile definitions for oblo targets")
 
@@ -242,12 +241,15 @@ function(oblo_add_library name)
         set(_reflection_file ${CMAKE_CURRENT_BINARY_DIR}/${_target}.gen.cpp)
         set(_depfile ${CMAKE_CURRENT_BINARY_DIR}/${_target}.gen.d)
 
-        file(TOUCH ${_reflection_file})
         list(APPEND _oblo_reflection_src ${_reflection_file})
 
-        add_custom_command(
-            OUTPUT ${_reflection_file}
+        set_property(TARGET oblo::cmake::meta APPEND PROPERTY reflection_projects ${_target})
 
+        add_custom_command(
+            OUTPUT
+            ${_reflection_file}
+            BYPRODUCTS
+            ${_depfile}
             COMMAND $<TARGET_FILE:ocodegen>
             ${_target}
             ${_oblo_reflection_includes}
@@ -444,6 +446,7 @@ function(oblo_init)
     set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER ${OBLO_FOLDER_CMAKE})
 
     add_custom_target(cmake_configure COMMAND ${CMAKE_COMMAND} ${CMAKE_BINARY_DIR})
+    add_library(oblo::cmake::meta IMPORTED INTERFACE)
 
     set_target_properties(
         cmake_configure PROPERTIES
