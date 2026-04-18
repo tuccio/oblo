@@ -42,6 +42,11 @@ namespace oblo
             h32<frame_graph_subgraph> dstGraph,
             string_view dstName);
 
+        bool disconnect(h32<frame_graph_subgraph> srcGraph,
+            string_view srcName,
+            h32<frame_graph_subgraph> dstGraph,
+            string_view dstName);
+
         template <typename T>
         expected<> set_input(h32<frame_graph_subgraph> graph, string_view name, T&& value);
 

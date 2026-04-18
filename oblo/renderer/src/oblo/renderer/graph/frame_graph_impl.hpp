@@ -102,6 +102,10 @@ namespace oblo
 
         // Owned textures, e.g. retained textures. We don't really need this flag, it's more for debugging purposes.
         bool isOwnedTexture;
+
+#ifdef OBLO_DEBUG
+        string debugName;
+#endif
     };
 
     enum class frame_graph_vertex_state : u8

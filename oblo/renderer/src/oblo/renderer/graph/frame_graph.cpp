@@ -207,6 +207,12 @@ namespace oblo
             return false;
         }
 
+        if (m_impl->graph.has_edge(outIt->second, inIt->second))
+        {
+            // Already connected
+            return false;
+        }
+
         const auto srcPinVertex = outIt->second;
         const auto dstPinVertex = inIt->second;
 
@@ -225,6 +231,67 @@ namespace oblo
         if (!m_impl->graph.has_edge(srcNode, dstNode))
         {
             m_impl->graph.add_edge(srcNode, dstNode);
+        }
+
+        return true;
+    }
+
+    bool frame_graph::disconnect(h32<frame_graph_subgraph> srcGraph,
+        string_view srcName,
+        h32<frame_graph_subgraph> dstGraph,
+        string_view dstName)
+    {
+        auto* const srcGraphPtr = m_impl->subgraphs.try_find(srcGraph);
+        auto* const dstGraphPtr = m_impl->subgraphs.try_find(dstGraph);
+
+        if (!srcGraphPtr || !dstGraphPtr)
+        {
+            return false;
+        }
+
+        const auto outIt = srcGraphPtr->outputs.find(srcName);
+        const auto inIt = dstGraphPtr->inputs.find(dstName);
+
+        if (outIt == srcGraphPtr->outputs.end() || inIt == dstGraphPtr->inputs.end())
+        {
+            return false;
+        }
+
+        const auto srcPinVertex = outIt->second;
+        const auto dstPinVertex = inIt->second;
+
+        const auto& srcPin = m_impl->graph[srcPinVertex];
+        const auto& dstPin = m_impl->graph[dstPinVertex];
+
+        OBLO_ASSERT(srcPin.pin);
+        OBLO_ASSERT(dstPin.pin);
+
+        const auto srcNode = m_impl->pins.try_find(srcPin.pin)->nodeHandle;
+        const auto dstNode = m_impl->pins.try_find(dstPin.pin)->nodeHandle;
+
+        // Remove edge between pins
+        if (m_impl->graph.has_edge(srcPinVertex, dstPinVertex))
+        {
+            m_impl->graph.remove_edge(srcPinVertex, dstPinVertex);
+        }
+
+        // Remove node-level dependency ONLY if no other pin connections exist
+        bool stillConnected = false;
+
+        for (const auto& edge : m_impl->graph.get_out_edges(srcNode))
+        {
+            const h32 edgeDst = m_impl->graph.get_destination(edge.handle);
+
+            if (edgeDst == dstNode)
+            {
+                stillConnected = true;
+                break;
+            }
+        }
+
+        if (!stillConnected && m_impl->graph.has_edge(srcNode, dstNode))
+        {
+            m_impl->graph.remove_edge(srcNode, dstNode);
         }
 
         return true;
@@ -334,6 +401,9 @@ namespace oblo
             *pinStorageIt = {
                 .typeDesc = src.pinDesc,
                 .owner = dst.pin,
+#ifdef OBLO_DEBUG
+                .debugName = src.name,
+#endif
             };
 
             if (!src.bindings.empty())
@@ -1694,10 +1764,20 @@ namespace oblo
 
                 case frame_graph_vertex_kind::pin: {
                     OBLO_ASSERT(vertex.pin);
-                    const auto storage = pins.try_find(vertex.pin)->ownedStorage;
+                    auto* const pin = pins.try_find(vertex.pin);
+                    const h32 storage = pin->ownedStorage;
+                    const auto& pinData = pinStorage.at(storage);
 
-                    builder.clear().format(R"(label="{}" shape="diamond")",
-                        pinStorage.at(storage).typeDesc.typeId.name);
+                    string_view pinLabel = pinData.typeDesc.typeId.name;
+
+#ifdef OBLO_DEBUG
+                    if (!pinData.debugName.empty())
+                    {
+                        pinLabel = string_view{pinData.debugName};
+                    }
+#endif
+
+                    builder.clear().format(R"(label="{}" shape="diamond")", pinLabel);
 
                     return builder.c_str();
                 }
