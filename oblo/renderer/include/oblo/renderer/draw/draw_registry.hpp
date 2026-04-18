@@ -116,6 +116,8 @@ namespace oblo
         ecs::entity_registry* m_entities{};
         const ecs::type_registry* m_typeRegistry{};
 
+        u64 m_rtScratchBufferAlignment{};
+
         ecs::component_type m_instanceComponent{};
         ecs::component_type m_instanceIdComponent{};
         ecs::tag_type m_indexNoneTag{};
