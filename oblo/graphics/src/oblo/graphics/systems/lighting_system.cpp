@@ -242,6 +242,9 @@ namespace oblo
                         const auto [it, ok] = shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
 
                         v = &*it;
+
+                        // Disable all outputs, so we only execute the nodes if an output is required
+                        frameGraph.disable_all_outputs(shadowMappingGraph);
                     }
 
                     const raytraced_shadow_config cfg{

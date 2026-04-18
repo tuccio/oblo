@@ -46,6 +46,7 @@ namespace oblo
         emissive,
         motion_vectors,
         raytracing_debug,
+        pathtracing,
         gi_surfels,
         gi_surfels_lighting,
         gi_surfels_raycount,

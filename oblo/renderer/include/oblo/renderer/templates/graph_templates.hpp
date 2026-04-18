@@ -57,6 +57,7 @@ namespace oblo::main_view
     constexpr string_view OutMotionVectors{"MotionVectors"};
     constexpr string_view OutRTAmbientOcclusion{"RT AmbientOcclusion"};
     constexpr string_view OutAmbientOcclusion{"AmbientOcclusion"};
+    constexpr string_view OutPathTracingImage{"Path-Tracing Output"};
 
     constexpr string_view OutPicking{"OutPicking"};
 
