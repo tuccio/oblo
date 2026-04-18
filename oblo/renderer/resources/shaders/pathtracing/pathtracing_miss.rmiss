@@ -4,10 +4,11 @@
 #extension GL_EXT_ray_tracing : require
 #extension GL_EXT_nonuniform_qualifier : require
 
+#include <pathtracing/pathtracing>
 #include <renderer/textures>
-#include <skybox/skybox>
+#include <skybox/skybox_utility>
 
-layout(location = 0) rayPayloadInEXT vec3 r_HitColor;
+layout(location = 0) rayPayloadInEXT pathtracing_payload r_Payload;
 
 layout(binding = 3) uniform b_SkyboxSettings
 {
@@ -23,5 +24,5 @@ void main()
     const uint lod = 0;
     const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, 0);
 
-    r_HitColor = color.xyz * g_SkyboxMultiplier;
+    r_Payload.radiance = color.xyz * g_SkyboxMultiplier;
 }

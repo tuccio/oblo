@@ -5,7 +5,7 @@
 #extension GL_EXT_nonuniform_qualifier : require
 
 #include <renderer/textures>
-#include <skybox/skybox>
+#include <skybox/skybox_utility>
 
 layout(location = 0) rayPayloadInEXT vec3 r_HitColor;
 

@@ -1,11 +1,23 @@
 #version 460
 
+#extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_ray_tracing : require
 #extension GL_GOOGLE_include_directive : require
+#extension GL_KHR_shader_subgroup_quad : require
 
+#include <deferred/gbuffer>
+#include <pathtracing/pathtracing>
 #include <renderer/camera>
+#include <renderer/shading/pbr>
+#include <renderer/textures>
+#include <skybox/skybox_sample>
+#include <visibility/visibility_utils>
 
-const uint g_HitColorPayload = 0;
+layout(binding = 3) uniform b_SkyboxSettings
+{
+    vec3 g_SkyboxMultiplier;
+    uint g_SkyboxTexture;
+};
 
 layout(binding = 16) uniform b_CameraBuffer
 {
@@ -14,13 +26,81 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
-layout(binding = 12, rgba16f) uniform restrict writeonly image2D t_OutShadedImage;
+layout(binding = 12, rgba16f) uniform restrict readonly image2D t_InGBuffer0;
+layout(binding = 13, rgba16f) uniform restrict readonly image2D t_InGBuffer1;
+layout(binding = 14, rgba16f) uniform restrict readonly image2D t_InGBuffer2;
+layout(binding = 15, rgba16f) uniform restrict readonly image2D t_InGBuffer3;
 
-layout(location = 0) rayPayloadEXT vec3 r_HitColor;
+layout(binding = 20, rgba16f) uniform restrict writeonly image2D t_OutShadedImage;
+
+layout(location = 0) rayPayloadEXT pathtracing_payload r_Payload;
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint randomSeed;
+}
+g_Constants;
+
+bool parse_gbuffer(out vec3 position, out vec3 normal, out pbr_material pbr)
+{
+    const uvec2 resolution = gl_LaunchSizeEXT.xy;
+    const ivec2 screenPos = ivec2(gl_LaunchIDEXT.xy);
+    const vec4 texGBuffer0 = imageLoad(t_InGBuffer0, screenPos);
+
+    gbuffer0 g0;
+    gbuffer_unpack(g0, texGBuffer0);
+
+    if (g0.roughness < 0.f)
+    {
+        return false;
+    }
+
+    const vec4 texGBuffer1 = imageLoad(t_InGBuffer1, screenPos);
+    const vec4 texGBuffer2 = imageLoad(t_InGBuffer2, screenPos);
+    const vec4 texGBuffer3 = imageLoad(t_InGBuffer3, screenPos);
+
+    gbuffer1 g1;
+    gbuffer2 g2;
+    gbuffer3 g3;
+
+    gbuffer_unpack(g1, texGBuffer1);
+    gbuffer_unpack(g2, texGBuffer2);
+    gbuffer_unpack(g3, texGBuffer3);
+
+    position = g0.position;
+    normal = g1.normal;
+
+    pbr.albedo = g2.albedo;
+    pbr.metalness = g2.metalness;
+    pbr.roughness = g0.roughness;
+    pbr.ior = g3.ior;
+    pbr.emissive = g3.emissive;
+
+    return true;
+}
 
 void main()
 {
     const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
+    const ivec2 screenPos = ivec2(gl_LaunchIDEXT.xy);
+
+    vec3 position;
+    vec3 normal;
+    pbr_material pbr;
+
+    if (!parse_gbuffer(position, normal, pbr))
+    {
+        const ray cameraRay = visibility_calculate_camera_ray(g_Camera, positionNDC);
+
+        const vec4 skybox = skybox_sample_screenspace(g_SkyboxTexture,
+            g_SkyboxMultiplier,
+            cameraRay,
+            uvec2(screenPos),
+
+            gl_LaunchSizeEXT.xy);
+        imageStore(t_OutShadedImage, screenPos, skybox);
+        return;
+    }
 
     const vec3 origin = g_Camera.position;
     const vec3 direction = camera_ray_direction(g_Camera, positionNDC);
@@ -28,6 +108,10 @@ void main()
     const float tMin = 1e-2f;
     const float tMax = 1e6f;
 
+    r_Payload.radiance = vec3(0);
+    r_Payload.seed = g_Constants.randomSeed;
+
+#if 0
     traceRayEXT(u_SceneTLAS,
         gl_RayFlagsOpaqueEXT,
         0xff, // cull mask
@@ -40,6 +124,9 @@ void main()
         tMax,
         0 // payload location
     );
+#else
+    r_Payload.radiance = pbr.albedo;
+#endif
 
-    imageStore(t_OutShadedImage, ivec2(gl_LaunchIDEXT.xy), vec4(r_HitColor, 1));
+    imageStore(t_OutShadedImage, screenPos, vec4(r_Payload.radiance, 1));
 }

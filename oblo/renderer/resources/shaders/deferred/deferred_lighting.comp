@@ -21,7 +21,7 @@
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
 #include <renderer/transform>
-#include <skybox/skybox>
+#include <skybox/skybox_sample>
 #include <visibility/visibility_buffer>
 #include <visibility/visibility_utils>
 
@@ -68,8 +68,6 @@ layout(binding = 15, rgba16f) uniform restrict readonly image2D t_InGBuffer3;
 
 layout(binding = 10, rgba8) uniform restrict writeonly image2D t_OutShadedImage;
 
-vec4 sample_skybox(uvec2 screenPos, uvec2 resolution);
-
 void main()
 {
     const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);
@@ -88,7 +86,12 @@ void main()
 
     if (g0.roughness < 0.f)
     {
-        const vec4 skybox = sample_skybox(uvec2(screenPos), resolution);
+        const vec2 ndc = screen_to_ndc(screenPos, resolution);
+        const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
+
+        const vec4 skybox =
+            skybox_sample_screenspace(g_SkyboxTexture, g_SkyboxMultiplier, cameraRay, uvec2(screenPos), resolution);
+
         imageStore(t_OutShadedImage, screenPos, skybox);
         return;
     }
@@ -146,30 +149,4 @@ void main()
     // const vec3 outLight = pbr.emissive + reflected;
 
     imageStore(t_OutShadedImage, screenPos, vec4(outLight, 1));
-}
-
-vec4 sample_skybox(uvec2 screenPos, uvec2 resolution)
-{
-    const vec2 ndc = screen_to_ndc(screenPos, resolution);
-    const ray cameraRay = visibility_calculate_camera_ray(g_Camera, ndc);
-
-    // Generate sphere UVs to sample the skybox
-    const vec2 uv = skybox_uv_from_ray_direction(cameraRay.direction);
-
-    const vec2 uvQuadX = subgroupQuadSwapHorizontal(uv);
-    const vec2 uvQuadY = subgroupQuadSwapVertical(uv);
-
-#if 0 // Using gradients this way introduces a seam where the skybox wraps, maybe we can just choose a mipmap
-      // manually instead
-    const vec2 uvDDX = uv - uvQuadX;
-    const vec2 uvDDY = uv - uvQuadY;
-
-    const vec4 color = texture_sample_2d_grad(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, uvDDX, uvDDY);
-
-#else
-    const uint lod = 0;
-    const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, 0);
-#endif
-
-    return vec4(color.xyz * g_SkyboxMultiplier, 1);
 }

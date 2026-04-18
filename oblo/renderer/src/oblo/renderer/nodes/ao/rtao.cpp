@@ -60,6 +60,7 @@ namespace oblo
             texture_usage::storage_write);
 
         ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
+        ctx.acquire(inMotionVectors, texture_usage::storage_read);
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);

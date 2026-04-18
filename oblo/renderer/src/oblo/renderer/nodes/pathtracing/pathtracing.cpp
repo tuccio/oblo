@@ -1,5 +1,6 @@
 #include <oblo/renderer/nodes/pathtracing/pathtracing.hpp>
 
+#include <oblo/core/random_generator.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/draw_buffer_data.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
@@ -51,7 +52,19 @@ namespace oblo
 
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
+        ctx.acquire(inLightBuffer, buffer_usage::storage_read);
+
+        ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
+        ctx.acquire(inMotionVectors, texture_usage::storage_read);
+
+        ctx.acquire(inGBuffer0, texture_usage::storage_read);
+        ctx.acquire(inGBuffer1, texture_usage::storage_read);
+        ctx.acquire(inGBuffer2, texture_usage::storage_read);
+        ctx.acquire(inGBuffer3, texture_usage::storage_read);
+
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+        randomSeed = ctx.get_random_generator().generate();
     }
 
     void pathtracing::execute(const frame_graph_execute_context& ctx)
@@ -69,6 +82,12 @@ namespace oblo
 
         bindingTable.bind_textures({
             {"t_OutShadedImage"_hsv, outShadedImage},
+            {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
+            {"t_InMotionVectors"_hsv, inMotionVectors},
+            {"t_InGBuffer0"_hsv, inGBuffer0},
+            {"t_InGBuffer1"_hsv, inGBuffer1},
+            {"t_InGBuffer2"_hsv, inGBuffer2},
+            {"t_InGBuffer3"_hsv, inGBuffer3},
         });
 
         bindingTable.bind("u_SceneTLAS"_hsv, ctx.get_global_tlas());
@@ -77,7 +96,19 @@ namespace oblo
         {
             const auto resolution = ctx.access(inResolution);
 
+            struct push_constants
+            {
+                u32 randomSeed;
+                f32 aoBias;
+            };
+
+            const push_constants constants{
+                .randomSeed = randomSeed,
+            };
+
             ctx.bind_descriptor_sets(bindingTable);
+
+            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
 
             ctx.trace_rays(resolution.x, resolution.y, 1);
 

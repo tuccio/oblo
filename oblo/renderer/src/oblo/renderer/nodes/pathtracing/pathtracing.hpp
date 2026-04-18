@@ -16,6 +16,14 @@ namespace oblo
         pin::buffer inLightBuffer;
         pin::buffer inLightConfig;
 
+        pin::texture inMotionVectors;
+        pin::texture inDisocclusionMask;
+
+        pin::texture inGBuffer0;
+        pin::texture inGBuffer1;
+        pin::texture inGBuffer2;
+        pin::texture inGBuffer3;
+
         pin::buffer inSkyboxSettingsBuffer;
 
         pin::texture outShadedImage;
@@ -27,6 +35,8 @@ namespace oblo
 
         pin::buffer inInstanceTables;
         pin::data<instance_data_table_buffers_span> inInstanceBuffers;
+
+        u32 randomSeed;
 
         void init(const frame_graph_init_context& context);
 

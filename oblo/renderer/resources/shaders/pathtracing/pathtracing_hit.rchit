@@ -17,8 +17,10 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices_rt>
 #include <renderer/meshes/mesh_table>
+#include <renderer/random/sampling>
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
+#include <pathtracing/pathtracing>
 
 layout(binding = 0) uniform b_LightConfig
 {
@@ -32,8 +34,7 @@ layout(std430, binding = 1) restrict readonly buffer b_LightData
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
-layout(location = 0) rayPayloadInEXT vec3 r_HitColor;
-layout(location = 1) rayPayloadEXT bool r_IsShadowed;
+layout(location = 0) rayPayloadInEXT pathtracing_payload r_Payload;
 
 hitAttributeEXT vec2 h_BarycentricCoords;
 
@@ -102,9 +103,6 @@ void main()
         // No reason to call the hit shader, we only care about the miss shader
         const uint flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
-        // The miss shader will set it to false if no geometry is hit
-        r_IsShadowed = true;
-
         if (light.type != OBLO_LIGHT_TYPE_DIRECTIONAL)
         {
             tMax = length(light.position - positionWS);
@@ -120,12 +118,12 @@ void main()
             tMin,
             L,
             tMax,
-            1 // payload location
+            0 // payload location
         );
 
-        const float visibility = r_IsShadowed ? 0.f : 1.f;
+        const float visibility = 1.f;
         reflected += visibility * contribution * brdf;
     }
 
-    r_HitColor = reflected + pbr.emissive;
+    r_Payload.radiance = reflected + pbr.emissive;
 }
