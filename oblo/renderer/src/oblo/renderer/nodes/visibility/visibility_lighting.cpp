@@ -168,10 +168,10 @@ namespace oblo
             },
             buffer_usage::storage_read);
 
-        ctx.acquire(inGBuffer0, texture_usage::shader_read);
-        ctx.acquire(inGBuffer1, texture_usage::shader_read);
-        ctx.acquire(inGBuffer2, texture_usage::shader_read);
-        ctx.acquire(inGBuffer3, texture_usage::shader_read);
+        ctx.acquire(inGBuffer0, texture_usage::storage_read);
+        ctx.acquire(inGBuffer1, texture_usage::storage_read);
+        ctx.acquire(inGBuffer2, texture_usage::storage_read);
+        ctx.acquire(inGBuffer3, texture_usage::storage_read);
     }
 
     void deferred_lighting::execute(const frame_graph_execute_context& ctx)
