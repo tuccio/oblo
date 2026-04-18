@@ -20,6 +20,9 @@
 
 #ifdef TRACY_ENABLE
     #include <tracy/TracyVulkan.hpp>
+
+    #include <oblo/core/string/transparent_string_hash.hpp>
+    #include <unordered_map>
 #endif
 
 #define OBLO_VK_LOAD_FN(name) PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
@@ -149,6 +152,7 @@ namespace oblo::gpu::vk
         using tracy::VkCtx::VkCtx;
 
         frame_allocator allocator;
+        std::unordered_map<string, tracy::SourceLocationData, transparent_string_hash, std::equal_to<>> sourceLocations;
     };
 #else
     struct vulkan_instance::profiling_impl
@@ -2801,25 +2805,26 @@ namespace oblo::gpu::vk
     result<hptr<profiling_context>> vulkan_instance::cmd_profile_begin(hptr<command_buffer> cmd, cstring_view label)
     {
 #ifdef TRACY_ENABLE
-        // NOTE: This is not thread-safe
-        char* const name = allocate_n<char>(m_profiling->allocator, label.size());
-        auto* const locationMem =
-            m_profiling->allocator.allocate(sizeof(tracy::SourceLocationData), alignof(tracy::SourceLocationData));
+
+        // NOTE: This allocation is not thread-safe
         auto* const scopeMem = m_profiling->allocator.allocate(sizeof(tracy::VkCtxScope), alignof(tracy::VkCtxScope));
 
-        if (!name || !locationMem || !scopeMem)
+        if (!scopeMem)
         {
             return error::out_of_memory;
         }
 
-        std::memcpy(name, label.data(), label.size());
+        // Keep labels stable n memory, because Tracy will query for them at a later point
+        // NOTE: This is also not thread-safe
+        const auto [it, inserted] = m_profiling->sourceLocations.emplace(label, tracy::SourceLocationData{});
 
-        auto* const location = new (locationMem) tracy::SourceLocationData{
-            .name = name,
-        };
+        if (inserted)
+        {
+            it->second.name = it->first.c_str();
+        }
 
         auto* const scope =
-            new (scopeMem) tracy::VkCtxScope{m_profiling.get(), location, unwrap_handle<VkCommandBuffer>(cmd), true};
+            new (scopeMem) tracy::VkCtxScope{m_profiling.get(), &it->second, unwrap_handle<VkCommandBuffer>(cmd), true};
 
         return std::bit_cast<hptr<profiling_context>>(scope);
 #else
