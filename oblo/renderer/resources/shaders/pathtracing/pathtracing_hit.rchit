@@ -9,6 +9,7 @@
 #extension GL_EXT_control_flow_attributes : require
 
 #include <pathtracing/pathtracing>
+#include <renderer/constants>
 #include <renderer/geometry/barycentric>
 #include <renderer/instance_id>
 #include <renderer/instances>
@@ -36,8 +37,49 @@ layout(std430, binding = 1) restrict readonly buffer b_LightData
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
 layout(location = 0) rayPayloadInEXT pathtracing_payload r_Payload;
+layout(location = 1) rayPayloadEXT bool r_IsShadowed;
 
 hitAttributeEXT vec2 h_BarycentricCoords;
+
+// Multiple importance sampling heuristics
+float mis_balance_heuristic(in float a, in float b)
+{
+    return a / (a + b);
+}
+
+float mis_power_heuristic(in float a, in float b)
+{
+    const float a2 = a * a;
+    const float b2 = b * b;
+    return a2 / (a2 + b2);
+}
+
+bool raytrace_visibility(in vec3 positionWS, in vec3 L, in float tMax)
+{
+    // Trace hard shadow by shooting a ray from the hit position towards the light
+    const float tMin = 1e-2f;
+
+    // No reason to call the hit shader, we only care about the miss shader
+    const uint flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+
+    // The miss shader will set it to false if no geometry is hit
+    r_IsShadowed = true;
+
+    traceRayEXT(u_SceneTLAS,
+        flags,
+        0xff, // cull mask
+        0,    // STB record offset
+        0,    // STB record stride
+        1,    // Miss index
+        positionWS,
+        tMin,
+        L,
+        tMax,
+        1 // payload location
+    );
+
+    return !r_IsShadowed;
+}
 
 void main()
 {
@@ -76,6 +118,7 @@ void main()
     const vec2 uv0 = barycentric_interpolate(bc, triangleUV0);
 
     const vec3 positionWS = vec3(gl_ObjectToWorldEXT * vec4(position, 1.f));
+    // NOTE: We may want to use the transpose inverse for normals
     const vec3 normalWS = normalize(vec3(normal * gl_WorldToObjectEXT));
 
     // TODO: Calculate the derivatives
@@ -86,11 +129,37 @@ void main()
 
     const vec3 viewWS = normalize(gl_WorldRayOriginEXT - positionWS);
 
-    // Pick a direction
+    if (g_LightConfig.lightsCount > 0)
+    {
+        const float invLightPickPdf = float(g_LightConfig.lightsCount);
+        const uint lightIndex = hash_pcg(r_Payload.seed) % g_LightConfig.lightsCount;
+        const light_data light = g_Lights[lightIndex];
+
+        if (light.type == OBLO_LIGHT_TYPE_DIRECTIONAL)
+        {
+            const vec3 L = -light.direction;
+
+            const bool isVisible = raytrace_visibility(positionWS, L, 1e6f);
+
+            if (isVisible)
+            {
+                const float cosTheta = max(dot(normalWS, L), 0.f);
+                const vec3 f = pbr.albedo / float_pi();
+                r_Payload.radiance += r_Payload.throughput * f * light.intensity * cosTheta * invLightPickPdf;
+            }
+        }
+        else
+        {
+            // TODO
+        }
+    }
+
     r_Payload.radiance += r_Payload.throughput * pbr.emissive;
-    r_Payload.throughput *= pbr.albedo; // Just a Lambertian material for now
-    r_Payload.origin = positionWS;
+
+    // Just a Lambertian material for now, pdf cancels out with cosine sampling pdf
+    r_Payload.throughput *= pbr.albedo;
 
     // Cosine sampling because it's better for Lambertian at least
     r_Payload.direction = random_sample_cosine_hemisphere(normalWS, random_uniform_2d(r_Payload.seed));
+    r_Payload.origin = positionWS;
 }

@@ -85,7 +85,7 @@ bool parse_gbuffer(out vec3 position, out vec3 normal, out pbr_material pbr)
 }
 
 const uint g_SamplesPerPixel = 2;
-const uint g_MaxBounces = 5;
+const uint g_MaxBounces = 4;
 const uint g_MaxSamplesPerPixel = 1u << 30;
 
 void main()
@@ -171,7 +171,6 @@ void main()
     }
 
     const vec3 newAverage = (previousSamplesCount * history + accumulated) / newSamplesCount;
-    // const vec3 newAverage = (previousSamplesCount * history + accumulated) / newSamplesCount;
 
     imageStore(t_OutShadedImage, screenPos, vec4(newAverage, 1));
     imageStore(t_SamplesCount, screenPos, uvec4(newSamplesCount, 0, 0, 0));
