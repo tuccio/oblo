@@ -8,6 +8,7 @@
 #extension GL_EXT_shader_16bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
+#include <pathtracing/pathtracing>
 #include <renderer/geometry/barycentric>
 #include <renderer/instance_id>
 #include <renderer/instances>
@@ -17,10 +18,10 @@
 #include <renderer/meshes/mesh_data>
 #include <renderer/meshes/mesh_indices_rt>
 #include <renderer/meshes/mesh_table>
+#include <renderer/random/random>
 #include <renderer/random/sampling>
 #include <renderer/shading/pbr_utility>
 #include <renderer/textures>
-#include <pathtracing/pathtracing>
 
 layout(binding = 0) uniform b_LightConfig
 {
@@ -53,7 +54,6 @@ void main()
     barycentric_coords bc;
     bc.lambda = vec3(1.f - h_BarycentricCoords.x - h_BarycentricCoords.y, h_BarycentricCoords.x, h_BarycentricCoords.y);
 
-    // r_HitColor = debug_color_map(uint(gl_InstanceCustomIndexEXT));
     vec2 triangleUV0[3];
     vec3 trianglePosition[3];
     vec3 triangleNormal[3];
@@ -84,46 +84,13 @@ void main()
 
     const pbr_material pbr = pbr_extract_parameters(material, uv0, uv0DDX, uv0DDY);
 
-    vec3 reflected = vec3(0);
     const vec3 viewWS = normalize(gl_WorldRayOriginEXT - positionWS);
 
-    for (uint lightIndex = 0; lightIndex < g_LightConfig.lightsCount; ++lightIndex)
-    {
-        const light_data light = g_Lights[lightIndex];
+    // Pick a direction
+    r_Payload.radiance += r_Payload.throughput * pbr.emissive;
+    r_Payload.throughput *= pbr.albedo; // Just a Lambertian material for now
+    r_Payload.origin = positionWS;
 
-        vec3 L;
-
-        const vec3 contribution = light_contribution(light, positionWS, L);
-        const vec3 brdf = pbr_brdf_diffuse(normalWS, viewWS, L, pbr);
-
-        // Trace hard shadow by shooting a ray from the hit position towards the light
-        const float tMin = 1e-2f;
-        float tMax = 1e6f;
-
-        // No reason to call the hit shader, we only care about the miss shader
-        const uint flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
-
-        if (light.type != OBLO_LIGHT_TYPE_DIRECTIONAL)
-        {
-            tMax = length(light.position - positionWS);
-        }
-
-        traceRayEXT(u_SceneTLAS,
-            flags,
-            0xff, // cull mask
-            0,    // STB record offset
-            0,    // STB record stride
-            1,    // Miss index
-            positionWS,
-            tMin,
-            L,
-            tMax,
-            0 // payload location
-        );
-
-        const float visibility = 1.f;
-        reflected += visibility * contribution * brdf;
-    }
-
-    r_Payload.radiance = reflected + pbr.emissive;
+    // Cosine sampling because it's better for Lambertian at least
+    r_Payload.direction = random_sample_cosine_hemisphere(normalWS, random_uniform_2d(r_Payload.seed));
 }

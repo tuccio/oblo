@@ -8,6 +8,8 @@
 #include <deferred/gbuffer>
 #include <pathtracing/pathtracing>
 #include <renderer/camera>
+#include <renderer/random/random>
+#include <renderer/random/sampling>
 #include <renderer/shading/pbr>
 #include <renderer/textures>
 #include <skybox/skybox_sample>
@@ -96,37 +98,44 @@ void main()
             g_SkyboxMultiplier,
             cameraRay,
             uvec2(screenPos),
-
             gl_LaunchSizeEXT.xy);
+
         imageStore(t_OutShadedImage, screenPos, skybox);
         return;
     }
 
-    const vec3 origin = g_Camera.position;
-    const vec3 direction = camera_ray_direction(g_Camera, positionNDC);
-
     const float tMin = 1e-2f;
     const float tMax = 1e6f;
 
-    r_Payload.radiance = vec3(0);
-    r_Payload.seed = g_Constants.randomSeed;
+    r_Payload.radiance = vec3(0.0);
+    r_Payload.throughput = vec3(1.0);
+    r_Payload.origin = g_Camera.position;
+    r_Payload.direction = camera_ray_direction(g_Camera, positionNDC);
+    r_Payload.done = false;
+    r_Payload.seed = random_seed(g_Constants.randomSeed, gl_LaunchIDEXT.x + gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x);
 
-#if 0
-    traceRayEXT(u_SceneTLAS,
-        gl_RayFlagsOpaqueEXT,
-        0xff, // cull mask
-        0,    // STB record offset
-        0,    // STB record stride
-        0,    // Miss index
-        origin,
-        tMin,
-        direction,
-        tMax,
-        0 // payload location
-    );
-#else
-    r_Payload.radiance = pbr.albedo;
-#endif
+    const uint MAX_BOUNCES = 5;
+
+    for (uint depth = 0; depth < MAX_BOUNCES; ++depth)
+    {
+        traceRayEXT(u_SceneTLAS,
+            gl_RayFlagsOpaqueEXT,
+            0xff, // cull mask
+            0,    // STB record offset
+            0,    // STB record stride
+            0,    // Miss index
+            r_Payload.origin,
+            tMin,
+            r_Payload.direction,
+            tMax,
+            0 // payload location
+        );
+
+        if (r_Payload.done)
+        {
+            break;
+        }
+    }
 
     imageStore(t_OutShadedImage, screenPos, vec4(r_Payload.radiance, 1));
 }

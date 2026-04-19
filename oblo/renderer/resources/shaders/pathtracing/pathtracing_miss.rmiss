@@ -24,5 +24,7 @@ void main()
     const uint lod = 0;
     const vec4 color = texture_sample_2d_lod(g_SkyboxTexture, OBLO_SAMPLER_LINEAR_REPEAT, uv, 0);
 
-    r_Payload.radiance = color.xyz * g_SkyboxMultiplier;
+    const vec3 skyRadiance = color.xyz * g_SkyboxMultiplier;
+    r_Payload.radiance += r_Payload.throughput * skyRadiance;
+    r_Payload.done = true;
 }

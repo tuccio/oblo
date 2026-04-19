@@ -4,9 +4,14 @@
 struct pathtracing_payload
 {
     vec3 radiance;
+    vec3 throughput;
 
-    uint depth;
+    vec3 origin;
+    vec3 direction;
+
     uint seed;
+
+    bool done;
 };
 
 #endif
