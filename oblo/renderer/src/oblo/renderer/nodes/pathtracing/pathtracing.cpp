@@ -1,6 +1,7 @@
 #include <oblo/renderer/nodes/pathtracing/pathtracing.hpp>
 
 #include <oblo/core/random_generator.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/draw_buffer_data.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
@@ -31,17 +32,34 @@ namespace oblo
 
     void pathtracing::build(const frame_graph_build_context& ctx)
     {
-        ptPassInstance = ctx.raytracing_pass(ptPass, {});
-
         const auto resolution = ctx.access(inResolution);
+
+        // We need a transfer pass just in case to clear, maybe we should implement a way to clear stable textures when
+        // we create them instead
+        clearPassInstance = ctx.transfer_pass();
 
         ctx.create(outShadedImage,
             {
                 .width = resolution.x,
                 .height = resolution.y,
                 .format = gpu::image_format::r16g16b16a16_sfloat,
+                .isStable = true,
             },
-            texture_usage::storage_write);
+            texture_usage::transfer_destination);
+
+        ctx.create(samplesCountImage,
+            {
+                .width = resolution.x,
+                .height = resolution.y,
+                .format = gpu::image_format::r32_uint,
+                .isStable = true,
+            },
+            texture_usage::transfer_destination);
+
+        ptPassInstance = ctx.raytracing_pass(ptPass, {});
+
+        ctx.acquire(outShadedImage, texture_usage::storage_write);
+        ctx.acquire(samplesCountImage, texture_usage::storage_write);
 
         ctx.acquire(inCameraBuffer, buffer_usage::uniform);
 
@@ -69,6 +87,17 @@ namespace oblo
 
     void pathtracing::execute(const frame_graph_execute_context& ctx)
     {
+        if (const auto pass = ctx.begin_pass(clearPassInstance))
+        {
+            if (ctx.get_frames_alive_count(outShadedImage) == 0 || ctx.get_frames_alive_count(samplesCountImage) == 0)
+            {
+                ctx.clear_color_image(outShadedImage, gpu::clear_color_value{});
+                ctx.clear_color_image(samplesCountImage, gpu::clear_color_value{});
+            }
+
+            ctx.end_pass();
+        }
+
         binding_table bindingTable;
 
         bindingTable.bind_buffers({
@@ -88,6 +117,7 @@ namespace oblo
             {"t_InGBuffer1"_hsv, inGBuffer1},
             {"t_InGBuffer2"_hsv, inGBuffer2},
             {"t_InGBuffer3"_hsv, inGBuffer3},
+            {"t_SamplesCount"_hsv, samplesCountImage},
         });
 
         bindingTable.bind("u_SceneTLAS"_hsv, ctx.get_global_tlas());

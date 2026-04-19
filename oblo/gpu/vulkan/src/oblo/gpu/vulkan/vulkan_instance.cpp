@@ -2510,6 +2510,29 @@ namespace oblo::gpu::vk
             convert_enum(filter));
     }
 
+    void vulkan_instance::cmd_clear_color_image(
+        hptr<command_buffer> cmd, h32<image> dst, const gpu::clear_color_value& color)
+    {
+        const auto& dstImpl = m_images.at(dst);
+
+        VkImageSubresourceRange regions[1] = {
+            {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = dstImpl.descriptor.mipLevels,
+                .baseArrayLayer = 0,
+                .layerCount = dstImpl.descriptor.arrayLayers,
+            },
+        };
+
+        vkCmdClearColorImage(unwrap_handle<VkCommandBuffer>(cmd),
+            dstImpl.image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            start_lifetime_as<VkClearColorValue>(&color),
+            1,
+            regions);
+    }
+
     void vulkan_instance::cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor)
     {
         buffered_array<VkImageMemoryBarrier2, 32> imageBarriers;

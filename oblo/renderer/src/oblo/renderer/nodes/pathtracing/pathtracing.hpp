@@ -26,10 +26,12 @@ namespace oblo
 
         pin::buffer inSkyboxSettingsBuffer;
 
+        pin::texture samplesCountImage;
         pin::texture outShadedImage;
 
         h32<raytracing_pass> ptPass;
         h32<raytracing_pass_instance> ptPassInstance;
+        h32<transfer_pass_instance> clearPassInstance;
 
         pin::buffer inMeshDatabase;
 

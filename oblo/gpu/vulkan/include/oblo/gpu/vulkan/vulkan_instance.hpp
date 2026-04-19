@@ -163,6 +163,9 @@ namespace oblo::gpu::vk
 
         void cmd_blit(hptr<command_buffer> cmd, h32<image> src, h32<image> dst, gpu::sampler_filter filter) override;
 
+        void cmd_clear_color_image(
+            hptr<command_buffer> cmd, h32<image> dst, const gpu::clear_color_value& color) override;
+
         // Barriers and synchronization
 
         void cmd_apply_barriers(hptr<command_buffer> cmd, const memory_barrier_descriptor& descriptor) override;

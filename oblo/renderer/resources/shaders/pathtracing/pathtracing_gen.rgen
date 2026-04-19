@@ -8,6 +8,7 @@
 #include <deferred/gbuffer>
 #include <pathtracing/pathtracing>
 #include <renderer/camera>
+#include <renderer/motion_vectors>
 #include <renderer/random/random>
 #include <renderer/random/sampling>
 #include <renderer/shading/pbr>
@@ -33,7 +34,9 @@ layout(binding = 13, rgba16f) uniform restrict readonly image2D t_InGBuffer1;
 layout(binding = 14, rgba16f) uniform restrict readonly image2D t_InGBuffer2;
 layout(binding = 15, rgba16f) uniform restrict readonly image2D t_InGBuffer3;
 
-layout(binding = 20, rgba16f) uniform restrict writeonly image2D t_OutShadedImage;
+layout(binding = 20, rgba16f) uniform restrict image2D t_OutShadedImage;
+layout(binding = 21, r32ui) uniform restrict uimage2D t_SamplesCount;
+layout(binding = 22, OBLO_MOTION_VECTORS_FORMAT) uniform restrict readonly image2D t_InMotionVectors;
 
 layout(location = 0) rayPayloadEXT pathtracing_payload r_Payload;
 
@@ -81,6 +84,10 @@ bool parse_gbuffer(out vec3 position, out vec3 normal, out pbr_material pbr)
     return true;
 }
 
+const uint g_SamplesPerPixel = 2;
+const uint g_MaxBounces = 5;
+const uint g_MaxSamplesPerPixel = 1u << 30;
+
 void main()
 {
     const vec2 positionNDC = screen_to_ndc(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
@@ -104,38 +111,68 @@ void main()
         return;
     }
 
+    // For now we just use motion vectors to reset the accumulation when the camera or the object moves
+    uint previousSamplesCount = imageLoad(t_SamplesCount, screenPos).r;
+
+    const vec2 motionVector = imageLoad(t_InMotionVectors, screenPos).xy;
+    const vec3 history = imageLoad(t_OutShadedImage, screenPos).rgb;
+
+    float historyWeight = 0.f;
+
+    if (dot(motionVector, motionVector) > 1e-7)
+    {
+        previousSamplesCount = 0;
+    }
+
+    const uint newSamplesCount = previousSamplesCount + g_SamplesPerPixel;
+
+    if (previousSamplesCount > g_MaxSamplesPerPixel)
+    {
+        return;
+    }
+
     const float tMin = 1e-2f;
     const float tMax = 1e6f;
 
-    r_Payload.radiance = vec3(0.0);
-    r_Payload.throughput = vec3(1.0);
-    r_Payload.origin = g_Camera.position;
-    r_Payload.direction = camera_ray_direction(g_Camera, positionNDC);
-    r_Payload.done = false;
     r_Payload.seed = random_seed(g_Constants.randomSeed, gl_LaunchIDEXT.x + gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x);
 
-    const uint MAX_BOUNCES = 5;
+    vec3 accumulated = vec3(0);
 
-    for (uint depth = 0; depth < MAX_BOUNCES; ++depth)
+    for (uint sampleIdx = 0; sampleIdx < g_SamplesPerPixel; ++sampleIdx)
     {
-        traceRayEXT(u_SceneTLAS,
-            gl_RayFlagsOpaqueEXT,
-            0xff, // cull mask
-            0,    // STB record offset
-            0,    // STB record stride
-            0,    // Miss index
-            r_Payload.origin,
-            tMin,
-            r_Payload.direction,
-            tMax,
-            0 // payload location
-        );
+        r_Payload.radiance = vec3(0.0);
+        r_Payload.throughput = vec3(1.0);
+        r_Payload.origin = g_Camera.position;
+        r_Payload.direction = camera_ray_direction(g_Camera, positionNDC);
+        r_Payload.done = false;
 
-        if (r_Payload.done)
+        for (uint depth = 0; depth < g_MaxBounces; ++depth)
         {
-            break;
+            traceRayEXT(u_SceneTLAS,
+                gl_RayFlagsOpaqueEXT,
+                0xff, // cull mask
+                0,    // STB record offset
+                0,    // STB record stride
+                0,    // Miss index
+                r_Payload.origin,
+                tMin,
+                r_Payload.direction,
+                tMax,
+                0 // payload location
+            );
+
+            if (r_Payload.done)
+            {
+                break;
+            }
         }
+
+        accumulated += r_Payload.radiance;
     }
 
-    imageStore(t_OutShadedImage, screenPos, vec4(r_Payload.radiance, 1));
+    const vec3 newAverage = (previousSamplesCount * history + accumulated) / newSamplesCount;
+    // const vec3 newAverage = (previousSamplesCount * history + accumulated) / newSamplesCount;
+
+    imageStore(t_OutShadedImage, screenPos, vec4(newAverage, 1));
+    imageStore(t_SamplesCount, screenPos, uvec4(newSamplesCount, 0, 0, 0));
 }
