@@ -159,6 +159,23 @@ void main()
     // Just a Lambertian material for now, pdf cancels out with cosine sampling pdf
     r_Payload.throughput *= pbr.albedo;
 
+    // Russian roulette
+    const float rrMinProbability = .05f;
+
+    // Use max component as survival probability
+    const float p =
+        clamp(max(r_Payload.throughput.r, max(r_Payload.throughput.g, r_Payload.throughput.b)), rrMinProbability, 1.f);
+
+    // Random test
+    if (random_uniform_1d(r_Payload.seed) > p)
+    {
+        r_Payload.done = true;
+        return;
+    }
+
+    // Survived the russian roulette, so we compensate for the probability
+    r_Payload.throughput /= p;
+
     // Cosine sampling because it's better for Lambertian at least
     r_Payload.direction = random_sample_cosine_hemisphere(normalWS, random_uniform_2d(r_Payload.seed));
     r_Payload.origin = positionWS;
