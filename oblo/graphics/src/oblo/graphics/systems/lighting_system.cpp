@@ -258,14 +258,17 @@ namespace oblo
 
                     frameGraph.set_input(*v, raytraced_shadow_view::InConfig, cfg).assert_value();
 
-                    frameGraph
-                        .set_input(*v,
-                            raytraced_shadow_view::InMeanFilterConfig,
-                            gaussian_blur_config{
-                                .kernelSize = shadow.light->shadowMeanFilterSize,
-                                .sigma = shadow.light->shadowMeanFilterSigma,
-                            })
-                        .assert_value();
+                    if (shadow.light->shadowMeanFilterSize > 0)
+                    {
+                        frameGraph
+                            .set_input(*v,
+                                raytraced_shadow_view::InMeanFilterConfig,
+                                gaussian_blur_config{
+                                    .kernelSize = shadow.light->shadowMeanFilterSize,
+                                    .sigma = shadow.light->shadowMeanFilterSigma,
+                                })
+                            .assert_value();
+                    }
                 }
             }
         }
