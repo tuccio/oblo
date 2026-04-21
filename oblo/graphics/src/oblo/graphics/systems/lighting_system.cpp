@@ -121,6 +121,18 @@ namespace oblo
                     it->light = &light;
                 }
 
+                flags<gpu_light_flags, 32> lightFlags{};
+
+                if (light.isShadowCaster)
+                {
+                    lightFlags |= gpu_light_flags::shadow_caster;
+                }
+
+                if (light.hardShadows)
+                {
+                    lightFlags |= gpu_light_flags::hard_shadows;
+                }
+
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
                     .invSqrRadius = 1.f / (light.radius * light.radius),
@@ -130,6 +142,8 @@ namespace oblo
                     .lightAngleScale = angleScale,
                     .lightAngleOffset = angleOffset,
                     .shadowBias = light.shadowBias,
+                    .shadowPunctualRadius = light.shadowPunctualRadius,
+                    .flags = lightFlags,
                 });
             }
         }

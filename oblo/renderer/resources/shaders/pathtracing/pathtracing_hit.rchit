@@ -135,22 +135,39 @@ void main()
         const uint lightIndex = hash_pcg(r_Payload.seed) % g_LightConfig.lightsCount;
         const light_data light = g_Lights[lightIndex];
 
+        float maxDistance = 1e6f;
+        vec3 lightIntensity;
+        vec3 L;
+
         if (light.type == OBLO_LIGHT_TYPE_DIRECTIONAL)
         {
-            const vec3 L = -light.direction;
-
-            const bool isVisible = raytrace_visibility(positionWS, L, 1e6f);
-
-            if (isVisible)
-            {
-                const float cosTheta = max(dot(normalWS, L), 0.f);
-                const vec3 f = pbr.albedo / float_pi();
-                r_Payload.radiance += r_Payload.throughput * f * light.intensity * cosTheta * invLightPickPdf;
-            }
+            L = -light.direction;
+            lightIntensity = light.intensity;
         }
-        else
+        else if (light.type == OBLO_LIGHT_TYPE_POINT || light.type == OBLO_LIGHT_TYPE_SPOT)
         {
-            // TODO
+            const vec3 diskOffset = random_sample_uniform_disk(light.shadowPunctualRadius,
+                light.direction,
+                random_uniform_2d(r_Payload.seed));
+
+            const vec3 target = light.position + diskOffset;
+
+            const vec3 weightedDir = target - positionWS;
+            const float attenuation = light_distance_attenuation(weightedDir, light.invSqrRadius);
+
+            L = normalize(weightedDir);
+            maxDistance = length(weightedDir);
+            lightIntensity = attenuation * light.intensity;
+        }
+
+        const bool isVisible =
+            (light.flags & OBLO_LIGHT_FLAG_SHADOW_CASTER) == 0 || raytrace_visibility(positionWS, L, maxDistance);
+
+        if (isVisible)
+        {
+            const float cosTheta = max(dot(normalWS, L), 0.f);
+            const vec3 f = pbr.albedo / float_pi();
+            r_Payload.radiance += r_Payload.throughput * f * lightIntensity * cosTheta * invLightPickPdf;
         }
     }
 
