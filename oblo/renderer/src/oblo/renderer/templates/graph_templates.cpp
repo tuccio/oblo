@@ -215,26 +215,6 @@ namespace oblo::main_view
 
             connectShadingPass(pathtracingNode, h32<pathtracing>{});
 
-            graph.connect(visibilityGBuffer,
-                &visibility_gbuffer::outGBuffer0,
-                pathtracingNode,
-                &pathtracing::inGBuffer0);
-
-            graph.connect(visibilityGBuffer,
-                &visibility_gbuffer::outGBuffer1,
-                pathtracingNode,
-                &pathtracing::inGBuffer1);
-
-            graph.connect(visibilityGBuffer,
-                &visibility_gbuffer::outGBuffer2,
-                pathtracingNode,
-                &pathtracing::inGBuffer2);
-
-            graph.connect(visibilityGBuffer,
-                &visibility_gbuffer::outGBuffer3,
-                pathtracingNode,
-                &pathtracing::inGBuffer3);
-
             graph.connect(extraBuffersNode,
                 &visibility_extra_buffers::outMotionVectors,
                 pathtracingNode,

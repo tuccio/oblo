@@ -19,11 +19,6 @@ namespace oblo
         pin::texture inMotionVectors;
         pin::texture inDisocclusionMask;
 
-        pin::texture inGBuffer0;
-        pin::texture inGBuffer1;
-        pin::texture inGBuffer2;
-        pin::texture inGBuffer3;
-
         pin::buffer inSkyboxSettingsBuffer;
 
         pin::texture samplesCountImage;

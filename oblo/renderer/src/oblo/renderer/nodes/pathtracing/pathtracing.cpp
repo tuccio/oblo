@@ -75,11 +75,6 @@ namespace oblo
         ctx.acquire(inDisocclusionMask, texture_usage::storage_read);
         ctx.acquire(inMotionVectors, texture_usage::storage_read);
 
-        ctx.acquire(inGBuffer0, texture_usage::storage_read);
-        ctx.acquire(inGBuffer1, texture_usage::storage_read);
-        ctx.acquire(inGBuffer2, texture_usage::storage_read);
-        ctx.acquire(inGBuffer3, texture_usage::storage_read);
-
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
 
         randomSeed = ctx.get_random_generator().generate();
@@ -113,10 +108,6 @@ namespace oblo
             {"t_OutShadedImage"_hsv, outShadedImage},
             {"t_InDisocclusionMask"_hsv, inDisocclusionMask},
             {"t_InMotionVectors"_hsv, inMotionVectors},
-            {"t_InGBuffer0"_hsv, inGBuffer0},
-            {"t_InGBuffer1"_hsv, inGBuffer1},
-            {"t_InGBuffer2"_hsv, inGBuffer2},
-            {"t_InGBuffer3"_hsv, inGBuffer3},
             {"t_SamplesCount"_hsv, samplesCountImage},
         });
 
