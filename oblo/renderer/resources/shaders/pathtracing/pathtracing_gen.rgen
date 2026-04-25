@@ -48,8 +48,6 @@ void main()
     const vec2 motionVector = imageLoad(t_InMotionVectors, screenPos).xy;
     const vec3 history = imageLoad(t_OutShadedImage, screenPos).rgb;
 
-    float historyWeight = 0.f;
-
     if (dot(motionVector, motionVector) > 1e-7)
     {
         previousSamplesCount = 0;
@@ -57,7 +55,7 @@ void main()
 
     const uint newSamplesCount = previousSamplesCount + g_SamplesPerPixel;
 
-    if (previousSamplesCount > g_MaxSamplesPerPixel)
+    if (newSamplesCount >= g_MaxSamplesPerPixel)
     {
         return;
     }
