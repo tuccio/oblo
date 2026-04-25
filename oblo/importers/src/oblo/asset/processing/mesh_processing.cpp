@@ -141,14 +141,14 @@ namespace oblo::importers::mesh_processing
 
         outAttributes.push_back({.kind = attribute_kind::microindices, .format = data_format::u8});
 
-        const data_format finalIndicesFormat =
-            inputMesh.get_vertex_count() > ~u16() ? data_format::u32 : data_format::u16;
-        outAttributes.push_back({.kind = attribute_kind::indices, .format = finalIndicesFormat});
-
         const auto& lastMeshlet = meshlets[numMeshlets - 1];
 
         const auto numTotalVertices = lastMeshlet.vertex_offset + lastMeshlet.vertex_count;
         const auto numTotalIndices = 3 * (lastMeshlet.triangle_offset + lastMeshlet.triangle_count);
+
+        constexpr u16 maxU16 = ~u16{};
+        const data_format finalIndicesFormat = numTotalVertices > maxU16 ? data_format::u32 : data_format::u16;
+        outAttributes.push_back({.kind = attribute_kind::indices, .format = finalIndicesFormat});
 
         outputMesh.allocate(primitive_kind::triangle,
             numTotalVertices,
@@ -206,7 +206,8 @@ namespace oblo::importers::mesh_processing
             {
                 for (u32 i = meshlet.indexOffset; i < meshlet.indexOffset + meshlet.indexCount; ++i)
                 {
-                    const T index = narrow_cast<T>(u32(microIndices[i]) + meshlet.vertexOffset);
+                    const u32 fullIndex = u32(microIndices[i]) + meshlet.vertexOffset;
+                    const T index = narrow_cast<T>(fullIndex);
                     *outIt = index;
                     ++outIt;
                 }
