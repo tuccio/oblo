@@ -8,6 +8,7 @@
 #include <oblo/renderer/nodes/debug/raytracing_debug.hpp>
 #include <oblo/renderer/nodes/drawing/draw_call_generator.hpp>
 #include <oblo/renderer/nodes/drawing/frustum_culling.hpp>
+#include <oblo/renderer/nodes/pathtracing/pathtracing.hpp>
 #include <oblo/renderer/nodes/postprocess/blur_nodes.hpp>
 #include <oblo/renderer/nodes/postprocess/tone_mapping_node.hpp>
 #include <oblo/renderer/nodes/providers/ecs_entity_set_provider.hpp>
@@ -41,6 +42,7 @@ namespace oblo::main_view
         const auto renderWorldData = graph.add_node<render_world_provider>();
         const auto visibilityPass = graph.add_node<visibility_pass>();
         const auto visibilityGBuffer = graph.add_node<visibility_gbuffer>();
+        const auto extraBuffersNode = graph.add_node<visibility_extra_buffers>();
         const auto deferredLighting = graph.add_node<deferred_lighting>();
         const auto visibilityDebug = graph.add_node<visibility_debug>();
 
@@ -206,6 +208,31 @@ namespace oblo::main_view
             graph.make_output(rtToneMapping, &tone_mapping_node::outLDR, OutRTDebugImage);
         }
 
+        // Path-Tracing, uses visibility pass for first hit and does direct and indirect lighting with RT pipelines
+
+        {
+            const auto pathtracingNode = graph.add_node<pathtracing>();
+
+            connectShadingPass(pathtracingNode, h32<pathtracing>{});
+
+            graph.connect(extraBuffersNode,
+                &visibility_extra_buffers::outMotionVectors,
+                pathtracingNode,
+                &pathtracing::inMotionVectors);
+
+            graph.connect(extraBuffersNode,
+                &visibility_extra_buffers::outDisocclusionMask,
+                pathtracingNode,
+                &pathtracing::inDisocclusionMask);
+
+            // Path-Tracing pass outputs HDR, and has its own tone-mapping, which leats to the RT debug output
+
+            const auto ptToneMapping = graph.add_node<tone_mapping_node>();
+            graph.connect(pathtracingNode, &pathtracing::outShadedImage, ptToneMapping, &tone_mapping_node::inHDR);
+
+            graph.make_output(ptToneMapping, &tone_mapping_node::outLDR, OutPathTracingImage);
+        }
+
         // Culling + draw call generation
         {
             const auto frustumCulling = graph.add_node<frustum_culling>();
@@ -276,9 +303,6 @@ namespace oblo::main_view
                 drawCallGenerator,
                 &draw_call_generator::inMeshDatabase);
         }
-
-        // Extra buffers
-        const auto extraBuffersNode = graph.add_node<visibility_extra_buffers>();
 
         graph.connect(viewBuffers,
             &view_buffers_node::outCameraBuffer,
@@ -915,6 +939,7 @@ namespace oblo
         registry.register_node<deferred_lighting>();
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();
+        registry.register_node<pathtracing>();
         registry.register_node<raytracing_debug>();
         registry.register_node<tone_mapping_node>();
         registry.register_node<visibility_extra_buffers>();

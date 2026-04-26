@@ -5,8 +5,6 @@
 
 #include <renderer/camera>
 
-const uint g_HitColorPayload = 0;
-
 layout(binding = 16) uniform b_CameraBuffer
 {
     camera_buffer g_Camera;

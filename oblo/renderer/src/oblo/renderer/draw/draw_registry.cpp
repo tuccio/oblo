@@ -274,11 +274,12 @@ namespace oblo
         OBLO_ASSERT(meshDbInit);
 
         const gpu::device_info& deviceInfo = ctx.get_device_info();
+        m_rtScratchBufferAlignment = deviceInfo.minAccelerationStructureScratchOffsetAlignment;
 
         m_rt->scratchBuffer.init(*m_ctx,
             gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
             {flags{gpu::memory_requirement::device_local}},
-            deviceInfo.minAccelerationStructureScratchOffsetAlignment);
+            m_rtScratchBufferAlignment);
 
         m_rt->instanceBuffer.init(*m_ctx,
             gpu::buffer_usage::acceleration_structure_build_input | gpu::buffer_usage::device_address |
@@ -1088,6 +1089,7 @@ namespace oblo
 
             const expected scratchBuffer = m_vk->create_buffer({
                 .size = narrow_cast<u32>(blasScratchSize),
+                .alignment = m_rtScratchBufferAlignment,
                 .memoryProperties = {gpu::memory_usage::gpu_only},
                 .usages = gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
             });

@@ -174,6 +174,9 @@ namespace oblo
             const auto gi = surfels_gi::create(m_nodeRegistry);
             m_surfelsGI = m_frameGraph.instantiate(gi);
             connect_scene_data_provider_to_surfels_gi(m_frameGraph, m_sceneDataProvider, m_surfelsGI);
+
+            // Disable all outputs, effectively only runs GI if some view requires it
+            m_frameGraph.disable_all_outputs(m_surfelsGI);
         }
     }
 

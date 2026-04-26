@@ -158,7 +158,8 @@ namespace oblo::editor
 
                         const children_component* cc = entityRegistry->try_get<children_component>(e);
 
-                        ImGuiTreeNodeFlags flags{ImGuiTreeNodeFlags_OpenOnArrow};
+                        ImGuiTreeNodeFlags flags{
+                            ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_NavLeftJumpsToParent};
 
                         const bool isLeaf = !cc || cc->children.empty();
 

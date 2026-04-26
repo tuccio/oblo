@@ -15,8 +15,5 @@ namespace oblo
 
         pin::buffer inLightBuffer;
         pin::buffer inLightConfig;
-
-        pin::buffer inSurfelsGrid;
-        pin::buffer inSurfelsData;
     };
 }

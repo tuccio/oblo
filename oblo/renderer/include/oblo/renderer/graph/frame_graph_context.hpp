@@ -283,7 +283,9 @@ namespace oblo
             u32 drawCallCountBufferOffset,
             u32 maxDrawCount) const;
 
-        void blit_color(pin::texture srcTexture, pin::texture dstTexture) const;
+        void blit_color(pin::texture dst, pin::texture dstTexture) const;
+
+        void clear_color_image(pin::texture srcTexture, const gpu::clear_color_value& color) const;
 
         vec2u get_resolution(pin::texture h) const;
 

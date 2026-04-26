@@ -85,4 +85,6 @@ namespace oblo::gpu
     enum class vertex_input_rate : u8;
 
     using image_format = data_format;
+
+    union clear_color_value;
 }

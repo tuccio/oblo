@@ -1215,6 +1215,12 @@ namespace oblo
         m_state.gpu->cmd_blit(m_state.commandBuffer, src.handle, dst.handle, gpu::sampler_filter::linear);
     }
 
+    void frame_graph_execute_context::clear_color_image(pin::texture dst, const gpu::clear_color_value& color) const
+    {
+        const frame_graph_texture_impl& image = access_storage_resource(m_frameGraph, dst);
+        m_state.gpu->cmd_clear_color_image(m_state.commandBuffer, image.handle, color);
+    }
+
     vec2u frame_graph_execute_context::get_resolution(pin::texture h) const
     {
         const frame_graph_texture_impl& t = access_storage_resource(m_frameGraph, h);

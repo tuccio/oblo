@@ -8,6 +8,9 @@
 #define OBLO_LIGHT_TYPE_SPOT 1
 #define OBLO_LIGHT_TYPE_DIRECTIONAL 2
 
+const uint OBLO_LIGHT_FLAG_SHADOW_CASTER = 1 << 0;
+const uint OBLO_LIGHT_FLAG_SHADOW_HARD_SHADOWS = 1 << 1;
+
 struct light_data
 {
     vec3 position;
@@ -18,6 +21,8 @@ struct light_data
     float lightAngleScale;
     float lightAngleOffset;
     float shadowBias;
+    float shadowPunctualRadius;
+    uint flags;
 };
 
 struct light_config

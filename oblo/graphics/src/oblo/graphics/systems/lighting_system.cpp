@@ -121,6 +121,18 @@ namespace oblo
                     it->light = &light;
                 }
 
+                flags<gpu_light_flags, 32> lightFlags{};
+
+                if (light.isShadowCaster)
+                {
+                    lightFlags |= gpu_light_flags::shadow_caster;
+                }
+
+                if (light.hardShadows)
+                {
+                    lightFlags |= gpu_light_flags::hard_shadows;
+                }
+
                 lightData.push_back({
                     .position = {position.x, position.y, position.z},
                     .invSqrRadius = 1.f / (light.radius * light.radius),
@@ -130,6 +142,8 @@ namespace oblo
                     .lightAngleScale = angleScale,
                     .lightAngleOffset = angleOffset,
                     .shadowBias = light.shadowBias,
+                    .shadowPunctualRadius = light.shadowPunctualRadius,
+                    .flags = lightFlags,
                 });
             }
         }
@@ -242,6 +256,9 @@ namespace oblo
                         const auto [it, ok] = shadow.shadowGraphs.emplace(sceneView, shadowMappingGraph);
 
                         v = &*it;
+
+                        // Disable all outputs, so we only execute the nodes if an output is required
+                        frameGraph.disable_all_outputs(shadowMappingGraph);
                     }
 
                     const raytraced_shadow_config cfg{
@@ -255,14 +272,17 @@ namespace oblo
 
                     frameGraph.set_input(*v, raytraced_shadow_view::InConfig, cfg).assert_value();
 
-                    frameGraph
-                        .set_input(*v,
-                            raytraced_shadow_view::InMeanFilterConfig,
-                            gaussian_blur_config{
-                                .kernelSize = shadow.light->shadowMeanFilterSize,
-                                .sigma = shadow.light->shadowMeanFilterSigma,
-                            })
-                        .assert_value();
+                    if (shadow.light->shadowMeanFilterSize > 0)
+                    {
+                        frameGraph
+                            .set_input(*v,
+                                raytraced_shadow_view::InMeanFilterConfig,
+                                gaussian_blur_config{
+                                    .kernelSize = shadow.light->shadowMeanFilterSize,
+                                    .sigma = shadow.light->shadowMeanFilterSigma,
+                                })
+                            .assert_value();
+                    }
                 }
             }
         }

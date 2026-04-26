@@ -1,7 +1,6 @@
 #include <oblo/graphics/systems/viewport_system.hpp>
 
 #include <oblo/core/allocation_helpers.hpp>
-#include <oblo/core/array_size.hpp>
 #include <oblo/core/frame_allocator.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/service_registry.hpp>
@@ -20,9 +19,7 @@
 #include <oblo/renderer/data/picking_configuration.hpp>
 #include <oblo/renderer/data/time_buffer.hpp>
 #include <oblo/renderer/data/visibility_debug_mode.hpp>
-#include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
-#include <oblo/renderer/graph/frame_graph_template.hpp>
 #include <oblo/renderer/renderer.hpp>
 #include <oblo/renderer/templates/graph_templates.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
@@ -256,8 +253,7 @@ namespace oblo
                 break;
 
             case viewport_mode::albedo:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::albedo)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::albedo).assert_value();
                 break;
 
             case viewport_mode::normal_map:
@@ -266,13 +262,11 @@ namespace oblo
                 break;
 
             case viewport_mode::normals:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::normals)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::normals).assert_value();
                 break;
 
             case viewport_mode::tangents:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::tangents)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::tangents).assert_value();
                 break;
 
             case viewport_mode::bitangents:
@@ -281,28 +275,23 @@ namespace oblo
                 break;
 
             case viewport_mode::uv0:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::uv0)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::uv0).assert_value();
                 break;
 
             case viewport_mode::meshlet:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::meshlet)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::meshlet).assert_value();
                 break;
 
             case viewport_mode::metalness:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::metalness)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::metalness).assert_value();
                 break;
 
             case viewport_mode::roughness:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::roughness)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::roughness).assert_value();
                 break;
 
             case viewport_mode::emissive:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::emissive)
-                    .assert_value();
+                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::emissive).assert_value();
                 break;
 
             case viewport_mode::motion_vectors:
@@ -311,6 +300,9 @@ namespace oblo
                 break;
 
             case viewport_mode::raytracing_debug:
+                break;
+
+            case viewport_mode::pathtracing:
                 break;
 
             case viewport_mode::gi_surfels:
@@ -374,6 +366,9 @@ namespace oblo
 
         case viewport_mode::raytracing_debug:
             return main_view::OutRTDebugImage;
+
+        case viewport_mode::pathtracing:
+            return main_view::OutPathTracingImage;
 
         case viewport_mode::gi_surfels:
             return main_view::OutGISurfelsImage;
