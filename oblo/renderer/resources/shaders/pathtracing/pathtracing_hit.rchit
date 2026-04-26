@@ -131,7 +131,6 @@ void main()
 
     if (g_LightConfig.lightsCount > 0)
     {
-        const float invLightPickPdf = float(g_LightConfig.lightsCount);
         const uint lightIndex = hash_pcg(r_Payload.seed) % g_LightConfig.lightsCount;
         const light_data light = g_Lights[lightIndex];
 
@@ -167,7 +166,13 @@ void main()
         {
             const float cosTheta = max(dot(normalWS, L), 0.f);
             const vec3 f = pbr.albedo / float_pi();
-            r_Payload.radiance += r_Payload.throughput * f * lightIntensity * cosTheta * invLightPickPdf;
+
+            const float pdfLight = 1.f / float(g_LightConfig.lightsCount);
+            const float pdfBsdf = cosTheta / float_pi();
+
+            const float w = mis_power_heuristic(pdfLight, pdfBsdf);
+
+            r_Payload.radiance += r_Payload.throughput * f * lightIntensity * cosTheta * w * float(g_LightConfig.lightsCount);
         }
     }
 
