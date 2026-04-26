@@ -42,7 +42,7 @@ namespace oblo
             {
                 .width = resolution.x,
                 .height = resolution.y,
-                .format = gpu::image_format::r16g16b16a16_sfloat,
+                .format = gpu::image_format::r32g32b32a32_sfloat,
                 .isStable = true,
             },
             texture_usage::transfer_destination);

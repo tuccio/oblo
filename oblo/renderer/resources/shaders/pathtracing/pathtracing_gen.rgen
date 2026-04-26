@@ -21,7 +21,7 @@ layout(binding = 16) uniform b_CameraBuffer
 
 layout(binding = 11) uniform accelerationStructureEXT u_SceneTLAS;
 
-layout(binding = 20, rgba16f) uniform restrict image2D t_OutShadedImage;
+layout(binding = 20, rgba32f) uniform restrict image2D t_OutShadedImage;
 layout(binding = 21, r32ui) uniform restrict uimage2D t_SamplesCount;
 layout(binding = 22, OBLO_MOTION_VECTORS_FORMAT) uniform restrict readonly image2D t_InMotionVectors;
 
@@ -99,7 +99,8 @@ void main()
         accumulated += r_Payload.radiance;
     }
 
-    const vec3 newAverage = (previousSamplesCount * history + accumulated) / newSamplesCount;
+    const vec3 sampleAvg = accumulated / float(g_SamplesPerPixel);
+    const vec3 newAverage = history + (sampleAvg - history) * (float(g_SamplesPerPixel) / float(newSamplesCount));
 
     imageStore(t_OutShadedImage, screenPos, vec4(newAverage, 1));
     imageStore(t_SamplesCount, screenPos, uvec4(newSamplesCount, 0, 0, 0));
