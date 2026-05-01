@@ -91,6 +91,8 @@ namespace oblo
         h32<gpu::acceleration_structure> get_tlas() const;
 
         ecs::entity_registry& get_entity_registry() const;
+        
+        usize calculate_mesh_data_size() const;
 
     private:
         struct blas;

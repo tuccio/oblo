@@ -7,6 +7,7 @@ target_link_libraries(
     PUBLIC
     oblo::ecs
     oblo::graphics
+    oblo::metrics
     oblo::modules
     oblo::properties
     oblo::reflection

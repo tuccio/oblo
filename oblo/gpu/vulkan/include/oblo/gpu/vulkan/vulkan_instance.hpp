@@ -85,6 +85,8 @@ namespace oblo::gpu::vk
         result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) override;
         void destroy(h32<buffer> bufferHandle) override;
 
+        u64 get_buffer_size(h32<buffer> bufferHandle) const override;
+
         h64<device_address> get_device_address(h32<buffer> bufferHandle) override;
         h64<device_address> get_device_address(buffer_range bufferWithOffset) override;
 

@@ -1,6 +1,7 @@
 #include <oblo/editor/ui/property_table.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/ui/artifact_picker.hpp>
 #include <oblo/editor/ui/widgets.hpp>
 #include <oblo/math/angle.hpp>
@@ -260,6 +261,32 @@ namespace oblo::editor::ui
             artifactId = picker.get_current_ref();
             return true;
         }
+
+        return false;
+    }
+
+    bool property_table::add_human_readable_bytes(id_t id, string_view name, usize bytes)
+    {
+        setup_property(name);
+
+        string_builder formatted;
+
+        constexpr const char* const units[] = {"B", "KB", "MB", "GB", "TB"};
+
+        int i = 0;
+        double count = static_cast<double>(bytes);
+
+        while (count >= 1024 && i < 4)
+        {
+            count /= 1024;
+            i++;
+        }
+
+        formatted.format("{:.2f} {}", count, units[i]);
+
+        ImGui::PushID(id);
+        ImGui::TextUnformatted(formatted.c_str());
+        ImGui::PopID();
 
         return false;
     }

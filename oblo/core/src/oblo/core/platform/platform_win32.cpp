@@ -16,6 +16,8 @@
         #define NOMINMAX
         #include <Windows.h>
 
+        #include <Psapi.h>
+
         #include <ShlObj.h>
         #include <ShlObj_core.h>
     #endif
@@ -171,6 +173,18 @@ namespace oblo::platform
 
         out.assign(buffer, buffer + res);
         return true;
+    }
+
+    expected<usize> get_ram_usage()
+    {
+        PROCESS_MEMORY_COUNTERS_EX pmc;
+
+        if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc), sizeof(pmc)))
+        {
+            return pmc.WorkingSetSize;
+        }
+
+        return "Failed call to GetProcessMemoryInfo"_err;
     }
 
     process::process() = default;

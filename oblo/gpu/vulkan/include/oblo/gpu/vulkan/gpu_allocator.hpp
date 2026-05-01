@@ -70,6 +70,8 @@ namespace oblo::gpu::vk
         debug_utils::object get_object_debug_utils() const;
         void set_object_debug_utils(debug_utils::object objectUtils);
 
+        u64 get_allocation_size(VmaAllocation allocation) const;
+
     private:
         VmaAllocator m_allocator{nullptr};
         debug_utils::object m_objectDebugUtils{};

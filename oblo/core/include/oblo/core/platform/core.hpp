@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/forward.hpp>
 #include <oblo/core/types.hpp>
 
@@ -19,6 +20,8 @@ namespace oblo::platform
     void split_paths_environment_variable(dynamic_array<string_view>& out, const string_view value);
 
     [[nodiscard]] bool get_main_executable_path(string_builder& out);
+
+    expected<usize> get_ram_usage();
 
     consteval bool is_windows() noexcept
     {

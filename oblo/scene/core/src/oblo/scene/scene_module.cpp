@@ -7,9 +7,6 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
-#include <oblo/reflection/concepts/gpu_component.hpp>
-#include <oblo/reflection/reflection_module.hpp>
-#include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/scene/resources/registration.hpp>
 #include <oblo/scene/systems/barriers.hpp>

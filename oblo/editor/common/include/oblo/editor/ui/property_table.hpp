@@ -66,6 +66,8 @@ namespace oblo::editor::ui
         bool add(id_t id, string_view name, uuid& anyUuid);
         bool add(id_t id, string_view name, uuid& artifactId, artifact_picker& picker, const uuid& typeUuid);
 
+        bool add_human_readable_bytes(id_t id, string_view name, usize bytes);
+
         bool add_enum(id_t id,
             string_view name,
             void* v,

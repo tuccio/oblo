@@ -1349,4 +1349,9 @@ namespace oblo
     {
         return *m_entities;
     }
+
+    usize draw_registry::calculate_mesh_data_size() const
+    {
+        return m_meshes.calculate_mesh_tables_size();
+    }
 }

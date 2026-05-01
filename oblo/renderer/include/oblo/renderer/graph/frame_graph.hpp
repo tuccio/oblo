@@ -14,7 +14,6 @@
 
 namespace oblo
 {
-    class async_metrics;
     class frame_graph_template;
 
     struct frame_graph_impl;
@@ -71,8 +70,6 @@ namespace oblo
 
         void fetch_subgraphs(deque<h32<frame_graph_subgraph>>& outSubgraphs);
         void fetch_outputs(h32<frame_graph_subgraph> subgraph, deque<frame_graph_output_desc>& outSubgraphOutputs);
-
-        future<async_metrics> request_metrics();
 
     private:
         void* try_get_input(h32<frame_graph_subgraph> graph, string_view name, const type_id& typeId);

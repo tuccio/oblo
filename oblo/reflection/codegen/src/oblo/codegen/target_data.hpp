@@ -13,6 +13,7 @@ namespace oblo::gen
         linear_color,
         clamp_min,
         clamp_max,
+        human_readable_bytes,
         enum_max,
     };
 

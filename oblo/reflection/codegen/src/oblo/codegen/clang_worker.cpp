@@ -176,6 +176,12 @@ namespace oblo::gen
                 return annotation_property_result::expect_none;
             }
 
+            if (property == "Bytes"_hsv)
+            {
+                f.flags.set(field_flags::human_readable_bytes);
+                return annotation_property_result::expect_none;
+            }
+
             return annotation_property_result::expect_none;
         }
 

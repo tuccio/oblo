@@ -229,4 +229,11 @@ namespace oblo::gpu::vk
     {
         m_objectDebugUtils = objectUtils;
     }
+
+    u64 gpu_allocator::get_allocation_size(VmaAllocation allocation) const
+    {
+        VmaAllocationInfo info;
+        vmaGetAllocationInfo(m_allocator, allocation, &info);
+        return info.size;
+    }
 }

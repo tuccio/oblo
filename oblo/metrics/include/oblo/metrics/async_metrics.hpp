@@ -16,14 +16,14 @@ namespace oblo
         using entry = async_metrics_entry;
 
     public:
-        void init(dynamic_array<entry> entries);
+        OBLO_METRICS_API void init(dynamic_array<entry> entries);
 
-        std::span<entry> get_entries();
-        std::span<const entry> get_entries() const;
+        OBLO_METRICS_API std::span<entry> get_entries();
+        OBLO_METRICS_API std::span<const entry> get_entries() const;
 
-        void update();
+        OBLO_METRICS_API void update();
 
-        bool is_done() const;
+        OBLO_METRICS_API bool is_done() const;
 
     private:
         dynamic_array<entry> m_entries;
@@ -35,4 +35,20 @@ namespace oblo
         type_id type;
         future<dynamic_array<byte>> download;
     };
+
+    template <typename T, typename... Args>
+    void set_metrics_data_sync(async_metrics_entry& e, Args&&... args)
+    {
+        dynamic_array<byte> data;
+        data.resize_default(sizeof(T));
+
+        new (data.data()) T{std::forward<Args>(args)...};
+
+        promise<dynamic_array<byte>> p;
+        p.init();
+        p.set_value(std::move(data));
+
+        e.download = future{p};
+        e.type = get_type_id<T>();
+    }
 }

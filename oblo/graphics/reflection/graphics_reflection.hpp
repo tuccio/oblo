@@ -9,3 +9,4 @@
 #include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/skybox_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/systems/system_metrics.hpp>

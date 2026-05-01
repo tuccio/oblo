@@ -1154,6 +1154,12 @@ namespace oblo::gpu::vk
         m_buffers.erase(bufferHandle);
     }
 
+    u64 vulkan_instance::get_buffer_size(h32<buffer> bufferHandle) const
+    {
+        const auto& buffer = m_buffers.at(bufferHandle);
+        return m_allocator.get_allocation_size(buffer.allocation);
+    }
+
     h64<device_address> vulkan_instance::get_device_address(h32<buffer> bufferHandle)
     {
         const VkBufferDeviceAddressInfo info{

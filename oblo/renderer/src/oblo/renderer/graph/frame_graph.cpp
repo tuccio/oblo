@@ -16,6 +16,8 @@
 #include <oblo/gpu/structs.hpp>
 #include <oblo/gpu/vulkan/utility/image_utils.hpp>
 #include <oblo/metrics/async_metrics.hpp>
+#include <oblo/metrics/metrics_module.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/frame_graph_context.hpp>
 #include <oblo/renderer/graph/frame_graph_impl.hpp>
@@ -567,6 +569,8 @@ namespace oblo
         m_impl = allocate_unique<frame_graph_impl>();
         m_impl->rng.seed(42);
 
+        m_impl->metricsModule = module_manager::get().find<metrics_module>();
+
         const gpu::device_info deviceInfo = gpu.get_device_info();
         m_impl->gpuInfo.subgroupSize = deviceInfo.subgroupSize;
 
@@ -613,6 +617,8 @@ namespace oblo
         OBLO_PROFILE_SCOPE("Frame Graph Build");
 
         gpu::gpu_instance& gpu = args.gpu;
+
+        m_impl->isCollectingMetrics = m_impl->metricsModule && m_impl->metricsModule->is_collecting();
 
         // Clear the bindless textures from last frame
         auto& textureRegistry = args.rendererPlatform.textureRegistry;
@@ -887,8 +893,7 @@ namespace oblo
                 metrics.init(std::move(entries));
             }
 
-            m_impl->nextFrameMetrics.set_value(std::move(metrics));
-            m_impl->nextFrameMetrics.reset();
+            m_impl->metricsModule->push_metrics(std::move(metrics));
             m_impl->pendingMetricsTransfer = {};
             m_impl->pendingMetrics.clear();
         }
@@ -1020,7 +1025,7 @@ namespace oblo
 
     bool frame_graph_impl::is_recording_metrics() const
     {
-        return nextFrameMetrics.is_initialized();
+        return isCollectingMetrics;
     }
 
     void frame_graph::write_dot(std::ostream& os) const
@@ -1152,11 +1157,6 @@ namespace oblo
 
             outSubgraphOutputs.emplace_back(name, storage.typeDesc.typeId);
         }
-    }
-
-    future<async_metrics> frame_graph::request_metrics()
-    {
-        return m_impl->request_metrics();
     }
 
     void frame_graph::push_empty_event_impl(const type_id& type)
@@ -1688,16 +1688,6 @@ namespace oblo
         ++frameCounter;
 
         globalTLAS = {};
-    }
-
-    future<async_metrics> frame_graph_impl::request_metrics()
-    {
-        if (!nextFrameMetrics.is_initialized())
-        {
-            nextFrameMetrics.init();
-        }
-
-        return future{nextFrameMetrics};
     }
 
     void frame_graph_impl::free_pin_storage(

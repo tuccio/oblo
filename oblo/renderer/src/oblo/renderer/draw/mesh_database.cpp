@@ -391,6 +391,29 @@ namespace oblo
         return std::as_bytes(gpuTables);
     }
 
+    u64 mesh_database::calculate_mesh_tables_size() const
+    {
+        u64 size = 0;
+
+        for (const table& t : m_tables)
+        {
+            if (!t.meshes)
+            {
+                continue;
+            }
+
+            auto& meshes = *t.meshes;
+
+            size += meshes.index_buffer().size;
+
+            size += m_gpu->get_buffer_size(meshes.vertex_buffer());
+            size += m_gpu->get_buffer_size(meshes.meshlet_buffer());
+            size += m_gpu->get_buffer_size(meshes.mesh_data_buffer());
+        }
+
+        return size;
+    }
+
     gpu::buffer_range mesh_database::allocate_index_buffer(gpu::mesh_index_type indexType)
     {
         OBLO_ASSERT(indexType != gpu::mesh_index_type::none);

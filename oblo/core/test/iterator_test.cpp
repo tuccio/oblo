@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/iterator/concat_range.hpp>
 #include <oblo/core/iterator/flags_range.hpp>
 #include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
@@ -330,5 +331,136 @@ namespace oblo
 
         ++it;
         EXPECT_EQ(it, end);
+    }
+
+    namespace
+    {
+        template <typename Range>
+        dynamic_array<int> collect_ints(Range&& r)
+        {
+            dynamic_array<int> out;
+
+            for (int v : r)
+            {
+                out.push_back(v);
+            }
+
+            return out;
+        }
+    }
+
+    TEST(concat_range, basic)
+    {
+        std::array a = {1, 2, 3};
+        std::array b = {4, 5};
+        std::array c = {6, 7, 8};
+
+        const auto result = collect_ints(concat_range(a, b, c));
+
+        const dynamic_array<int> expected{get_global_allocator(), {1, 2, 3, 4, 5, 6, 7, 8}};
+
+        ASSERT_EQ(result, expected);
+    }
+
+    TEST(concat_range, mixed_containers)
+    {
+        std::array a = {1, 2, 3};
+        std::vector b = {4, 5};
+        int c[] = {6, 7};
+
+        const auto result = collect_ints(concat_range(a, b, c));
+
+        const dynamic_array<int> expected{get_global_allocator(), {1, 2, 3, 4, 5, 6, 7}};
+
+        ASSERT_EQ(result, expected);
+    }
+
+    TEST(concat_range, empty_ranges)
+    {
+        std::array<int, 0> a{};
+        std::array b = {1, 2};
+        std::array<int, 0> c{};
+        std::array d = {3};
+
+        const auto result = collect_ints(concat_range(a, b, c, d));
+
+        const dynamic_array<int> expected{get_global_allocator(), {1, 2, 3}};
+
+        ASSERT_EQ(result, expected);
+    }
+
+    TEST(concat_range, all_empty)
+    {
+        std::array<int, 0> a{};
+        std::array<int, 0> b{};
+
+        const auto result = collect_ints(concat_range(a, b));
+
+        ASSERT_TRUE(result.empty());
+    }
+
+    TEST(concat_range, mutation)
+    {
+        std::array a = {1, 2, 3};
+        std::array b = {4, 5};
+
+        for (int& v : concat_range(a, b))
+        {
+            v *= 2;
+        }
+
+        ASSERT_EQ(a, (std::array{2, 4, 6}));
+        ASSERT_EQ(b, (std::array{8, 10}));
+    }
+
+    TEST(concat_range, iterator_increment_and_equality)
+    {
+        std::array a = {1, 2};
+        std::array b = {3};
+
+        auto r = concat_range(a, b);
+
+        auto it = r.begin();
+        auto end = r.end();
+
+        ASSERT_NE(it, end);
+        EXPECT_EQ(*it, 1);
+
+        ++it;
+        ASSERT_NE(it, end);
+        EXPECT_EQ(*it, 2);
+
+        ++it;
+        ASSERT_NE(it, end);
+        EXPECT_EQ(*it, 3);
+
+        ++it;
+        EXPECT_EQ(it, end);
+    }
+
+    TEST(concat_range, span)
+    {
+        std::array a = {1, 2, 3};
+        std::array b = {4, 5};
+
+        std::span s1{a};
+        std::span s2{b};
+
+        const auto result = collect_ints(concat_range(s1, s2));
+
+        const dynamic_array<int> expected{get_global_allocator(), {1, 2, 3, 4, 5}};
+
+        ASSERT_EQ(result, expected);
+    }
+
+    TEST(concat_range, single_range)
+    {
+        std::array a = {1, 2, 3};
+
+        const auto result = collect_ints(concat_range(a));
+
+        const dynamic_array<int> expected{get_global_allocator(), {1, 2, 3}};
+
+        ASSERT_EQ(result, expected);
     }
 }
