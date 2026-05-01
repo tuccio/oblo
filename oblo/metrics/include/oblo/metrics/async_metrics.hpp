@@ -16,14 +16,14 @@ namespace oblo
         using entry = async_metrics_entry;
 
     public:
-        void init(dynamic_array<entry> entries);
+        OBLO_METRICS_API void init(dynamic_array<entry> entries);
 
-        std::span<entry> get_entries();
-        std::span<const entry> get_entries() const;
+        OBLO_METRICS_API std::span<entry> get_entries();
+        OBLO_METRICS_API std::span<const entry> get_entries() const;
 
-        void update();
+        OBLO_METRICS_API void update();
 
-        bool is_done() const;
+        OBLO_METRICS_API bool is_done() const;
 
     private:
         dynamic_array<entry> m_entries;

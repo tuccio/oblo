@@ -1,6 +1,5 @@
 #include <oblo/editor/windows/metrics_window.hpp>
 
-#include <oblo/core/iterator/concat_range.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/service_context.hpp>
@@ -10,9 +9,10 @@
 #include <oblo/editor/windows/memory_usage_metrics.hpp>
 #include <oblo/metrics/async_metrics.hpp>
 #include <oblo/metrics/metrics.hpp>
+#include <oblo/metrics/metrics_module.hpp>
+#include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/renderer/draw/resource_cache.hpp>
-#include <oblo/renderer/graph/frame_graph.hpp>
 #include <oblo/renderer/renderer.hpp>
 
 #include <imgui.h>
@@ -37,12 +37,12 @@ namespace oblo::editor
 
     struct metrics_window::impl
     {
-        frame_graph* frameGraph{};
+        metrics_module* metricsModule{};
         const property_registry* propertyRegistry{};
         const resource_cache* resourceCache{};
         metrics_state state = metrics_state::idle;
-        future<async_metrics> pendingFrameGraphMetrics;
-        async_metrics frameGraphMetrics;
+        dynamic_array<future<async_metrics>> pendingMetrics;
+        dynamic_array<async_metrics> collectedMetrics;
         dynamic_array<async_metrics::entry> globalMetrics;
         dynamic_array<displayed_metric> displayedMetrics;
         data_inspector inspector;
@@ -75,7 +75,7 @@ namespace oblo::editor
             {
                 if (ImGui::Button(labelCancel, buttonSize))
                 {
-                    pendingFrameGraphMetrics.reset();
+                    metricsModule->stop_collecting();
                     state = metrics_state::idle;
                 }
             }
@@ -109,55 +109,71 @@ namespace oblo::editor
             {
                 if (state == metrics_state::pending)
                 {
-                    const expected fg = pendingFrameGraphMetrics.try_get_result();
+                    pendingMetrics.clear();
 
-                    if (!fg.has_value())
+                    metricsModule->stop_collecting();
+                    metricsModule->collect_metrics(pendingMetrics);
+
+                    bool allReady = true;
+
+                    for (const auto& pending : pendingMetrics)
                     {
-                        if (fg.error() == future_error::not_ready)
+                        const expected e = pending.try_get_result();
+
+                        if (!e.has_value())
                         {
-                            state = metrics_state::downloading;
-                        }
-                        else
-                        {
-                            // Maybe report error instead?
-                            state = metrics_state::idle;
+                            if (e.error() == future_error::not_ready)
+                            {
+                                allReady = false;
+                            }
                         }
                     }
-                    else
+
+                    if (allReady)
                     {
-                        frameGraphMetrics = std::move(fg.value());
+                        collectedMetrics.clear();
+
+                        for (auto& m : pendingMetrics)
+                        {
+                            auto&& r = m.try_get_result();
+
+                            if (r)
+                            {
+                                collectedMetrics.emplace_back(std::move(*r));
+                            }
+                        }
+
                         state = metrics_state::downloading;
                     }
                 }
                 else if (state == metrics_state::downloading)
                 {
-                    frameGraphMetrics.update();
+                    bool allDone = true;
 
-                    if (frameGraphMetrics.is_done())
+                    for (auto& m : collectedMetrics)
                     {
-                        const std::span frameGraphEntries = frameGraphMetrics.get_entries();
+                        if (!m.is_done())
+                        {
+                            m.update();
+                            allDone = false;
+                        }
+                    }
+
+                    if (allDone)
+                    {
 
                         displayedMetrics.clear();
-                        displayedMetrics.reserve(frameGraphEntries.size());
 
                         gather_global_metrics();
 
-                        for (const auto& entry : concat_range(globalMetrics, frameGraphEntries))
+                        push_displayed_metrics(globalMetrics);
+
+                        for (auto& m : collectedMetrics)
                         {
-                            const expected e = entry.download.try_get_result();
-
-                            if (e.has_value())
-                            {
-                                auto& newEntry = displayedMetrics.emplace_back();
-
-                                newEntry.entry.type = entry.type;
-                                newEntry.entry.data = std::move(e.value());
-
-                                propertyRegistry->try_build_from_reflection(newEntry.tree, entry.type);
-                            }
+                            push_displayed_metrics(m.get_entries());
                         }
 
-                        frameGraphMetrics = {};
+                        collectedMetrics.clear();
                         state = metrics_state::idle;
 
                         if (keepRecording)
@@ -172,7 +188,7 @@ namespace oblo::editor
         void request_metrics()
         {
             state = metrics_state::pending;
-            pendingFrameGraphMetrics = frameGraph->request_metrics();
+            metricsModule->start_collecting();
         }
 
         void gather_global_metrics()
@@ -191,6 +207,24 @@ namespace oblo::editor
 
             set_metrics_data_sync<memory_usage_metrics>(globalMetrics.emplace_back(), memoryUsage);
         }
+
+        void push_displayed_metrics(std::span<const async_metrics_entry> entries)
+        {
+            for (const auto& entry : entries)
+            {
+                const expected e = entry.download.try_get_result();
+
+                if (e.has_value())
+                {
+                    auto& newEntry = displayedMetrics.emplace_back();
+
+                    newEntry.entry.type = entry.type;
+                    newEntry.entry.data = std::move(e.value());
+
+                    propertyRegistry->try_build_from_reflection(newEntry.tree, entry.type);
+                }
+            }
+        }
     };
 
     metrics_window::metrics_window() = default;
@@ -199,11 +233,11 @@ namespace oblo::editor
     bool metrics_window::init(const window_update_context& ctx)
     {
         m_impl = allocate_unique<impl>();
-        m_impl->frameGraph = ctx.services.find<frame_graph>();
+        m_impl->metricsModule = module_manager::get().find<metrics_module>();
         m_impl->propertyRegistry = ctx.services.find<const property_registry>();
         auto* const reflection = ctx.services.find<const reflection::reflection_registry>();
 
-        if (!reflection || !m_impl->frameGraph || !m_impl->propertyRegistry)
+        if (!reflection || !m_impl->metricsModule || !m_impl->propertyRegistry)
         {
             return false;
         }

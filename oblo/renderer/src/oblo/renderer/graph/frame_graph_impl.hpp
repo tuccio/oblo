@@ -30,10 +30,8 @@
 namespace oblo
 {
     class async_metrics;
-}
+    class metrics_module;
 
-namespace oblo
-{
     struct frame_graph_subgraph;
     struct frame_graph_vertex;
 
@@ -270,6 +268,8 @@ namespace oblo
         h32_flat_extpool_dense_set<frame_graph_pin_storage> retainedTextures;
 
         std::pmr::unsynchronized_pool_resource memoryPool;
+
+        metrics_module* metricsModule{};
 
     public: // Runtime
         frame_allocator dynamicAllocator;
