@@ -85,6 +85,8 @@ namespace oblo::gpu
         virtual result<h32<buffer>> create_buffer(const buffer_descriptor& descriptor) = 0;
         virtual void destroy(h32<buffer> bufferHandle) = 0;
 
+        virtual u64 get_buffer_size(h32<buffer> handle) const = 0;
+
         virtual h64<device_address> get_device_address(h32<buffer> bufferHandle) = 0;
         virtual h64<device_address> get_device_address(buffer_range bufferWithOffset) = 0;
 

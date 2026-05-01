@@ -74,6 +74,8 @@ namespace oblo
 
         std::span<const std::byte> create_mesh_table_lookup(frame_allocator& allocator) const;
 
+        u64 calculate_mesh_tables_size() const;
+
     private:
         struct table;
 

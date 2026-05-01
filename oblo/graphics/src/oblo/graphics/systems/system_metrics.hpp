@@ -7,9 +7,12 @@ namespace oblo
 {
     struct draw_registry_metrics
     {
-        usize totalInstances;
+        u64 totalInstances;
 
         OBLO_PROPERTY(Bytes)
-        usize totalInstanceDataSize;
+        u64 totalInstanceDataSize;
+
+        OBLO_PROPERTY(Bytes)
+        u64 meshTablesSize;
     } OBLO_REFLECT();
 }

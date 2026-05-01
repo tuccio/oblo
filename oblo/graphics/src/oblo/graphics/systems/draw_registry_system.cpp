@@ -51,6 +51,7 @@ namespace oblo
                 }
             }
 
+            data.meshTablesSize = m_drawRegistry->calculate_mesh_data_size();
             m_metrics->push_data(data);
         }
     }
