@@ -14,6 +14,7 @@
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/properties/visit.hpp>
+#include <oblo/reflection/attributes/human_readable.hpp>
 #include <oblo/reflection/concepts/resource_type.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
@@ -214,6 +215,39 @@ namespace oblo::editor
                                     propertyPtr,
                                     property.type,
                                     *m_reflection);
+
+                                return visit_result::recurse;
+                            }
+                            else if (find_attribute<reflection::human_readable_bytes>(tree, property))
+                            {
+                                usize bytes = 0;
+
+                                switch (property.kind)
+                                {
+
+                                case property_kind::i32:
+                                    bytes = narrow_cast<usize>(*new (propertyPtr) i32);
+                                    break;
+
+                                case property_kind::i64:
+                                    bytes = narrow_cast<usize>(*new (propertyPtr) i64);
+                                    break;
+
+                                case property_kind::u32:
+                                    bytes = narrow_cast<usize>(*new (propertyPtr) u32);
+                                    break;
+
+                                case property_kind::u64:
+                                    bytes = narrow_cast<usize>(*new (propertyPtr) u64);
+                                    break;
+
+                                default:
+                                    OBLO_ASSERT(false);
+                                    break;
+                                };
+
+                                modified |=
+                                    ui::property_table::add_human_readable_bytes(makeId(), property.name, bytes);
 
                                 return visit_result::recurse;
                             }

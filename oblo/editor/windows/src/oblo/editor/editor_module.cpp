@@ -5,6 +5,7 @@
 #include <oblo/editor/modules/gizmo_module.hpp>
 #include <oblo/editor/window_module.hpp>
 #include <oblo/modules/module_initializer.hpp>
+#include <oblo/reflection/codegen/registration.hpp>
 
 namespace oblo::editor
 {
@@ -18,6 +19,8 @@ namespace oblo::editor
 
     bool editor_module::startup(const module_initializer& initializer)
     {
+        reflection::gen::load_module_and_register();
+
         initializer.services->add<editor_modules_provider>().as<window_modules_provider>().unique();
         return true;
     }

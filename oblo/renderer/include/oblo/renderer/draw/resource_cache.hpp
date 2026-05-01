@@ -9,17 +9,13 @@
 
 namespace oblo
 {
-
     template <typename T>
     class resource_ptr;
 
     class resource_registry;
     class texture;
-}
-
-namespace oblo
-{
     class texture_registry;
+
     struct resident_texture;
 
     using texture_resource_ptr = resource_ptr<oblo::texture>;
@@ -39,6 +35,8 @@ namespace oblo
         void update();
 
         h32<resident_texture> get_or_add(const texture_resource_ptr& t);
+
+        usize calculate_texture_usage() const;
 
     private:
         struct async_load;

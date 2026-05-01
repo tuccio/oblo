@@ -1,14 +1,19 @@
 #include <oblo/editor/windows/metrics_window.hpp>
 
+#include <oblo/core/iterator/concat_range.hpp>
+#include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/service_context.hpp>
 #include <oblo/editor/ui/property_table.hpp>
 #include <oblo/editor/utility/data_inspector.hpp>
 #include <oblo/editor/window_update_context.hpp>
+#include <oblo/editor/windows/memory_usage_metrics.hpp>
 #include <oblo/metrics/async_metrics.hpp>
 #include <oblo/metrics/metrics.hpp>
 #include <oblo/properties/property_registry.hpp>
+#include <oblo/renderer/draw/resource_cache.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
+#include <oblo/renderer/renderer.hpp>
 
 #include <imgui.h>
 
@@ -34,9 +39,11 @@ namespace oblo::editor
     {
         frame_graph* frameGraph{};
         const property_registry* propertyRegistry{};
+        const resource_cache* resourceCache{};
         metrics_state state = metrics_state::idle;
-        future<async_metrics> pendingMetrics;
-        async_metrics asyncMetrics;
+        future<async_metrics> pendingFrameGraphMetrics;
+        async_metrics frameGraphMetrics;
+        dynamic_array<async_metrics::entry> globalMetrics;
         dynamic_array<displayed_metric> displayedMetrics;
         data_inspector inspector;
         bool keepRecording{true};
@@ -68,7 +75,7 @@ namespace oblo::editor
             {
                 if (ImGui::Button(labelCancel, buttonSize))
                 {
-                    pendingMetrics.reset();
+                    pendingFrameGraphMetrics.reset();
                     state = metrics_state::idle;
                 }
             }
@@ -102,11 +109,11 @@ namespace oblo::editor
             {
                 if (state == metrics_state::pending)
                 {
-                    const expected e = pendingMetrics.try_get_result();
+                    const expected fg = pendingFrameGraphMetrics.try_get_result();
 
-                    if (!e.has_value())
+                    if (!fg.has_value())
                     {
-                        if (e.error() == future_error::not_ready)
+                        if (fg.error() == future_error::not_ready)
                         {
                             state = metrics_state::downloading;
                         }
@@ -118,22 +125,24 @@ namespace oblo::editor
                     }
                     else
                     {
-                        asyncMetrics = std::move(e.value());
+                        frameGraphMetrics = std::move(fg.value());
                         state = metrics_state::downloading;
                     }
                 }
                 else if (state == metrics_state::downloading)
                 {
-                    asyncMetrics.update();
+                    frameGraphMetrics.update();
 
-                    if (asyncMetrics.is_done())
+                    if (frameGraphMetrics.is_done())
                     {
-                        const std::span entries = asyncMetrics.get_entries();
+                        const std::span frameGraphEntries = frameGraphMetrics.get_entries();
 
                         displayedMetrics.clear();
-                        displayedMetrics.reserve(entries.size());
+                        displayedMetrics.reserve(frameGraphEntries.size());
 
-                        for (const auto& entry : entries)
+                        gather_global_metrics();
+
+                        for (const auto& entry : concat_range(globalMetrics, frameGraphEntries))
                         {
                             const expected e = entry.download.try_get_result();
 
@@ -148,7 +157,7 @@ namespace oblo::editor
                             }
                         }
 
-                        asyncMetrics = {};
+                        frameGraphMetrics = {};
                         state = metrics_state::idle;
 
                         if (keepRecording)
@@ -163,7 +172,24 @@ namespace oblo::editor
         void request_metrics()
         {
             state = metrics_state::pending;
-            pendingMetrics = frameGraph->request_metrics();
+            pendingFrameGraphMetrics = frameGraph->request_metrics();
+        }
+
+        void gather_global_metrics()
+        {
+            globalMetrics.clear();
+
+            memory_usage_metrics memoryUsage{
+                .ram = platform::get_ram_usage().value_or(0),
+
+            };
+
+            if (resourceCache)
+            {
+                memoryUsage.vramTextureResources = resourceCache->calculate_texture_usage();
+            }
+
+            set_metrics_data_sync<memory_usage_metrics>(globalMetrics.emplace_back(), memoryUsage);
         }
     };
 
@@ -183,6 +209,13 @@ namespace oblo::editor
         }
 
         m_impl->inspector.init(reflection, nullptr);
+
+        auto* const r = ctx.services.find<renderer>();
+
+        if (r)
+        {
+            m_impl->resourceCache = &r->get_resource_cache();
+        }
 
         return true;
     }

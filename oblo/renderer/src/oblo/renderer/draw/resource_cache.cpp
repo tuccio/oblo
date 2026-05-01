@@ -1,11 +1,13 @@
 #include <oblo/renderer/draw/resource_cache.hpp>
 
 #include <oblo/core/formatters/uuid_formatter.hpp>
+#include <oblo/gpu/structs.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/renderer/draw/texture_registry.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/renderer/draw/texture_registry.hpp>
+#include <oblo/scene/resources/texture.hpp>
 
 namespace oblo
 {
@@ -24,6 +26,11 @@ namespace oblo
             handle = registry.acquire();
             return false;
         }
+
+        u32 get_texture_memory_size(const texture& t)
+        {
+            return narrow_cast<u32>(t.get_data().size());
+        }
     }
 
     struct resource_cache::async_load
@@ -36,6 +43,7 @@ namespace oblo
     struct resource_cache::cached_texture
     {
         h32<resident_texture> handle;
+        u32 residentSize;
     };
 
     resource_cache::resource_cache() = default;
@@ -66,6 +74,7 @@ namespace oblo
 
                 if (m_textureRegistry->set_texture(it->handle, *it->resource, it->resource.get_name()))
                 {
+                    m_textures[it->resource.get_id()].residentSize = get_texture_memory_size(*it->resource);
                     it = m_asyncLoads.erase_unordered(it);
                 }
                 else
@@ -97,14 +106,30 @@ namespace oblo
 
         if (handle)
         {
-            m_textures.emplace(id, handle);
-
             if (!isLoaded)
             {
                 m_asyncLoads.emplace_back(id, handle, resource);
             }
+
+            m_textures.emplace(id,
+                cached_texture{
+                    .handle = handle,
+                    .residentSize = isLoaded ? get_texture_memory_size(*resource) : 0u,
+                });
         }
 
         return handle;
+    }
+
+    usize resource_cache::calculate_texture_usage() const
+    {
+        usize usage = 0;
+
+        for (const auto& [ref, cached] : m_textures)
+        {
+            usage += cached.residentSize;
+        }
+
+        return usage;
     }
 }

@@ -35,4 +35,20 @@ namespace oblo
         type_id type;
         future<dynamic_array<byte>> download;
     };
+
+    template <typename T, typename... Args>
+    void set_metrics_data_sync(async_metrics_entry& e, Args&&... args)
+    {
+        dynamic_array<byte> data;
+        data.resize_default(sizeof(T));
+
+        new (data.data()) T{std::forward<Args>(args)...};
+
+        promise<dynamic_array<byte>> p;
+        p.init();
+        p.set_value(std::move(data));
+
+        e.download = future{p};
+        e.type = get_type_id<T>();
+    }
 }

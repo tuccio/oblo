@@ -28,6 +28,7 @@ namespace oblo::gen
 #include <oblo/reflection/registration/registrant.hpp>
 
 #include <oblo/core/uuid.hpp>
+#include <oblo/reflection/attributes/human_readable.hpp>
 #include <oblo/reflection/attributes/color.hpp>
 #include <oblo/reflection/attributes/range.hpp>
 #include <oblo/reflection/concepts/gpu_component.hpp>
@@ -153,6 +154,14 @@ namespace oblo::gen
                 indent();
                 new_line();
                 m_content.append(".add_attribute<::oblo::linear_color_tag>()");
+                deindent();
+            }
+
+            if (field.flags.contains(field_flags::human_readable_bytes))
+            {
+                indent();
+                new_line();
+                m_content.append(".add_attribute<::oblo::reflection::human_readable_bytes>()");
                 deindent();
             }
 
