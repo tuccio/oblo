@@ -618,10 +618,7 @@ namespace oblo
 
         gpu::gpu_instance& gpu = args.gpu;
 
-        if (m_impl->metricsModule && m_impl->metricsModule->is_collecting())
-        {
-            m_impl->metricsModule->push_metrics(m_impl->request_metrics());
-        }
+        m_impl->isCollectingMetrics = m_impl->metricsModule && m_impl->metricsModule->is_collecting();
 
         // Clear the bindless textures from last frame
         auto& textureRegistry = args.rendererPlatform.textureRegistry;
@@ -896,8 +893,7 @@ namespace oblo
                 metrics.init(std::move(entries));
             }
 
-            m_impl->nextFrameMetrics.set_value(std::move(metrics));
-            m_impl->nextFrameMetrics.reset();
+            m_impl->metricsModule->push_metrics(std::move(metrics));
             m_impl->pendingMetricsTransfer = {};
             m_impl->pendingMetrics.clear();
         }
@@ -1029,7 +1025,7 @@ namespace oblo
 
     bool frame_graph_impl::is_recording_metrics() const
     {
-        return nextFrameMetrics.is_initialized();
+        return isCollectingMetrics;
     }
 
     void frame_graph::write_dot(std::ostream& os) const
@@ -1692,16 +1688,6 @@ namespace oblo
         ++frameCounter;
 
         globalTLAS = {};
-    }
-
-    future<async_metrics> frame_graph_impl::request_metrics()
-    {
-        if (!nextFrameMetrics.is_initialized())
-        {
-            nextFrameMetrics.init();
-        }
-
-        return future{nextFrameMetrics};
     }
 
     void frame_graph_impl::free_pin_storage(

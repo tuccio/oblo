@@ -8,7 +8,6 @@
 #include <oblo/editor/window_update_context.hpp>
 #include <oblo/editor/windows/memory_usage_metrics.hpp>
 #include <oblo/metrics/async_metrics.hpp>
-#include <oblo/metrics/metrics.hpp>
 #include <oblo/metrics/metrics_module.hpp>
 #include <oblo/modules/module_manager.hpp>
 #include <oblo/properties/property_registry.hpp>
@@ -28,6 +27,12 @@ namespace oblo::editor
             downloading,
         };
 
+        struct metrics_entry
+        {
+            type_id type;
+            buffered_array<byte, 256> data;
+        };
+
         struct displayed_metric
         {
             metrics_entry entry;
@@ -41,7 +46,6 @@ namespace oblo::editor
         const property_registry* propertyRegistry{};
         const resource_cache* resourceCache{};
         metrics_state state = metrics_state::idle;
-        dynamic_array<future<async_metrics>> pendingMetrics;
         dynamic_array<async_metrics> collectedMetrics;
         dynamic_array<async_metrics::entry> globalMetrics;
         dynamic_array<displayed_metric> displayedMetrics;
@@ -109,44 +113,15 @@ namespace oblo::editor
             {
                 if (state == metrics_state::pending)
                 {
-                    pendingMetrics.clear();
+                    collectedMetrics.clear();
 
                     metricsModule->stop_collecting();
-                    metricsModule->collect_metrics(pendingMetrics);
+                    metricsModule->collect_metrics(collectedMetrics);
 
-                    bool allReady = true;
-
-                    for (const auto& pending : pendingMetrics)
-                    {
-                        const expected e = pending.try_get_result();
-
-                        if (!e.has_value())
-                        {
-                            if (e.error() == future_error::not_ready)
-                            {
-                                allReady = false;
-                            }
-                        }
-                    }
-
-                    if (allReady)
-                    {
-                        collectedMetrics.clear();
-
-                        for (auto& m : pendingMetrics)
-                        {
-                            auto&& r = m.try_get_result();
-
-                            if (r)
-                            {
-                                collectedMetrics.emplace_back(std::move(*r));
-                            }
-                        }
-
-                        state = metrics_state::downloading;
-                    }
+                    state = metrics_state::downloading;
                 }
-                else if (state == metrics_state::downloading)
+
+                if (state == metrics_state::downloading)
                 {
                     bool allDone = true;
 

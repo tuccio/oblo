@@ -10,6 +10,7 @@
 #include <oblo/ecs/systems/system_graph_builder.hpp>
 #include <oblo/ecs/systems/system_seq_executor.hpp>
 #include <oblo/ecs/systems/system_update_context.hpp>
+#include <oblo/metrics/metrics_collector.hpp>
 #include <oblo/trace/profile.hpp>
 
 namespace oblo
@@ -48,6 +49,8 @@ namespace oblo
         ecs::system_seq_executor executor;
         ecs::entity_registry entities;
         service_registry services;
+
+        metrics_collector metricsCollector;
     };
 
     runtime::runtime() = default;
@@ -84,6 +87,9 @@ namespace oblo
 
         m_impl->entities.init(initializer.typeRegistry);
 
+        m_impl->metricsCollector = metrics_collector::create_from_module();
+
+        m_impl->services.add<metrics_collector>().externally_owned(&m_impl->metricsCollector);
         m_impl->services.add<ecs::entity_registry>().externally_owned(&m_impl->entities);
         m_impl->services.add<const resource_registry>().externally_owned(initializer.resourceRegistry);
         m_impl->services.add<const property_registry>().externally_owned(initializer.propertyRegistry);
@@ -131,6 +137,8 @@ namespace oblo
             .frameAllocator = &m_impl->frameAllocator,
             .dt = ctx.dt,
         });
+
+        m_impl->metricsCollector.flush();
     }
 
     ecs::entity_registry& runtime::get_entity_registry() const

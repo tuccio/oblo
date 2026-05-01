@@ -4,6 +4,7 @@
 
 namespace oblo
 {
+    class metrics_collector;
     class draw_registry;
     class renderer;
 
@@ -17,5 +18,6 @@ namespace oblo
         bool m_isRayTracingEnabled{};
         draw_registry* m_drawRegistry{};
         renderer* m_renderer{};
+        metrics_collector* m_metrics{};
     };
 }

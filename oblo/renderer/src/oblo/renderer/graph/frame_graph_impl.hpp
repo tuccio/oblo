@@ -29,7 +29,6 @@
 
 namespace oblo
 {
-    class async_metrics;
     class metrics_module;
 
     struct frame_graph_subgraph;
@@ -301,7 +300,7 @@ namespace oblo
 
         deque<frame_graph_pin_reroute> rerouteStash;
 
-        promise<async_metrics> nextFrameMetrics;
+        bool isCollectingMetrics{};
         deque<frame_graph_metrics> pendingMetrics;
         h32<transfer_pass_instance> pendingMetricsTransfer{};
 
@@ -327,8 +326,6 @@ namespace oblo
             gpu::gpu_instance& gpu, hptr<gpu::command_buffer> commandBuffer, gpu::staging_buffer& stagingBuffer);
         void flush_downloads(gpu::gpu_instance& gpu);
         void finish_frame();
-
-        future<async_metrics> request_metrics();
 
     public: // API for contexts
         void* access_storage(h32<frame_graph_pin_storage> handle) const;

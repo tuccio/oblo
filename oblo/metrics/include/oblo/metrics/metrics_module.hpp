@@ -21,13 +21,13 @@ namespace oblo
         OBLO_METRICS_API void start_collecting();
         OBLO_METRICS_API void stop_collecting();
 
-        OBLO_METRICS_API void collect_metrics(dynamic_array<future<async_metrics>>& out);
+        OBLO_METRICS_API void collect_metrics(dynamic_array<async_metrics>& out);
 
-        OBLO_METRICS_API void push_metrics(future<async_metrics> m);
+        OBLO_METRICS_API void push_metrics(async_metrics m);
 
     private:
         bool m_isCollecting{};
-        dynamic_array<future<async_metrics>> m_metrics;
+        dynamic_array<async_metrics> m_metrics;
         mutable spin_lock m_lock;
     };
 
