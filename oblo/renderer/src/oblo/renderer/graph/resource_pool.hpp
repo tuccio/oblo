@@ -85,7 +85,7 @@ namespace oblo
         struct buffer_pool;
 
     private:
-        void free_last_frame_resources(gpu::gpu_instance& ctx);
+        void destroy_pool_next_frame(gpu::gpu_instance& ctx);
 
         void create_textures(gpu::gpu_instance& gpu);
         void create_buffers(gpu::gpu_instance& gpu);
@@ -141,7 +141,6 @@ namespace oblo
         dynamic_array<buffer_pool> m_bufferPools;
 
         h32<gpu::image_pool> m_currentFramePool{};
-        h32<gpu::image_pool> m_lastFramePool{};
 
         u32 m_frame{};
     };

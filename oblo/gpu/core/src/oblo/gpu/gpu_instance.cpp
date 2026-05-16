@@ -1,6 +1,5 @@
 #include <oblo/gpu/gpu_instance.hpp>
 
-#include <oblo/core/buffered_array.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/trace/profile.hpp>
@@ -57,15 +56,7 @@ namespace oblo::gpu
     result<> gpu_instance::end_frame()
     {
         OBLO_ASSERT(!submit_in_progress(m_submitInfo, m_submitIndex));
-
-        for (auto& o : m_objectsToDisposeNextFrame)
-        {
-            auto& s = m_objectsToDispose.emplace_back(std::move(o));
-            s.submitIndex = m_submitIndex;
-        }
-
-        m_objectsToDisposeNextFrame.clear();
-
+        flush_deferred_disposal(m_submitIndex);
         return no_error;
     }
 
@@ -104,6 +95,7 @@ namespace oblo::gpu
 
     void gpu_instance::shutdown_tracked_queue_context()
     {
+        flush_deferred_disposal(m_submitIndex);
         destroy_tracked_queue_resources_until(m_submitIndex);
 
         for (auto& info : m_submitInfo)
@@ -163,6 +155,17 @@ namespace oblo::gpu
     {
         const u32 submitInfoIdx = m_submitIndex % s_MaxTrackedSubmitsInFlight;
         return m_submitInfo[submitInfoIdx].fence;
+    }
+
+    void gpu_instance::flush_deferred_disposal(u64 submitIndex)
+    {
+        for (auto& o : m_objectsToDisposeNextFrame)
+        {
+            auto& s = m_objectsToDispose.emplace_back(std::move(o));
+            s.submitIndex = submitIndex;
+        }
+
+        m_objectsToDisposeNextFrame.clear();
     }
 
     result<> gpu_instance::wait_for_submit_completion(u64 submitIndex)

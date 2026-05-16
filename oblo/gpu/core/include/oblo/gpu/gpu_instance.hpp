@@ -288,6 +288,9 @@ namespace oblo::gpu
         template <typename T>
         void destroy_next_frame_impl(h32<T> handle);
 
+    private:
+        void flush_deferred_disposal(u64 submitIndex);
+
     protected:
         // We want the submit index to start from more than 0, which is the starting value of the semaphore
         u64 m_submitIndex{1};
