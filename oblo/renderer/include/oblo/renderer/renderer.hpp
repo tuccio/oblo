@@ -2,6 +2,7 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/core/string/string_interner.hpp>
+#include <oblo/gpu/command_buffer_pool_manager.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
@@ -56,9 +57,6 @@ namespace oblo
         renderer_platform& get_renderer_platform();
 
     private:
-        struct used_command_buffer_pool;
-
-    private:
         gpu::gpu_instance* m_gpu{};
 
         unique_ptr<instance_data_type_registry> m_instanceDataTypeRegistry;
@@ -66,14 +64,13 @@ namespace oblo
         gpu::staging_buffer m_stagingBuffer;
 
         unique_ptr<renderer_platform> m_platform;
-        deque<used_command_buffer_pool> m_usedPools;
+        gpu::command_buffer_pool_manager m_commandBufferPools;
 
         string_interner m_stringInterner;
 
         frame_graph m_frameGraph;
 
         hptr<gpu::command_buffer> m_currentCmdBuffer{};
-        h32<gpu::command_buffer_pool> m_currentCmdBufferPool{};
 
         bool m_firstUpdate{};
         bool m_isRayTracingEnabled{};

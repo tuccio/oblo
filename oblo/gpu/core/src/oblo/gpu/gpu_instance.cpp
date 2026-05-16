@@ -199,6 +199,15 @@ namespace oblo::gpu
         o.cb = [](gpu_instance& gpu, const void* object) { gpu.destroy(*reinterpret_cast<const h32<T>*>(object)); };
     }
 
+    template <typename T>
+    void gpu_instance::destroy_deferred_impl(h32<T> h, u64 submitIndex)
+    {
+        auto& o = m_objectsToDispose.emplace_back();
+        new (o.buffer) h32<T>{h};
+        o.cb = [](gpu_instance& gpu, const void* object) { gpu.destroy(*reinterpret_cast<const h32<T>*>(object)); };
+        o.submitIndex = submitIndex;
+    }
+
     void gpu_instance::destroy_next_frame(h32<acceleration_structure> h)
     {
         destroy_next_frame_impl(h);
@@ -257,6 +266,66 @@ namespace oblo::gpu
     void gpu_instance::destroy_next_frame(h32<semaphore> h)
     {
         destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_deferred(h32<acceleration_structure> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<bind_group_layout> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<buffer> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<fence> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<graphics_pipeline> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<compute_pipeline> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<raytracing_pipeline> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<image> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<image_pool> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<sampler> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
+    }
+
+    void gpu_instance::destroy_deferred(h32<semaphore> h, u64 submitIndex)
+    {
+        destroy_deferred_impl(h, submitIndex);
     }
 
     void gpu_instance::destroy_tracked_queue_resources_until(u64 lastCompletedSubmit)

@@ -1,23 +1,13 @@
 #include <oblo/renderer/renderer.hpp>
 
-#include <oblo/core/string/string.hpp>
 #include <oblo/gpu/gpu_instance.hpp>
-#include <oblo/gpu/vulkan/vulkan_instance.hpp>
-#include <oblo/modules/module_manager.hpp>
 #include <oblo/renderer/draw/instance_data_type_registry.hpp>
 #include <oblo/renderer/platform/renderer_platform.hpp>
-#include <oblo/renderer/renderer_module.hpp>
-#include <oblo/trace/profile.hpp>
 
 namespace oblo
 {
-    constexpr u32 StagingBufferSize{1u << 30};
-
-    struct renderer::used_command_buffer_pool
-    {
-        h32<gpu::command_buffer_pool> pool;
-        u64 submitIndex;
-    };
+    constexpr u32 staging_buffer_size{1u << 30};
+    constexpr u32 command_buffers_per_pool{8};
 
     renderer::renderer() = default;
     renderer::~renderer() = default;
@@ -26,24 +16,16 @@ namespace oblo
     {
         m_gpu = &initializer.gpu;
 
-        // Only vulkan is currently supported
-        auto* const vk = dynamic_cast<gpu::vk::vulkan_instance*>(m_gpu);
-
-        if (!vk)
-        {
-            return false;
-        }
-
         m_isRayTracingEnabled = initializer.isRayTracingEnabled;
 
         m_platform = allocate_unique<renderer_platform>();
 
-        if (!m_stagingBuffer.init(*m_gpu, StagingBufferSize))
+        if (!m_stagingBuffer.init(*m_gpu, staging_buffer_size))
         {
             return false;
         }
 
-        if (!m_platform->textureRegistry.init(*vk, m_stagingBuffer))
+        if (!m_platform->textureRegistry.init(*m_gpu, m_stagingBuffer))
         {
             return false;
         }
@@ -58,7 +40,10 @@ namespace oblo
         m_instanceDataTypeRegistry = allocate_unique<instance_data_type_registry>();
         m_instanceDataTypeRegistry->register_from_module();
 
-        m_platform->passManager.init(*vk, m_stringInterner, m_platform->textureRegistry, *m_instanceDataTypeRegistry);
+        m_platform->passManager.init(*m_gpu,
+            m_stringInterner,
+            m_platform->textureRegistry,
+            *m_instanceDataTypeRegistry);
 
         m_platform->passManager.set_raytracing_enabled(m_isRayTracingEnabled);
 
@@ -66,6 +51,8 @@ namespace oblo
         m_platform->passManager.set_system_include_paths(includePaths);
 
         m_platform->resourceCache.init(m_platform->textureRegistry);
+
+        m_commandBufferPools.init(*m_gpu, command_buffers_per_pool);
 
         m_firstUpdate = true;
 
@@ -77,16 +64,7 @@ namespace oblo
         if (m_gpu)
         {
             m_frameGraph.shutdown(*m_gpu);
-
-            if (m_currentCmdBufferPool)
-            {
-                m_gpu->destroy(m_currentCmdBufferPool);
-            }
-
-            for (const auto& used : m_usedPools)
-            {
-                m_gpu->destroy(used.pool);
-            }
+            m_commandBufferPools.shutdown();
         }
 
         if (m_platform)
@@ -140,12 +118,10 @@ namespace oblo
         // Frame graph building might update the texture descriptors, so we update them after that
         m_platform->passManager.update_global_descriptor_sets();
 
-        const hptr<gpu::command_buffer> cmd = get_active_command_buffer();
-
         const frame_graph_execute_args executeArgs{
             .rendererPlatform = *m_platform,
             .gpu = *m_gpu,
-            .commandBuffer = cmd,
+            .commandBuffer = commandBuffer,
             .stagingBuffer = m_stagingBuffer,
         };
 
@@ -153,29 +129,21 @@ namespace oblo
 
         m_platform->passManager.end_frame();
 
-        if (cmd)
+        if (commandBuffer)
         {
-            m_gpu->end_command_buffer(cmd).assert_value();
+            OBLO_ASSERT(commandBuffer == m_currentCmdBuffer);
+            m_gpu->end_command_buffer(commandBuffer).assert_value();
             m_currentCmdBuffer = {};
         }
 
-        return cmd;
+        return commandBuffer;
     }
 
     void renderer::end_frame(u64 submitIndex)
     {
         m_stagingBuffer.end_submit(submitIndex);
         m_frameGraph.frame_submitted(*m_gpu, submitIndex);
-
-        if (m_currentCmdBufferPool)
-        {
-            m_usedPools.push_back({
-                .pool = m_currentCmdBufferPool,
-                .submitIndex = submitIndex,
-            });
-
-            m_currentCmdBufferPool = {};
-        }
+        m_commandBufferPools.frame_submitted(submitIndex);
     }
 
     const instance_data_type_registry& renderer::get_instance_data_type_registry() const
@@ -200,40 +168,15 @@ namespace oblo
             return m_currentCmdBuffer;
         }
 
-        if (!m_currentCmdBufferPool)
+        const gpu::result cmd = m_commandBufferPools.allocate_command_buffer();
+
+        if (!cmd || !m_gpu->begin_command_buffer(*cmd))
         {
-            if (!m_usedPools.empty() && m_gpu->is_submit_done(m_usedPools.front().submitIndex))
-            {
-                m_currentCmdBufferPool = m_usedPools.front().pool;
-                m_usedPools.pop_front();
-
-                m_gpu->reset_command_buffer_pool(m_currentCmdBufferPool).assert_value();
-            }
-            else
-            {
-                m_currentCmdBufferPool = m_gpu
-                                             ->create_command_buffer_pool({
-                                                 .queue = m_gpu->get_universal_queue(),
-                                                 .numCommandBuffers = 8,
-                                             })
-                                             .assert_value_or({});
-
-                if (!m_currentCmdBufferPool)
-                {
-                    return {};
-                }
-            }
+            return {};
         }
 
-        if (m_gpu->fetch_command_buffers(m_currentCmdBufferPool, {&m_currentCmdBuffer, 1u}))
-        {
-            if (!m_gpu->begin_command_buffer(m_currentCmdBuffer))
-            {
-                m_currentCmdBuffer = {};
-            }
-        }
-
-        return m_currentCmdBuffer;
+        m_currentCmdBuffer = *cmd;
+        return *cmd;
     }
 
     resource_cache& renderer::get_resource_cache()

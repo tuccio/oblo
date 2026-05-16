@@ -163,6 +163,19 @@ namespace oblo::gpu
         void destroy_next_frame(h32<sampler> h);
         void destroy_next_frame(h32<semaphore> h);
 
+        void destroy_deferred(h32<acceleration_structure> h, u64 submitIndex);
+        void destroy_deferred(h32<bind_group_layout> h, u64 submitIndex);
+        void destroy_deferred(h32<buffer> h, u64 submitIndex);
+        void destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex);
+        void destroy_deferred(h32<compute_pipeline> h, u64 submitIndex);
+        void destroy_deferred(h32<fence> h, u64 submitIndex);
+        void destroy_deferred(h32<graphics_pipeline> h, u64 submitIndex);
+        void destroy_deferred(h32<image> h, u64 submitIndex);
+        void destroy_deferred(h32<image_pool> h, u64 submitIndex);
+        void destroy_deferred(h32<raytracing_pipeline> h, u64 submitIndex);
+        void destroy_deferred(h32<sampler> h, u64 submitIndex);
+        void destroy_deferred(h32<semaphore> h, u64 submitIndex);
+
         // Memory mapping
 
         virtual result<void*> memory_map(h32<buffer> buffer) = 0;
@@ -287,6 +300,9 @@ namespace oblo::gpu
 
         template <typename T>
         void destroy_next_frame_impl(h32<T> handle);
+
+        template <typename T>
+        void destroy_deferred_impl(h32<T> handle, u64 submitIndex);
 
     private:
         void flush_deferred_disposal(u64 submitIndex);
