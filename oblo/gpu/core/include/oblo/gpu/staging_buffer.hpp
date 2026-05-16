@@ -31,8 +31,8 @@ namespace oblo::gpu
         result<> init(gpu_instance& gpu, u64 size);
         void shutdown();
 
-        void begin_frame(u64 frameIndex);
-        void end_frame();
+        void begin_submit();
+        void end_submit(u64 submitIndex);
 
         void notify_finished_frames(u64 lastFinishedFrame);
 
@@ -79,7 +79,7 @@ namespace oblo::gpu
             h32<buffer> buffer;
             byte* memoryMap;
             deque<submitted_upload> submittedUploads;
-            u64 nextTimelineId;
+            bool hasSubmitStarted;
         };
 
     private:

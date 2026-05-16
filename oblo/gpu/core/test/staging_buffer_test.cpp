@@ -102,7 +102,7 @@ namespace oblo::gpu
             constexpr u64 frameIndex{1};
 
             ASSERT_TRUE(gpu->begin_submit_tracking());
-            stagingBuffer.begin_frame(frameIndex);
+            stagingBuffer.begin_submit(frameIndex);
 
             const expected<staging_buffer_span> staged[] = {
                 stagingBuffer.stage(dataSpan),
@@ -124,7 +124,7 @@ namespace oblo::gpu
             stagingBuffer.upload(commandBuffer, *staged[0], buffers[0], 0);
             stagingBuffer.upload(commandBuffer, *staged[1], buffers[1], 0);
 
-            stagingBuffer.end_frame();
+            stagingBuffer.end_submit();
 
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
@@ -153,7 +153,7 @@ namespace oblo::gpu
             constexpr u64 frameIndex{2};
 
             stagingBuffer.notify_finished_frames(frameIndex - 1);
-            stagingBuffer.begin_frame(frameIndex);
+            stagingBuffer.begin_submit(frameIndex);
             ASSERT_TRUE(gpu->reset_command_buffer_pool(pool));
 
             const expected<staging_buffer_span> staged[] = {
@@ -177,7 +177,7 @@ namespace oblo::gpu
             stagingBuffer.upload(commandBuffer, *staged[0], buffers[2], 0);
             stagingBuffer.upload(commandBuffer, *staged[1], buffers[3], 0);
 
-            stagingBuffer.end_frame();
+            stagingBuffer.end_submit();
 
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
@@ -208,7 +208,7 @@ namespace oblo::gpu
             constexpr u64 frameIndex{3};
 
             stagingBuffer.notify_finished_frames(frameIndex - 1);
-            stagingBuffer.begin_frame(frameIndex);
+            stagingBuffer.begin_submit(frameIndex);
             ASSERT_TRUE(gpu->reset_command_buffer_pool(pool));
 
             const expected<staging_buffer_span> staged[] = {
@@ -230,7 +230,7 @@ namespace oblo::gpu
             stagingBuffer.upload(commandBuffer, *staged[1], buffers[1], 0);
             stagingBuffer.upload(commandBuffer, *staged[2], buffers[2], 0);
 
-            stagingBuffer.end_frame();
+            stagingBuffer.end_submit();
 
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 

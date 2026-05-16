@@ -30,7 +30,8 @@ namespace oblo
         void shutdown();
 
         void begin_frame();
-        [[nodiscard]] hptr<gpu::command_buffer> end_frame();
+        [[nodiscard]] hptr<gpu::command_buffer> execute();
+        void end_frame(u64 submitIndex);
 
         gpu::gpu_instance& get_gpu_instance();
 
@@ -56,9 +57,6 @@ namespace oblo
 
     private:
         struct used_command_buffer_pool;
-
-    private:
-        [[nodiscard]] hptr<gpu::command_buffer> finalize_command_buffer_for_submission();
 
     private:
         gpu::gpu_instance* m_gpu{};

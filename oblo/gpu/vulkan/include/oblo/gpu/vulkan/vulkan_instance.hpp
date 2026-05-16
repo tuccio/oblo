@@ -136,8 +136,7 @@ namespace oblo::gpu::vk
 
         void end_raytracing_pass(hptr<command_buffer> cmdBuffer) override;
 
-        result<> begin_submit_tracking() override;
-        result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
+        result<u64> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) override;
 
         result<> present(const present_descriptor& descriptor) override;
 

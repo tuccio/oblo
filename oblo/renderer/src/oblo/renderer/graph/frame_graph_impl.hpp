@@ -298,6 +298,7 @@ namespace oblo
         deque<frame_graph_pending_download> pendingDownloads;
         deque<frame_graph_texture_impl> pendingTexturesToFree;
 
+
         deque<frame_graph_pin_reroute> rerouteStash;
 
         bool isCollectingMetrics{};
@@ -311,6 +312,7 @@ namespace oblo
 
         random_generator rng;
 
+        u32 downloadsAddedThisFrame{};
         u32 frameCounter{};
 
         // Used to send signals to the frame graph (e.g. reset an effect)

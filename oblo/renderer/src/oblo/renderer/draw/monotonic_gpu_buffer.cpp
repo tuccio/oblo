@@ -4,7 +4,6 @@
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/structs.hpp>
 
-
 namespace oblo
 {
     struct monotonic_gpu_buffer::buffer_info
@@ -32,11 +31,9 @@ namespace oblo
 
     void monotonic_gpu_buffer::shutdown(gpu::gpu_instance& ctx)
     {
-        const u64 submitIndex = ctx.get_submit_index();
-
         for (auto& buffer : m_buffers)
         {
-            ctx.destroy_deferred(buffer.handle, submitIndex);
+            ctx.destroy_next_frame(buffer.handle);
         }
 
         m_buffers.clear();

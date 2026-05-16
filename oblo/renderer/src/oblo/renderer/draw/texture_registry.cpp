@@ -73,8 +73,6 @@ namespace oblo
 
     void texture_registry::shutdown()
     {
-        const auto submitIndex = m_gpu->get_submit_index();
-
         for (u32 i = 0; i < m_usedSlots; ++i)
         {
             if (!m_isOwned[i])
@@ -83,7 +81,7 @@ namespace oblo
                 continue;
             }
 
-            m_gpu->destroy_deferred(m_textures[i].image, submitIndex);
+            m_gpu->destroy_next_frame(m_textures[i].image);
         }
     }
 
@@ -193,8 +191,7 @@ namespace oblo
 
         if (isOwned)
         {
-            const auto submitIndex = m_gpu->get_submit_index();
-            m_gpu->destroy_deferred(image.image, submitIndex);
+            m_gpu->destroy_next_frame(image.image);
         }
 
         // Reset to the dummy

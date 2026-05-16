@@ -747,7 +747,7 @@ namespace oblo
         const hptr<gpu::command_buffer> commandBuffer = args.commandBuffer;
         auto& resourcePool = m_impl->resourcePool;
 
-        m_impl->downloadStaging.begin_frame(gpu.get_submit_index());
+        m_impl->downloadStaging.begin_submit();
 
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
@@ -770,6 +770,8 @@ namespace oblo
             m_impl->flush_uploads(gpu, commandBuffer, args.stagingBuffer);
         }
 
+        const u32 currentPendingDownloads = m_impl->pendingDownloads.size32();
+
         // Prepare the download buffers
         for (auto& enqueuedDownload : m_impl->bufferDownloads)
         {
@@ -787,10 +789,11 @@ namespace oblo
             }
 
             // This only works as long as we submit once per frame
-            download.submitIndex = gpu.get_submit_index();
             download.stagedSpan = *staging;
             download.promise.init(get_global_allocator());
         }
+
+        m_impl->downloadsAddedThisFrame = m_impl->pendingDownloads.size32() - currentPendingDownloads;
 
         frame_graph_execution_state executionState{
             .gpu = &gpu,
@@ -900,11 +903,22 @@ namespace oblo
 
         m_impl->barriers = {};
         m_impl->currentNode = {};
+    }
 
-        m_impl->downloadStaging.end_frame();
+    void frame_graph::frame_submitted(gpu::gpu_instance& gpu, u64 submitIndex)
+    {
+        // Go through the newly added downloads and set the submit index retroactively
+        auto it = rbegin(m_impl->pendingDownloads);
 
+        for (u32 i = 0; i < m_impl->downloadsAddedThisFrame; ++i)
+        {
+            auto& enqueuedDownload = *it;
+            OBLO_ASSERT(enqueuedDownload.submitIndex == 0);
+            enqueuedDownload.submitIndex = submitIndex;
+        }
+
+        m_impl->downloadStaging.end_submit(submitIndex);
         m_impl->flush_downloads(gpu);
-
         m_impl->finish_frame();
     }
 
@@ -1297,7 +1311,7 @@ namespace oblo
         {
             if (t->handle)
             {
-                ctx.destroy_deferred(t->handle, ctx.get_submit_index());
+                ctx.destroy_next_frame(t->handle);
             }
 
             memoryPool.deallocate(t, sizeof(frame_graph_texture_impl), alignof(frame_graph_texture_impl));
@@ -1723,7 +1737,7 @@ namespace oblo
         {
             if (t.handle)
             {
-                ctx.destroy_deferred(t.handle, ctx.get_submit_index());
+                ctx.destroy_next_frame(t.handle);
             }
         }
 

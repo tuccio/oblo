@@ -104,7 +104,7 @@ namespace oblo
 
         m_stagingBuffer.notify_finished_frames(m_gpu->get_last_finished_submit());
 
-        m_stagingBuffer.begin_frame(m_gpu->get_submit_index());
+        m_stagingBuffer.begin_submit();
 
         if (m_firstUpdate)
         {
@@ -112,11 +112,9 @@ namespace oblo
 
             m_firstUpdate = false;
         }
-
-        m_gpu->begin_submit_tracking().assert_value();
     }
 
-    hptr<gpu::command_buffer> renderer::end_frame()
+    hptr<gpu::command_buffer> renderer::execute()
     {
         const hptr<gpu::command_buffer> commandBuffer = get_active_command_buffer();
         OBLO_ASSERT(commandBuffer);
@@ -142,19 +140,42 @@ namespace oblo
         // Frame graph building might update the texture descriptors, so we update them after that
         m_platform->passManager.update_global_descriptor_sets();
 
+        const hptr<gpu::command_buffer> cmd = get_active_command_buffer();
+
         const frame_graph_execute_args executeArgs{
             .rendererPlatform = *m_platform,
             .gpu = *m_gpu,
-            .commandBuffer = get_active_command_buffer(),
+            .commandBuffer = cmd,
             .stagingBuffer = m_stagingBuffer,
         };
 
         m_frameGraph.execute(executeArgs);
 
         m_platform->passManager.end_frame();
-        m_stagingBuffer.end_frame();
 
-        return finalize_command_buffer_for_submission();
+        if (cmd)
+        {
+            m_gpu->end_command_buffer(cmd).assert_value();
+            m_currentCmdBuffer = {};
+        }
+
+        return cmd;
+    }
+
+    void renderer::end_frame(u64 submitIndex)
+    {
+        m_stagingBuffer.end_submit(submitIndex);
+        m_frameGraph.frame_submitted(*m_gpu, submitIndex);
+
+        if (m_currentCmdBufferPool)
+        {
+            m_usedPools.push_back({
+                .pool = m_currentCmdBufferPool,
+                .submitIndex = submitIndex,
+            });
+
+            m_currentCmdBufferPool = {};
+        }
     }
 
     const instance_data_type_registry& renderer::get_instance_data_type_registry() const
@@ -213,25 +234,6 @@ namespace oblo
         }
 
         return m_currentCmdBuffer;
-    }
-
-    hptr<gpu::command_buffer> renderer::finalize_command_buffer_for_submission()
-    {
-        if (m_currentCmdBufferPool)
-        {
-            m_usedPools.emplace_back(m_currentCmdBufferPool, m_gpu->get_submit_index());
-            m_currentCmdBufferPool = {};
-        }
-
-        const hptr<gpu::command_buffer> cmd = m_currentCmdBuffer;
-
-        if (cmd)
-        {
-            m_gpu->end_command_buffer(cmd).assert_value();
-            m_currentCmdBuffer = {};
-        }
-
-        return cmd;
     }
 
     resource_cache& renderer::get_resource_cache()

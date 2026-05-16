@@ -348,9 +348,8 @@ namespace oblo
     {
         if (m_lastFramePool)
         {
-            const auto submitIndex = ctx.get_submit_index() - 1;
-
-            ctx.destroy_deferred(m_lastFramePool, submitIndex);
+            // TODO: Next frame is incorrect, rather we should when the previous frame is done
+            ctx.destroy_next_frame(m_lastFramePool);
             m_lastFramePool = {};
         }
     }
@@ -525,9 +524,7 @@ namespace oblo
             }
             else
             {
-                const auto submitIndex = ctx.get_submit_index();
-                ctx.destroy_deferred(it->second.allocatedImage, submitIndex);
-
+                ctx.destroy_next_frame(it->second.allocatedImage);
                 it = m_stableTextures.erase(it);
             }
         }
@@ -545,8 +542,7 @@ namespace oblo
             }
             else
             {
-                const auto submitIndex = ctx.get_submit_index();
-                ctx.destroy_deferred(it->second.allocatedBuffer, submitIndex);
+                ctx.destroy_next_frame(it->second.allocatedBuffer);
                 it = m_stableBuffers.erase(it);
             }
         }

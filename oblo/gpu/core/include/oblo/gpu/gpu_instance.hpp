@@ -28,6 +28,9 @@ namespace oblo::gpu
         virtual result<> init(const instance_descriptor& descriptor) = 0;
         virtual void shutdown() = 0;
 
+        virtual result<> begin_frame();
+        virtual result<> end_frame();
+
         virtual result<hptr<surface>> create_surface(hptr<native_window> nativeWindow) = 0;
         virtual void destroy(hptr<surface> surface) = 0;
 
@@ -136,34 +139,29 @@ namespace oblo::gpu
 
         virtual void end_raytracing_pass(hptr<command_buffer> cmdBuffer) = 0;
 
-        /// @brief Necessary to call for tracking the main queue and synchronizing with the GPU when necessary.
-        /// This function might release resources that are not used by the GPU anymore.
-        /// The end of the tracking happens upon submission on the main queue.
-        virtual result<> begin_submit_tracking() = 0;
-        virtual result<> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) = 0;
+        virtual result<u64> submit(h32<queue> handle, const queue_submit_descriptor& descriptor) = 0;
 
         virtual result<> present(const present_descriptor& descriptor) = 0;
 
         virtual result<> wait_idle() = 0;
 
-        u64 get_submit_index() const;
         u64 get_last_finished_submit() const;
         bool is_submit_done(u64 submitIndex) const;
 
         result<> wait_for_submit_completion(u64 submitIndex);
 
-        void destroy_deferred(h32<acceleration_structure> h, u64 submitIndex);
-        void destroy_deferred(h32<bind_group_layout> h, u64 submitIndex);
-        void destroy_deferred(h32<buffer> h, u64 submitIndex);
-        void destroy_deferred(h32<command_buffer_pool> h, u64 submitIndex);
-        void destroy_deferred(h32<compute_pipeline> h, u64 submitIndex);
-        void destroy_deferred(h32<fence> h, u64 submitIndex);
-        void destroy_deferred(h32<graphics_pipeline> h, u64 submitIndex);
-        void destroy_deferred(h32<image> h, u64 submitIndex);
-        void destroy_deferred(h32<image_pool> h, u64 submitIndex);
-        void destroy_deferred(h32<raytracing_pipeline> h, u64 submitIndex);
-        void destroy_deferred(h32<sampler> h, u64 submitIndex);
-        void destroy_deferred(h32<semaphore> h, u64 submitIndex);
+        void destroy_next_frame(h32<acceleration_structure> h);
+        void destroy_next_frame(h32<bind_group_layout> h);
+        void destroy_next_frame(h32<buffer> h);
+        void destroy_next_frame(h32<command_buffer_pool> h);
+        void destroy_next_frame(h32<compute_pipeline> h);
+        void destroy_next_frame(h32<fence> h);
+        void destroy_next_frame(h32<graphics_pipeline> h);
+        void destroy_next_frame(h32<image> h);
+        void destroy_next_frame(h32<image_pool> h);
+        void destroy_next_frame(h32<raytracing_pipeline> h);
+        void destroy_next_frame(h32<sampler> h);
+        void destroy_next_frame(h32<semaphore> h);
 
         // Memory mapping
 
@@ -288,7 +286,7 @@ namespace oblo::gpu
         h32<fence> get_tracked_queue_fence();
 
         template <typename T>
-        void destroy_deferred_impl(h32<T> handle, u64 submitIndex);
+        void destroy_next_frame_impl(h32<T> handle);
 
     protected:
         // We want the submit index to start from more than 0, which is the starting value of the semaphore
@@ -300,12 +298,8 @@ namespace oblo::gpu
 
         dynamic_array<submit_info> m_submitInfo;
         deque<disposable_object> m_objectsToDispose;
+        deque<disposable_object> m_objectsToDisposeNextFrame;
     };
-
-    inline u64 gpu_instance::get_submit_index() const
-    {
-        return m_submitIndex;
-    }
 
     inline u64 gpu_instance::get_last_finished_submit() const
     {

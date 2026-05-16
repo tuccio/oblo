@@ -359,12 +359,12 @@ namespace oblo
         {
             if (variant.pipeline)
             {
-                ctx.destroy_deferred(variant.pipeline, ctx.get_submit_index());
+                ctx.destroy_next_frame(variant.pipeline);
             }
 
             if (variant.descriptorSetLayout)
             {
-                ctx.destroy_deferred(variant.descriptorSetLayout, ctx.get_submit_index());
+                ctx.destroy_next_frame(variant.descriptorSetLayout);
             }
         }
 
@@ -1333,12 +1333,12 @@ namespace oblo
         {
             if (sampler)
             {
-                gpu.destroy_deferred(sampler, gpu.get_submit_index());
+                gpu.destroy_next_frame(sampler);
             }
         }
 
-        gpu.destroy_deferred(m_impl->textures2DSetLayout, gpu.get_submit_index());
-        gpu.destroy_deferred(m_impl->samplersSetLayout, gpu.get_submit_index());
+        gpu.destroy_next_frame(m_impl->textures2DSetLayout);
+        gpu.destroy_next_frame(m_impl->samplersSetLayout);
 
         m_impl.reset();
     }

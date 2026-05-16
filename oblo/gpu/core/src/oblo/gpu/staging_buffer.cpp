@@ -14,8 +14,6 @@ namespace oblo::gpu
 {
     namespace
     {
-        constexpr u32 InvalidTimelineId{0u};
-
         staging_buffer_span make_subspan(const staging_buffer_span& destination, u64 offset)
         {
             staging_buffer_span subspan = destination;
@@ -100,22 +98,20 @@ namespace oblo::gpu
         m_impl = {};
     }
 
-    void staging_buffer::begin_frame(u64 frameIndex)
+    void staging_buffer::begin_submit()
     {
-        OBLO_ASSERT(frameIndex != InvalidTimelineId);
-        OBLO_ASSERT(m_impl.nextTimelineId == InvalidTimelineId);
-
-        m_impl.nextTimelineId = frameIndex;
+        OBLO_ASSERT(!m_impl.hasSubmitStarted);
+        m_impl.hasSubmitStarted = true;
     }
 
-    void staging_buffer::end_frame()
+    void staging_buffer::end_submit(u64 submitIndex)
     {
-        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+        OBLO_ASSERT(m_impl.hasSubmitStarted);
 
         // TODO: Maybe some debug check to see segments that have been staged but not uploaded could be useful
         if (m_impl.pendingBytes != 0)
         {
-            m_impl.submittedUploads.push_back({.timelineId = m_impl.nextTimelineId, .size = m_impl.pendingBytes});
+            m_impl.submittedUploads.push_back({.timelineId = submitIndex, .size = m_impl.pendingBytes});
 
             OBLO_ASSERT(m_impl.ring.used_count() ==
                 std::accumulate(m_impl.submittedUploads.begin(),
@@ -125,8 +121,7 @@ namespace oblo::gpu
         }
 
         m_impl.pendingBytes = 0;
-
-        m_impl.nextTimelineId = InvalidTimelineId;
+        m_impl.hasSubmitStarted = false;
     }
 
     void staging_buffer::notify_finished_frames(u64 lastFinishedFrame)
@@ -295,7 +290,7 @@ namespace oblo::gpu
     void staging_buffer::upload(
         hptr<command_buffer> commandBuffer, staging_buffer_span source, h32<buffer> buffer, u64 bufferOffset) const
     {
-        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+        OBLO_ASSERT(m_impl.hasSubmitStarted);
 
         OBLO_ASSERT(calculate_size(source) > 0);
         buffer_copy_descriptor copyRegions[2];
@@ -327,14 +322,14 @@ namespace oblo::gpu
         h32<image> image,
         std::span<const buffer_image_copy_descriptor> copies) const
     {
-        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+        OBLO_ASSERT(m_impl.hasSubmitStarted);
         m_impl.gpu->cmd_copy_buffer_to_image(commandBuffer, m_impl.buffer, image, copies);
     }
 
     void staging_buffer::download(
         hptr<command_buffer> commandBuffer, h32<buffer> buffer, u64 bufferOffset, staging_buffer_span destination) const
     {
-        OBLO_ASSERT(m_impl.nextTimelineId != InvalidTimelineId);
+        OBLO_ASSERT(m_impl.hasSubmitStarted);
         OBLO_ASSERT(calculate_size(destination) > 0);
 
         buffer_copy_descriptor copyRegions[2];

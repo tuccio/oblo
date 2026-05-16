@@ -2216,12 +2216,7 @@ namespace oblo::gpu::vk
         m_cmdLabeler.end(unwrap_handle<VkCommandBuffer>(cmdBuffer));
     }
 
-    result<> vulkan_instance::begin_submit_tracking()
-    {
-        return begin_tracked_queue_submit();
-    }
-
-    result<> vulkan_instance::submit(h32<queue> queue, const queue_submit_descriptor& descriptor)
+    result<u64> vulkan_instance::submit(h32<queue> queue, const queue_submit_descriptor& descriptor)
     {
         buffered_array<VkSemaphore, 8> waitSemaphores;
         buffered_array<VkSemaphore, 8> signalSemaphores;
@@ -2303,14 +2298,16 @@ namespace oblo::gpu::vk
 
         const auto result = translate_result(vkQueueSubmit(get_queue(queue).queue, 1, &submitInfo, vkFence));
 
-        if (result)
+        if (!result)
         {
-            const u64 submitIndex = get_submit_index();
-            m_perFrameSetPool.on_submit(submitIndex);
-            end_tracked_queue_submit();
+            return result.error();
         }
 
-        return result;
+        const u64 submitIndex = m_submitIndex;
+        m_perFrameSetPool.on_submit(submitIndex);
+        end_tracked_queue_submit();
+
+        return submitIndex;
     }
 
     result<> vulkan_instance::present(const present_descriptor& descriptor)
