@@ -51,7 +51,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("eigen/3.4.0")
 
         if self.options.with_tracy:
-            self.requires("tracy/0.10")
+            self.requires("tracy/0.13.1")
 
         if self.options.with_dotnet:
             self.requires("dotnet-sdk/9.0.203")
