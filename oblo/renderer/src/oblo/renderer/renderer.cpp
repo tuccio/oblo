@@ -20,12 +20,17 @@ namespace oblo
 
         m_platform = allocate_unique<renderer_platform>();
 
+        if (!m_upload.init(*m_gpu, staging_buffer_size))
+        {
+            return false;
+        }
+
         if (!m_stagingBuffer.init(*m_gpu, staging_buffer_size))
         {
             return false;
         }
 
-        if (!m_platform->textureRegistry.init(*m_gpu, m_stagingBuffer))
+        if (!m_platform->textureRegistry.init(*m_gpu, m_upload))
         {
             return false;
         }
@@ -73,6 +78,7 @@ namespace oblo
             m_platform->textureRegistry.shutdown();
         }
 
+        m_upload.shutdown();
         m_stagingBuffer.shutdown();
     }
 
@@ -81,8 +87,6 @@ namespace oblo
         m_platform->resourceCache.update();
 
         m_stagingBuffer.notify_finished_frames(m_gpu->get_last_finished_submit());
-
-        m_stagingBuffer.begin_submit();
 
         if (m_firstUpdate)
         {
@@ -94,6 +98,8 @@ namespace oblo
 
     hptr<gpu::command_buffer> renderer::execute()
     {
+        m_upload.submit_uploads().assert_value("Failed to submit staging uploads");
+
         const hptr<gpu::command_buffer> commandBuffer = get_active_command_buffer();
         OBLO_ASSERT(commandBuffer);
 
@@ -102,8 +108,6 @@ namespace oblo
             // If we didn't get a command buffer it may be an unrecoverable error, but we try to keep going
             return {};
         }
-
-        m_platform->textureRegistry.flush_uploads(commandBuffer);
 
         m_platform->passManager.begin_frame(commandBuffer);
 

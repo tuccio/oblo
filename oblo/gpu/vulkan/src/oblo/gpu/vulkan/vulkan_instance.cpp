@@ -173,7 +173,7 @@ namespace oblo::gpu::vk
     {
         VkCommandPool vkCommandPool{};
         dynamic_array<VkCommandBuffer> commandBuffers;
-        usize currentyUsedBuffers{};
+        usize currentlyUsedBuffers{};
     };
 
     struct vulkan_instance::image_impl : vk::allocated_image
@@ -1060,7 +1060,7 @@ namespace oblo::gpu::vk
         auto&& [poolIt, handle] = m_commandBufferPools.emplace();
         poolIt->vkCommandPool = commandPool;
         poolIt->commandBuffers = std::move(commandBuffers);
-        poolIt->currentyUsedBuffers = 0u;
+        poolIt->currentlyUsedBuffers = 0u;
 
         return handle;
     }
@@ -1083,7 +1083,7 @@ namespace oblo::gpu::vk
     {
         auto& poolImpl = m_commandBufferPools.at(pool);
 
-        const usize numRemainingBuffers = poolImpl.commandBuffers.size() - poolImpl.currentyUsedBuffers;
+        const usize numRemainingBuffers = poolImpl.commandBuffers.size() - poolImpl.currentlyUsedBuffers;
 
         if (numRemainingBuffers < commandBuffers.size())
         {
@@ -1091,7 +1091,7 @@ namespace oblo::gpu::vk
         }
 
         const auto fetchedBuffers =
-            std::span{poolImpl.commandBuffers}.subspan(poolImpl.currentyUsedBuffers, commandBuffers.size());
+            std::span{poolImpl.commandBuffers}.subspan(poolImpl.currentlyUsedBuffers, commandBuffers.size());
 
         OBLO_ASSERT(fetchedBuffers.size_bytes() == commandBuffers.size_bytes());
         std::memcpy(commandBuffers.data(), fetchedBuffers.data(), commandBuffers.size_bytes());
@@ -2307,6 +2307,11 @@ namespace oblo::gpu::vk
         m_perFrameSetPool.on_submit(submitIndex);
         end_tracked_queue_submit();
 
+        if (!descriptor.isLastOfFrame)
+        {
+            begin_tracked_queue_submit().assert_value();
+        }
+
         return submitIndex;
     }
 
@@ -2440,7 +2445,6 @@ namespace oblo::gpu::vk
 
         for (const auto& copy : copies)
         {
-
             regions.push_back({
                 .bufferOffset = copy.bufferOffset,
                 .bufferRowLength = copy.bufferRowLength,

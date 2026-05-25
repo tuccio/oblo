@@ -747,8 +747,6 @@ namespace oblo
         const hptr<gpu::command_buffer> commandBuffer = args.commandBuffer;
         auto& resourcePool = m_impl->resourcePool;
 
-        m_impl->downloadStaging.begin_submit();
-
         for (const auto [storage, poolIndex] : m_impl->transientBuffers)
         {
             const frame_graph_buffer_impl& buf = resourcePool.get_transient_buffer(poolIndex);

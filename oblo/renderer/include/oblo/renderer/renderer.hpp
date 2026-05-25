@@ -5,7 +5,9 @@
 #include <oblo/gpu/command_buffer_pool_manager.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
+#include <oblo/renderer/draw/upload_buffers.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
+
 
 namespace oblo
 {
@@ -61,6 +63,7 @@ namespace oblo
 
         unique_ptr<instance_data_type_registry> m_instanceDataTypeRegistry;
 
+        upload_buffers m_upload;
         gpu::staging_buffer m_stagingBuffer;
 
         unique_ptr<renderer_platform> m_platform;

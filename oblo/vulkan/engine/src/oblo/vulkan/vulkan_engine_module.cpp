@@ -623,6 +623,7 @@ namespace oblo::vk
                 .commandBuffers = {&commandBuffer, 1},
                 .waitSemaphores = acquiredImageSemaphores,
                 .signalSemaphores = {&frameCompletedSemaphore[semaphoreIndex], 1},
+                .isLastOfFrame = true,
             });
 
         if (submitIndex)
