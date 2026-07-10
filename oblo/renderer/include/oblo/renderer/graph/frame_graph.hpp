@@ -61,6 +61,7 @@ namespace oblo
         void build(const frame_graph_build_args& args);
 
         void execute(const frame_graph_execute_args& args);
+        void frame_submitted(gpu::gpu_instance& gpu, u64 submitIndex);
 
         void write_dot(std::ostream& os) const;
 

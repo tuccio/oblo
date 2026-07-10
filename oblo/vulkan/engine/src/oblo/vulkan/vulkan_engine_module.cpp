@@ -85,16 +85,6 @@ namespace oblo::vk
             return ctx.wait_for_submit_completion(submitIndex);
         }
 
-        void wait_for_last_gpu_submission(gpu::gpu_instance& ctx)
-        {
-            OBLO_PROFILE_SCOPE();
-
-            if (!ctx.wait_for_submit_completion(ctx.get_submit_index()))
-            {
-                log::error("Failed to wait for last GPU submission");
-            }
-        }
-
         struct renderer_options
         {
             // We only read this at startup, any change requires a reset
@@ -218,7 +208,7 @@ namespace oblo::vk
                     }
                     else if (r.error() == gpu::error::out_of_date)
                     {
-                        wait_for_last_gpu_submission(ctx);
+                        wait_gpu_idle(ctx);
                         destroy_swapchain(ctx);
 
                         // Try again
@@ -561,7 +551,7 @@ namespace oblo::vk
 
             if (windowCtx->shouldRecreate)
             {
-                wait_for_last_gpu_submission(ctx);
+                wait_gpu_idle(ctx);
                 windowCtx->destroy_swapchain(ctx);
                 windowCtx->create_swapchain(ctx);
                 windowCtx->shouldRecreate = false;
@@ -595,6 +585,12 @@ namespace oblo::vk
             return false;
         }
 
+        if (!ctx.begin_frame())
+        {
+            OBLO_ASSERT(false);
+            return false;
+        }
+
         renderer.begin_frame();
 
         return true;
@@ -619,18 +615,26 @@ namespace oblo::vk
             }
         }
 
-        const hptr commandBuffer = renderer.end_frame();
+        const hptr commandBuffer = renderer.execute();
         OBLO_ASSERT(commandBuffer);
 
-        presentDoneSubmitIndex[semaphoreIndex] = ctx.get_submit_index();
+        const expected submitIndex = ctx.submit(ctx.get_universal_queue(),
+            {
+                .commandBuffers = {&commandBuffer, 1},
+                .waitSemaphores = acquiredImageSemaphores,
+                .signalSemaphores = {&frameCompletedSemaphore[semaphoreIndex], 1},
+                .isLastOfFrame = true,
+            });
 
-        ctx.submit(ctx.get_universal_queue(),
-               {
-                   .commandBuffers = {&commandBuffer, 1},
-                   .waitSemaphores = acquiredImageSemaphores,
-                   .signalSemaphores = {&frameCompletedSemaphore[semaphoreIndex], 1},
-               })
-            .assert_value();
+        if (submitIndex)
+        {
+            presentDoneSubmitIndex[semaphoreIndex] = *submitIndex;
+            renderer.end_frame(*submitIndex);
+        }
+        else
+        {
+            log::error("Failed to submit to GPU queue");
+        }
 
         buffered_array<gpu::result<>, 8> results;
         results.assign(acquiredSwapchains.size(), no_error);
@@ -668,6 +672,8 @@ namespace oblo::vk
         }
 
         contextsToRender.clear();
+
+        ctx.end_frame().assert_value();
     }
 
     void vulkan_engine_module::impl::maybe_log_fatal_error(gpu::error e)

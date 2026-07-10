@@ -31,8 +31,7 @@ namespace oblo::gpu
         result<> init(gpu_instance& gpu, u64 size);
         void shutdown();
 
-        void begin_frame(u64 frameIndex);
-        void end_frame();
+        void end_submit(u64 submitIndex);
 
         void notify_finished_frames(u64 lastFinishedFrame);
 
@@ -57,6 +56,14 @@ namespace oblo::gpu
 
         result<> invalidate_memory_ranges();
 
+        gpu_instance& get_gpu() const;
+
+        u64 get_buffer_size() const;
+
+        u64 get_current_frame_pending_bytes() const;
+
+        expected<u64> get_first_pending_submit() const;
+
     private:
         expected<staging_buffer_span> stage_allocate_internal(u64 size);
         expected<staging_buffer_span> stage_allocate_contiguous_aligned(u64 size, u64 alignment);
@@ -74,12 +81,12 @@ namespace oblo::gpu
         {
             gpu_instance* gpu;
             ring_buffer_tracker<u64> ring;
+            u64 bufferSize;
             u64 pendingBytes;
             u32 optimalBufferCopyOffsetAlignment;
             h32<buffer> buffer;
             byte* memoryMap;
             deque<submitted_upload> submittedUploads;
-            u64 nextTimelineId;
         };
 
     private:

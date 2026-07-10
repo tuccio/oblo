@@ -45,3 +45,5 @@ if(OBLO_ENABLE_HOTRELOADING)
         OBLO_ENABLE_HOTRELOADING
     )
 endif()
+
+oblo_post_build_copy_dlls(oblo)

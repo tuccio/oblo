@@ -12,3 +12,5 @@ target_link_libraries(
     oblo::scene
     oblo::reflection
 )
+
+oblo_post_build_copy_dlls(obindgen)

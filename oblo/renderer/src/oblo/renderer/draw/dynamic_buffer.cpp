@@ -26,8 +26,7 @@ namespace oblo
     {
         if (m_buffer)
         {
-            const auto submitIndex = m_ctx->get_submit_index();
-            m_ctx->destroy_deferred(m_buffer, submitIndex);
+            m_ctx->destroy_next_frame(m_buffer);
 
             m_buffer = {};
             m_capacity = {};
@@ -46,9 +45,7 @@ namespace oblo
     {
         if (m_buffer)
         {
-            const auto submitIndex = m_ctx->get_submit_index();
-
-            m_ctx->destroy_deferred(m_buffer, submitIndex);
+            m_ctx->destroy_next_frame(m_buffer);
 
             m_buffer = {};
             m_capacity = {};
@@ -99,7 +96,7 @@ namespace oblo
 
         if (oldBuffer)
         {
-            m_ctx->destroy_deferred(oldBuffer, m_ctx->get_submit_index());
+            m_ctx->destroy_next_frame(oldBuffer);
         }
 
         m_buffer = *newBuffer;

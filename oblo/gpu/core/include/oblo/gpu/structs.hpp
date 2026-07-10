@@ -147,6 +147,9 @@ namespace oblo::gpu
         h32<fence> signalFence;
         std::span<const h32<semaphore>> signalSemaphores;
         std::span<const u64> signalSemaphoreValues;
+        /// @brief Serves as an optimization. When set to false a new submit will be started after the current, which
+        /// might require synchronization with the GPU.
+        bool isLastOfFrame;
     };
 
     struct graphics_pipeline_stage

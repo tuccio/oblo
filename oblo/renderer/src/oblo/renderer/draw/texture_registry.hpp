@@ -10,6 +10,7 @@
 
 namespace oblo
 {
+    class upload_buffers;
     class texture;
     struct resident_texture;
 
@@ -26,7 +27,7 @@ namespace oblo
         texture_registry& operator=(const texture_registry&) = delete;
         texture_registry& operator=(texture_registry&&) noexcept = delete;
 
-        bool init(gpu::gpu_instance& gpu, gpu::staging_buffer& staging);
+        bool init(gpu::gpu_instance& gpu, upload_buffers& staging);
         void shutdown();
 
         void on_first_frame();
@@ -38,14 +39,9 @@ namespace oblo
         h32<resident_texture> add(const texture_resource& texture, const debug_label& debugName);
         void remove(h32<resident_texture> texture);
 
-        void flush_uploads(hptr<gpu::command_buffer> commandBuffer);
-
         void update_texture_bind_groups() const;
 
         u32 get_used_textures_slots() const;
-
-    private:
-        struct pending_texture_upload;
 
     private:
         bool create_texture(
@@ -56,13 +52,12 @@ namespace oblo
 
     private:
         gpu::gpu_instance* m_gpu{};
-        gpu::staging_buffer* m_staging{};
+        upload_buffers* m_staging{};
         handle_pool<u32, 4> m_handlePool;
 
         u32 m_usedSlots{};
 
         dynamic_array<gpu::bindless_image_descriptor> m_textures;
         dynamic_array<bool> m_isOwned;
-        dynamic_array<pending_texture_upload> m_pendingUploads;
     };
 }

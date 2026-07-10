@@ -556,12 +556,12 @@ namespace oblo
     {
         if (as.handle)
         {
-            m_ctx->destroy_deferred(as.handle, m_ctx->get_submit_index());
+            m_ctx->destroy_next_frame(as.handle);
         }
 
         if (as.buffer)
         {
-            m_ctx->destroy_deferred(as.buffer, m_ctx->get_submit_index());
+            m_ctx->destroy_next_frame(as.buffer);
         }
 
         as = {};
@@ -944,9 +944,7 @@ namespace oblo
                         m_vk->destroy(blasBuffer);
 
                         // Free the index buffer we allocated as well
-                        const auto submitIndex = m_ctx->get_submit_index();
-
-                        m_ctx->destroy_deferred(allocatedIndexBuffer, submitIndex);
+                        m_ctx->destroy_next_frame(allocatedIndexBuffer);
 
                         continue;
                     }
@@ -1097,7 +1095,7 @@ namespace oblo
             // TODO: Pretty hard to handle the error correctly at this point
             scratchBuffer.assert_value();
 
-            m_ctx->destroy_deferred(*scratchBuffer, m_ctx->get_submit_index());
+            m_ctx->destroy_next_frame(*scratchBuffer);
 
             auto scratchAddress = m_vk->get_device_address(*scratchBuffer);
 

@@ -8,9 +8,8 @@
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/gpu/structs.hpp>
-#include <oblo/gpu/vulkan/utility/pipeline_barrier.hpp>
-#include <oblo/gpu/vulkan/vulkan_instance.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/renderer/draw/upload_buffers.hpp>
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/scene/resources/texture_format.hpp>
 
@@ -43,20 +42,11 @@ namespace oblo
         };
     }
 
-    struct texture_registry::pending_texture_upload
-    {
-        h32<gpu::image> handle;
-        gpu::image_format format;
-        u32 width;
-        u32 height;
-        dynamic_array<upload_level> levels;
-    };
-
     texture_registry::texture_registry() = default;
 
     texture_registry::~texture_registry() = default;
 
-    bool texture_registry::init(gpu::gpu_instance& gpu, gpu::staging_buffer& staging)
+    bool texture_registry::init(gpu::gpu_instance& gpu, upload_buffers& staging)
     {
         const u32 maxDescriptorCount = gpu.get_max_bindless_images();
 
@@ -73,8 +63,6 @@ namespace oblo
 
     void texture_registry::shutdown()
     {
-        const auto submitIndex = m_gpu->get_submit_index();
-
         for (u32 i = 0; i < m_usedSlots; ++i)
         {
             if (!m_isOwned[i])
@@ -83,7 +71,7 @@ namespace oblo
                 continue;
             }
 
-            m_gpu->destroy_deferred(m_textures[i].image, submitIndex);
+            m_gpu->destroy_next_frame(m_textures[i].image);
         }
     }
 
@@ -193,8 +181,7 @@ namespace oblo
 
         if (isOwned)
         {
-            const auto submitIndex = m_gpu->get_submit_index();
-            m_gpu->destroy_deferred(image.image, submitIndex);
+            m_gpu->destroy_next_frame(image.image);
         }
 
         // Reset to the dummy
@@ -202,73 +189,6 @@ namespace oblo
         isOwned = false;
 
         m_handlePool.release(texture.value);
-    }
-
-    void texture_registry::flush_uploads(hptr<gpu::command_buffer> commandBuffer)
-    {
-        buffered_array<gpu::buffer_image_copy_descriptor, 16> copies;
-
-        for (const auto& upload : m_pendingUploads)
-        {
-            copies.clear();
-            copies.reserve(upload.levels.size());
-
-            for (u32 levelIndex = 0; levelIndex < upload.levels.size32(); ++levelIndex)
-            {
-                const auto& level = upload.levels[levelIndex];
-                const auto& segment = level.data;
-
-                copies.push_back(gpu::buffer_image_copy_descriptor{
-                    .bufferOffset = segment.begin,
-                    .imageSubresource =
-                        {
-                            .mipLevel = levelIndex,
-                            .baseArrayLayer = 0,
-                            .layerCount = 1,
-                        },
-                    .imageOffset = {},
-                    .imageExtent =
-                        {
-                            upload.width >> levelIndex,
-                            upload.height >> levelIndex,
-                            1,
-                        },
-                });
-
-                auto& lastCopy = copies.back();
-                lastCopy.imageSubresource.mipLevel = levelIndex;
-            }
-
-            m_gpu->cmd_apply_barriers(commandBuffer,
-                gpu::memory_barrier_descriptor{
-                    .images = make_span_initializer<gpu::image_state_transition>({
-                        {
-                            .image = upload.handle,
-                            .previousPipelines = gpu::pipeline_sync_stage::all_commands,
-                            .previousState = gpu::image_resource_state::undefined,
-                            .nextPipelines = gpu::pipeline_sync_stage::transfer,
-                            .nextState = gpu::image_resource_state::transfer_destination,
-                        },
-                    }),
-                });
-
-            m_staging->upload(commandBuffer, upload.handle, copies);
-
-            m_gpu->cmd_apply_barriers(commandBuffer,
-                gpu::memory_barrier_descriptor{
-                    .images = make_span_initializer<gpu::image_state_transition>({
-                        {
-                            .image = upload.handle,
-                            .previousPipelines = gpu::pipeline_sync_stage::transfer,
-                            .previousState = gpu::image_resource_state::transfer_destination,
-                            .nextPipelines = gpu::pipeline_sync_stage::all_commands,
-                            .nextState = gpu::image_resource_state::shader_read,
-                        },
-                    }),
-                });
-        }
-
-        m_pendingUploads.clear();
     }
 
     void texture_registry::update_texture_bind_groups() const
@@ -327,37 +247,19 @@ namespace oblo
         out.state = gpu::image_resource_state::shader_read;
         out.image = *image;
 
-        auto& textureUpload = m_pendingUploads.push_back({
-            .handle = out.image,
-            .format = srcFormat,
-            .width = desc.width,
-            .height = desc.height,
-        });
-
-        textureUpload.levels.reserve(desc.numLevels);
-
-        const auto cleanupAfterFailure = [this, &image]
-        {
-            m_pendingUploads.pop_back();
-            m_gpu->destroy(*image);
-        };
-
-        const u32 texelSize = texture.get_element_size();
-
-        for (u32 i = 0; i < desc.numLevels; ++i)
-        {
-            const auto data = texture.get_data(i, 0, 0);
-            const auto staged = m_staging->stage_image(data, texelSize);
-
-            if (!staged)
+        const expected r = m_staging->upload(texture,
             {
-                cleanupAfterFailure();
-                return false;
-            }
-
-            textureUpload.levels.push_back({
-                .data = staged->segments[0],
+                .image = out.image,
+                .previousPipelines = gpu::pipeline_sync_stage::all_commands,
+                .previousState = gpu::image_resource_state::undefined,
+                .nextPipelines = gpu::pipeline_sync_stage::all_commands,
+                .nextState = gpu::image_resource_state::shader_read,
             });
+
+        if (!r)
+        {
+            m_gpu->destroy_next_frame(*image);
+            return false;
         }
 
         return true;

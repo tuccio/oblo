@@ -1,6 +1,5 @@
 #include <oblo/gpu/gpu_instance.hpp>
 
-#include <oblo/core/buffered_array.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/trace/profile.hpp>
@@ -48,6 +47,19 @@ namespace oblo::gpu
     gpu_instance::gpu_instance() = default;
     gpu_instance::~gpu_instance() = default;
 
+    result<> gpu_instance::begin_frame()
+    {
+        OBLO_ASSERT(m_objectsToDisposeNextFrame.empty(), "Forgot to call gpu_instance::end_frame?");
+        return begin_tracked_queue_submit();
+    }
+
+    result<> gpu_instance::end_frame()
+    {
+        OBLO_ASSERT(!submit_in_progress(m_submitInfo, m_submitIndex));
+        flush_deferred_disposal(m_submitIndex);
+        return no_error;
+    }
+
     result<> gpu_instance::init_tracked_queue_context()
     {
         m_submitInfo.assign(s_MaxTrackedSubmitsInFlight, {});
@@ -83,6 +95,7 @@ namespace oblo::gpu
 
     void gpu_instance::shutdown_tracked_queue_context()
     {
+        flush_deferred_disposal(m_submitIndex);
         destroy_tracked_queue_resources_until(m_submitIndex);
 
         for (auto& info : m_submitInfo)
@@ -144,6 +157,17 @@ namespace oblo::gpu
         return m_submitInfo[submitInfoIdx].fence;
     }
 
+    void gpu_instance::flush_deferred_disposal(u64 submitIndex)
+    {
+        for (auto& o : m_objectsToDisposeNextFrame)
+        {
+            auto& s = m_objectsToDispose.emplace_back(std::move(o));
+            s.submitIndex = submitIndex;
+        }
+
+        m_objectsToDisposeNextFrame.clear();
+    }
+
     result<> gpu_instance::wait_for_submit_completion(u64 submitIndex)
     {
         OBLO_ASSERT(!submit_in_progress(m_submitInfo, m_submitIndex) || m_submitIndex > submitIndex);
@@ -168,11 +192,80 @@ namespace oblo::gpu
     }
 
     template <typename T>
-    void gpu_instance::destroy_deferred_impl(h32<T> h, u64 submitIndex)
+    void gpu_instance::destroy_next_frame_impl(h32<T> h)
     {
-        auto& o = m_objectsToDispose.emplace_back(submitIndex);
+        auto& o = m_objectsToDisposeNextFrame.emplace_back();
         new (o.buffer) h32<T>{h};
         o.cb = [](gpu_instance& gpu, const void* object) { gpu.destroy(*reinterpret_cast<const h32<T>*>(object)); };
+    }
+
+    template <typename T>
+    void gpu_instance::destroy_deferred_impl(h32<T> h, u64 submitIndex)
+    {
+        auto& o = m_objectsToDispose.emplace_back();
+        new (o.buffer) h32<T>{h};
+        o.cb = [](gpu_instance& gpu, const void* object) { gpu.destroy(*reinterpret_cast<const h32<T>*>(object)); };
+        o.submitIndex = submitIndex;
+    }
+
+    void gpu_instance::destroy_next_frame(h32<acceleration_structure> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<bind_group_layout> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<command_buffer_pool> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<buffer> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<fence> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<graphics_pipeline> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<compute_pipeline> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<raytracing_pipeline> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<image> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<image_pool> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<sampler> h)
+    {
+        destroy_next_frame_impl(h);
+    }
+
+    void gpu_instance::destroy_next_frame(h32<semaphore> h)
+    {
+        destroy_next_frame_impl(h);
     }
 
     void gpu_instance::destroy_deferred(h32<acceleration_structure> h, u64 submitIndex)

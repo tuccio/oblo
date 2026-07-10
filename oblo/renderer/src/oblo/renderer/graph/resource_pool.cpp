@@ -138,8 +138,7 @@ namespace oblo
 
     void resource_pool::shutdown(gpu::gpu_instance& ctx)
     {
-        m_lastFramePool = m_currentFramePool;
-        free_last_frame_resources(ctx);
+        destroy_pool_next_frame(ctx);
         free_stable_textures(ctx, 0);
         free_stable_buffers(ctx, 0);
 
@@ -155,8 +154,7 @@ namespace oblo
 
         m_textureResources.clear();
 
-        m_lastFramePool = m_currentFramePool;
-        m_currentFramePool = {};
+        OBLO_ASSERT(!m_currentFramePool);
 
         for (auto& pool : m_bufferPools)
         {
@@ -168,15 +166,14 @@ namespace oblo
 
     void resource_pool::end_build(gpu::gpu_instance& gpu)
     {
-        // TODO: Here we should check if we can reuse the allocation from last frame, instead for now we
-        // simply free the objects from last frame
-        free_last_frame_resources(gpu);
-
         create_textures(gpu);
         create_buffers(gpu);
 
         free_stable_textures(gpu, FramesBeforeDeletingStableResources);
         free_stable_buffers(gpu, FramesBeforeDeletingStableResources);
+
+        // Destroy the temporary pool next frame. Really we should reuse it instead, if possible.
+        destroy_pool_next_frame(gpu);
     }
 
     h32<transient_texture_resource> resource_pool::add_transient_texture(
@@ -344,14 +341,13 @@ namespace oblo
         stableBuffer.previousAccessKind = accessKind;
     }
 
-    void resource_pool::free_last_frame_resources(gpu::gpu_instance& ctx)
+    void resource_pool::destroy_pool_next_frame(gpu::gpu_instance& ctx)
     {
-        if (m_lastFramePool)
+        if (m_currentFramePool)
         {
-            const auto submitIndex = ctx.get_submit_index() - 1;
-
-            ctx.destroy_deferred(m_lastFramePool, submitIndex);
-            m_lastFramePool = {};
+            // TODO: Next frame is incorrect, rather we should when the previous frame is done
+            ctx.destroy_next_frame(m_currentFramePool);
+            m_currentFramePool = {};
         }
     }
 
@@ -525,9 +521,7 @@ namespace oblo
             }
             else
             {
-                const auto submitIndex = ctx.get_submit_index();
-                ctx.destroy_deferred(it->second.allocatedImage, submitIndex);
-
+                ctx.destroy_next_frame(it->second.allocatedImage);
                 it = m_stableTextures.erase(it);
             }
         }
@@ -545,8 +539,7 @@ namespace oblo
             }
             else
             {
-                const auto submitIndex = ctx.get_submit_index();
-                ctx.destroy_deferred(it->second.allocatedBuffer, submitIndex);
+                ctx.destroy_next_frame(it->second.allocatedBuffer);
                 it = m_stableBuffers.erase(it);
             }
         }
