@@ -3,6 +3,7 @@
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/renderer/draw/instance_data_type_registry.hpp>
 #include <oblo/renderer/platform/renderer_platform.hpp>
+#include <oblo/trace/profile.hpp>
 
 namespace oblo
 {
@@ -98,6 +99,8 @@ namespace oblo
 
     hptr<gpu::command_buffer> renderer::execute()
     {
+        OBLO_PROFILE_SCOPE();
+
         m_upload.submit_uploads().assert_value("Failed to submit staging uploads");
 
         const hptr<gpu::command_buffer> commandBuffer = get_active_command_buffer();

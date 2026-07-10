@@ -5,12 +5,15 @@
 #include <oblo/gpu/gpu_instance.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/scene/resources/texture.hpp>
+#include <oblo/trace/profile.hpp>
 
 namespace oblo
 {
     template <typename F>
     inline gpu::result<gpu::staging_buffer_span> upload_buffers::stage_memory(F&& doStage)
     {
+        OBLO_PROFILE_SCOPE();
+
         // Try staging first, if it fails, submit any pending upload to make space if needed
         // Either way we have to wait
         const expected firstAttempt = doStage();
@@ -68,6 +71,8 @@ namespace oblo
 
     gpu::result<> upload_buffers::upload(std::span<const byte> source, h32<gpu::buffer> buffer, u64 bufferOffset)
     {
+        OBLO_PROFILE_SCOPE();
+
         const expected staged = stage_memory([this, source] { return m_immediate.stage(source); });
 
         if (!staged)
