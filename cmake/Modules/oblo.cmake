@@ -486,3 +486,14 @@ function(oblo_set_target_folder target folder)
     set(_resolved ${OBLO_FOLDER_${_upper}})
     set_target_properties(${target} PROPERTIES FOLDER ${_resolved})
 endfunction(oblo_set_target_folder)
+
+function(oblo_post_build_copy_dlls target)
+    if(WIN32)
+        add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            -t "$<TARGET_FILE_DIR:${target}>"
+            "$<TARGET_RUNTIME_DLLS:${target}>"
+            COMMAND_EXPAND_LISTS
+        )
+    endif()
+endfunction()

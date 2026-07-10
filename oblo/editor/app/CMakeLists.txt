@@ -46,9 +46,4 @@ if(OBLO_ENABLE_HOTRELOADING)
     )
 endif()
 
-add_custom_command(TARGET oblo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    -t "$<TARGET_FILE_DIR:oblo>"
-    "$<TARGET_RUNTIME_DLLS:oblo>"
-    COMMAND_EXPAND_LISTS
-)
+oblo_post_build_copy_dlls(oblo)
