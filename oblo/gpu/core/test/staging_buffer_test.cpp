@@ -97,12 +97,12 @@ namespace oblo::gpu
 
         const std::span dataSpan = std::as_bytes(std::span{data});
 
+        u64 lastSubmitIndex{};
+
+        ASSERT_TRUE(gpu->begin_frame());
+
         {
             // The first 2 uploads will work, after that we need to flush because we used the whole staging buffer
-            constexpr u64 frameIndex{1};
-
-            ASSERT_TRUE(gpu->begin_submit_tracking());
-            stagingBuffer.begin_submit(frameIndex);
 
             const expected<staging_buffer_span> staged[] = {
                 stagingBuffer.stage(dataSpan),
@@ -124,17 +124,24 @@ namespace oblo::gpu
             stagingBuffer.upload(commandBuffer, *staged[0], buffers[0], 0);
             stagingBuffer.upload(commandBuffer, *staged[1], buffers[1], 0);
 
-            stagingBuffer.end_submit();
-
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
-            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}};
+            const queue_submit_descriptor submit{
+                .commandBuffers = {&commandBuffer, 1},
+                .isLastOfFrame = true,
+            };
 
-            ASSERT_TRUE(gpu->submit(universalQueue, submit));
+            const expected submitRes = gpu->submit(universalQueue, submit);
+            ASSERT_TRUE(submitRes);
+
+            lastSubmitIndex = *submitRes;
+            stagingBuffer.end_submit(lastSubmitIndex);
         }
 
-        ASSERT_TRUE(gpu->begin_submit_tracking());
-        ASSERT_TRUE(gpu->wait_for_submit_completion(gpu->get_submit_index() - 1));
+        ASSERT_TRUE(gpu->end_frame());
+
+        ASSERT_TRUE(gpu->begin_frame());
+        ASSERT_TRUE(gpu->wait_for_submit_completion(lastSubmitIndex));
 
         ASSERT_TRUE(gpu->memory_invalidate({buffers, buffersCount}));
 
@@ -149,11 +156,7 @@ namespace oblo::gpu
         ASSERT_EQ(readbackBuffer(mappings[1]), data);
 
         {
-            // Now we do it the other way around, upload to 2 and 3
-            constexpr u64 frameIndex{2};
-
-            stagingBuffer.notify_finished_frames(frameIndex - 1);
-            stagingBuffer.begin_submit(frameIndex);
+            stagingBuffer.notify_finished_frames(lastSubmitIndex);
             ASSERT_TRUE(gpu->reset_command_buffer_pool(pool));
 
             const expected<staging_buffer_span> staged[] = {
@@ -177,17 +180,24 @@ namespace oblo::gpu
             stagingBuffer.upload(commandBuffer, *staged[0], buffers[2], 0);
             stagingBuffer.upload(commandBuffer, *staged[1], buffers[3], 0);
 
-            stagingBuffer.end_submit();
-
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
-            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}};
+            const queue_submit_descriptor submit{
+                .commandBuffers = {&commandBuffer, 1},
+                .isLastOfFrame = true,
+            };
 
-            ASSERT_TRUE(gpu->submit(universalQueue, submit));
+            const expected submitRes = gpu->submit(universalQueue, submit);
+            ASSERT_TRUE(submitRes);
+
+            lastSubmitIndex = *submitRes;
+            stagingBuffer.end_submit(lastSubmitIndex);
         }
 
-        ASSERT_TRUE(gpu->begin_submit_tracking());
-        ASSERT_TRUE(gpu->wait_for_submit_completion(gpu->get_submit_index() - 1));
+        ASSERT_TRUE(gpu->end_frame());
+
+        ASSERT_TRUE(gpu->begin_frame());
+        ASSERT_TRUE(gpu->wait_for_submit_completion(lastSubmitIndex));
         ASSERT_TRUE(gpu->memory_invalidate({buffers, buffersCount}));
 
         ASSERT_EQ(readbackBuffer(mappings[2]), data);
@@ -205,10 +215,7 @@ namespace oblo::gpu
         {
             // Now upload different data to 0, 1 and 2, check that 3 is still the same as before and the others are
             // updated
-            constexpr u64 frameIndex{3};
-
-            stagingBuffer.notify_finished_frames(frameIndex - 1);
-            stagingBuffer.begin_submit(frameIndex);
+            stagingBuffer.notify_finished_frames(lastSubmitIndex);
             ASSERT_TRUE(gpu->reset_command_buffer_pool(pool));
 
             const expected<staging_buffer_span> staged[] = {
@@ -230,17 +237,22 @@ namespace oblo::gpu
             stagingBuffer.upload(commandBuffer, *staged[1], buffers[1], 0);
             stagingBuffer.upload(commandBuffer, *staged[2], buffers[2], 0);
 
-            stagingBuffer.end_submit();
-
             ASSERT_TRUE(gpu->end_command_buffer(commandBuffer));
 
-            const queue_submit_descriptor submit{.commandBuffers = {&commandBuffer, 1}};
+            const queue_submit_descriptor submit{
+                .commandBuffers = {&commandBuffer, 1},
+                .isLastOfFrame = true,
+            };
 
-            ASSERT_TRUE(gpu->submit(universalQueue, submit));
+            const expected submitRes = gpu->submit(universalQueue, submit);
+            ASSERT_TRUE(submitRes);
+
+            lastSubmitIndex = *submitRes;
+            stagingBuffer.end_submit(lastSubmitIndex);
         }
 
-        ASSERT_TRUE(gpu->begin_submit_tracking());
-        ASSERT_TRUE(gpu->wait_for_submit_completion(gpu->get_submit_index() - 1));
+        ASSERT_TRUE(gpu->end_frame());
+        ASSERT_TRUE(gpu->wait_for_submit_completion(lastSubmitIndex));
 
         ASSERT_TRUE(gpu->memory_invalidate({buffers, buffersCount}));
 
