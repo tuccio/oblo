@@ -143,7 +143,14 @@ float surfel_calculate_weight_contribution(in vec3 position, in vec3 normal)
 
     if (surfel_grid_has_cell(g_SurfelGridHeader, cell))
     {
-        const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
+        const uint cellHash = surfel_grid_cell_hash(g_SurfelGridHeader, cell);
+
+        uint cellIndex;
+
+        if (!surfel_grid_hash_find_entry(cell, cellIndex))
+        {
+            return weightSum;
+        }
 
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 

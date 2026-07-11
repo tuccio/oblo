@@ -342,6 +342,7 @@ namespace oblo
         if (ctx.has_source(inSurfelsGrid))
         {
             ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+            ctx.acquire(inSurfelsGridHashMap, buffer_usage::storage_read);
             ctx.acquire(inSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
             ctx.acquire(inLastFrameSurfelsLightingData, buffer_usage::storage_read);
@@ -373,6 +374,7 @@ namespace oblo
                 {"b_MeshTables"_hsv, inMeshDatabase},
                 {"b_CameraBuffer"_hsv, inCameraBuffer},
                 {"b_SurfelsGrid"_hsv, inSurfelsGrid},
+                {"b_SurfelsGridHashMap"_hsv, inSurfelsGridHashMap},
                 {"b_SurfelsGridData"_hsv, inSurfelsGridData},
                 {"b_SurfelsData"_hsv, inSurfelsData},
                 {"b_InSurfelsLighting"_hsv, inLastFrameSurfelsLightingData},
@@ -607,6 +609,7 @@ namespace oblo
 
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
+            ctx.acquire(inOutSurfelsGridHashMap, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
             ctx.acquire(inSurfelsLightEstimatorData, buffer_usage::storage_read);
             ctx.acquire(outGridFillBuffer, buffer_usage::storage_write);

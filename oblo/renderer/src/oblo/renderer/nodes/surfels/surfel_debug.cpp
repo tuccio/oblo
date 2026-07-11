@@ -75,6 +75,7 @@ namespace oblo
         ctx.acquire(inSurfelsData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsSpawnData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
+        ctx.acquire(inSurfelsGridHashMap, buffer_usage::storage_read);
         ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
         ctx.acquire(inSurfelsLightEstimatorData, buffer_usage::storage_read);
@@ -105,6 +106,7 @@ namespace oblo
                 {"b_SurfelsData"_hsv, inSurfelsData},
                 {"b_SurfelsSpawnData"_hsv, inSurfelsSpawnData},
                 {"b_SurfelsGrid"_hsv, inSurfelsGrid},
+                {"b_SurfelsGridHashMap"_hsv, inSurfelsGridHashMap},
                 {"b_SurfelsGridData"_hsv, inSurfelsGridData},
                 {"b_InSurfelsLighting"_hsv, inSurfelsLightingData},
                 {"b_InstanceTables"_hsv, inInstanceTables},

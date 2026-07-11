@@ -509,6 +509,11 @@ namespace oblo::main_view
                         &surfel_debug::inSurfelsGridData);
 
                     graph.connect(surfelsTiling,
+                        &surfel_tiling::inSurfelsGridHashMap,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsGridHashMap);
+
+                    graph.connect(surfelsTiling,
                         &surfel_tiling::inSurfelsData,
                         surfelsDebug,
                         &surfel_debug::inSurfelsData);
@@ -851,7 +856,10 @@ namespace oblo::surfels_gi
         graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsSpawnData, update, &surfel_update::inOutSurfelsSpawnData);
         graph.connect(initializer, &surfel_initializer::outSurfelsGrid, update, &surfel_update::inOutSurfelsGrid);
-        graph.connect(initializer, &surfel_initializer::outSurfelsGridHashMap, update, &surfel_update::inOutSurfelsGridHashMap);
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsGridHashMap,
+            update,
+            &surfel_update::inOutSurfelsGridHashMap);
         graph.connect(initializer,
             &surfel_initializer::outSurfelsGridData,
             update,
@@ -894,7 +902,10 @@ namespace oblo::surfels_gi
         graph.bind(rayTracing, &surfel_raytracing::inGIMultiplier, 1.f);
 
         graph.connect(update, &surfel_update::inOutSurfelsGrid, rayTracing, &surfel_raytracing::inOutSurfelsGrid);
-        graph.connect(update, &surfel_update::inOutSurfelsGridHashMap, rayTracing, &surfel_raytracing::inOutSurfelsGridHashMap);
+        graph.connect(update,
+            &surfel_update::inOutSurfelsGridHashMap,
+            rayTracing,
+            &surfel_raytracing::inOutSurfelsGridHashMap);
         graph.connect(update,
             &surfel_update::inOutSurfelsGridData,
             rayTracing,

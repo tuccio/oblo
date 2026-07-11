@@ -29,60 +29,60 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 
     for (uint i = 0; i < SURFEL_HASH_MAX_PROBES; ++i)
     {
-        const uint entryIndex = hash_map_index_probe(hash, i, g_SurfelGridHashMask);
+        const uint cellIndex = hash_map_index_probe(hash, i, g_SurfelGridHashMask);
 
-        bool acquired;
-        HASH_MAP_TRY_ACQUIRE(g_SurfelGridHashMap[entryIndex], entryIndex, acquired);
-
-        if (!acquired)
+        bool keepSearching;
+        if (hash_map_try_find(g_SurfelGridHashMap[cellIndex], hash, keepSearching))
         {
-            continue;
-        }
+            const uint surfelsBegin = g_SurfelGridCells[cellIndex].surfelsBegin;
+            const uint surfelIndex = atomicAdd(g_SurfelGridCellNextSurfelIndex[cellIndex], 1);
 
-        const uint surfelsBegin = g_SurfelGridCells[cellIndex].surfelsBegin;
-        const uint surfelIndex = atomicAdd(g_SurfelGridCellNextSurfelIndex[cellIndex], 1);
+            // debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
 
-        // debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
-
-        if (surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount)
-        {
-            g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
-        }
-        else
-        {
+            if (surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount)
+            {
+                g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
+            }
+            else
+            {
 #if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
-            debugPrintfEXT("surfelIndex >= g_SurfelGridCells[cellIndex].surfelsCount -> [%u %u]",
-                surfelIndex,
-                g_SurfelGridCells[cellIndex].surfelsCount);
+                debugPrintfEXT("surfelIndex >= g_SurfelGridCells[cellIndex].surfelsCount -> [%u %u]",
+                    surfelIndex,
+                    g_SurfelGridCells[cellIndex].surfelsCount);
 #endif
+            }
+
+            return;
+        }
+        else if (!keepSearching)
+        {
+            return;
+        }
+    }
+}
+
+    void main()
+    {
+        const uint surfelId = gl_GlobalInvocationID.x;
+
+        const surfel_grid_header gridHeader = g_SurfelGridHeader;
+
+        if (surfelId >= gridHeader.maxSurfels)
+        {
+            return;
         }
 
-        return;
+        const surfel_data surfel = g_SurfelData[surfelId];
+
+        if (!surfel_data_is_alive(surfel))
+        {
+            return;
+        }
+
+        const vec3 positionWS = surfel_data_world_position(surfel);
+        const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
+
+        const float radius = surfel_data_world_radius(surfel);
+
+        surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
     }
-}
-
-void main()
-{
-    const uint surfelId = gl_GlobalInvocationID.x;
-
-    const surfel_grid_header gridHeader = g_SurfelGridHeader;
-
-    if (surfelId >= gridHeader.maxSurfels)
-    {
-        return;
-    }
-
-    const surfel_data surfel = g_SurfelData[surfelId];
-
-    if (!surfel_data_is_alive(surfel))
-    {
-        return;
-    }
-
-    const vec3 positionWS = surfel_data_world_position(surfel);
-    const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
-
-    const float radius = surfel_data_world_radius(surfel);
-
-    surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
-}

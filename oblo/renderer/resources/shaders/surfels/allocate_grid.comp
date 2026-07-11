@@ -12,10 +12,11 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 void main()
 {
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
-    const uint cellIndex = gl_GlobalInvocationID.x;
 
-    const uint cellsCountLinearized = gridHeader.cellsCount.x * gridHeader.cellsCount.y * gridHeader.cellsCount.z;
-    if (gl_GlobalInvocationID.x >= cellsCountLinearized)
+    const uint cellIndex = gl_GlobalInvocationID.x;
+    const uint maxCells = g_SurfelGridHashMask + 1;
+
+    if (cellIndex.x >= maxCells)
     {
         return;
     }
