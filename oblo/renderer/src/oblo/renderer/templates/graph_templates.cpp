@@ -475,6 +475,7 @@ namespace oblo::main_view
                     OutGiSurfelsRayCount,
                     OutGiSurfelsInconsistency,
                     OutGiSurfelsLifetime,
+                    OutGiSurfelsTileCoverage,
                 };
 
                 static_assert(u32(surfel_debug::mode::enum_max) == array_size(outputs));
@@ -519,6 +520,11 @@ namespace oblo::main_view
                         &surfel_tiling::inInstanceTables,
                         surfelsDebug,
                         &surfel_debug::inInstanceTables);
+
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::outFullTileCoverage,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsTileCoverage);
 
                     graph.connect(viewBuffers,
                         &view_buffers_node::outCameraBuffer,

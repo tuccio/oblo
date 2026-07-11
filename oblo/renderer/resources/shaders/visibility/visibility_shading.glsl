@@ -25,12 +25,6 @@ struct visibility_shade_context
 vec4 visibility_shade(in visibility_shade_context ctx);
 vec4 visibility_miss(in visibility_shade_context ctx);
 
-layout(push_constant) uniform c_PushConstants
-{
-    uint skybox;
-}
-g_Constants;
-
 void main()
 {
     const uvec2 localGroupId = quad_remap_lane_8x8(gl_LocalInvocationIndex);

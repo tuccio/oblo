@@ -20,8 +20,6 @@ namespace oblo
 {
     namespace
     {
-        constexpr u32 g_tileSize{32};
-
         // A single surfel might be inserted in a few neighboring cells in the grid, if it's big enough
         // The radius is limited to 1/4 of the cell size, so this can be limited to 8
         constexpr u32 g_MaxSurfelMultiplicity = 8;
@@ -298,15 +296,15 @@ namespace oblo
 
         const auto visBufferDesc = ctx.get_current_initializer(inVisibilityBuffer).assert_value_or(texture_init_desc{});
 
-        const u32 tilesX = round_up_div(visBufferDesc.width, g_tileSize);
-        const u32 tilesY = round_up_div(visBufferDesc.height, g_tileSize);
+        const u32 tilesX = round_up_div(visBufferDesc.width, tile_size);
+        const u32 tilesY = round_up_div(visBufferDesc.height, tile_size);
         const u32 tilesCount = tilesX * tilesY;
 
         const u32 tilesBufferSize = u32(tilesCount * sizeof(surfel_tile_data));
         u32 currentBufferSize = tilesBufferSize;
 
         string_builder sb;
-        sb.format("TILE_SIZE {}", g_tileSize);
+        sb.format("TILE_SIZE {}", tile_size);
 
         const hashed_string_view defines[] = {sb.as<hashed_string_view>()};
 
@@ -351,8 +349,8 @@ namespace oblo
 
             const auto resolution = ctx.get_resolution(inVisibilityBuffer);
 
-            const u32 tilesX = round_up_div(resolution.x, g_tileSize);
-            const u32 tilesY = round_up_div(resolution.y, g_tileSize);
+            const u32 tilesX = round_up_div(resolution.x, tile_size);
+            const u32 tilesY = round_up_div(resolution.y, tile_size);
 
             bindingTable.bind_buffers({
                 {"b_InstanceTables"_hsv, inInstanceTables},

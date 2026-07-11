@@ -60,6 +60,8 @@ namespace oblo
     /// tile to spawn a surfel on.
     struct surfel_tiling
     {
+        static constexpr u32 tile_size = 32;
+
         pin::data_sink<surfel_tiling_data> outTileCoverageSink;
         pin::data_sink<vec3> outCameraPositionSink;
 

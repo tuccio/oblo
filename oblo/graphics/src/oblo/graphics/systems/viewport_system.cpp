@@ -317,6 +317,9 @@ namespace oblo
             case viewport_mode::gi_surfels_inconsistency:
                 break;
 
+            case viewport_mode::gi_surfels_tile_coverage:
+                break;
+
             default:
                 unreachable();
                 break;
@@ -381,6 +384,9 @@ namespace oblo
 
         case viewport_mode::gi_surfels_inconsistency:
             return main_view::OutGiSurfelsInconsistency;
+
+        case viewport_mode::gi_surfels_tile_coverage:
+            return main_view::OutGiSurfelsTileCoverage;
 
         default:
             unreachable();

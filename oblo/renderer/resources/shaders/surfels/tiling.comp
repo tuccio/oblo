@@ -169,7 +169,7 @@ float surfel_calculate_weight_contribution(in vec3 position, in vec3 normal)
             if (distance2 <= threshold)
             {
                 const float angleWeight = max(dot(surfelNormal, normal), 0);
-                const float distanceWeight = max(0, 1 - distance2 / threshold);
+                const float distanceWeight = max(1.0f - (distance2 / threshold) * 4.0f, 1.0f);
 
                 const float weight = angleWeight * distanceWeight;
                 weightSum += weight;

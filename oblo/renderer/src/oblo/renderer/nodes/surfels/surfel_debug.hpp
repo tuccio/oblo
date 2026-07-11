@@ -19,6 +19,7 @@ namespace oblo
             surfel_raycount,
             surfel_inconsistency,
             surfel_lifetime,
+            surfel_tile_coverage,
             enum_max,
         };
 
@@ -35,6 +36,7 @@ namespace oblo
         pin::buffer inSurfelsGridData;
         pin::buffer inSurfelsLightingData;
         pin::buffer inSurfelsLightEstimatorData;
+        pin::buffer inSurfelsTileCoverage;
 
         pin::texture inVisibilityBuffer;
         pin::buffer inMeshDatabase;

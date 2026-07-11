@@ -40,7 +40,7 @@ void main()
     }
 
     // This should really depend on the coverage
-    const float skipProbability = 0.2f;
+    const float skipProbability = 0.4f;
 
     if (random_uniform_1d(randomSeed) < skipProbability)
     {
@@ -48,7 +48,7 @@ void main()
     }
 
     // We don't spawn anything if the coverage is already high
-    const float maxCoverageThreshold = .25f;
+    const float maxCoverageThreshold = 0.0015f;
 
     const surfel_tile_data tile = g_TileData[globalIndex];
 

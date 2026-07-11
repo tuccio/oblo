@@ -51,6 +51,7 @@ namespace oblo::main_view
     constexpr string_view OutGiSurfelsRayCount{"DebugtGiSurfelsRayCount"};
     constexpr string_view OutGiSurfelsInconsistency{"DebugtGiSurfelsInconsistency"};
     constexpr string_view OutGiSurfelsLifetime{"DebugtGiSurfelsLifetime"};
+    constexpr string_view OutGiSurfelsTileCoverage{"DebugtGiSurfelsTileCoverage"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
     constexpr string_view OutDisocclusionMask{"DisocclusionMask"};

@@ -51,6 +51,7 @@ namespace oblo
         gi_surfels_lighting,
         gi_surfels_raycount,
         gi_surfels_inconsistency,
+        gi_surfels_tile_coverage,
     } OBLO_ENUM();
 
     struct viewport_component

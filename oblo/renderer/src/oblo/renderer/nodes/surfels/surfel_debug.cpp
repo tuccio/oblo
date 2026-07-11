@@ -6,6 +6,7 @@
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
+#include <oblo/renderer/nodes/surfels/surfel_management.hpp>
 
 namespace oblo
 {
@@ -21,7 +22,9 @@ namespace oblo
     {
         hashed_string_view define;
 
-        switch (ctx.access(inMode))
+        const mode viewMode = ctx.access(inMode);
+
+        switch (viewMode)
         {
         case mode::surfel_grid_id:
             define = "MODE_SURFEL_GRID_ID"_hsv;
@@ -41,6 +44,10 @@ namespace oblo
 
         case mode::surfel_lifetime:
             define = "MODE_SURFEL_LIFETIME"_hsv;
+            break;
+
+        case mode::surfel_tile_coverage:
+            define = "MODE_SURFEL_TILE_COVERAGE"_hsv;
             break;
 
         default:
@@ -75,6 +82,16 @@ namespace oblo
         ctx.acquire(inMeshDatabase, buffer_usage::storage_read);
 
         acquire_instance_tables(ctx, inInstanceTables, inInstanceBuffers, buffer_usage::storage_read);
+
+        switch (viewMode)
+        {
+        case mode::surfel_tile_coverage:
+            ctx.acquire(inSurfelsTileCoverage, buffer_usage::storage_read);
+            break;
+
+        default:
+            break;
+        }
     }
 
     void surfel_debug::execute(const frame_graph_execute_context& ctx)
@@ -94,6 +111,7 @@ namespace oblo
                 {"b_MeshTables"_hsv, inMeshDatabase},
                 {"b_CameraBuffer"_hsv, inCameraBuffer},
                 {"b_SurfelsLightEstimator"_hsv, inSurfelsLightEstimatorData},
+                {"b_InTileCoverage"_hsv, inSurfelsTileCoverage},
             });
 
             bindingTable.bind_textures({
@@ -105,6 +123,16 @@ namespace oblo
             const vec2u resolution = ctx.get_resolution(inVisibilityBuffer);
 
             ctx.bind_descriptor_sets(bindingTable);
+
+            switch (ctx.access(inMode))
+            {
+            case mode::surfel_tile_coverage:
+                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&surfel_tiling::tile_size, 1}));
+                break;
+
+            default:
+                break;
+            }
 
             ctx.dispatch_compute(round_up_div(resolution.x, 8u), round_up_div(resolution.y, 8u), 1);
 
