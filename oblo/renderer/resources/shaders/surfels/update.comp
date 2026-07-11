@@ -65,10 +65,28 @@ void surfel_kill(in uint surfelId)
     surfel_stack_free(surfelId);
 }
 
-void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
+void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 {
-    const uint prev = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
-    // debugPrintfEXT("Cell %u Count: %u\n", cellIndex, prev + 1);
+    const uint hash = surfel_grid_cell_hash(g_SurfelGridHeader, cell);
+
+    for (uint i = 0; i < SURFEL_HASH_MAX_PROBES; ++i)
+    {
+        const uint cellIndex = hash_map_index_probe(hash, i, g_SurfelGridHashMask);
+
+        bool keepSearching;
+        if (hash_map_try_find(g_SurfelGridHashMap[cellIndex], hash, keepSearching))
+        {
+            const uint prev = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
+            // debugPrintfEXT("Cell %u Count: %u\n", cellIndex, prev + 1);
+
+            return;
+        }
+
+        if (!keepSearching)
+        {
+            return;
+        }
+    }
 }
 
 void main()

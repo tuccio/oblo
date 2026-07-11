@@ -61,7 +61,7 @@ namespace oblo
             .id = "1aaa319e-7249-4dc3-9ca0-71adf65d9a32"_uuid,
             .name = "Grid Width",
             .category = "Graphics/GI",
-            .defaultValue = property_value_wrapper{32.f},
+            .defaultValue = property_value_wrapper{256.f},
             .minValue = property_value_wrapper{1.f},
             .maxValue = property_value_wrapper{1024.f},
         };
@@ -77,7 +77,7 @@ namespace oblo
             .id = "06201137-3847-4e16-a976-a68573f8fb20"_uuid,
             .name = "Grid Height",
             .category = "Graphics/GI",
-            .defaultValue = property_value_wrapper{16.f},
+            .defaultValue = property_value_wrapper{64.f},
             .minValue = property_value_wrapper{1.f},
             .maxValue = property_value_wrapper{1024.f},
         };
@@ -93,7 +93,7 @@ namespace oblo
             .id = "fb03d98f-ad8d-4de3-b86d-c465fd3210d0"_uuid,
             .name = "Grid Depth",
             .category = "Graphics/GI",
-            .defaultValue = property_value_wrapper{32.f},
+            .defaultValue = property_value_wrapper{256.f},
             .minValue = property_value_wrapper{1.f},
             .maxValue = property_value_wrapper{1024.f},
         };

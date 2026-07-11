@@ -3,6 +3,7 @@
 
 #include <ecs/entity>
 #include <renderer/constants>
+#include <renderer/utility/hash_map>
 
 // Used as a coverage value for surfel_tile_data when no geometry is present
 const float NO_SURFELS_NEEDED = 1e6;
@@ -21,6 +22,8 @@ const float SURFEL_SHARING_SPAWN_SCALE = SURFEL_SHARING_SCALE * .85f;
 
 // Surfel radius at 1 meter distance from the camera
 const float SURFEL_RADIUS_SCALE = 0.04;
+
+const uint SURFEL_HASH_MAX_PROBES = 4;
 
 struct surfel_spawn_data
 {
@@ -104,9 +107,10 @@ float surfel_grid_cell_size(in surfel_grid_header h)
     return h.cellSize;
 }
 
-uint surfel_grid_cell_index(in surfel_grid_header h, in ivec3 cell)
+uint surfel_grid_cell_hash(in surfel_grid_header h, in ivec3 cell)
 {
-    return cell.x + cell.y * h.cellsCount.x + cell.z * h.cellsCount.x * h.cellsCount.y;
+    const uint id = cell.x + cell.y * h.cellsCount.x + cell.z * h.cellsCount.x * h.cellsCount.y;
+    return hash_map_calculate(id);
 }
 
 ivec3 surfel_grid_find_cell(in surfel_grid_header h, in vec3 positionWS)

@@ -19,6 +19,7 @@ namespace oblo
         pin::buffer outSurfelsData;
 
         pin::buffer outSurfelsGrid;
+        pin::buffer outSurfelsGridHashMap;
         pin::buffer outSurfelsGridData;
 
         // Two buffers we ping pong during the ray-tracing update
@@ -68,6 +69,7 @@ namespace oblo
         pin::buffer outFullTileCoverage;
 
         pin::buffer inSurfelsGrid;
+        pin::buffer inSurfelsGridHashMap;
         pin::buffer inSurfelsGridData;
         pin::buffer inSurfelsData;
         pin::buffer inSurfelsSpawnData; // This is not used, it's just here to forward it to debug views
@@ -128,6 +130,7 @@ namespace oblo
         pin::buffer inOutSurfelsSpawnData;
         pin::buffer inOutSurfelsStack;
         pin::buffer inOutSurfelsGrid;
+        pin::buffer inOutSurfelsGridHashMap;
         pin::buffer inOutSurfelsGridData;
         pin::buffer inOutSurfelsLastUsage;
         pin::buffer outGridFillBuffer;
@@ -199,6 +202,7 @@ namespace oblo
         pin::buffer inSurfelsMetrics;
 
         pin::buffer inOutSurfelsGrid;
+        pin::buffer inOutSurfelsGridHashMap;
         pin::buffer inOutSurfelsData;
         pin::buffer inOutSurfelsGridData;
         pin::buffer inOutSurfelsLastUsage;

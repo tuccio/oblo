@@ -55,13 +55,20 @@ void main()
         return;
     }
 
-    const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
+    const uint cellHash = surfel_grid_cell_hash(g_SurfelGridHeader, cell);
+
+    uint cellIndex;
+
+    if (!surfel_grid_hash_find_entry(cell, cellIndex))
+    {
+        return;
+    }
 
     const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 
     for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
-         surfel_grid_cell_iterator_has_next(cellIt);
-         surfel_grid_cell_iterator_advance(cellIt))
+        surfel_grid_cell_iterator_has_next(cellIt);
+        surfel_grid_cell_iterator_advance(cellIt))
     {
         const uint otherSurfelId = surfel_grid_cell_iterator_get(cellIt);
 

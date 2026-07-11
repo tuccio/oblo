@@ -85,6 +85,12 @@ namespace oblo
             f32 inconsistency;
         };
 
+        struct hash_map_entry
+        {
+            u32 state;
+            u32 id;
+        };
+
         vec3 calculate_centroid(std::span<const camera_buffer> cameras)
         {
             if (cameras.empty())
@@ -115,6 +121,8 @@ namespace oblo
         outputSelector = 0;
     }
 
+    constexpr u32 SURFELS_HASH_MAP_ENTRIES = 1u << 23; // TODO
+
     void surfel_initializer::build(const frame_graph_build_context& ctx)
     {
         initPassInstance = ctx.compute_pass(initStackPass, {});
@@ -132,14 +140,15 @@ namespace oblo
 
         ctx.access(outCellsCount) = cellsCount;
 
-        const auto cellsCountLinearized = cellsCount.x * cellsCount.y * cellsCount.z;
-
+        const u32 surfelsHashMapEntries = SURFELS_HASH_MAP_ENTRIES;
         const u32 surfelsStackSize = sizeof(u32) * (maxSurfels + 1);
         const u32 SurfelsSpawnDataSize = sizeof(surfel_spawn_data) * maxSurfels;
         const u32 surfelsDataSize = sizeof(surfel_dynamic_data) * maxSurfels;
         const u32 surfelsLightingDataSize = sizeof(surfel_lighting_data) * maxSurfels;
         const u32 surfelsLightEstimatorgDataSize = sizeof(surfel_light_estimator_data) * maxSurfels;
-        const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * cellsCountLinearized);
+        const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * surfelsHashMapEntries);
+        const u32 surfelsGridHashMapSize =
+            u32(sizeof(surfel_grid_header) + sizeof(hash_map_entry) * surfelsHashMapEntries);
         const u32 surfelsGridDataSize = u32((1 + g_MaxSurfelMultiplicity * maxSurfels) * sizeof(u32));
         const u32 surfelsLastUsageBufferSize = u32((maxSurfels) * sizeof(u32));
 
@@ -205,6 +214,13 @@ namespace oblo
         ctx.create(outSurfelsGridData,
             buffer_resource_initializer{
                 .size = surfelsGridDataSize,
+                .isStable = true,
+            },
+            buffer_usage::storage_write);
+
+        ctx.create(outSurfelsGridHashMap,
+            buffer_resource_initializer{
+                .size = surfelsGridHashMapSize,
                 .isStable = true,
             },
             buffer_usage::storage_write);
@@ -515,6 +531,7 @@ namespace oblo
         {
             overcoverageFgPass = ctx.compute_pass(overcoveragePass, {});
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
+            ctx.acquire(inOutSurfelsGridHashMap, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
@@ -523,16 +540,15 @@ namespace oblo
         {
             clearFgPass = ctx.compute_pass(clearPass, {});
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
+            ctx.acquire(inOutSurfelsGridHashMap, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
 
-            const auto cellsCount = ctx.access(inCellsCount);
-
-            const auto cellsCountLinearized = cellsCount.x * cellsCount.y * cellsCount.z;
-
             // TODO (#71) Support for filling buffers on initialization
+            const u32 surfelsHashMapEntries = SURFELS_HASH_MAP_ENTRIES;
+
             ctx.create(outGridFillBuffer,
                 buffer_resource_initializer{
-                    .size = u32(sizeof(u32) * cellsCountLinearized),
+                    .size = u32(sizeof(u32) * surfelsHashMapEntries),
                     .isStable = true, // It doesn't need to be stable, but this might exceed the chunk size of the
                                       // monotonic allocator
                 },
@@ -556,6 +572,7 @@ namespace oblo
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsSpawnData, buffer_usage::storage_write);
+            ctx.acquire(inOutSurfelsGridHashMap, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsData, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsStack, buffer_usage::storage_write);
@@ -582,6 +599,7 @@ namespace oblo
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
+            ctx.acquire(inOutSurfelsGridHashMap, buffer_usage::storage_write);
         }
 
         {
@@ -602,6 +620,7 @@ namespace oblo
         bindingTable.bind_buffers({
             {"b_SurfelsGrid"_hsv, inOutSurfelsGrid},
             {"b_SurfelsGridData"_hsv, inOutSurfelsGridData},
+            {"b_SurfelsGridHashMap"_hsv, inOutSurfelsGridHashMap},
             {"b_SurfelsGridFill"_hsv, outGridFillBuffer},
             {"b_SurfelsSpawnData"_hsv, inOutSurfelsSpawnData},
             {"b_SurfelsData"_hsv, inOutSurfelsData},
@@ -623,8 +642,7 @@ namespace oblo
         const auto maxSurfels = ctx.access(inMaxSurfels);
         const auto centroid = calculate_centroid(ctx.access(inCameras));
 
-        const auto cellsCount = ctx.access(inCellsCount);
-        const auto cellsCountLinearized = cellsCount.x * cellsCount.y * cellsCount.z;
+        const u32 surfelsHashMapEntries = SURFELS_HASH_MAP_ENTRIES;
 
         if (ctx.begin_pass(overcoverageFgPass))
         {
@@ -643,10 +661,12 @@ namespace oblo
             const auto gridBounds = ctx.access(inGridBounds);
 
             const auto gridCellSize = ctx.access(inGridCellSize);
+            const auto cellsCount = ctx.access(inCellsCount);
 
             const struct push_constants
             {
                 surfel_grid_header header;
+                u32 gridMask;
             } constants{
                 .header =
                     {
@@ -659,9 +679,10 @@ namespace oblo
                         .cellsCountZ = cellsCount.z,
                         .currentTimestamp = ctx.get_current_frames_count(),
                     },
+                .gridMask = SURFELS_HASH_MAP_ENTRIES - 1,
             };
 
-            const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
+            const auto groupsX = round_up_div(surfelsHashMapEntries, subgroupSize);
 
             ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
             ctx.dispatch_compute(groupsX, 1, 1);
@@ -698,7 +719,7 @@ namespace oblo
         {
             ctx.bind_descriptor_sets(bindingTable);
 
-            const auto groupsX = round_up_div(cellsCountLinearized, subgroupSize);
+            const auto groupsX = round_up_div(surfelsHashMapEntries, subgroupSize);
             ctx.dispatch_compute(groupsX, 1, 1);
 
             ctx.end_pass();
@@ -890,6 +911,7 @@ namespace oblo
             });
 
         ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
+        ctx.acquire(inOutSurfelsGridHashMap, buffer_usage::storage_read);
         ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_read);
         ctx.acquire(inOutSurfelsData, buffer_usage::storage_read);
 
@@ -932,6 +954,7 @@ namespace oblo
                 {"b_LightData"_hsv, inLightBuffer},
                 {"b_SkyboxSettings"_hsv, inSkyboxSettingsBuffer},
                 {"b_SurfelsGrid"_hsv, inOutSurfelsGrid},
+                {"b_SurfelsGridHashMap"_hsv, inOutSurfelsGridHashMap},
                 {"b_SurfelsGridData"_hsv, inOutSurfelsGridData},
                 {"b_SurfelsData"_hsv, inOutSurfelsData},
                 {"b_InSurfelsLighting"_hsv, inLastFrameSurfelsLightingData},

@@ -16,24 +16,23 @@ layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 layout(push_constant) uniform c_PushConstants
 {
     surfel_grid_header gridHeader;
+    uint gridHashMask;
 }
 g_Constants;
 
 void main()
 {
-    const ivec3 gridCellsCount = surfel_grid_cells_count(g_Constants.gridHeader);
+    const uint hashEntriesCount = g_Constants.gridHashMask + 1;
     const uint cellIndex = gl_GlobalInvocationID.x;
 
     if (cellIndex == 0)
     {
         g_SurfelGridHeader = g_Constants.gridHeader;
         g_SurfelGridCellDataIndex = 0;
+        g_SurfelGridHashMask = g_Constants.gridHashMask;
     }
 
-    const uint cellsCountLinearized =
-        g_Constants.gridHeader.cellsCount.x * g_Constants.gridHeader.cellsCount.y * g_Constants.gridHeader.cellsCount.z;
-
-    if (gl_GlobalInvocationID.x >= cellsCountLinearized)
+    if (gl_GlobalInvocationID.x >= hashEntriesCount)
     {
         return;
     }
