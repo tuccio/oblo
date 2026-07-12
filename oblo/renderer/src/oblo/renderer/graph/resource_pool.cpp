@@ -498,7 +498,8 @@ namespace oblo
                 .usages = resource.usage,
             });
 
-            it->second.allocatedBuffer = *newBuffer;
+            // TODO: Should propagate the errors somehow maybe
+            it->second.allocatedBuffer = newBuffer.assert_value_or({});
             it->second.creationTime = m_frame;
         }
 

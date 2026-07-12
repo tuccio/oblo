@@ -100,6 +100,22 @@ namespace oblo
     };
 
     template <>
+    struct option_traits<"r.gi.gridHashMapExponent">
+    {
+        using type = u32;
+
+        static constexpr option_descriptor descriptor{
+            .kind = property_kind::u32,
+            .id = "df8172b3-c63f-488e-af11-d411551e16f1"_uuid,
+            .name = "Grid Hash Map Exponent",
+            .category = "Graphics/GI",
+            .defaultValue = property_value_wrapper{23u},
+            .minValue = property_value_wrapper{10u},
+            .maxValue = property_value_wrapper{30u},
+        };
+    };
+
+    template <>
     struct option_traits<"r.gi.multiplier">
     {
         using type = f32;
@@ -123,6 +139,7 @@ namespace oblo
         option_proxy<"r.gi.gridSizeX"> gridSizeX;
         option_proxy<"r.gi.gridSizeY"> gridSizeY;
         option_proxy<"r.gi.gridSizeZ"> gridSizeZ;
+        option_proxy<"r.gi.gridHashMapExponent"> gridHashMapExponent;
         option_proxy<"r.gi.multiplier"> giMultiplier;
     };
 
@@ -134,6 +151,7 @@ namespace oblo
         f32 gridSizeX;
         f32 gridSizeY;
         f32 gridSizeZ;
+        u32 gridHashMapExponent;
         f32 multiplier;
     };
 

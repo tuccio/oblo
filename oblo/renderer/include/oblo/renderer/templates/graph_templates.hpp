@@ -135,6 +135,7 @@ namespace oblo::surfels_gi
     constexpr string_view InCameraDataSink{"CameraDataSink"};
     constexpr string_view InGridBounds{"GridBounds"};
     constexpr string_view InGridCellSize{"GridCellSize"};
+    constexpr string_view InGridHashMapEntries{"GridHashMapEntries"};
     constexpr string_view InMaxSurfels{"MaxSurfels"};
     constexpr string_view InMaxRayPaths{"MaxRayPaths"};
     constexpr string_view InGIMultiplier{"GIMultiplier"};

@@ -121,8 +121,6 @@ namespace oblo
         outputSelector = 0;
     }
 
-    constexpr u32 SURFELS_HASH_MAP_ENTRIES = 1u << 23; // TODO
-
     void surfel_initializer::build(const frame_graph_build_context& ctx)
     {
         initPassInstance = ctx.compute_pass(initStackPass, {});
@@ -140,17 +138,16 @@ namespace oblo
 
         ctx.access(outCellsCount) = cellsCount;
 
-        const u32 surfelsHashMapEntries = SURFELS_HASH_MAP_ENTRIES;
-        const u32 surfelsStackSize = sizeof(u32) * (maxSurfels + 1);
-        const u32 SurfelsSpawnDataSize = sizeof(surfel_spawn_data) * maxSurfels;
-        const u32 surfelsDataSize = sizeof(surfel_dynamic_data) * maxSurfels;
-        const u32 surfelsLightingDataSize = sizeof(surfel_lighting_data) * maxSurfels;
-        const u32 surfelsLightEstimatorgDataSize = sizeof(surfel_light_estimator_data) * maxSurfels;
-        const u32 surfelsGridSize = u32(sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * surfelsHashMapEntries);
-        const u32 surfelsGridHashMapSize =
-            u32(sizeof(surfel_grid_header) + sizeof(hash_map_entry) * surfelsHashMapEntries);
-        const u32 surfelsGridDataSize = u32((1 + g_MaxSurfelMultiplicity * maxSurfels) * sizeof(u32));
-        const u32 surfelsLastUsageBufferSize = u32((maxSurfels) * sizeof(u32));
+        const u32 surfelsHashMapEntries = ctx.access(inGridHashMapEntries);
+        const u64 surfelsStackSize = sizeof(u32) * (maxSurfels + 1);
+        const u64 SurfelsSpawnDataSize = sizeof(surfel_spawn_data) * maxSurfels;
+        const u64 surfelsDataSize = sizeof(surfel_dynamic_data) * maxSurfels;
+        const u64 surfelsLightingDataSize = sizeof(surfel_lighting_data) * maxSurfels;
+        const u64 surfelsLightEstimatorgDataSize = sizeof(surfel_light_estimator_data) * maxSurfels;
+        const u64 surfelsGridSize = sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * surfelsHashMapEntries;
+        const u64 surfelsGridHashMapSize = sizeof(surfel_grid_header) + sizeof(hash_map_entry) * surfelsHashMapEntries;
+        const u64 surfelsGridDataSize = (1 + g_MaxSurfelMultiplicity * maxSurfels) * sizeof(u32);
+        const u64 surfelsLastUsageBufferSize = (maxSurfels) * sizeof(u32);
 
         // TODO: After creation and initialization happened, the usage could be none to avoid any useless memory barrier
         ctx.create(outSurfelsStack,
@@ -546,11 +543,11 @@ namespace oblo
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
 
             // TODO (#71) Support for filling buffers on initialization
-            const u32 surfelsHashMapEntries = SURFELS_HASH_MAP_ENTRIES;
+            const u32 surfelsHashMapEntries = ctx.access(inGridHashMapEntries);
 
             ctx.create(outGridFillBuffer,
                 buffer_resource_initializer{
-                    .size = u32(sizeof(u32) * surfelsHashMapEntries),
+                    .size = sizeof(u32) * surfelsHashMapEntries,
                     .isStable = true, // It doesn't need to be stable, but this might exceed the chunk size of the
                                       // monotonic allocator
                 },
@@ -645,7 +642,7 @@ namespace oblo
         const auto maxSurfels = ctx.access(inMaxSurfels);
         const auto centroid = calculate_centroid(ctx.access(inCameras));
 
-        const u32 surfelsHashMapEntries = SURFELS_HASH_MAP_ENTRIES;
+        const u32 surfelsHashMapEntries = ctx.access(inGridHashMapEntries);
 
         if (ctx.begin_pass(overcoverageFgPass))
         {
@@ -682,7 +679,7 @@ namespace oblo
                         .cellsCountZ = cellsCount.z,
                         .currentTimestamp = ctx.get_current_frames_count(),
                     },
-                .gridMask = SURFELS_HASH_MAP_ENTRIES - 1,
+                .gridMask = surfelsHashMapEntries - 1,
             };
 
             const auto groupsX = round_up_div(surfelsHashMapEntries, subgroupSize);

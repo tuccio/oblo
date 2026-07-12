@@ -211,6 +211,7 @@ namespace oblo
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InMaxSurfels, giConfig.maxSurfels).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InMaxRayPaths, giConfig.rayBudget).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGridCellSize, giConfig.gridCellSize).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGridHashMapEntries, 1u << giConfig.gridHashMapExponent).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGridBounds, gridBounds).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
     }

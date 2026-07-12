@@ -36,6 +36,7 @@ namespace oblo
         pin::data<u32> inMaxSurfels;
         pin::data<aabb> inGridBounds;
         pin::data<f32> inGridCellSize;
+        pin::data<u32> inGridHashMapEntries;
 
         pin::data<vec3u> outCellsCount;
 
@@ -148,6 +149,7 @@ namespace oblo
         pin::data<f32> inGridCellSize;
         pin::data<vec3u> inCellsCount;
         pin::data<u32> inMaxSurfels;
+        pin::data<u32> inGridHashMapEntries;
 
         pin::data_sink<camera_buffer> inCameras;
 

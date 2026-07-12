@@ -799,6 +799,7 @@ namespace oblo::surfels_gi
         // Initializer setup
         graph.make_input(initializer, &surfel_initializer::inGridBounds, InGridBounds);
         graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
+        graph.make_input(initializer, &surfel_initializer::inGridHashMapEntries, InGridHashMapEntries);
         graph.make_input(initializer, &surfel_initializer::inMaxSurfels, InMaxSurfels);
 
         graph.make_input(spawner, &surfel_spawner::inTileCoverageSink, InTileCoverageSink);
@@ -810,6 +811,10 @@ namespace oblo::surfels_gi
                 .max = {.x = 128, .y = 32, .z = 128},
             });
 
+        graph.bind(initializer, &surfel_initializer::inGridCellSize, .5f);
+        graph.bind(initializer, &surfel_initializer::inGridHashMapEntries, 1u << 20);
+        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
+
         // We output the surfels from last frame, then each view will contribute potentially spawning surfels
         graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
         graph.make_output(initializer, &surfel_initializer::outSurfelsGridData, OutLastFrameGridData);
@@ -820,9 +825,6 @@ namespace oblo::surfels_gi
         graph.make_output(initializer,
             &surfel_initializer::outLastFrameSurfelsLightingData,
             OutLastFrameSurfelsLightingData);
-
-        graph.bind(initializer, &surfel_initializer::inGridCellSize, .5f);
-        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
 
         // Spawner setup
         graph.connect(initializer,
@@ -852,6 +854,10 @@ namespace oblo::surfels_gi
         graph.connect(initializer, &surfel_initializer::outCellsCount, update, &surfel_update::inCellsCount);
         graph.connect(initializer, &surfel_initializer::inGridBounds, update, &surfel_update::inGridBounds);
         graph.connect(initializer, &surfel_initializer::inGridCellSize, update, &surfel_update::inGridCellSize);
+        graph.connect(initializer,
+            &surfel_initializer::inGridHashMapEntries,
+            update,
+            &surfel_update::inGridHashMapEntries);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsData, update, &surfel_update::inOutSurfelsData);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsSpawnData, update, &surfel_update::inOutSurfelsSpawnData);
