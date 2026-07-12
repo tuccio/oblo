@@ -59,6 +59,7 @@ namespace oblo
 
         pin::buffer inSurfelsGrid;
         pin::buffer inSurfelsGridData;
+        pin::buffer inSurfelsGridHashMap;
         pin::buffer inSurfelsData;
         pin::buffer inSurfelsLightingData;
         pin::buffer inOutSurfelsLastUsage;

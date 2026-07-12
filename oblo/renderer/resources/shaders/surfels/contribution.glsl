@@ -22,7 +22,14 @@ vec3 surfel_calculate_contribution(in vec3 position, in vec3 normal)
     {
         vec3 allSum = vec3(0);
 
-        const uint cellIndex = surfel_grid_cell_index(g_SurfelGridHeader, cell);
+        const uint cellHash = surfel_grid_cell_hash(g_SurfelGridHeader, cell);
+
+        uint cellIndex;
+
+        if (!surfel_grid_hash_find_entry(cell, cellIndex))
+        {
+            return irradiance;
+        }
 
         const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 

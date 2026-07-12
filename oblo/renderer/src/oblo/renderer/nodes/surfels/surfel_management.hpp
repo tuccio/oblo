@@ -19,6 +19,7 @@ namespace oblo
         pin::buffer outSurfelsData;
 
         pin::buffer outSurfelsGrid;
+        pin::buffer outSurfelsGridHashMap;
         pin::buffer outSurfelsGridData;
 
         // Two buffers we ping pong during the ray-tracing update
@@ -35,6 +36,7 @@ namespace oblo
         pin::data<u32> inMaxSurfels;
         pin::data<aabb> inGridBounds;
         pin::data<f32> inGridCellSize;
+        pin::data<u32> inGridHashMapEntries;
 
         pin::data<vec3u> outCellsCount;
 
@@ -60,12 +62,15 @@ namespace oblo
     /// tile to spawn a surfel on.
     struct surfel_tiling
     {
+        static constexpr u32 tile_size = 32;
+
         pin::data_sink<surfel_tiling_data> outTileCoverageSink;
         pin::data_sink<vec3> outCameraPositionSink;
 
         pin::buffer outFullTileCoverage;
 
         pin::buffer inSurfelsGrid;
+        pin::buffer inSurfelsGridHashMap;
         pin::buffer inSurfelsGridData;
         pin::buffer inSurfelsData;
         pin::buffer inSurfelsSpawnData; // This is not used, it's just here to forward it to debug views
@@ -126,6 +131,7 @@ namespace oblo
         pin::buffer inOutSurfelsSpawnData;
         pin::buffer inOutSurfelsStack;
         pin::buffer inOutSurfelsGrid;
+        pin::buffer inOutSurfelsGridHashMap;
         pin::buffer inOutSurfelsGridData;
         pin::buffer inOutSurfelsLastUsage;
         pin::buffer outGridFillBuffer;
@@ -143,6 +149,7 @@ namespace oblo
         pin::data<f32> inGridCellSize;
         pin::data<vec3u> inCellsCount;
         pin::data<u32> inMaxSurfels;
+        pin::data<u32> inGridHashMapEntries;
 
         pin::data_sink<camera_buffer> inCameras;
 
@@ -197,6 +204,7 @@ namespace oblo
         pin::buffer inSurfelsMetrics;
 
         pin::buffer inOutSurfelsGrid;
+        pin::buffer inOutSurfelsGridHashMap;
         pin::buffer inOutSurfelsData;
         pin::buffer inOutSurfelsGridData;
         pin::buffer inOutSurfelsLastUsage;

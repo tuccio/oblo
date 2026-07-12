@@ -12,5 +12,10 @@ namespace oblo
         u32 surfelsAlive;
         u32 surfelsSpawned;
         u32 surfelsKilled;
+        u32 surfelsExcessAllocations;
+        u32 surfelsMultiplicityFailures;
+        u32 hashAcquireSuccess;
+        u32 hashCollisions;
+        u32 hashFailures;
     } OBLO_REFLECT();
 }

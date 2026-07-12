@@ -143,6 +143,7 @@ namespace oblo
         {
             ctx.acquire(inSurfelsGrid, buffer_usage::storage_read);
             ctx.acquire(inSurfelsGridData, buffer_usage::storage_read);
+            ctx.acquire(inSurfelsGridHashMap, buffer_usage::storage_read);
             ctx.acquire(inSurfelsData, buffer_usage::storage_read);
             ctx.acquire(inSurfelsLightingData, buffer_usage::storage_read);
             ctx.acquire(inOutSurfelsLastUsage, buffer_usage::storage_write);
@@ -199,6 +200,7 @@ namespace oblo
             bindingTable.bind_buffers({
                 {"b_SurfelsGrid"_hsv, inSurfelsGrid},
                 {"b_SurfelsGridData"_hsv, inSurfelsGridData},
+                {"b_SurfelsGridHashMap"_hsv, inSurfelsGridHashMap},
                 {"b_SurfelsData"_hsv, inSurfelsData},
                 {"b_InSurfelsLighting"_hsv, inSurfelsLightingData},
                 {"b_SurfelsLastUsage"_hsv, inOutSurfelsLastUsage},

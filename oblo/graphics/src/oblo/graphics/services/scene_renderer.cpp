@@ -70,6 +70,11 @@ namespace oblo
                 mainView,
                 main_view::InLastFrameSurfelsGridData);
 
+            g.connect(surfelsGIGlobal,
+                surfels_gi::OutLastFrameGridHashMap,
+                mainView,
+                main_view::InLastFrameSurfelsGridHashMap);
+
             g.connect(surfelsGIGlobal, surfels_gi::OutLastFrameSurfelData, mainView, main_view::InLastFrameSurfelData);
 
             g.connect(surfelsGIGlobal,
@@ -88,6 +93,11 @@ namespace oblo
                 surfels_gi::OutUpdatedSurfelGridData,
                 mainView,
                 main_view::InUpdatedSurfelsGridData);
+
+            g.connect(surfelsGIGlobal,
+                surfels_gi::OutUpdatedSurfelGridHashMap,
+                mainView,
+                main_view::InUpdatedSurfelsGridHashMap);
 
             g.connect(surfelsGIGlobal, surfels_gi::OutUpdatedSurfelData, mainView, main_view::InUpdatedSurfelsData);
 
@@ -201,6 +211,7 @@ namespace oblo
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InMaxSurfels, giConfig.maxSurfels).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InMaxRayPaths, giConfig.rayBudget).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGridCellSize, giConfig.gridCellSize).assert_value();
+        m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGridHashMapEntries, 1u << giConfig.gridHashMapExponent).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGridBounds, gridBounds).assert_value();
         m_frameGraph.set_input(m_surfelsGI, surfels_gi::InGIMultiplier, giConfig.multiplier).assert_value();
     }

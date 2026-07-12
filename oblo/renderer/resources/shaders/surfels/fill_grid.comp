@@ -8,6 +8,7 @@
 
 #include <renderer/debug/printf>
 #include <renderer/transform>
+#include <renderer/utility/hash_map>
 #include <surfels/buffers/surfel_data_r>
 #include <surfels/buffers/surfel_grid_data_w>
 #include <surfels/buffers/surfel_grid_r>
@@ -22,24 +23,41 @@ layout(std430, binding = 0) restrict buffer b_SurfelsGridFill
 
 layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
+void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 {
-    const uint surfelsBegin = g_SurfelGridCells[cellIndex].surfelsBegin;
-    const uint surfelIndex = atomicAdd(g_SurfelGridCellNextSurfelIndex[cellIndex], 1);
+    const uint hash = surfel_grid_cell_hash(g_SurfelGridHeader, cell);
 
-    // debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
+    for (uint i = 0; i < SURFEL_HASH_MAX_PROBES; ++i)
+    {
+        const uint cellIndex = hash_map_index_probe(hash, i, g_SurfelGridHashMask);
 
-    if (surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount)
-    {
-        g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
-    }
-    else
-    {
+        bool keepSearching;
+        if (hash_map_try_find(g_SurfelGridHashMap[cellIndex], hash, keepSearching))
+        {
+            const uint surfelsBegin = g_SurfelGridCells[cellIndex].surfelsBegin;
+            const uint surfelIndex = atomicAdd(g_SurfelGridCellNextSurfelIndex[cellIndex], 1);
+
+            // debug_assert(surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount);
+
+            if (surfelIndex < g_SurfelGridCells[cellIndex].surfelsCount)
+            {
+                g_SurfelGridCellData[surfelsBegin + surfelIndex] = surfelId;
+            }
+            else
+            {
 #if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
-        debugPrintfEXT("surfelIndex >= g_SurfelGridCells[cellIndex].surfelsCount -> [%u %u]",
-            surfelIndex,
-            g_SurfelGridCells[cellIndex].surfelsCount);
+                debugPrintfEXT("surfelIndex >= g_SurfelGridCells[cellIndex].surfelsCount -> [%u %u]",
+                    surfelIndex,
+                    g_SurfelGridCells[cellIndex].surfelsCount);
 #endif
+            }
+
+            return;
+        }
+        else if (!keepSearching)
+        {
+            return;
+        }
     }
 }
 

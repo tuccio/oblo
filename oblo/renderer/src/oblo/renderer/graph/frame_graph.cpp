@@ -908,7 +908,7 @@ namespace oblo
         // Go through the newly added downloads and set the submit index retroactively
         auto it = rbegin(m_impl->pendingDownloads);
 
-        for (u32 i = 0; i < m_impl->downloadsAddedThisFrame; ++i)
+        for (u32 i = 0; i < m_impl->downloadsAddedThisFrame; ++i, ++it)
         {
             auto& enqueuedDownload = *it;
             OBLO_ASSERT(enqueuedDownload.submitIndex == 0);

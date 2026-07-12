@@ -9,6 +9,7 @@
 #extension GL_KHR_shader_subgroup_quad : require
 #extension GL_EXT_control_flow_attributes : enable
 
+#include <ecs/entity>
 #include <renderer/camera>
 #include <renderer/debug/colors>
 #include <renderer/geometry/volumes>
@@ -41,11 +42,34 @@ layout(std430, binding = SURFEL_LIGHT_ESTIMATOR_DATA_BINDING) restrict buffer re
 };
 #endif
 
+#ifdef MODE_SURFEL_TILE_COVERAGE
+layout(std430, binding = 1) restrict readonly buffer b_InTileCoverage
+{
+    surfel_tile_data g_InTileCoverage[];
+};
+
+layout(push_constant) uniform c_PushConstants
+{
+    uint tileSize;
+}
+g_Constants;
+#endif
+
 vec4 sample_fallback(in uvec2 screenPos)
 {
     return imageLoad(t_InImage, ivec2(screenPos));
 }
 
+#if defined(MODE_SURFEL_TILE_COVERAGE)
+vec4 visibility_shade(in visibility_shade_context ctx)
+{
+    const uvec2 gridPos = ctx.screenPos / g_Constants.tileSize;
+    const uint tileIndex = gridPos.y * round_up_div(ctx.resolution.x, g_Constants.tileSize) + gridPos.x;
+    const surfel_tile_data tile = g_InTileCoverage[tileIndex];
+    const float coverage = ecs_entity_is_valid(tile.spawnData.entity) ? tile.worstPixelCoverage : 0.f;
+    return vec4(debug_color_map_jet(coverage), 1);
+}
+#else
 vec4 visibility_shade(in visibility_shade_context ctx)
 {
     // Read the instance data we need
@@ -91,65 +115,71 @@ vec4 visibility_shade(in visibility_shade_context ctx)
 
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
 
-    const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
-    const uint cellIndex = surfel_grid_cell_index(gridHeader, cell);
-
-    const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
-
     // Since we might have multiple surfels overlapping on the pixel, we try to keep debug views stable by choosing the
     // minimum id
     uint minSurfelId = gridHeader.maxSurfels;
 
-    for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
-         surfel_grid_cell_iterator_has_next(cellIt);
-         surfel_grid_cell_iterator_advance(cellIt))
+    const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
+    const uint cellHash = surfel_grid_cell_hash(g_SurfelGridHeader, cell);
+
+    uint cellIndex;
+
+    if (surfel_grid_hash_find_entry(cell, cellIndex))
     {
-        const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
-        const surfel_data surfel = g_SurfelData[surfelId];
+        const surfel_grid_cell gridCell = g_SurfelGridCells[cellIndex];
 
-        const vec3 surfelPosition = surfel_data_world_position(surfel);
-
-        const vec3 pToS = surfelPosition - positionWS;
-
-        const float distance2 = dot(pToS, pToS);
-        const float radius2 = dot(surfel.radius, surfel.radius);
-
-        if (distance2 <= radius2)
+        for (surfel_grid_cell_iterator cellIt = surfel_grid_cell_iterator_begin(gridCell);
+            surfel_grid_cell_iterator_has_next(cellIt);
+            surfel_grid_cell_iterator_advance(cellIt))
         {
-            minSurfelId = min(minSurfelId, surfelId);
+            const uint surfelId = surfel_grid_cell_iterator_get(cellIt);
+            const surfel_data surfel = g_SurfelData[surfelId];
+
+            const vec3 surfelPosition = surfel_data_world_position(surfel);
+
+            const vec3 pToS = surfelPosition - positionWS;
+
+            const float distance2 = dot(pToS, pToS);
+            const float radius2 = dot(surfel.radius, surfel.radius);
+
+            if (distance2 <= radius2)
+            {
+                minSurfelId = min(minSurfelId, surfelId);
+            }
+        }
+
+        if (minSurfelId < gridHeader.maxSurfels)
+        {
+            const uint surfelId = minSurfelId;
+
+    #if defined(MODE_SURFEL_GRID_ID)
+            return vec4(debug_color_map(surfelId), 1);
+    #elif defined(MODE_SURFEL_LIGHTING)
+            const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
+            return vec4(tonemap_aces_approx(surfelLight.irradiance), 1);
+    #elif defined(MODE_SURFEL_RAYCOUNT)
+            const float maxRays = float(SURFEL_MAX_RAYS_PER_SURFEL);
+            const surfel_data surfel = g_SurfelData[surfelId];
+            return vec4(debug_color_map_jet(surfel.requestedRays / maxRays), 1);
+    #elif defined(MODE_SURFEL_INCONSISTENCY)
+            const float inconsistency = g_SurfelsLightEstimatorData[surfelId].inconsistency;
+            return vec4(debug_color_map_jet(inconsistency), 1);
+    #elif defined(MODE_SURFEL_LIFETIME)
+            const float spawned = g_SurfelSpawnData[surfelId].spawnTimestamp;
+            const float current = g_SurfelGridHeader.currentTimestamp;
+            const float lifetime = saturate((current - spawned) / 2048.f);
+            return vec4(debug_color_map_jet(lifetime), 1);
+    #endif
         }
     }
 
-    if (minSurfelId < gridHeader.maxSurfels)
-    {
-        const uint surfelId = minSurfelId;
-
-#if defined(MODE_SURFEL_GRID_ID)
-        return vec4(debug_color_map(surfelId), 1);
-#elif defined(MODE_SURFEL_LIGHTING)
-        const surfel_lighting_data surfelLight = g_InSurfelsLighting[surfelId];
-        return vec4(tonemap_aces_approx(surfelLight.irradiance), 1);
-#elif defined(MODE_SURFEL_RAYCOUNT)
-        const float maxRays = float(SURFEL_MAX_RAYS_PER_SURFEL);
-        const surfel_data surfel = g_SurfelData[surfelId];
-        return vec4(debug_color_map_jet(surfel.requestedRays / maxRays), 1);
-#elif defined(MODE_SURFEL_INCONSISTENCY)
-        const float inconsistency = g_SurfelsLightEstimatorData[surfelId].inconsistency;
-        return vec4(debug_color_map_jet(inconsistency), 1);
-#elif defined(MODE_SURFEL_LIFETIME)
-        const float spawned = g_SurfelSpawnData[surfelId].spawnTimestamp;
-        const float current = g_SurfelGridHeader.currentTimestamp;
-        const float lifetime = saturate((current - spawned) / 2048.f);
-        return vec4(debug_color_map_jet(lifetime), 1);
-#endif
-    }
-
-#if defined(MODE_SURFEL_RAYCOUNT)
+    #if defined(MODE_SURFEL_RAYCOUNT)
     return vec4(0, 0, 0, 1);
-#else
+    #else
     return sample_fallback(ctx.screenPos);
-#endif
+    #endif
 }
+#endif
 
 vec4 visibility_miss(in visibility_shade_context ctx)
 {

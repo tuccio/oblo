@@ -19,12 +19,14 @@ namespace oblo::main_view
     constexpr string_view InLightBuffer{"LightDataBuffer"};
     constexpr string_view InLightConfig{"LightConfig"};
     constexpr string_view InLastFrameSurfelsGrid{"LastFrameSurfelsGrid"};
+    constexpr string_view InLastFrameSurfelsGridHashMap{"LastFrameSurfelsGridHashMap"};
     constexpr string_view InLastFrameSurfelsGridData{"LastFrameSurfelsGridData"};
     constexpr string_view InLastFrameSurfelData{"LastFrameSurfelData"};
     constexpr string_view InLastFrameSurfelSpawnData{"LastFrameSurfelSpawnData"};
     constexpr string_view InLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view InUpdatedSurfelsGrid{"UpdatedSurfelsGrid"};
     constexpr string_view InUpdatedSurfelsGridData{"UpdatedSurfelsGridData"};
+    constexpr string_view InUpdatedSurfelsGridHashMap{"UpdatedSurfelsGridHashMap"};
     constexpr string_view InUpdatedSurfelsData{"UpdatedSurfelsData"};
     constexpr string_view InUpdatedSurfelsLightingData{"UpdatedSurfelsLightingData"};
     constexpr string_view InUpdatedSurfelsLightEstimatorData{"UpdatedSurfelsLightEstimatorData"};
@@ -51,6 +53,7 @@ namespace oblo::main_view
     constexpr string_view OutGiSurfelsRayCount{"DebugtGiSurfelsRayCount"};
     constexpr string_view OutGiSurfelsInconsistency{"DebugtGiSurfelsInconsistency"};
     constexpr string_view OutGiSurfelsLifetime{"DebugtGiSurfelsLifetime"};
+    constexpr string_view OutGiSurfelsTileCoverage{"DebugtGiSurfelsTileCoverage"};
     constexpr string_view OutRTDebugImage{"DebugRTOutput"};
     constexpr string_view OutSurfelsTileCoverageSink{"SurfelsGITileOutput"};
     constexpr string_view OutDisocclusionMask{"DisocclusionMask"};
@@ -132,6 +135,7 @@ namespace oblo::surfels_gi
     constexpr string_view InCameraDataSink{"CameraDataSink"};
     constexpr string_view InGridBounds{"GridBounds"};
     constexpr string_view InGridCellSize{"GridCellSize"};
+    constexpr string_view InGridHashMapEntries{"GridHashMapEntries"};
     constexpr string_view InMaxSurfels{"MaxSurfels"};
     constexpr string_view InMaxRayPaths{"MaxRayPaths"};
     constexpr string_view InGIMultiplier{"GIMultiplier"};
@@ -146,10 +150,12 @@ namespace oblo::surfels_gi
 
     constexpr string_view OutLastFrameGrid{"LastGrid"};
     constexpr string_view OutLastFrameGridData{"LastGridData"};
+    constexpr string_view OutLastFrameGridHashMap{"LastGridHashMap"};
     constexpr string_view OutLastFrameSurfelData{"LastSurfelData"};
     constexpr string_view OutLastFrameSurfelSpawnData{"LastSurfelSpawnData"};
     constexpr string_view OutLastFrameSurfelsLightingData{"LastFrameSurfelsLightingData"};
     constexpr string_view OutUpdatedSurfelGrid{"UpdatedSurfelGrid"};
+    constexpr string_view OutUpdatedSurfelGridHashMap{"UpdatedSurfelGridHashMap"};
     constexpr string_view OutUpdatedSurfelGridData{"UpdatedSurfelGridData"};
     constexpr string_view OutUpdatedSurfelData{"UpdatedSurfelData"};
     constexpr string_view OutUpdatedSurfelLightingData{"UpdatedSurfelLightingData"};

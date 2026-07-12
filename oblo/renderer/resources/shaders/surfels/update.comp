@@ -65,10 +65,29 @@ void surfel_kill(in uint surfelId)
     surfel_stack_free(surfelId);
 }
 
-void surfel_commit_to_grid(in uint surfelId, in uint cellIndex)
+void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 {
-    const uint prev = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
-    // debugPrintfEXT("Cell %u Count: %u\n", cellIndex, prev + 1);
+    const uint hash = surfel_grid_cell_hash(g_SurfelGridHeader, cell);
+
+    for (uint i = 0; i < SURFEL_HASH_MAX_PROBES; ++i)
+    {
+        const uint cellIndex = hash_map_index_probe(hash, i, g_SurfelGridHashMask);
+
+        bool acquired;
+        HASH_MAP_TRY_ACQUIRE(g_SurfelGridHashMap[cellIndex], hash, acquired);
+
+        if (acquired)
+        {
+            const uint prev = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
+            // debugPrintfEXT("Cell %u Count: %u\n", cellIndex, prev + 1);
+
+            surfel_metrics_on_hash_acquire_success();
+            surfel_metrics_on_hash_collisions(i);
+            return;
+        }
+    }
+
+    surfel_metrics_on_hash_failure();
 }
 
 void main()
@@ -211,6 +230,7 @@ void main()
 
     g_SurfelData[surfelId] = updatedData;
 
-    surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
+    const uint surfelMultiplicity = surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
     surfel_metrics_on_alive(1);
+    surfel_metrics_check_multiplicity(surfelMultiplicity, SURFEL_EXPECTED_MULTIPLICITY);
 }

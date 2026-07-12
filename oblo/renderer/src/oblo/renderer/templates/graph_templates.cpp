@@ -420,6 +420,7 @@ namespace oblo::main_view
             const auto surfelsTiling = graph.add_node<surfel_tiling>();
 
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGrid, InLastFrameSurfelsGrid);
+            graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGridHashMap, InLastFrameSurfelsGridHashMap);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsGridData, InLastFrameSurfelsGridData);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsData, InLastFrameSurfelData);
             graph.make_input(surfelsTiling, &surfel_tiling::inSurfelsSpawnData, InLastFrameSurfelSpawnData);
@@ -458,9 +459,15 @@ namespace oblo::main_view
                 deferredLighting,
                 &deferred_lighting::inSurfelsGrid);
 
+            graph.connect(surfelsTiling,
+                &surfel_tiling::inSurfelsGridHashMap,
+                deferredLighting,
+                &deferred_lighting::inSurfelsGridHashMap);
+
             // Visibility lighting setup (we should get rid of)
             graph.make_input(deferredLighting, &deferred_lighting::inSurfelsGrid, InUpdatedSurfelsGrid);
             graph.make_input(deferredLighting, &deferred_lighting::inSurfelsGridData, InUpdatedSurfelsGridData);
+            graph.make_input(deferredLighting, &deferred_lighting::inSurfelsGridHashMap, InUpdatedSurfelsGridHashMap);
             graph.make_input(deferredLighting, &deferred_lighting::inSurfelsData, InUpdatedSurfelsData);
             graph.make_input(deferredLighting, &deferred_lighting::inSurfelsLightingData, InUpdatedSurfelsLightingData);
             graph.make_input(deferredLighting,
@@ -475,6 +482,7 @@ namespace oblo::main_view
                     OutGiSurfelsRayCount,
                     OutGiSurfelsInconsistency,
                     OutGiSurfelsLifetime,
+                    OutGiSurfelsTileCoverage,
                 };
 
                 static_assert(u32(surfel_debug::mode::enum_max) == array_size(outputs));
@@ -501,6 +509,11 @@ namespace oblo::main_view
                         &surfel_debug::inSurfelsGridData);
 
                     graph.connect(surfelsTiling,
+                        &surfel_tiling::inSurfelsGridHashMap,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsGridHashMap);
+
+                    graph.connect(surfelsTiling,
                         &surfel_tiling::inSurfelsData,
                         surfelsDebug,
                         &surfel_debug::inSurfelsData);
@@ -519,6 +532,11 @@ namespace oblo::main_view
                         &surfel_tiling::inInstanceTables,
                         surfelsDebug,
                         &surfel_debug::inInstanceTables);
+
+                    graph.connect(surfelsTiling,
+                        &surfel_tiling::outFullTileCoverage,
+                        surfelsDebug,
+                        &surfel_debug::inSurfelsTileCoverage);
 
                     graph.connect(viewBuffers,
                         &view_buffers_node::outCameraBuffer,
@@ -781,6 +799,7 @@ namespace oblo::surfels_gi
         // Initializer setup
         graph.make_input(initializer, &surfel_initializer::inGridBounds, InGridBounds);
         graph.make_input(initializer, &surfel_initializer::inGridCellSize, InGridCellSize);
+        graph.make_input(initializer, &surfel_initializer::inGridHashMapEntries, InGridHashMapEntries);
         graph.make_input(initializer, &surfel_initializer::inMaxSurfels, InMaxSurfels);
 
         graph.make_input(spawner, &surfel_spawner::inTileCoverageSink, InTileCoverageSink);
@@ -788,22 +807,24 @@ namespace oblo::surfels_gi
         graph.bind(initializer,
             &surfel_initializer::inGridBounds,
             aabb{
-                .min = {.x = -32, .y = -16, .z = -32},
-                .max = {.x = 32, .y = 16, .z = 32},
+                .min = {.x = -128, .y = -32, .z = -128},
+                .max = {.x = 128, .y = 32, .z = 128},
             });
+
+        graph.bind(initializer, &surfel_initializer::inGridCellSize, .5f);
+        graph.bind(initializer, &surfel_initializer::inGridHashMapEntries, 1u << 20);
+        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
 
         // We output the surfels from last frame, then each view will contribute potentially spawning surfels
         graph.make_output(initializer, &surfel_initializer::outSurfelsGrid, OutLastFrameGrid);
         graph.make_output(initializer, &surfel_initializer::outSurfelsGridData, OutLastFrameGridData);
+        graph.make_output(initializer, &surfel_initializer::outSurfelsGridHashMap, OutLastFrameGridHashMap);
         graph.make_output(initializer, &surfel_initializer::outSurfelsData, OutLastFrameSurfelData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsSpawnData, OutLastFrameSurfelSpawnData);
         graph.make_output(initializer, &surfel_initializer::outSurfelsLastUsage, OutSurfelsLastUsage);
         graph.make_output(initializer,
             &surfel_initializer::outLastFrameSurfelsLightingData,
             OutLastFrameSurfelsLightingData);
-
-        graph.bind(initializer, &surfel_initializer::inGridCellSize, .5f);
-        graph.bind(initializer, &surfel_initializer::inMaxSurfels, 1u << 16);
 
         // Spawner setup
         graph.connect(initializer,
@@ -833,10 +854,18 @@ namespace oblo::surfels_gi
         graph.connect(initializer, &surfel_initializer::outCellsCount, update, &surfel_update::inCellsCount);
         graph.connect(initializer, &surfel_initializer::inGridBounds, update, &surfel_update::inGridBounds);
         graph.connect(initializer, &surfel_initializer::inGridCellSize, update, &surfel_update::inGridCellSize);
+        graph.connect(initializer,
+            &surfel_initializer::inGridHashMapEntries,
+            update,
+            &surfel_update::inGridHashMapEntries);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsData, update, &surfel_update::inOutSurfelsData);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsStack, update, &surfel_update::inOutSurfelsStack);
         graph.connect(spawner, &surfel_spawner::inOutSurfelsSpawnData, update, &surfel_update::inOutSurfelsSpawnData);
         graph.connect(initializer, &surfel_initializer::outSurfelsGrid, update, &surfel_update::inOutSurfelsGrid);
+        graph.connect(initializer,
+            &surfel_initializer::outSurfelsGridHashMap,
+            update,
+            &surfel_update::inOutSurfelsGridHashMap);
         graph.connect(initializer,
             &surfel_initializer::outSurfelsGridData,
             update,
@@ -850,6 +879,7 @@ namespace oblo::surfels_gi
         graph.make_output(update, &surfel_update::inOutSurfelsData, OutUpdatedSurfelData);
         graph.make_output(update, &surfel_update::inOutSurfelsGrid, OutUpdatedSurfelGrid);
         graph.make_output(update, &surfel_update::inOutSurfelsGridData, OutUpdatedSurfelGridData);
+        graph.make_output(update, &surfel_update::inOutSurfelsGridHashMap, OutUpdatedSurfelGridHashMap);
 
         // Accumulate ray count setup
         graph.connect(update,
@@ -878,6 +908,10 @@ namespace oblo::surfels_gi
         graph.bind(rayTracing, &surfel_raytracing::inGIMultiplier, 1.f);
 
         graph.connect(update, &surfel_update::inOutSurfelsGrid, rayTracing, &surfel_raytracing::inOutSurfelsGrid);
+        graph.connect(update,
+            &surfel_update::inOutSurfelsGridHashMap,
+            rayTracing,
+            &surfel_raytracing::inOutSurfelsGridHashMap);
         graph.connect(update,
             &surfel_update::inOutSurfelsGridData,
             rayTracing,

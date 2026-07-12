@@ -48,4 +48,41 @@ void surfel_metrics_on_kill(in uint numKilled)
 #endif
 }
 
+void surfel_metrics_check_excess_allocations(in uint surfelsEnd, in uint maxSurfels, in uint maxMultiplicity)
+{
+#ifdef SURFEL_METRICS_ENABLED
+    const uint value = surfelsEnd >= maxSurfels * maxMultiplicity ? 1 : 0;
+    atomicAdd(g_SurfelMetrics.surfelsExcessAllocations, value);
+#endif
+}
+
+void surfel_metrics_check_multiplicity(in uint multiplicity, in uint maxMultiplicity)
+{
+#ifdef SURFEL_METRICS_ENABLED
+    const uint value = multiplicity > maxMultiplicity ? 1 : 0;
+    atomicAdd(g_SurfelMetrics.surfelsMultiplicityFailures, value);
+#endif
+}
+
+void surfel_metrics_on_hash_acquire_success()
+{
+#ifdef SURFEL_METRICS_ENABLED
+    atomicAdd(g_SurfelMetrics.hashAcquireSuccess, 1);
+#endif
+}
+
+void surfel_metrics_on_hash_collisions(in uint numCollisions)
+{
+#ifdef SURFEL_METRICS_ENABLED
+    atomicAdd(g_SurfelMetrics.hashCollisions, numCollisions);
+#endif
+}
+
+void surfel_metrics_on_hash_failure()
+{
+#ifdef SURFEL_METRICS_ENABLED
+    atomicAdd(g_SurfelMetrics.hashFailures, 1);
+#endif
+}
+
 #endif
