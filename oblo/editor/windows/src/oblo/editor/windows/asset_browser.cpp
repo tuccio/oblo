@@ -1064,7 +1064,7 @@ namespace oblo::editor
                                 ImGui::EndTooltip();
                             }
 
-                            if (ImGui::BeginPopupContextItem("##ctx"))
+                            if (ImGui::BeginPopupContextItem("##artifactctx"))
                             {
                                 if (ImGui::MenuItem("Open Artifact in Explorer"))
                                 {

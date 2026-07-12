@@ -20,8 +20,9 @@ namespace oblo::editor
 {
     struct inspector::data_inspector_ctx
     {
-        explicit data_inspector_ctx(const reflection::reflection_registry& reflection, asset_registry& assetRegistry) :
-            picker{assetRegistry}
+        explicit data_inspector_ctx(const reflection::reflection_registry& reflection,
+            asset_registry& assetRegistry,
+            asset_editor_manager* assetEditors) : picker{assetRegistry, assetEditors}
         {
             inspector.init(&reflection, &picker);
         }
@@ -48,12 +49,14 @@ namespace oblo::editor
             return false;
         }
 
-        m_ctx = allocate_unique<data_inspector_ctx>(*m_reflection, *assetRegistry);
+        m_ctx = allocate_unique<data_inspector_ctx>(*m_reflection,
+            *assetRegistry,
+            ctx.services.find<asset_editor_manager>());
 
         return true;
     }
 
-    bool inspector::update(const window_update_context&)
+    bool inspector::update(const window_update_context& ctx)
     {
         string_builder builder;
 
@@ -63,6 +66,8 @@ namespace oblo::editor
 
         if (ImGui::Begin("Inspector", &open))
         {
+            m_ctx->picker.set_window_manager(&ctx.windowManager);
+
             auto* const selectionService = m_editorWorld->get_selected_entities();
             const std::span selectedEntities = selectionService->get();
 
