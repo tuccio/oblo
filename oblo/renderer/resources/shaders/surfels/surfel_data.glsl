@@ -130,12 +130,6 @@ bool surfel_grid_has_cell(in surfel_grid_header h, in ivec3 cell)
     return all(greaterThanEqual(cell, ivec3(0))) && all(lessThan(cell, surfel_grid_cells_count(h)));
 }
 
-float surfel_grid_max_contribution_distance(in surfel_grid_header h)
-{
-    return 32;
-    // return h.cellSize;
-}
-
 vec3 surfel_data_world_position(in surfel_data surfel)
 {
     return surfel.positionWS;
@@ -186,13 +180,21 @@ bool surfel_data_is_alive(in surfel_data surfelData)
     return !isinf(surfelData.positionWS.x);
 }
 
+float surfel_clamp_radius(in surfel_grid_header gridHeader, in float radius)
+{
+    const float gridCellSize = surfel_grid_cell_size(gridHeader);
+    const float minRadius = .05f * gridCellSize;
+
+    return max(minRadius, radius);
+}
+
 float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPosition, in vec3 surfelPosition)
 {
     const vec3 cameraVector = surfelPosition - cameraPosition;
     const float cameraDistance2 = dot(cameraVector, cameraVector);
 
     const float radius = SURFEL_RADIUS_SCALE * sqrt(cameraDistance2);
-    return radius;
+    return surfel_clamp_radius(gridHeader, radius);
 }
 
 surfel_lighting_data surfel_lighting_data_new()
