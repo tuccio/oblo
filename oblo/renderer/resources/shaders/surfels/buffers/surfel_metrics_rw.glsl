@@ -48,4 +48,25 @@ void surfel_metrics_on_kill(in uint numKilled)
 #endif
 }
 
+void surfel_metrics_on_hash_acquire_success()
+{
+#ifdef SURFEL_METRICS_ENABLED
+    atomicAdd(g_SurfelMetrics.hashAcquireSuccess, 1);
+#endif
+}
+
+void surfel_metrics_on_hash_collisions(in uint numCollisions)
+{
+#ifdef SURFEL_METRICS_ENABLED
+    atomicAdd(g_SurfelMetrics.hashCollisions, numCollisions);
+#endif
+}
+
+void surfel_metrics_on_hash_failure()
+{
+#ifdef SURFEL_METRICS_ENABLED
+    atomicAdd(g_SurfelMetrics.hashFailures, 1);
+#endif
+}
+
 #endif

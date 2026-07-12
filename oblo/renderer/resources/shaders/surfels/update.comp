@@ -81,9 +81,13 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
             const uint prev = atomicAdd(g_SurfelGridCells[cellIndex].surfelsCount, 1);
             // debugPrintfEXT("Cell %u Count: %u\n", cellIndex, prev + 1);
 
+            surfel_metrics_on_hash_acquire_success();
+            surfel_metrics_on_hash_collisions(i);
             return;
         }
     }
+
+    surfel_metrics_on_hash_failure();
 }
 
 void main()

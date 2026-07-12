@@ -95,6 +95,9 @@ struct surfel_metrics
     uint surfelsAlive;
     uint surfelsSpawned;
     uint surfelsKilled;
+    uint hashAcquireSuccess;
+    uint hashCollisions;
+    uint hashFailures;
 };
 
 ivec3 surfel_grid_cells_count(in surfel_grid_header h)
