@@ -3,6 +3,8 @@
 #include <oblo/editor/providers/asset_editor_provider.hpp>
 #include <oblo/editor/providers/resource_viewer_provider.hpp>
 #include <oblo/modules/module_manager.hpp>
+#include <oblo/resource/resource_ptr.hpp>
+#include <oblo/resource/resource_registry.hpp>
 
 #include <imgui.h>
 
@@ -288,6 +290,19 @@ namespace oblo::editor
         m_viewers.erase(it);
 
         return open_error::no_such_type;
+    }
+
+    expected<success_tag, asset_editor_manager::open_error> asset_editor_manager::open_resource(window_manager& wm,
+        const uuid& resourceId)
+    {
+        const resource_ptr r = m_resourceRegistry.get_resource(resourceId);
+
+        if (!r)
+        {
+            return open_error::no_such_resource;
+        }
+
+        return open_resource(wm, resourceId, r.get_type_uuid());
     }
 
     uuid asset_editor_manager::find_unique_asset_editor(const uuid& assetType)

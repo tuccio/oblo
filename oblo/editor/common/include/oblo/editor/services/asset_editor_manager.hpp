@@ -31,6 +31,7 @@ namespace oblo::editor
             opened,
             already_open,
             no_such_type,
+            no_such_resource,
             unspecified_error,
         };
 
@@ -43,6 +44,7 @@ namespace oblo::editor
         expected<success_tag, open_error> open_asset(window_manager& wm, const uuid& assetId, const uuid& assetType);
         expected<success_tag, open_error> open_resource(
             window_manager& wm, const uuid& resourceId, const uuid& resourceType);
+        expected<success_tag, open_error> open_resource(window_manager& wm, const uuid& resourceId);
 
         uuid find_unique_asset_editor(const uuid& assetType);
 

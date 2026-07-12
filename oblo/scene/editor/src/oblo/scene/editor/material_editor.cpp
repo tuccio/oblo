@@ -119,19 +119,21 @@ namespace oblo::editor
 
         struct_apply([&](auto&&... descs) { (addPropertyDesc(descs), ...); }, pbr);
 
+        auto* const assetEditors = ctx.services.find<asset_editor_manager>();
+
         if (m_assetRegistry)
         {
-            m_artifactPicker = allocate_unique<ui::artifact_picker>(*m_assetRegistry);
+            m_artifactPicker = allocate_unique<ui::artifact_picker>(*m_assetRegistry, assetEditors);
         }
         else
         {
-            m_artifactPicker = allocate_unique<ui::artifact_picker>(*m_resourceRegistry);
+            m_artifactPicker = allocate_unique<ui::artifact_picker>(*m_resourceRegistry, assetEditors);
         }
 
         return true;
     }
 
-    bool material_editor_window::update(const window_update_context&)
+    bool material_editor_window::update(const window_update_context& ctx)
     {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
@@ -169,6 +171,8 @@ namespace oblo::editor
                 }
 
                 bool modified = false;
+
+                m_artifactPicker->set_window_manager(&ctx.windowManager);
 
                 for (const auto& property : readOnlyMaterial->get_properties())
                 {

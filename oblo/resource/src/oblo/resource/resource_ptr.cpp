@@ -67,7 +67,12 @@ namespace oblo::detail
         return resource->data;
     }
 
-    type_id resource_type(resource* resource)
+    uuid resource_type_uuid(resource* resource)
+    {
+        return resource->descriptor->typeUuid;
+    }
+
+    type_id resource_type_id(resource* resource)
     {
         return resource->descriptor->typeId;
     }

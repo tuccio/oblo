@@ -5,6 +5,9 @@
 #include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
+#include <oblo/editor/services/asset_editor_manager.hpp>
+#include <oblo/log/log.hpp>
+#include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 
 #include <IconsFontAwesome6.h>
@@ -51,8 +54,15 @@ namespace oblo::editor::ui
         }
     }
 
-    artifact_picker::artifact_picker(asset_registry& registry) : m_assetRegistry{&registry} {}
-    artifact_picker::artifact_picker(const resource_registry& registry) : m_resourceRegistry{&registry} {}
+    artifact_picker::artifact_picker(asset_registry& registry, asset_editor_manager* assetEditors) :
+        m_assetRegistry{&registry}, m_assetEditors{assetEditors}
+    {
+    }
+
+    artifact_picker::artifact_picker(const resource_registry& registry, asset_editor_manager* assetEditors) :
+        m_resourceRegistry{&registry}, m_assetEditors{assetEditors}
+    {
+    }
 
     bool artifact_picker::draw(int uiId, const uuid& type, const uuid& ref)
     {
@@ -74,11 +84,6 @@ namespace oblo::editor::ui
         }
 
         bool selectionChanged{};
-
-        if (!m_assetRegistry)
-        {
-            ImGui::BeginDisabled();
-        }
 
         if (ImGui::BeginCombo("", builder.c_str()))
         {
@@ -123,6 +128,21 @@ namespace oblo::editor::ui
             ImGui::EndCombo();
         }
 
+        const bool hasInspect = m_assetEditors != nullptr && m_windowManager;
+
+        if (hasInspect && ImGui::BeginPopupContextItem("##ctx"))
+        {
+            if (hasInspect && ImGui::MenuItem("Inspect"))
+            {
+                if (!m_assetEditors->open_resource(*m_windowManager, m_currentRef))
+                {
+                    log::error("Failed to open resource editor");
+                }
+            }
+
+            ImGui::EndPopup();
+        }
+
         if (m_assetRegistry && ImGui::BeginDragDropTarget())
         {
             if (auto* const artifactPayload = ImGui::AcceptDragDropPayload(payloads::Artifact))
@@ -156,11 +176,6 @@ namespace oblo::editor::ui
             ImGui::EndDragDropTarget();
         }
 
-        if (!m_assetRegistry)
-        {
-            ImGui::EndDisabled();
-        }
-
         ImGui::PopID();
 
         return selectionChanged;
@@ -169,5 +184,10 @@ namespace oblo::editor::ui
     uuid artifact_picker::get_current_ref() const
     {
         return m_currentRef;
+    }
+
+    void artifact_picker::set_window_manager(window_manager* wm)
+    {
+        m_windowManager = wm;
     }
 }

@@ -14,7 +14,8 @@ namespace oblo
         void resource_release(resource* resource);
         void resource_acquire(resource* resource);
         void* resource_data(resource* resource);
-        type_id resource_type(resource* resource);
+        uuid resource_type_uuid(resource* resource);
+        type_id resource_type_id(resource* resource);
         string_view resource_name(resource* resource);
         uuid resource_uuid(resource* resource);
         void resource_start_loading(resource* resource);
@@ -95,9 +96,14 @@ namespace oblo
             m_resource = nullptr;
         }
 
+        uuid get_type_uuid() const noexcept
+        {
+            return detail::resource_type_uuid(m_resource);
+        }
+
         type_id get_type_id() const noexcept
         {
-            return detail::resource_type(m_resource);
+            return detail::resource_type_id(m_resource);
         }
 
         string_view get_name() const noexcept
