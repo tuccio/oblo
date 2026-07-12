@@ -5,9 +5,11 @@
 
 void surfel_commit_to_grid(in uint surfelId, in ivec3 cell);
 
-void surfel_scatter_to_grid(
+uint surfel_scatter_to_grid(
     in surfel_grid_header gridHeader, in ivec3 cell, in uint surfelId, in vec3 positionWS, in float radius)
 {
+    uint numInserts = 0;
+
     const vec3 coordsMin = positionWS - radius * SURFEL_SHARING_SCALE;
     const vec3 coordsMax = positionWS + radius * SURFEL_SHARING_SCALE;
 
@@ -28,9 +30,12 @@ void surfel_scatter_to_grid(
                 }
 
                 surfel_commit_to_grid(surfelId, neighboringCell);
+                ++numInserts;
             }
         }
     }
+
+    return numInserts;
 }
 
 #endif

@@ -230,6 +230,7 @@ void main()
 
     g_SurfelData[surfelId] = updatedData;
 
-    surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
+    const uint surfelMultiplicity = surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
     surfel_metrics_on_alive(1);
+    surfel_metrics_check_multiplicity(surfelMultiplicity, SURFEL_EXPECTED_MULTIPLICITY);
 }

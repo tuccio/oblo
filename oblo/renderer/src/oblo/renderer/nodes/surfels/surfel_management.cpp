@@ -20,9 +20,10 @@ namespace oblo
 {
     namespace
     {
-        // A single surfel might be inserted in a few neighboring cells in the grid, if it's big enough
-        // The radius is limited to 1/4 of the cell size, so this can be limited to 8
-        constexpr u32 g_MaxSurfelMultiplicity = 8;
+        // A single surfel might be inserted in a few neighboring cells in the grid, if it's big enough.
+        // We need to account for this when pre-allocating the surfel grid data buffer, so it's more like an average
+        // multiplicity than a maximum. Tweaking this value is necessary if we end up over-allocating.
+        constexpr u32 g_ExpectedSurfelMultiplicity = 8;
 
         struct surfel_spawn_data
         {
@@ -146,7 +147,7 @@ namespace oblo
         const u64 surfelsLightEstimatorgDataSize = sizeof(surfel_light_estimator_data) * maxSurfels;
         const u64 surfelsGridSize = sizeof(surfel_grid_header) + sizeof(surfel_grid_cell) * surfelsHashMapEntries;
         const u64 surfelsGridHashMapSize = sizeof(surfel_grid_header) + sizeof(hash_map_entry) * surfelsHashMapEntries;
-        const u64 surfelsGridDataSize = (1 + g_MaxSurfelMultiplicity * maxSurfels) * sizeof(u32);
+        const u64 surfelsGridDataSize = (1 + g_ExpectedSurfelMultiplicity * maxSurfels) * sizeof(u32);
         const u64 surfelsLastUsageBufferSize = (maxSurfels) * sizeof(u32);
 
         // TODO: After creation and initialization happened, the usage could be none to avoid any useless memory barrier
@@ -527,6 +528,19 @@ namespace oblo
 
     void surfel_update::build(const frame_graph_build_context& ctx)
     {
+        const bool withMetrics = ctx.is_recording_metrics();
+
+        string_builder multiplicityDefine;
+        multiplicityDefine.format("SURFEL_EXPECTED_MULTIPLICITY {}", g_ExpectedSurfelMultiplicity);
+
+        buffered_array<hashed_string_view, 2> defines;
+        defines.emplace_back(multiplicityDefine.as<hashed_string_view>());
+
+        if (withMetrics)
+        {
+            defines.emplace_back("SURFEL_METRICS_ENABLED"_hsv);
+        }
+
         {
             overcoverageFgPass = ctx.compute_pass(overcoveragePass, {});
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_read);
@@ -555,15 +569,6 @@ namespace oblo
         }
 
         {
-            buffered_array<hashed_string_view, 1> defines;
-
-            const bool withMetrics = ctx.is_recording_metrics();
-
-            if (withMetrics)
-            {
-                defines.emplace_back("SURFEL_METRICS_ENABLED"_hsv);
-            }
-
             updateFgPass = ctx.compute_pass(updatePass,
                 {
                     .defines = defines,
@@ -589,16 +594,16 @@ namespace oblo
         }
 
         {
-            string_builder multiplicityDefine;
-            multiplicityDefine.format("SURFEL_MAX_MULTIPLICITY {}", g_MaxSurfelMultiplicity);
-
-            const hashed_string_view defines[] = {multiplicityDefine.as<hashed_string_view>()};
-
             allocateFgPass = ctx.compute_pass(allocatePass, {.defines = defines});
 
             ctx.acquire(inOutSurfelsGrid, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridData, buffer_usage::storage_write);
             ctx.acquire(inOutSurfelsGridHashMap, buffer_usage::storage_write);
+
+            if (withMetrics)
+            {
+                ctx.acquire(inSurfelsMetrics, buffer_usage::storage_write);
+            }
         }
 
         {

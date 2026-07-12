@@ -21,7 +21,7 @@ const float SURFEL_SHARING_SCALE2 = SURFEL_SHARING_SCALE * SURFEL_SHARING_SCALE;
 const float SURFEL_SHARING_SPAWN_SCALE = SURFEL_SHARING_SCALE * .85f;
 
 // Surfel radius at 1 meter distance from the camera
-const float SURFEL_RADIUS_SCALE = 0.04;
+const float SURFEL_RADIUS_SCALE = 0.02;
 
 const uint SURFEL_HASH_MAX_PROBES = 4;
 
@@ -95,6 +95,8 @@ struct surfel_metrics
     uint surfelsAlive;
     uint surfelsSpawned;
     uint surfelsKilled;
+    uint surfelsExcessAllocations;
+    uint surfelsMultiplicityFailures;
     uint hashAcquireSuccess;
     uint hashCollisions;
     uint hashFailures;
@@ -184,26 +186,12 @@ bool surfel_data_is_alive(in surfel_data surfelData)
     return !isinf(surfelData.positionWS.x);
 }
 
-float surfel_clamp_radius(in surfel_grid_header gridHeader, in float radius)
-{
-    // The max radius determines in how many cells the surfel might be replicated, updating the maximum radius might
-    // require updating g_MaxSurfelMultiplicity in C++
-    const float gridCellSize = surfel_grid_cell_size(gridHeader);
-    const float maxRadius = .25f * gridCellSize;
-    const float minRadius = .05f * gridCellSize;
-
-    return max(minRadius, min(maxRadius, radius));
-}
-
 float surfel_estimate_radius(in surfel_grid_header gridHeader, in vec3 cameraPosition, in vec3 surfelPosition)
 {
     const vec3 cameraVector = surfelPosition - cameraPosition;
     const float cameraDistance2 = dot(cameraVector, cameraVector);
 
-    const float gridCellSize = surfel_grid_cell_size(gridHeader);
-
-    const float radius = surfel_clamp_radius(gridHeader, SURFEL_RADIUS_SCALE * sqrt(cameraDistance2));
-
+    const float radius = SURFEL_RADIUS_SCALE * sqrt(cameraDistance2);
     return radius;
 }
 
