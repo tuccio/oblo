@@ -61,28 +61,28 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
     }
 }
 
-    void main()
+void main()
+{
+    const uint surfelId = gl_GlobalInvocationID.x;
+
+    const surfel_grid_header gridHeader = g_SurfelGridHeader;
+
+    if (surfelId >= gridHeader.maxSurfels)
     {
-        const uint surfelId = gl_GlobalInvocationID.x;
-
-        const surfel_grid_header gridHeader = g_SurfelGridHeader;
-
-        if (surfelId >= gridHeader.maxSurfels)
-        {
-            return;
-        }
-
-        const surfel_data surfel = g_SurfelData[surfelId];
-
-        if (!surfel_data_is_alive(surfel))
-        {
-            return;
-        }
-
-        const vec3 positionWS = surfel_data_world_position(surfel);
-        const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
-
-        const float radius = surfel_data_world_radius(surfel);
-
-        surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
+        return;
     }
+
+    const surfel_data surfel = g_SurfelData[surfelId];
+
+    if (!surfel_data_is_alive(surfel))
+    {
+        return;
+    }
+
+    const vec3 positionWS = surfel_data_world_position(surfel);
+    const ivec3 cell = surfel_grid_find_cell(gridHeader, positionWS);
+
+    const float radius = surfel_data_world_radius(surfel);
+
+    surfel_scatter_to_grid(gridHeader, cell, surfelId, positionWS, radius);
+}
