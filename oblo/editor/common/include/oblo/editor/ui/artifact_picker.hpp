@@ -7,6 +7,7 @@
 
 namespace oblo
 {
+    class resource_registry;
     class asset_registry;
 }
 
@@ -16,13 +17,15 @@ namespace oblo::editor::ui
     {
     public:
         explicit artifact_picker(asset_registry& registry);
+        explicit artifact_picker(const resource_registry& registry);
 
         bool draw(int uiId, const uuid& type, const uuid& ref);
 
         uuid get_current_ref() const;
 
     private:
-        asset_registry& m_assetRegistry;
+        asset_registry* m_assetRegistry{};
+        const resource_registry* m_resourceRegistry{};
         uuid m_currentRef{};
         ImGuiTextFilter m_textFilter;
     };

@@ -19,7 +19,7 @@ namespace oblo::editor
         virtual ~resource_viewer() = default;
 
         virtual expected<> open(
-            window_manager& wm, const resource_registry& assetRegistry, window_handle parent, uuid resourceId) = 0;
+            window_manager& wm, const resource_registry& resourceRegistry, window_handle parent, uuid resourceId) = 0;
 
         virtual void close(window_manager& wm) = 0;
 

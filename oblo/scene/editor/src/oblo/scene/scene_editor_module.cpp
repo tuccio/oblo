@@ -185,6 +185,12 @@ namespace oblo
                     .createViewer = []() -> unique_ptr<editor::resource_viewer>
                     { return allocate_unique<editor::mesh_inspector>(); },
                 });
+
+                out.push_back(editor::resource_viewer_descriptor{
+                    .resourceType = resource_type<material>,
+                    .createViewer = []() -> unique_ptr<editor::resource_viewer>
+                    { return allocate_unique<editor::material_viewer>(); },
+                });
             }
         };
         class editor_service_registrant final : public editor::service_provider
