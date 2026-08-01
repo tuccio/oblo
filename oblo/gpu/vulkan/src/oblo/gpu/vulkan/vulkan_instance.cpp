@@ -604,6 +604,9 @@ namespace oblo::gpu::vk
 
         return {
             .subgroupSize = m_subgroupProperties.subgroupSize,
+            .maxGroupsX = limits.maxComputeWorkGroupCount[0],
+            .maxGroupsY = limits.maxComputeWorkGroupCount[1],
+            .maxGroupsZ = limits.maxComputeWorkGroupCount[2],
             .minAccelerationStructureScratchOffsetAlignment =
                 m_accelerationStructureProperties.minAccelerationStructureScratchOffsetAlignment,
             .minUniformBufferOffsetAlignment = limits.minUniformBufferOffsetAlignment,

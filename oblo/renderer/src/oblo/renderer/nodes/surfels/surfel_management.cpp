@@ -13,6 +13,7 @@
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
 #include <oblo/renderer/draw/raytracing_pass_initializer.hpp>
 #include <oblo/renderer/events/gi_reset_event.hpp>
+#include <oblo/renderer/graph/compute_utility.hpp>
 #include <oblo/renderer/graph/frame_graph_template.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
 
@@ -659,6 +660,8 @@ namespace oblo
             ctx.end_pass();
         }
 
+        const gpu_info& gpuInfo = ctx.get_gpu_info();
+
         if (ctx.begin_pass(clearFgPass))
         {
             ctx.bind_descriptor_sets(bindingTable);
@@ -687,10 +690,10 @@ namespace oblo
                 .gridMask = surfelsHashMapEntries - 1,
             };
 
-            const auto groupsX = round_up_div(surfelsHashMapEntries, subgroupSize);
+            const vec3u groups = calculate_group_size_1d(gpuInfo, surfelsHashMapEntries);
 
             ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
-            ctx.dispatch_compute(groupsX, 1, 1);
+            ctx.dispatch_compute(groups.x, groups.y, groups.z);
 
             ctx.end_pass();
         }
@@ -714,8 +717,8 @@ namespace oblo
 
             ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
 
-            const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
-            ctx.dispatch_compute(groupsX, 1, 1);
+            const vec3u groups = calculate_group_size_1d(gpuInfo, maxSurfels);
+            ctx.dispatch_compute(groups.x, groups.y, groups.z);
 
             ctx.end_pass();
         }
@@ -724,8 +727,8 @@ namespace oblo
         {
             ctx.bind_descriptor_sets(bindingTable);
 
-            const auto groupsX = round_up_div(surfelsHashMapEntries, subgroupSize);
-            ctx.dispatch_compute(groupsX, 1, 1);
+            const vec3u groups = calculate_group_size_1d(gpuInfo, surfelsHashMapEntries);
+            ctx.dispatch_compute(groups.x, groups.y, groups.z);
 
             ctx.end_pass();
         }
@@ -734,8 +737,8 @@ namespace oblo
         {
             ctx.bind_descriptor_sets(bindingTable);
 
-            const u32 groupsX = round_up_div(maxSurfels, subgroupSize);
-            ctx.dispatch_compute(groupsX, 1, 1);
+            const vec3u groups = calculate_group_size_1d(gpuInfo, maxSurfels);
+            ctx.dispatch_compute(groups.x, groups.y, groups.z);
 
             ctx.end_pass();
         }

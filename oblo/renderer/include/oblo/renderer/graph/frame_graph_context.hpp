@@ -305,6 +305,9 @@ namespace oblo
     struct gpu_info
     {
         u32 subgroupSize;
+        u32 maxGroupsX;
+        u32 maxGroupsY;
+        u32 maxGroupsZ;
     };
 
     struct texture_init_desc

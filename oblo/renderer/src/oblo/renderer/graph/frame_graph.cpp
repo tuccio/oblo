@@ -573,6 +573,9 @@ namespace oblo
 
         const gpu::device_info deviceInfo = gpu.get_device_info();
         m_impl->gpuInfo.subgroupSize = deviceInfo.subgroupSize;
+        m_impl->gpuInfo.maxGroupsX = deviceInfo.maxGroupsX;
+        m_impl->gpuInfo.maxGroupsY = deviceInfo.maxGroupsY;
+        m_impl->gpuInfo.maxGroupsZ = deviceInfo.maxGroupsZ;
 
         return m_impl->dynamicAllocator.init(maxAllocationSize) && m_impl->resourcePool.init(gpu),
                m_impl->downloadStaging.init(gpu, g_downloadStagingSize).has_value();

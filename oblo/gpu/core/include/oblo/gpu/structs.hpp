@@ -325,6 +325,9 @@ namespace oblo::gpu
     struct device_info
     {
         u32 subgroupSize;
+        u32 maxGroupsX;
+        u32 maxGroupsY;
+        u32 maxGroupsZ;
         u64 minAccelerationStructureScratchOffsetAlignment;
         u64 minUniformBufferOffsetAlignment;
         u64 minStorageBufferOffsetAlignment;

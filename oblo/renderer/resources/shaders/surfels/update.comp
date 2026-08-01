@@ -92,14 +92,14 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 
 void main()
 {
+    const uint surfelId = gl_LocalInvocationIndex;
+
 #if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
-    if (gl_GlobalInvocationID.x == 0)
+    if (surfelId == 0)
     {
         debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
     }
 #endif
-
-    const uint surfelId = gl_GlobalInvocationID.x;
 
     if (surfelId >= g_Constants.maxSurfels)
     {
