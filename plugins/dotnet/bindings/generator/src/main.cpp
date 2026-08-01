@@ -53,6 +53,6 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    print_line("Successufly generated bindings");
+    print_line("Successfully generated bindings");
     return 0;
 }
