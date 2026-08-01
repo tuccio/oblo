@@ -1355,6 +1355,11 @@ namespace oblo::gpu::vk
             return error::invalid_usage;
         }
 
+        if (!is_power_of_two(newRequirements.alignment))
+        {
+            return error::invalid_usage;
+        }
+
         // Add space for alignment
         newRequirements.size += (newRequirements.alignment - 1) * descriptors.size();
 
@@ -1365,6 +1370,8 @@ namespace oblo::gpu::vk
 
         for (usize descriptorIdx = 0; descriptorIdx < descriptors.size(); ++descriptorIdx)
         {
+            OBLO_ASSERT(offset % newRequirements.alignment == 0);
+
             const pooled_image_info& t = pooledTextures[descriptorIdx];
             const VkResult result = m_allocator.bind_image_memory(t.image, allocation, offset);
 
@@ -1374,7 +1381,8 @@ namespace oblo::gpu::vk
                 return translate_error(result);
             }
 
-            offset += t.size + t.size % newRequirements.alignment;
+            offset += t.size;
+            offset = (offset + newRequirements.alignment - 1) & ~(newRequirements.alignment - 1);
 
             const auto& descriptor = descriptors[descriptorIdx];
 
