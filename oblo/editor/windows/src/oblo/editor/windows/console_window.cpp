@@ -371,7 +371,9 @@ namespace oblo::editor
                             ImGui::SetCursorPosY(cursorY - dy);
                         }
 
+                        ImGui::PushID(int(itemIndex));
                         draw_message(message.severity, message.content);
+                        ImGui::PopID();
 
                         const auto selectableHeight = ImGui::GetItemRectSize().y;
 
