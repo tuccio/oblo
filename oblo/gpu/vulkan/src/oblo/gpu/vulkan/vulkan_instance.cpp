@@ -786,7 +786,8 @@ namespace oblo::gpu::vk
     result<u64> vulkan_instance::read_timeline_semaphore(h32<semaphore> handle)
     {
         u64 value;
-        return translate_error_or_value(vkGetSemaphoreCounterValue(m_device, m_semaphores.at(handle), &value), value);
+        const VkResult result = vkGetSemaphoreCounterValue(m_device, m_semaphores.at(handle), &value);
+        return translate_error_or_value(result, value);
     }
 
     result<h32<image>> vulkan_instance::acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> semaphore)
@@ -2399,7 +2400,8 @@ namespace oblo::gpu::vk
         const VmaAllocation allocation = m_buffers.at(buffer).allocation;
 
         void* ptr{};
-        return translate_error_or_value(m_allocator.map(allocation, &ptr), ptr);
+        const VkResult result = m_allocator.map(allocation, &ptr);
+        return translate_error_or_value(result, ptr);
     }
 
     result<> vulkan_instance::memory_unmap(h32<buffer> buffer)
