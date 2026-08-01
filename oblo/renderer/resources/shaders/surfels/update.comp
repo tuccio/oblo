@@ -8,6 +8,8 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
 #include <ecs/entity_set>
 #include <renderer/geometry/barycentric>
 #include <renderer/instances>
@@ -38,8 +40,6 @@ layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict readonly buffer b_S
 {
     uint g_SurfelLastUsage[];
 };
-
-layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform c_PushConstants
 {
