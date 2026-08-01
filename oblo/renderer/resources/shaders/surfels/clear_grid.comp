@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive : require
 
+#include <renderer/utility/compute_utility>
 #include <surfels/buffers/surfel_grid_data_w>
 #include <surfels/buffers/surfel_grid_w>
 #include <surfels/surfel_data>
@@ -23,7 +24,7 @@ g_Constants;
 void main()
 {
     const uint hashEntriesCount = g_Constants.gridHashMask + 1;
-    const uint cellIndex = gl_GlobalInvocationID.x;
+    const uint cellIndex = calculate_global_invocation_index();
 
     if (cellIndex == 0)
     {
@@ -32,7 +33,7 @@ void main()
         g_SurfelGridHashMask = g_Constants.gridHashMask;
     }
 
-    if (gl_GlobalInvocationID.x >= hashEntriesCount)
+    if (cellIndex >= hashEntriesCount)
     {
         return;
     }

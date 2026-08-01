@@ -16,6 +16,7 @@
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
 #include <renderer/transform>
+#include <renderer/utility/compute_utility>
 #include <surfels/buffers/surfel_data_rw>
 #include <surfels/buffers/surfel_grid_rw>
 #include <surfels/buffers/surfel_metrics_rw>
@@ -92,7 +93,7 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 
 void main()
 {
-    const uint surfelId = gl_LocalInvocationIndex;
+    const uint surfelId = calculate_global_invocation_index();
 
 #if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
     if (surfelId == 0)

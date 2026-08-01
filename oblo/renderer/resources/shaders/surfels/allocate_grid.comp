@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include <renderer/debug/printf>
+#include <renderer/utility/compute_utility>
 #include <surfels/buffers/surfel_grid_data_rw>
 #include <surfels/buffers/surfel_grid_rw>
 #include <surfels/buffers/surfel_metrics_rw>
@@ -14,10 +15,10 @@ void main()
 {
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
 
-    const uint cellIndex = gl_GlobalInvocationID.x;
+    const uint cellIndex = calculate_global_invocation_index();
     const uint maxCells = g_SurfelGridHashMask + 1;
 
-    if (cellIndex.x >= maxCells)
+    if (cellIndex >= maxCells)
     {
         return;
     }

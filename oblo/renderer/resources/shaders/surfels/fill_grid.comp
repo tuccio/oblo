@@ -8,6 +8,7 @@
 
 #include <renderer/debug/printf>
 #include <renderer/transform>
+#include <renderer/utility/compute_utility>
 #include <renderer/utility/hash_map>
 #include <surfels/buffers/surfel_data_r>
 #include <surfels/buffers/surfel_grid_data_w>
@@ -63,7 +64,7 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 
 void main()
 {
-    const uint surfelId = gl_GlobalInvocationID.x;
+    const uint surfelId = calculate_global_invocation_index();
 
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
 
