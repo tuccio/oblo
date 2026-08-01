@@ -566,6 +566,7 @@ namespace oblo::gpu::vk
                 {VK_DESCRIPTOR_TYPE_SAMPLER, 16},
                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 16},
                 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
+                {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 16},
                 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
             }));
 
