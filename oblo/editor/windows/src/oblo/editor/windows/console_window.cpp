@@ -68,7 +68,10 @@ namespace oblo::editor
 
         void draw_message(log::severity severity, cstring_view msg)
         {
+            ImGui::PushTextWrapPos(0.f);
             ImGui::TextUnformatted(msg.begin(), msg.end());
+            ImGui::PopTextWrapPos();
+
             draw_severity_accent(severity);
         }
     }
