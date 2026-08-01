@@ -545,6 +545,8 @@ namespace oblo
             preambleBuilder.format("#extension GL_EXT_debug_printf : enable\n");
         }
 
+        preambleBuilder.format("#extension GL_GOOGLE_cpp_style_line_directive : enable\n");
+
         preambleBuilder.format("#define OBLO_SUBGROUP_SIZE {}\n", subgroupSize);
 
         for (const auto& define : builtInDefines)
