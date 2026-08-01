@@ -14,6 +14,7 @@ namespace oblo
         dynamic_array<string_view> searchPaths;
         searchPaths.reserve(128);
 
+        // This has to stay alive until the end of the scope, since the split paths are string views into it
         [[maybe_unused]] string_builder winPaths;
 
         if constexpr (platform::is_windows() || platform::is_unix_like())
@@ -22,6 +23,11 @@ namespace oblo
             {
                 platform::split_paths_environment_variable(searchPaths, winPaths.view());
             }
+        }
+
+        if constexpr (platform::is_windows())
+        {
+            searchPaths.push_back(R"(C:\Program Files\LLVM\bin\)");
         }
 
         constexpr string_view clang = platform::is_windows() ? "clang++.exe" : "clang++";
