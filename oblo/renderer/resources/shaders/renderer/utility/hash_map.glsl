@@ -36,10 +36,28 @@ uint hash_map_index_probe(in uint h, in uint i, in uint tableMask)
         }                                                                                                              \
         else                                                                                                           \
         {                                                                                                              \
-            while ((Entry).state == HASH_MAP_ENTRY_STATE_RESERVED)                                                     \
+            Result = false;                                                                                            \
+            const int maxRetries = 4;                                                                                 \
+            for (int r = 0; r < maxRetries; ++r)                                                                       \
             {                                                                                                          \
+                const uint s = (Entry).state;                                                                          \
+                if (s == HASH_MAP_ENTRY_STATE_FREE)                                                                    \
+                {                                                                                                      \
+                    if (atomicCompSwap((Entry).state, HASH_MAP_ENTRY_STATE_FREE, HASH_MAP_ENTRY_STATE_RESERVED) ==     \
+                        HASH_MAP_ENTRY_STATE_FREE)                                                                     \
+                    {                                                                                                  \
+                        (Entry).id = Id;                                                                               \
+                        atomicExchange((Entry).state, HASH_MAP_ENTRY_STATE_USED);                                      \
+                        Result = true;                                                                                 \
+                    }                                                                                                  \
+                    break;                                                                                             \
+                }                                                                                                      \
+                if (s == HASH_MAP_ENTRY_STATE_USED)                                                                    \
+                {                                                                                                      \
+                    Result = ((Entry).id == Id);                                                                       \
+                    break;                                                                                             \
+                }                                                                                                      \
             }                                                                                                          \
-            Result = ((Entry).id == Id);                                                                               \
         }                                                                                                              \
     }
 
