@@ -26,39 +26,16 @@ uint hash_map_index_probe(in uint h, in uint i, in uint tableMask)
 
 #define HASH_MAP_TRY_ACQUIRE(Entry, Id, Result)                                                                        \
     {                                                                                                                  \
-        uint prevState = atomicCompSwap((Entry).state, HASH_MAP_ENTRY_STATE_FREE, HASH_MAP_ENTRY_STATE_RESERVED);      \
+        const uint hashMapEntryPrevState =                                                                             \
+            atomicCompSwap((Entry).state, HASH_MAP_ENTRY_STATE_FREE, HASH_MAP_ENTRY_STATE_RESERVED);                   \
                                                                                                                        \
-        if (prevState == HASH_MAP_ENTRY_STATE_FREE)                                                                    \
+        if (hashMapEntryPrevState == HASH_MAP_ENTRY_STATE_FREE)                                                        \
         {                                                                                                              \
             (Entry).id = Id;                                                                                           \
             atomicExchange((Entry).state, HASH_MAP_ENTRY_STATE_USED);                                                  \
-            Result = true;                                                                                             \
         }                                                                                                              \
-        else                                                                                                           \
-        {                                                                                                              \
-            Result = false;                                                                                            \
-            const int maxRetries = 4;                                                                                 \
-            for (int r = 0; r < maxRetries; ++r)                                                                       \
-            {                                                                                                          \
-                const uint s = (Entry).state;                                                                          \
-                if (s == HASH_MAP_ENTRY_STATE_FREE)                                                                    \
-                {                                                                                                      \
-                    if (atomicCompSwap((Entry).state, HASH_MAP_ENTRY_STATE_FREE, HASH_MAP_ENTRY_STATE_RESERVED) ==     \
-                        HASH_MAP_ENTRY_STATE_FREE)                                                                     \
-                    {                                                                                                  \
-                        (Entry).id = Id;                                                                               \
-                        atomicExchange((Entry).state, HASH_MAP_ENTRY_STATE_USED);                                      \
-                        Result = true;                                                                                 \
-                    }                                                                                                  \
-                    break;                                                                                             \
-                }                                                                                                      \
-                if (s == HASH_MAP_ENTRY_STATE_USED)                                                                    \
-                {                                                                                                      \
-                    Result = ((Entry).id == Id);                                                                       \
-                    break;                                                                                             \
-                }                                                                                                      \
-            }                                                                                                          \
-        }                                                                                                              \
+        Result = (hashMapEntryPrevState == HASH_MAP_ENTRY_STATE_FREE) ||                                               \
+            ((hashMapEntryPrevState == HASH_MAP_ENTRY_STATE_USED) && ((Entry).id == Id));                              \
     }
 
 bool hash_map_try_find(in hash_map_entry e, in uint id, out bool entryUsed)
