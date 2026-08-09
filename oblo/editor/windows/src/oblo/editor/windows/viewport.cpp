@@ -212,7 +212,7 @@ namespace oblo::editor
 
                 if (hasFocus)
                 {
-                    if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Right) || ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
                     {
                         m_cameraController.set_common_wasd_bindings();
                     }

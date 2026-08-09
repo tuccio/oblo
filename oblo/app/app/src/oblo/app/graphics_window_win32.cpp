@@ -519,6 +519,8 @@ namespace oblo
 
             switch (key)
             {
+            case VK_CONTROL:
+                return keyboard_key::left_ctrl;
             case VK_SHIFT:
                 return keyboard_key::left_shift;
             }
