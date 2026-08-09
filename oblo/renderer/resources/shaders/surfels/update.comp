@@ -8,6 +8,8 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
 #include <ecs/entity_set>
 #include <renderer/geometry/barycentric>
 #include <renderer/instances>
@@ -16,6 +18,7 @@
 #include <renderer/meshes/mesh_indices>
 #include <renderer/meshes/mesh_table>
 #include <renderer/transform>
+#include <renderer/utility/compute_utility>
 #include <surfels/buffers/surfel_data_rw>
 #include <surfels/buffers/surfel_grid_rw>
 #include <surfels/buffers/surfel_metrics_rw>
@@ -37,8 +40,6 @@ layout(std430, binding = SURFEL_LAST_USAGE_BINDING) restrict readonly buffer b_S
 {
     uint g_SurfelLastUsage[];
 };
-
-layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform c_PushConstants
 {
@@ -92,14 +93,14 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 
 void main()
 {
+    const uint surfelId = calculate_global_invocation_index();
+
 #if OBLO_DEBUG_PRINTF && SURFEL_DEBUG_PRINTF
-    if (gl_GlobalInvocationID.x == 0)
+    if (surfelId == 0)
     {
         debugPrintfEXT("[UPDATE] Surfels alive: %u\n", g_Constants.maxSurfels - g_SurfelStackHeader.available);
     }
 #endif
-
-    const uint surfelId = gl_GlobalInvocationID.x;
 
     if (surfelId >= g_Constants.maxSurfels)
     {

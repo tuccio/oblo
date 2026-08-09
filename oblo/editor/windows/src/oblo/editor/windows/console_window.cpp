@@ -68,7 +68,10 @@ namespace oblo::editor
 
         void draw_message(log::severity severity, cstring_view msg)
         {
+            ImGui::PushTextWrapPos(0.f);
             ImGui::TextUnformatted(msg.begin(), msg.end());
+            ImGui::PopTextWrapPos();
+
             draw_severity_accent(severity);
         }
     }
@@ -368,7 +371,9 @@ namespace oblo::editor
                             ImGui::SetCursorPosY(cursorY - dy);
                         }
 
+                        ImGui::PushID(int(itemIndex));
                         draw_message(message.severity, message.content);
+                        ImGui::PopID();
 
                         const auto selectableHeight = ImGui::GetItemRectSize().y;
 

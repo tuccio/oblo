@@ -1,5 +1,13 @@
 set(_dotnet_bindings_dir "${CMAKE_CURRENT_BINARY_DIR}/dotnet-bindings")
-set(_dotnet_build_cmd dotnet build --configuration $<IF:$<CONFIG:Debug>,Debug,Release> \"${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj\" -o \"$<TARGET_FILE_DIR:oblo::dotnet::runtime>/managed\" "-p:GeneratedDotNetDir=${_dotnet_bindings_dir}")
+set(_dotnet_build_cmd
+    dotnet build
+    --configuration $<IF:$<CONFIG:Debug>,Debug,Release>
+    \"${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj\"
+    -o \"$<TARGET_FILE_DIR:oblo::dotnet::runtime>/managed\"
+    "-p:BaseIntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/"
+    "-p:IntermediateOutputPath=${CMAKE_CURRENT_BINARY_DIR}/obj/$<IF:$<CONFIG:Debug>,Debug,Release>/"
+    "-p:GeneratedDotNetDir=${_dotnet_bindings_dir}"
+)
 
 set(_dotnet_generated_cs "${_dotnet_bindings_dir}/Bindings.gen.cs")
 

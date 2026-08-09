@@ -79,35 +79,47 @@ namespace oblo::gpu::vk
             return error::invalid_usage;
         }
 
-        const result<VkDescriptorPool> pool = acquire_pool(*impl, lastFinishedSubmit);
+        VkDescriptorSet descriptorSet{};
 
-        if (!pool)
+        for (u32 attempts = 0; attempts < 4; ++attempts)
         {
-            return pool.error();
+            const result<VkDescriptorPool> pool = acquire_pool(*impl, lastFinishedSubmit);
+
+            if (!pool)
+            {
+                return pool.error();
+            }
+
+            OBLO_ASSERT(*pool);
+
+            const VkDescriptorSetAllocateInfo allocInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+                .pNext = pNext,
+                .descriptorPool = *pool,
+                .descriptorSetCount = 1,
+                .pSetLayouts = &layout,
+            };
+
+            const VkResult r = vkAllocateDescriptorSets(m_device, &allocInfo, &descriptorSet);
+
+            if (r == VK_ERROR_OUT_OF_POOL_MEMORY)
+            {
+                // The pool is exhausted: retire it so it gets reset and recycled once the current
+                // submit completes, then create a new pool and retry.
+                impl->usedPools.emplace_back(*pool, m_submitIndex);
+                impl->current = nullptr;
+                continue;
+            }
+
+            if (r != VK_SUCCESS)
+            {
+                return translate_error(r);
+            }
+
+            return descriptorSet;
         }
 
-        OBLO_ASSERT(*pool);
-
-        const VkDescriptorSetAllocateInfo allocInfo{
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            .pNext = pNext,
-            .descriptorPool = *pool,
-            .descriptorSetCount = 1,
-            .pSetLayouts = &layout,
-        };
-
-        VkDescriptorSet descriptorSet;
-        const VkResult r = vkAllocateDescriptorSets(m_device, &allocInfo, &descriptorSet);
-
-        // We should handle VK_ERROR_OUT_OF_POOL_MEMORY here, and create a new pool if necessary.
-        OBLO_ASSERT(r != VK_ERROR_OUT_OF_POOL_MEMORY);
-
-        if (r != VK_SUCCESS)
-        {
-            return translate_error(r);
-        }
-
-        return descriptorSet;
+        return error::out_of_memory;
     }
 
     result<VkDescriptorPool> descriptor_set_pool::create_pool(pool_impl& impl)

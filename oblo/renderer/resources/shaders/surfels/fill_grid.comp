@@ -6,8 +6,11 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_control_flow_attributes : require
 
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
 #include <renderer/debug/printf>
 #include <renderer/transform>
+#include <renderer/utility/compute_utility>
 #include <renderer/utility/hash_map>
 #include <surfels/buffers/surfel_data_r>
 #include <surfels/buffers/surfel_grid_data_w>
@@ -20,8 +23,6 @@ layout(std430, binding = 0) restrict buffer b_SurfelsGridFill
 {
     uint g_SurfelGridCellNextSurfelIndex[];
 };
-
-layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 {
@@ -63,7 +64,7 @@ void surfel_commit_to_grid(in uint surfelId, in ivec3 cell)
 
 void main()
 {
-    const uint surfelId = gl_GlobalInvocationID.x;
+    const uint surfelId = calculate_global_invocation_index();
 
     const surfel_grid_header gridHeader = g_SurfelGridHeader;
 

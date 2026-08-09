@@ -34,7 +34,9 @@ namespace oblo
 
     void raytracing_debug::build(const frame_graph_build_context& ctx)
     {
-        rtDebugPassInstance = ctx.raytracing_pass(rtDebugPass, {});
+        rtDebugPassInstance = ctx.raytracing_pass(rtDebugPass, { 
+            .maxPipelineRayRecursionDepth = 2u,
+        });
 
         const auto resolution = ctx.access(inResolution);
 

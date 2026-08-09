@@ -16,9 +16,8 @@ layout(std430, binding = SURFEL_GRID_BINDING) restrict SURFEL_GRID_QUALIFIER buf
     surfel_grid_cell g_SurfelGridCells[];
 };
 
-layout(std430, binding = SURFEL_GRID_HASH_BINDING) restrict SURFEL_GRID_QUALIFIER buffer b_SurfelsGridHashMap
+layout(std430, binding = SURFEL_GRID_HASH_BINDING) restrict SURFEL_GRID_HASH_QUALIFIER buffer b_SurfelsGridHashMap
 {
-    // TODO: Should probably split in 2 different buffers
     uint g_SurfelGridHashMask;
     hash_map_entry g_SurfelGridHashMap[];
 };

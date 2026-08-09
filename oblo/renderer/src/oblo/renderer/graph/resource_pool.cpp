@@ -101,7 +101,7 @@ namespace oblo
         struct buffer_pool_desc
         {
             flags<gpu::buffer_usage> flags;
-            u8 alignment;
+            u16 alignment;
         };
 
         const gpu::device_info info = gpu.get_device_info();
@@ -109,18 +109,18 @@ namespace oblo
         const buffer_pool_desc descs[] = {
             {
                 .flags = gpu::buffer_usage::transfer_destination | gpu::buffer_usage::uniform,
-                .alignment = narrow_cast<u8>(info.minUniformBufferOffsetAlignment),
+                .alignment = narrow_cast<u16>(info.minUniformBufferOffsetAlignment),
             },
             {
                 .flags = gpu::buffer_usage::transfer_source | gpu::buffer_usage::transfer_destination |
                     gpu::buffer_usage::index | gpu::buffer_usage::storage | gpu::buffer_usage::device_address,
-                .alignment = narrow_cast<u8>(info.minStorageBufferOffsetAlignment),
+                .alignment = narrow_cast<u16>(info.minStorageBufferOffsetAlignment),
             },
             {
                 .flags = gpu::buffer_usage::transfer_source | gpu::buffer_usage::transfer_destination |
                     gpu::buffer_usage::storage | gpu::buffer_usage::indirect,
                 .alignment =
-                    narrow_cast<u8>(info.minStorageBufferOffsetAlignment), // TODO: Is there a min indirect alignment?
+                    narrow_cast<u16>(info.minStorageBufferOffsetAlignment), // TODO: Is there a min indirect alignment?
             },
         };
 

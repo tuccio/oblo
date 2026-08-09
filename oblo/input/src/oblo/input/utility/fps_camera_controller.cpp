@@ -228,6 +228,7 @@ namespace oblo
     void fps_camera_controller::set_common_wasd_bindings()
     {
         bind(mouse_key::right, action::mouse_look);
+        bind(keyboard_key::left_ctrl, action::mouse_look);
 
         bind(keyboard_key::w, action::strafe_forward);
         bind(keyboard_key::a, action::strafe_left);

@@ -66,7 +66,7 @@ layout(binding = 13, rgba16f) uniform restrict readonly image2D t_InGBuffer1;
 layout(binding = 14, rgba16f) uniform restrict readonly image2D t_InGBuffer2;
 layout(binding = 15, rgba16f) uniform restrict readonly image2D t_InGBuffer3;
 
-layout(binding = 10, rgba8) uniform restrict writeonly image2D t_OutShadedImage;
+layout(binding = 10, rgba16f) uniform restrict writeonly image2D t_OutShadedImage;
 
 void main()
 {

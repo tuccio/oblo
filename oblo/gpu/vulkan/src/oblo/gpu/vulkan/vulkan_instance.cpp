@@ -566,6 +566,7 @@ namespace oblo::gpu::vk
                 {VK_DESCRIPTOR_TYPE_SAMPLER, 16},
                 {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 16},
                 {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 64},
+                {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 16},
                 {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 64},
             }));
 
@@ -603,6 +604,9 @@ namespace oblo::gpu::vk
 
         return {
             .subgroupSize = m_subgroupProperties.subgroupSize,
+            .maxGroupsX = limits.maxComputeWorkGroupCount[0],
+            .maxGroupsY = limits.maxComputeWorkGroupCount[1],
+            .maxGroupsZ = limits.maxComputeWorkGroupCount[2],
             .minAccelerationStructureScratchOffsetAlignment =
                 m_accelerationStructureProperties.minAccelerationStructureScratchOffsetAlignment,
             .minUniformBufferOffsetAlignment = limits.minUniformBufferOffsetAlignment,
@@ -782,7 +786,8 @@ namespace oblo::gpu::vk
     result<u64> vulkan_instance::read_timeline_semaphore(h32<semaphore> handle)
     {
         u64 value;
-        return translate_error_or_value(vkGetSemaphoreCounterValue(m_device, m_semaphores.at(handle), &value), value);
+        const VkResult result = vkGetSemaphoreCounterValue(m_device, m_semaphores.at(handle), &value);
+        return translate_error_or_value(result, value);
     }
 
     result<h32<image>> vulkan_instance::acquire_swapchain_image(h32<swapchain> handle, h32<semaphore> semaphore)
@@ -1351,6 +1356,11 @@ namespace oblo::gpu::vk
             return error::invalid_usage;
         }
 
+        if (!is_power_of_two(newRequirements.alignment))
+        {
+            return error::invalid_usage;
+        }
+
         // Add space for alignment
         newRequirements.size += (newRequirements.alignment - 1) * descriptors.size();
 
@@ -1361,6 +1371,8 @@ namespace oblo::gpu::vk
 
         for (usize descriptorIdx = 0; descriptorIdx < descriptors.size(); ++descriptorIdx)
         {
+            OBLO_ASSERT(offset % newRequirements.alignment == 0);
+
             const pooled_image_info& t = pooledTextures[descriptorIdx];
             const VkResult result = m_allocator.bind_image_memory(t.image, allocation, offset);
 
@@ -1370,7 +1382,8 @@ namespace oblo::gpu::vk
                 return translate_error(result);
             }
 
-            offset += t.size + t.size % newRequirements.alignment;
+            offset += t.size;
+            offset = (offset + newRequirements.alignment - 1) & ~(newRequirements.alignment - 1);
 
             const auto& descriptor = descriptors[descriptorIdx];
 
@@ -2387,7 +2400,8 @@ namespace oblo::gpu::vk
         const VmaAllocation allocation = m_buffers.at(buffer).allocation;
 
         void* ptr{};
-        return translate_error_or_value(m_allocator.map(allocation, &ptr), ptr);
+        const VkResult result = m_allocator.map(allocation, &ptr);
+        return translate_error_or_value(result, ptr);
     }
 
     result<> vulkan_instance::memory_unmap(h32<buffer> buffer)

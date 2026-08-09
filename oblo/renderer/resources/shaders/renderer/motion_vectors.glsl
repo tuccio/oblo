@@ -2,7 +2,7 @@
 #define OBLO_INCLUDE_RENDERER_MOTION_VECTORS
 
 // We currently store motion vectors as 16-bit floats, so no encoding is necessary.
-#define OBLO_MOTION_VECTORS_FORMAT rg16
+#define OBLO_MOTION_VECTORS_FORMAT rg16f
 
 vec2 motion_vectors_encode(in vec2 ndc)
 {
