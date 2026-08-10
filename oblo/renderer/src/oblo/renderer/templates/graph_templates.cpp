@@ -362,6 +362,16 @@ namespace oblo::main_view
                 entityPicking,
                 &entity_picking::inInstanceBuffers);
 
+            graph.connect(visibilityGBuffer,
+                &visibility_gbuffer::outGBuffer0,
+                entityPicking,
+                &entity_picking::inGBuffer0);
+
+            graph.connect(visibilityGBuffer,
+                &visibility_gbuffer::outGBuffer1,
+                entityPicking,
+                &entity_picking::inGBuffer1);
+
             graph.make_input(entityPicking, &entity_picking::inPickingConfiguration, InPickingConfiguration);
 
             // This is quite awkward admittedly, but if no output is active the node is culled

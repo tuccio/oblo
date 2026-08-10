@@ -17,6 +17,7 @@
 #include <oblo/renderer/data/async_download.hpp>
 #include <oblo/renderer/data/camera_buffer.hpp>
 #include <oblo/renderer/data/picking_configuration.hpp>
+#include <oblo/renderer/data/picking_result.hpp>
 #include <oblo/renderer/data/time_buffer.hpp>
 #include <oblo/renderer/data/visibility_debug_mode.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
@@ -185,7 +186,9 @@ namespace oblo
                             if (downloadResult)
                             {
                                 const std::span bytes = *downloadResult;
-                                std::memcpy(&viewport.picking.result, bytes.data(), min(bytes.size(), sizeof(u32)));
+                                std::memcpy(&viewport.picking.result,
+                                    bytes.data(),
+                                    min(bytes.size(), sizeof(picking_result)));
                                 viewport.picking.state = picking_request::state::served;
                             }
                             else

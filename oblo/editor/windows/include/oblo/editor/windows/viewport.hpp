@@ -56,5 +56,6 @@ namespace oblo::editor
         u32 m_viewportId{};
         gizmo_handler m_gizmoHandler{};
         dynamic_array<cstring_view> m_viewportModes;
+        bool m_surfaceSnapping{};
     };
 }

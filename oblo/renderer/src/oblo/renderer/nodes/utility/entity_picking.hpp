@@ -17,6 +17,9 @@ namespace oblo
     {
         pin::data<picking_configuration> inPickingConfiguration;
 
+        pin::texture inGBuffer0;
+        pin::texture inGBuffer1;
+
         pin::buffer inInstanceTables;
         pin::data<instance_data_table_buffers_span> inInstanceBuffers;
 
