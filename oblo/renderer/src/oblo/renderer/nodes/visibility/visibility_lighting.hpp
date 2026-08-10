@@ -104,6 +104,8 @@ namespace oblo
         pin::texture inVisibilityBuffer;
         pin::texture outShadedImage;
 
+        pin::texture inMotionVectors;
+
         h32<compute_pass> debugPass;
         h32<compute_pass_instance> debugPassInstance;
 

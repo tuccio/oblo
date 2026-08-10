@@ -295,8 +295,6 @@ namespace oblo
                 break;
 
             case viewport_mode::motion_vectors:
-                frameGraph.set_input(subgraph, main_view::InDebugMode, visibility_debug_mode::motion_vectors)
-                    .assert_value();
                 break;
 
             case viewport_mode::raytracing_debug:
@@ -365,7 +363,7 @@ namespace oblo
             return main_view::OutDebugImage;
 
         case viewport_mode::motion_vectors:
-            return main_view::OutDebugImage;
+            return main_view::OutMotionVectors;
 
         case viewport_mode::raytracing_debug:
             return main_view::OutRTDebugImage;
