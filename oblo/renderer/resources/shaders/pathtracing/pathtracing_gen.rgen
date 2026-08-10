@@ -34,7 +34,7 @@ layout(push_constant) uniform c_PushConstants
 g_Constants;
 
 const uint g_SamplesPerPixel = 2;
-const uint g_MaxBounces = 4;
+const uint g_MaxBounces = PATHTRACING_MAX_BOUNCES;
 const uint g_MaxSamplesPerPixel = 1u << 14;
 
 void main()

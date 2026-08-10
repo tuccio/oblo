@@ -1792,6 +1792,8 @@ namespace oblo::gpu::vk
     result<h32<raytracing_pipeline>> vulkan_instance::create_raytracing_pipeline(
         const raytracing_pipeline_descriptor& descriptor)
     {
+        OBLO_ASSERT(descriptor.maxPipelineRayRecursionDepth > 0, "The ray recursion depth should be set explicitly");
+
         const auto [newPipeline, handle] = m_raytracingPipelines.emplace();
         newPipeline->label = descriptor.debugLabel;
 

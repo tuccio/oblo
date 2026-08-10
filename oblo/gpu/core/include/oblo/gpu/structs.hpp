@@ -261,7 +261,7 @@ namespace oblo::gpu
         std::span<const raytracing_hit_group_descriptor> hitGroups;
         std::span<const push_constant_range> pushConstants;
         std::span<const h32<bind_group_layout>> bindGroupLayouts;
-        u32 maxPipelineRayRecursionDepth;
+        u32 maxPipelineRayRecursionDepth{0};
         debug_label debugLabel = std::source_location::current();
     };
 

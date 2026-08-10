@@ -1,6 +1,7 @@
 #include <oblo/renderer/nodes/pathtracing/pathtracing.hpp>
 
 #include <oblo/core/random_generator.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/gpu/structs.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/draw_buffer_data.hpp>
@@ -10,6 +11,11 @@
 
 namespace oblo
 {
+    namespace
+    {
+        constexpr u32 max_bounces = 4;
+    }
+
     void pathtracing::init(const frame_graph_init_context& ctx)
     {
         ptPass = ctx.register_raytracing_pass({
@@ -56,7 +62,16 @@ namespace oblo
             },
             texture_usage::transfer_destination);
 
-        ptPassInstance = ctx.raytracing_pass(ptPass, {});
+        ptPassInstance = ctx.raytracing_pass(ptPass,
+            {
+                .maxPipelineRayRecursionDepth = max_bounces + 1, // +1 for shadow casts
+                .defines =
+                    {
+                        {
+                            string_builder{}.format("PATHTRACING_MAX_BOUNCES {}", max_bounces).as<hashed_string_view>(),
+                        },
+                    },
+            });
 
         ctx.acquire(outShadedImage, texture_usage::storage_write);
         ctx.acquire(samplesCountImage, texture_usage::storage_write);
