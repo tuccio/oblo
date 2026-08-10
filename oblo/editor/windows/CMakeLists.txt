@@ -5,7 +5,6 @@ oblo_add_library(
 
 find_package(iconfontcppheaders REQUIRED)
 find_package(ImGui REQUIRED)
-find_package(imguizmo REQUIRED)
 
 target_link_libraries(
     oblo_editor_windows
@@ -25,5 +24,4 @@ target_link_libraries(
     oblo::scene
     imgui::imgui
     iconfontcppheaders::iconfontcppheaders
-    imguizmo::imguizmo
 )

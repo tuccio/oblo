@@ -2,7 +2,6 @@
 
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/unique_ptr.hpp>
-#include <oblo/editor/modules/gizmo_module.hpp>
 #include <oblo/editor/window_module.hpp>
 #include <oblo/metrics/metrics_module.hpp>
 #include <oblo/modules/module_initializer.hpp>
@@ -12,9 +11,8 @@ namespace oblo::editor
 {
     struct editor_modules_provider final : window_modules_provider
     {
-        void fetch_window_modules(dynamic_array<unique_ptr<window_module>>& outWindowModules) const override
+        void fetch_window_modules(dynamic_array<unique_ptr<window_module>>&) const override
         {
-            outWindowModules.push_back(allocate_unique<gizmo_module>());
         }
     };
 

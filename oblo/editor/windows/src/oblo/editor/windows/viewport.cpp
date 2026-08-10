@@ -42,9 +42,6 @@ namespace oblo::editor
     namespace
     {
         constexpr f32 SpawnDistance{1.f};
-
-        // Offset applied along the surface normal when snapping the pivot to a surface, to avoid coplanar z-fighting
-        constexpr f32 SurfaceSnapOffset{0.01f};
     }
 
     viewport::~viewport()
@@ -95,6 +92,8 @@ namespace oblo::editor
             m_viewportModes[value] = viewportModeNames[i];
         }
 
+        m_gizmoHandler.init();
+
         return true;
     }
 
@@ -120,7 +119,6 @@ namespace oblo::editor
             const auto regionMin = ImGui::GetWindowContentRegionMin();
             const auto regionMax = ImGui::GetWindowContentRegionMax();
 
-            const auto viewportPos = ImGui::GetWindowPos();
             const auto windowSize = ImVec2{regionMax.x - regionMin.x, regionMax.y - regionMin.y};
 
             if (!m_entity)
@@ -165,20 +163,19 @@ namespace oblo::editor
 
                 const bool isClicked = ImGui::IsItemClicked();
 
-                // Maybe use item size?
                 m_gizmoHandler.set_id(m_viewportId);
+
+                // The gizmo rect matches the image rect, so its picking coordinates line up with the render buffer
+                const auto itemRectMin = ImGui::GetItemRectMin();
+                const auto itemRectSize = ImGui::GetItemRectSize();
 
                 const auto gizmoActive = m_gizmoHandler.handle(*m_resources,
                     *m_entities,
                     m_selection->get(),
-                    {viewportPos.x, viewportPos.y},
-                    {windowSize.x, windowSize.y},
-                    m_entity);
-
-                // While the translation gizmo is being dragged we keep picking the surface under the cursor, so the
-                // selected entity's pivot can snap to it
-                const bool wantSurfaceSnap =
-                    gizmoActive && m_gizmoHandler.get_operation() == gizmo_handler::operation::translation;
+                    {itemRectMin.x, itemRectMin.y},
+                    {itemRectSize.x, itemRectSize.y},
+                    m_entity,
+                    &v);
 
                 const auto getMouseCoordinates = []() -> vec2
                 {
@@ -190,15 +187,8 @@ namespace oblo::editor
                 switch (v.picking.state)
                 {
                 case picking_request::state::none:
-                    if (wantSurfaceSnap)
+                    if (hasFocus && !gizmoActive && isClicked)
                     {
-                        m_surfaceSnapping = true;
-                        v.picking.coordinates = getMouseCoordinates();
-                        v.picking.state = picking_request::state::requested;
-                    }
-                    else if (hasFocus && !gizmoActive && isClicked)
-                    {
-                        m_surfaceSnapping = false;
                         v.picking.coordinates = getMouseCoordinates();
                         v.picking.state = picking_request::state::requested;
                     }
@@ -206,61 +196,20 @@ namespace oblo::editor
                     break;
 
                 case picking_request::state::served: {
-                    if (m_surfaceSnapping)
+                    m_selection->clear();
+
+                    if (const ecs::entity selectedEntity{v.picking.result.entityId};
+                        selectedEntity && m_entities->contains(selectedEntity))
                     {
-                        const auto& result = v.picking.result;
-
-                        const auto selected = m_selection->get();
-
-                        if (selected.size() == 1)
-                        {
-                            const ecs::entity draggedEntity = selected[0];
-
-                            // Don't snap to the entity we're dragging, or when the pick is empty
-                            if (const ecs::entity pickedEntity{result.entityId};
-                                pickedEntity && pickedEntity != draggedEntity && m_entities->contains(pickedEntity))
-                            {
-                                const vec3 surfacePosition{result.position.x, result.position.y, result.position.z};
-                                const vec3 surfaceNormal{result.normal.x, result.normal.y, result.normal.z};
-
-                                if (auto* const position = m_entities->try_get<position_component>(draggedEntity))
-                                {
-                                    position->value = surfacePosition + surfaceNormal * SurfaceSnapOffset;
-                                    m_entities->notify(draggedEntity);
-                                }
-                            }
-                        }
-
-                        if (wantSurfaceSnap)
-                        {
-                            v.picking.coordinates = getMouseCoordinates();
-                            v.picking.state = picking_request::state::requested;
-                        }
-                        else
-                        {
-                            m_surfaceSnapping = false;
-                            v.picking.state = picking_request::state::none;
-                        }
-                    }
-                    else
-                    {
-                        m_selection->clear();
-
-                        if (const ecs::entity selectedEntity{v.picking.result.entityId};
-                            selectedEntity && m_entities->contains(selectedEntity))
-                        {
-                            m_selection->add({&selectedEntity, 1});
-                            m_selection->push_refresh_event();
-                        }
-
-                        v.picking.state = picking_request::state::none;
+                        m_selection->add({&selectedEntity, 1});
+                        m_selection->push_refresh_event();
                     }
 
+                    v.picking.state = picking_request::state::none;
                     break;
                 }
 
                 case picking_request::state::failed: {
-                    m_surfaceSnapping = false;
                     v.picking.state = picking_request::state::none;
                     break;
                 }
