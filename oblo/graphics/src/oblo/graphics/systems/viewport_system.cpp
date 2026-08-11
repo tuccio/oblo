@@ -12,6 +12,7 @@
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/graphics/services/scene_renderer.hpp>
+#include <oblo/graphics/tags/tags.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/renderer/data/async_download.hpp>
@@ -67,6 +68,23 @@ namespace oblo
         {
             // Set to false to garbage collect
             renderGraphData.isAlive = false;
+        }
+
+        // Gather the entities that should never be picked, they are excluded from the picking render pass
+        u32 excludedEntityCount{};
+        u32 excludedEntityIds[MaxPickingExcludedEntities]{};
+
+        for (auto&& chunk : ctx.entities->range<>().with<picking_excluded_tag>())
+        {
+            for (auto&& [e] : chunk.zip<ecs::entity>())
+            {
+                if (excludedEntityCount >= MaxPickingExcludedEntities)
+                {
+                    break;
+                }
+
+                excludedEntityIds[excludedEntityCount++] = e.value;
+            }
         }
 
         for (auto&& chunk : ctx.entities->range<global_transform_component, camera_component, viewport_component>())
@@ -155,6 +173,13 @@ namespace oblo
                 if (renderGraphData->hasPicking)
                 {
                     picking_configuration pickingConfig{};
+
+                    pickingConfig.excludedEntityCount = excludedEntityCount;
+
+                    for (u32 i = 0; i < excludedEntityCount; ++i)
+                    {
+                        pickingConfig.excludedEntityIds[i] = excludedEntityIds[i];
+                    }
 
                     frameGraph.set_output_state(viewport.graph, main_view::OutPicking, false);
 

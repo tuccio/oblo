@@ -25,6 +25,7 @@
 #include <oblo/renderer/nodes/surfels/surfel_debug.hpp>
 #include <oblo/renderer/nodes/surfels/surfel_management.hpp>
 #include <oblo/renderer/nodes/utility/entity_picking.hpp>
+#include <oblo/renderer/nodes/utility/picking_visibility_pass.hpp>
 #include <oblo/renderer/nodes/visibility/visibility_extra_buffers.hpp>
 #include <oblo/renderer/nodes/visibility/visibility_lighting.hpp>
 #include <oblo/renderer/nodes/visibility/visibility_pass.hpp>
@@ -234,9 +235,10 @@ namespace oblo::main_view
         }
 
         // Culling + draw call generation
-        {
-            const auto frustumCulling = graph.add_node<frustum_culling>();
+        const auto frustumCulling = graph.add_node<frustum_culling>();
+        const auto drawCallGenerator = graph.add_node<draw_call_generator>();
 
+        {
             graph.connect(viewBuffers,
                 &view_buffers_node::outCameraBuffer,
                 frustumCulling,
@@ -261,8 +263,6 @@ namespace oblo::main_view
                 &render_world_provider::inOutRenderWorld,
                 frustumCulling,
                 &frustum_culling::inRenderWorld);
-
-            const auto drawCallGenerator = graph.add_node<draw_call_generator>();
 
             // We need to read mesh handles from instance data to generate draw calls
 
@@ -345,10 +345,69 @@ namespace oblo::main_view
         // Picking
         if (cfg.withPicking)
         {
+            const auto pickingVisibilityPass = graph.add_node<picking_visibility_pass>();
+            const auto pickingGBuffer = graph.add_node<visibility_gbuffer>();
             const auto entityPicking = graph.add_node<entity_picking>();
 
+            graph.connect(viewBuffers,
+                &view_buffers_node::inResolution,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inResolution);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::outCameraBuffer,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inCameraBuffer);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inMeshDatabase,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inMeshDatabase);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceTables,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inInstanceTables);
+
+            graph.connect(viewBuffers,
+                &view_buffers_node::inInstanceBuffers,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inInstanceBuffers);
+
             graph.connect(visibilityPass,
-                &visibility_pass::outVisibilityBuffer,
+                &picking_visibility_pass::inEntitySetBuffer,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inEntitySetBuffer);
+
+            graph.connect(frustumCulling,
+                &frustum_culling::outDrawBufferData,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inDrawData);
+
+            graph.connect(drawCallGenerator,
+                &draw_call_generator::outDrawCallBuffer,
+                pickingVisibilityPass,
+                &picking_visibility_pass::inDrawCallBuffer);
+
+            graph.make_input(pickingVisibilityPass,
+                &picking_visibility_pass::inPickingConfiguration,
+                InPickingConfiguration);
+
+            // The picking GBuffer reconstructs position and normal from the picking visibility buffer
+            connectShadingPass(pickingGBuffer, h32<visibility_gbuffer>{});
+
+            graph.connect(pickingVisibilityPass,
+                &picking_visibility_pass::outVisibilityBuffer,
+                pickingGBuffer,
+                &visibility_gbuffer::inVisibilityBuffer);
+
+            graph.connect(visibilityPass,
+                &picking_visibility_pass::inEntitySetBuffer,
+                pickingGBuffer,
+                &visibility_gbuffer::inEntitySetBuffer);
+
+            graph.connect(pickingVisibilityPass,
+                &picking_visibility_pass::outVisibilityBuffer,
                 entityPicking,
                 &entity_picking::inVisibilityBuffer);
 
@@ -362,17 +421,14 @@ namespace oblo::main_view
                 entityPicking,
                 &entity_picking::inInstanceBuffers);
 
-            graph.connect(visibilityGBuffer,
-                &visibility_gbuffer::outGBuffer0,
-                entityPicking,
-                &entity_picking::inGBuffer0);
+            graph.connect(pickingGBuffer, &visibility_gbuffer::outGBuffer0, entityPicking, &entity_picking::inGBuffer0);
 
-            graph.connect(visibilityGBuffer,
-                &visibility_gbuffer::outGBuffer1,
-                entityPicking,
-                &entity_picking::inGBuffer1);
+            graph.connect(pickingGBuffer, &visibility_gbuffer::outGBuffer1, entityPicking, &entity_picking::inGBuffer1);
 
-            graph.make_input(entityPicking, &entity_picking::inPickingConfiguration, InPickingConfiguration);
+            graph.connect(pickingVisibilityPass,
+                &picking_visibility_pass::inPickingConfiguration,
+                entityPicking,
+                &entity_picking::inPickingConfiguration);
 
             // This is quite awkward admittedly, but if no output is active the node is culled
             graph.make_output(entityPicking, &entity_picking::outPickingResult, OutPicking);
@@ -983,6 +1039,7 @@ namespace oblo
         registry.register_node<deferred_lighting>();
         registry.register_node<draw_call_generator>();
         registry.register_node<entity_picking>();
+        registry.register_node<picking_visibility_pass>();
         registry.register_node<pathtracing>();
         registry.register_node<raytracing_debug>();
         registry.register_node<tone_mapping_node>();

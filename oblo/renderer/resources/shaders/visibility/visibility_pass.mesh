@@ -7,6 +7,12 @@
 #extension GL_EXT_shader_8bit_storage : require
 #extension GL_EXT_shader_explicit_arithmetic_types_int16 : require
 
+layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+#ifdef PICKING_PASS
+    #include <ecs/entity_buffer>
+#endif
+
 #include <renderer/camera>
 #include <renderer/instances>
 #include <renderer/math>
@@ -17,8 +23,6 @@
 #include <renderer/meshes/skinning>
 #include <renderer/transform>
 #include <visibility/visibility_buffer>
-
-layout(local_size_x = OBLO_SUBGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 layout(triangles) out;
 layout(max_vertices = OBLO_MESHLET_MAX_VERTICES, max_primitives = OBLO_MESHLET_MAX_PRIMITIVES) out;
@@ -35,9 +39,19 @@ layout(std430, binding = 1) restrict readonly buffer b_PreCullingIdMap
     uint inInstancesInFrustum[];
 };
 
+#ifdef PICKING_PASS
+layout(std430, binding = 2) restrict readonly buffer b_ExcludedEntities
+{
+    uint inExcludedEntities[];
+};
+#endif
+
 layout(push_constant) uniform c_PushConstants
 {
     uint instanceTableId;
+#ifdef PICKING_PASS
+    uint excludedEntityCount;
+#endif
 }
 g_Constants;
 
@@ -45,6 +59,21 @@ void main()
 {
     const uint preCullingId = inInstancesInFrustum[gl_DrawID];
     const uint meshletId = gl_GlobalInvocationID.y;
+
+#ifdef PICKING_PASS
+    {
+        const ecs_entity entityId = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_EntityIdBuffer, preCullingId);
+
+        for (uint i = 0; i < g_Constants.excludedEntityCount; ++i)
+        {
+            if (inExcludedEntities[i] == entityId.id)
+            {
+                SetMeshOutputsEXT(0, 0);
+                return;
+            }
+        }
+    }
+#endif
 
     const mesh_handle meshHandle = OBLO_INSTANCE_DATA(g_Constants.instanceTableId, i_MeshHandles, preCullingId);
     const mesh_table table = mesh_table_fetch(meshHandle);

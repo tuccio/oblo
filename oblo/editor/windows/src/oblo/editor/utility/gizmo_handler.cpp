@@ -13,6 +13,7 @@
 #include <oblo/graphics/components/mesh_internal.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/graphics/tags/tags.hpp>
 #include <oblo/math/constants.hpp>
 #include <oblo/math/plane.hpp>
 #include <oblo/math/transform.hpp>
@@ -946,11 +947,18 @@ namespace oblo::editor
         gizmo_drag_state drag{};
         gizmo_handle_type hovered{};
 
+        // The entity currently excluded from picking, while it is being dragged.
+        ecs::entity excludedFromPicking{};
+
         void update_surface_snap(ecs::entity_registry& reg,
             viewport_component* viewport,
             ecs::entity e,
             vec2 pickingCoordinates,
             vec3& outPosition);
+
+        void set_picking_exclusion(ecs::entity_registry& reg, ecs::entity e);
+
+        void clear_picking_exclusion(ecs::entity_registry& reg);
     };
 
     gizmo_handler::gizmo_handler() = default;
@@ -1039,6 +1047,33 @@ namespace oblo::editor
         }
     }
 
+    void gizmo_handler::impl::set_picking_exclusion(ecs::entity_registry& reg, ecs::entity e)
+    {
+        if (excludedFromPicking != e)
+        {
+            clear_picking_exclusion(reg);
+            excludedFromPicking = e;
+
+            if (e && reg.contains(e))
+            {
+                reg.add<picking_excluded_tag>(e);
+            }
+        }
+    }
+
+    void gizmo_handler::impl::clear_picking_exclusion(ecs::entity_registry& reg)
+    {
+        if (excludedFromPicking)
+        {
+            if (reg.contains(excludedFromPicking))
+            {
+                reg.remove<picking_excluded_tag>(excludedFromPicking);
+            }
+
+            excludedFromPicking = {};
+        }
+    }
+
     bool gizmo_handler::handle(const resource_registry& resources,
         ecs::entity_registry& reg,
         std::span<const ecs::entity> entities,
@@ -1050,11 +1085,13 @@ namespace oblo::editor
         if (!cameraEntity)
         {
             OBLO_ASSERT(cameraEntity);
+            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
         if (entities.size() != 1)
         {
+            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
@@ -1063,11 +1100,13 @@ namespace oblo::editor
         // TODO (#60): Maybe ignore all editor entities?
         if (e == cameraEntity)
         {
+            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
         if (!reg.contains(e))
         {
+            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
@@ -1116,6 +1155,7 @@ namespace oblo::editor
             if (m_impl->drag.active && !m_impl->drag.isJoint)
             {
                 end_drag(m_impl->drag, m_impl->surfaceSnapping, viewport);
+                m_impl->clear_picking_exclusion(reg);
             }
 
             auto&& [poseComp, jointTransforms] = reg.get<joint_pose_component, joint_skinning_transform_component>(e);
@@ -1219,6 +1259,7 @@ namespace oblo::editor
             if (m_impl->drag.active && m_impl->drag.isJoint)
             {
                 end_drag(m_impl->drag, m_impl->surfaceSnapping, viewport);
+                m_impl->clear_picking_exclusion(reg);
             }
 
             auto&& [positionComp, rotationComp, scaleComp, transformComp] =
@@ -1278,6 +1319,15 @@ namespace oblo::editor
                 unreachable();
             }
 
+            if (m_impl->op == operation::translation && m_impl->drag.active && !m_impl->drag.isJoint)
+            {
+                m_impl->set_picking_exclusion(reg, e);
+            }
+            else
+            {
+                m_impl->clear_picking_exclusion(reg);
+            }
+
             if (m_impl->op == operation::translation)
             {
                 m_impl->update_surface_snap(reg, viewport, e, mouse - origin, out.position);
@@ -1300,6 +1350,7 @@ namespace oblo::editor
         if (m_impl->drag.active && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
             end_drag(m_impl->drag, m_impl->surfaceSnapping, viewport);
+            m_impl->clear_picking_exclusion(reg);
         }
 
         return interacting || m_impl->drag.active;
