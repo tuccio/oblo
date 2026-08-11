@@ -58,11 +58,12 @@ namespace oblo
 
         if (ctx.begin_pass(pickingPassInstance))
         {
-            const vec2u screenPosition{u32(pickingConfiguration.coordinates.x + .5f),
-                u32(pickingConfiguration.coordinates.y + .5f)};
+            const vec2u screenPosition{
+                u32(pickingConfiguration.coordinates.x + .5f),
+                u32(pickingConfiguration.coordinates.y + .5f),
+            };
 
             ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&screenPosition, 1}));
-
             ctx.bind_descriptor_sets(bindingTable);
 
             ctx.dispatch_compute(1, 1, 1);

@@ -11,6 +11,8 @@
 
 namespace oblo
 {
+    struct picking_excluded_tag;
+
     void visibility_pass::init(const frame_graph_init_context& ctx)
     {
         renderPass = ctx.register_render_pass({
@@ -31,6 +33,12 @@ namespace oblo
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
         constexpr auto visibilityBufferFormat = gpu::image_format::r32g32_uint;
+
+        if (isPickingInstance)
+        {
+            auto& reg = ctx.access(inRenderWorld).entityRegistry;
+            pickingExcludedTag = reg->get_type_registry().find_tag<picking_excluded_tag>();
+        }
 
         passInstance = ctx.render_pass(renderPass,
             {
@@ -171,6 +179,11 @@ namespace oblo
         {
             const draw_buffer_data& culledDraw = drawData[drawCallIndex];
             OBLO_ASSERT(culledDraw.sourceData.kind == batch_kind::draw);
+
+            if (pickingExcludedTag && culledDraw.sourceData.componentsAndTags.tags.contains(pickingExcludedTag))
+            {
+                continue;
+            }
 
             perDrawBindingTable.clear();
 

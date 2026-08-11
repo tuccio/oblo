@@ -52,6 +52,7 @@ namespace oblo
         u32 instanceTableId;
         u32 numInstances;
         batch_kind kind;
+        ecs::component_and_tag_sets componentsAndTags;
     };
 
     class draw_registry
