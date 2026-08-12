@@ -27,6 +27,7 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/entity_hierarchy_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/tags.hpp>
@@ -92,6 +93,8 @@ namespace oblo::editor
             m_viewportModes[value] = viewportModeNames[i];
         }
 
+        m_gizmoHandler.init();
+
         return true;
     }
 
@@ -117,7 +120,6 @@ namespace oblo::editor
             const auto regionMin = ImGui::GetWindowContentRegionMin();
             const auto regionMax = ImGui::GetWindowContentRegionMax();
 
-            const auto viewportPos = ImGui::GetWindowPos();
             const auto windowSize = ImVec2{regionMax.x - regionMin.x, regionMax.y - regionMin.y};
 
             if (!m_entity)
@@ -162,24 +164,33 @@ namespace oblo::editor
 
                 const bool isClicked = ImGui::IsItemClicked();
 
-                // Maybe use item size?
                 m_gizmoHandler.set_id(m_viewportId);
+
+                // The gizmo rect matches the image rect, so its picking coordinates line up with the render buffer
+                const auto itemRectMin = ImGui::GetItemRectMin();
+                const auto itemRectSize = ImGui::GetItemRectSize();
 
                 const auto gizmoActive = m_gizmoHandler.handle(*m_resources,
                     *m_entities,
                     m_selection->get(),
-                    {viewportPos.x, viewportPos.y},
-                    {windowSize.x, windowSize.y},
-                    m_entity);
+                    {itemRectMin.x, itemRectMin.y},
+                    {itemRectSize.x, itemRectSize.y},
+                    m_entity,
+                    &v);
+
+                const auto getMouseCoordinates = []() -> vec2
+                {
+                    const auto [viewportX, viewportY] = ImGui::GetItemRectMin();
+                    const auto [mouseX, mouseY] = ImGui::GetMousePos();
+                    return {mouseX - viewportX, mouseY - viewportY};
+                };
 
                 switch (v.picking.state)
                 {
                 case picking_request::state::none:
                     if (hasFocus && !gizmoActive && isClicked)
                     {
-                        const auto [viewportX, viewportY] = ImGui::GetItemRectMin();
-                        const auto [mouseX, mouseY] = ImGui::GetMousePos();
-                        v.picking.coordinates = {mouseX - viewportX, mouseY - viewportY};
+                        v.picking.coordinates = getMouseCoordinates();
                         v.picking.state = picking_request::state::requested;
                     }
 
@@ -188,18 +199,40 @@ namespace oblo::editor
                 case picking_request::state::served: {
                     m_selection->clear();
 
-                    if (const ecs::entity selectedEntity{v.picking.result};
+                    if (const ecs::entity selectedEntity{v.picking.result.entityId};
                         selectedEntity && m_entities->contains(selectedEntity))
                     {
-                        m_selection->add({&selectedEntity, 1});
+                        ecs::entity entityToSelect{selectedEntity};
+
+                        // For entity hierarchies, select the root by default
+                        // Maybe we want different behaviours to be somehow configurable though
+                        if (m_entities->has<entity_hierarchy_instance_tag>(selectedEntity))
+                        {
+                            while (true)
+                            {
+                                if (m_entities->has<entity_hierarchy_component>(entityToSelect))
+                                {
+                                    break;
+                                }
+
+                                auto* const parent = m_entities->try_get<parent_component>(entityToSelect);
+
+                                if (!parent || !parent->parent || !m_entities->contains(parent->parent))
+                                {
+                                    break;
+                                }
+
+                                entityToSelect = parent->parent;
+                            }
+                        }
+
+                        m_selection->add({&entityToSelect, 1});
                         m_selection->push_refresh_event();
                     }
 
                     v.picking.state = picking_request::state::none;
                     break;
                 }
-
-                break;
 
                 case picking_request::state::failed: {
                     v.picking.state = picking_request::state::none;

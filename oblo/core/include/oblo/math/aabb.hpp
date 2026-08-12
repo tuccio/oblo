@@ -37,6 +37,12 @@ namespace oblo
         return {min(lhs.min, rhs.min), max(lhs.max, rhs.max)};
     }
 
+    constexpr bool overlap(const aabb& lhs, const aabb& rhs)
+    {
+        return lhs.min.x < rhs.max.x && rhs.min.x < lhs.max.x && lhs.min.y < rhs.max.y &&
+            rhs.min.y < lhs.max.y && lhs.min.z < rhs.max.z && rhs.min.z < lhs.max.z;
+    }
+
     constexpr u8 max_extent(const aabb& aabb)
     {
         const auto diagonal = aabb.max - aabb.min;

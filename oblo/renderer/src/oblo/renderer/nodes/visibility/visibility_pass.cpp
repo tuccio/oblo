@@ -11,6 +11,8 @@
 
 namespace oblo
 {
+    struct picking_excluded_tag;
+
     void visibility_pass::init(const frame_graph_init_context& ctx)
     {
         renderPass = ctx.register_render_pass({
@@ -31,6 +33,12 @@ namespace oblo
     void visibility_pass::build(const frame_graph_build_context& ctx)
     {
         constexpr auto visibilityBufferFormat = gpu::image_format::r32g32_uint;
+
+        if (isPickingInstance)
+        {
+            auto& reg = ctx.access(inRenderWorld).entityRegistry;
+            pickingExcludedTag = reg->get_type_registry().find_tag<picking_excluded_tag>();
+        }
 
         passInstance = ctx.render_pass(renderPass,
             {
@@ -81,21 +89,25 @@ namespace oblo
                     .width = resolution.x,
                     .height = resolution.y,
                     .format = gpu::image_format::d24_unorm_s8_uint,
-                    .isStable = true,
+                    .isStable = !isPickingInstance,
                 },
                 texture_usage::depth_stencil_write);
 
-            ctx.create(depthBuffers[readDepthIndex],
-                {
-                    .width = resolution.x,
-                    .height = resolution.y,
-                    .format = gpu::image_format::d24_unorm_s8_uint,
-                    .isStable = true,
-                },
-                texture_usage::depth_stencil_read);
-
             ctx.reroute(depthBuffers[writeDepthIndex], outDepthBuffer);
-            ctx.reroute(depthBuffers[readDepthIndex], outLastFrameDepthBuffer);
+
+            if (!isPickingInstance)
+            {
+                ctx.create(depthBuffers[readDepthIndex],
+                    {
+                        .width = resolution.x,
+                        .height = resolution.y,
+                        .format = gpu::image_format::d24_unorm_s8_uint,
+                        .isStable = true,
+                    },
+                    texture_usage::depth_stencil_read);
+
+                ctx.reroute(depthBuffers[readDepthIndex], outLastFrameDepthBuffer);
+            }
 
             outputIndex = readDepthIndex;
         }
@@ -171,6 +183,12 @@ namespace oblo
         {
             const draw_buffer_data& culledDraw = drawData[drawCallIndex];
             OBLO_ASSERT(culledDraw.sourceData.kind == batch_kind::draw);
+
+            if (isPickingInstance && pickingExcludedTag &&
+                culledDraw.sourceData.componentsAndTags.tags.contains(pickingExcludedTag))
+            {
+                continue;
+            }
 
             perDrawBindingTable.clear();
 

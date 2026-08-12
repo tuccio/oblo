@@ -4,6 +4,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/draw_buffer_data.hpp>
 #include <oblo/renderer/data/picking_configuration.hpp>
+#include <oblo/renderer/data/picking_result.hpp>
 #include <oblo/renderer/draw/binding_table.hpp>
 #include <oblo/renderer/draw/compute_pass_initializer.hpp>
 #include <oblo/renderer/graph/node_common.hpp>
@@ -23,9 +24,12 @@ namespace oblo
         pickingPassInstance = ctx.compute_pass(pickingPass, {});
         ctx.acquire(inVisibilityBuffer, texture_usage::storage_read);
 
+        ctx.acquire(inGBuffer0, texture_usage::storage_read);
+        ctx.acquire(inGBuffer1, texture_usage::storage_read);
+
         ctx.create(outPickingId,
             {
-                .size = u32(sizeof(u32)),
+                .size = u32(sizeof(picking_result)),
             },
             buffer_usage::storage_write);
 
@@ -41,22 +45,25 @@ namespace oblo
 
         binding_table bindingTable;
 
-        bindingTable.bind_textures({
-            {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
-        });
-
         bindingTable.bind_buffers({
             {"b_InstanceTables"_hsv, inInstanceTables},
-            {"b_OutPickingId"_hsv, outPickingId},
+            {"b_OutPickingResult"_hsv, outPickingId},
+        });
+
+        bindingTable.bind_textures({
+            {"t_InVisibilityBuffer"_hsv, inVisibilityBuffer},
+            {"t_InGBuffer0"_hsv, inGBuffer0},
+            {"t_InGBuffer1"_hsv, inGBuffer1},
         });
 
         if (ctx.begin_pass(pickingPassInstance))
         {
-            const vec2u screenPosition{u32(pickingConfiguration.coordinates.x + .5f),
-                u32(pickingConfiguration.coordinates.y + .5f)};
+            const vec2u screenPosition{
+                u32(pickingConfiguration.coordinates.x + .5f),
+                u32(pickingConfiguration.coordinates.y + .5f),
+            };
 
             ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&screenPosition, 1}));
-
             ctx.bind_descriptor_sets(bindingTable);
 
             ctx.dispatch_compute(1, 1, 1);

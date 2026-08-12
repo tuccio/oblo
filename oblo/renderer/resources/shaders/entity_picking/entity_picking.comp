@@ -5,18 +5,29 @@
 #extension GL_EXT_shader_16bit_storage : require
 #extension GL_GOOGLE_include_directive : require
 
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
 #include <ecs/entity_buffer>
 #include <renderer/instances>
 #include <visibility/visibility_buffer>
 
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-
-layout(std430, binding = 10) restrict writeonly buffer b_OutPickingId
+struct picking_result
 {
-    ecs_entity outPickingId;
+    vec3 position;
+    uint entityId;
+    vec3 normal;
+    float _padding;
+};
+
+layout(std430, binding = 10) restrict writeonly buffer b_OutPickingResult
+{
+    picking_result outPickingResult;
 };
 
 layout(binding = 11, rg32ui) uniform restrict readonly uimage2D t_InVisibilityBuffer;
+
+layout(binding = 12, rgba16f) uniform restrict readonly image2D t_InGBuffer0;
+layout(binding = 13, rgba16f) uniform restrict readonly image2D t_InGBuffer1;
 
 layout(push_constant) uniform c_PushConstants
 {
@@ -32,10 +43,17 @@ void main()
 
     if (!visibility_buffer_parse(visBufferData.xy, vb))
     {
-        outPickingId = ecs_entity_invalid();
+        outPickingResult = picking_result(vec3(0.f), 0u, vec3(0.f), 0.f);
         return;
     }
 
     const ecs_entity entityId = OBLO_INSTANCE_DATA(vb.instanceTableId, i_EntityIdBuffer, vb.instanceId);
-    outPickingId = entityId;
+
+    // Read the position and normal directly from the gbuffer, which already accounts for skinning and normal mapping
+    const vec4 gbuffer0 = imageLoad(t_InGBuffer0, g_Constants.screenPos);
+    const vec4 gbuffer1 = imageLoad(t_InGBuffer1, g_Constants.screenPos);
+
+    outPickingResult.position = gbuffer0.xyz;
+    outPickingResult.entityId = entityId.id;
+    outPickingResult.normal = gbuffer1.xyz;
 }

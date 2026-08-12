@@ -10,6 +10,7 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/tags.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/graphics/services/scene_renderer.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -17,6 +18,7 @@
 #include <oblo/renderer/data/async_download.hpp>
 #include <oblo/renderer/data/camera_buffer.hpp>
 #include <oblo/renderer/data/picking_configuration.hpp>
+#include <oblo/renderer/data/picking_result.hpp>
 #include <oblo/renderer/data/time_buffer.hpp>
 #include <oblo/renderer/data/visibility_debug_mode.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
@@ -66,6 +68,23 @@ namespace oblo
         {
             // Set to false to garbage collect
             renderGraphData.isAlive = false;
+        }
+
+        // Gather the entities that should never be picked, they are excluded from the picking render pass
+        u32 excludedEntityCount{};
+        u32 excludedEntityIds[MaxPickingExcludedEntities]{};
+
+        for (auto&& chunk : ctx.entities->range<>().with<picking_excluded_tag>())
+        {
+            for (auto&& [e] : chunk.zip<ecs::entity>())
+            {
+                if (excludedEntityCount >= MaxPickingExcludedEntities)
+                {
+                    break;
+                }
+
+                excludedEntityIds[excludedEntityCount++] = e.value;
+            }
         }
 
         for (auto&& chunk : ctx.entities->range<global_transform_component, camera_component, viewport_component>())
@@ -155,6 +174,13 @@ namespace oblo
                 {
                     picking_configuration pickingConfig{};
 
+                    pickingConfig.excludedEntityCount = excludedEntityCount;
+
+                    for (u32 i = 0; i < excludedEntityCount; ++i)
+                    {
+                        pickingConfig.excludedEntityIds[i] = excludedEntityIds[i];
+                    }
+
                     frameGraph.set_output_state(viewport.graph, main_view::OutPicking, false);
 
                     switch (viewport.picking.state)
@@ -185,7 +211,9 @@ namespace oblo
                             if (downloadResult)
                             {
                                 const std::span bytes = *downloadResult;
-                                std::memcpy(&viewport.picking.result, bytes.data(), min(bytes.size(), sizeof(u32)));
+                                std::memcpy(&viewport.picking.result,
+                                    bytes.data(),
+                                    min(bytes.size(), sizeof(picking_result)));
                                 viewport.picking.state = picking_request::state::served;
                             }
                             else

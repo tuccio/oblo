@@ -94,7 +94,8 @@ namespace oblo
                             root,
                             {
                                 // We mark all spawned entities as transient to avoid saving them with the scene
-                                .addTypes = ecs::make_type_sets<transient_tag>(ctx.entities->get_type_registry()),
+                                .addTypes = ecs::make_type_sets<entity_hierarchy_instance_tag, transient_tag>(
+                                    ctx.entities->get_type_registry()),
                             })
                             .has_value())
                     {

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <oblo/ecs/handles.hpp>
 #include <oblo/math/vec2u.hpp>
+#include <oblo/renderer/data/picking_configuration.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 #include <oblo/renderer/nodes/providers/instance_table_node.hpp>
@@ -13,9 +15,11 @@ namespace oblo
 
     struct visibility_pass
     {
+        pin::data<render_world> inRenderWorld;
         pin::data<vec2u> inResolution;
         pin::data<std::span<draw_buffer_data>> inDrawData;
         pin::data<std::span<pin::buffer>> inDrawCallBuffer;
+        pin::data<picking_configuration> inPickingConfiguration;
 
         pin::buffer inCameraBuffer;
         pin::buffer inMeshDatabase;
@@ -35,6 +39,10 @@ namespace oblo
         pin::texture depthBuffer0;
         pin::texture depthBuffer1;
         u8 outputIndex{0};
+
+        bool isPickingInstance{false};
+
+        ecs::tag_type pickingExcludedTag{};
 
         void init(const frame_graph_init_context& ctx);
 

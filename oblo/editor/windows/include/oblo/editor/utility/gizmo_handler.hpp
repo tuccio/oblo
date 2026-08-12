@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/math/vec2.hpp>
 
@@ -8,6 +9,7 @@
 namespace oblo
 {
     class resource_registry;
+    struct viewport_component;
 }
 
 namespace oblo::ecs
@@ -28,9 +30,15 @@ namespace oblo::editor
         };
 
     public:
-        explicit gizmo_handler() = default;
-        explicit gizmo_handler(u32 id) : m_id{id} {}
+        gizmo_handler();
+        gizmo_handler(const gizmo_handler&) = delete;
+        gizmo_handler(gizmo_handler&&) noexcept = delete;
+        ~gizmo_handler();
 
+        gizmo_handler& operator=(const gizmo_handler&) = delete;
+        gizmo_handler& operator=(gizmo_handler&&) noexcept = delete;
+
+        void init();
         void set_id(u32 id);
 
         operation get_operation() const;
@@ -41,10 +49,11 @@ namespace oblo::editor
             std::span<const ecs::entity> entities,
             vec2 origin,
             vec2 size,
-            ecs::entity cameraEntity);
+            ecs::entity cameraEntity,
+            viewport_component* viewport);
 
     private:
-        u32 m_id{};
-        operation m_op{};
+        struct impl;
+        unique_ptr<impl> m_impl;
     };
 }

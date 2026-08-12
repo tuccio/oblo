@@ -4,6 +4,7 @@
 #include <oblo/core/types.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/reflection/codegen/annotations.hpp>
+#include <oblo/renderer/data/picking_result.hpp>
 
 namespace oblo
 {
@@ -27,7 +28,7 @@ namespace oblo
             vec2 coordinates;
 
             // The picking result, active when the state is served.
-            u32 result;
+            picking_result result;
         };
     };
 

@@ -1,3 +1,4 @@
 .*
 !.github
+*.TMP
 compile_commands.json

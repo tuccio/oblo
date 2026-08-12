@@ -743,6 +743,7 @@ namespace oblo
             currentDrawBatch->instanceBuffers = instanceBuffers;
             currentDrawBatch->numInstances = numProcessedEntities;
             currentDrawBatch->kind = isDrawBatch ? batch_kind::draw : batch_kind::instance_data;
+            currentDrawBatch->componentsAndTags = ecs::get_component_and_tag_sets(archetype);
         }
 
         m_drawData = frameDrawData;
