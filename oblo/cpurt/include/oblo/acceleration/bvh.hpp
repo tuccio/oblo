@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/deque.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/math/ray_intersection.hpp>
@@ -106,6 +107,44 @@ namespace oblo
             return m_node ? m_node->bounds : aabb::make_invalid();
         }
 
+        template <typename F>
+        void intersect_aabb(const aabb& query, F&& f) const
+            requires std::invocable<F, u32, u32>
+        {
+            constexpr auto BufferSize = 4096;
+            constexpr auto MaxStackElements = BufferSize / sizeof(void*);
+
+            std::byte buffer[BufferSize];
+            std::pmr::monotonic_buffer_resource resource{buffer, BufferSize};
+
+            std::pmr::vector<const bvh_node*> nodesStack{&resource};
+            nodesStack.reserve(MaxStackElements);
+
+            nodesStack.emplace_back(m_node.get());
+
+            while (!nodesStack.empty())
+            {
+                const bvh_node* const node = nodesStack.back();
+                nodesStack.pop_back();
+
+                if (!oblo::overlap(query, node->bounds))
+                {
+                    continue;
+                }
+
+                if (node->numPrimitives > 0)
+                {
+                    f(node->offset, node->numPrimitives);
+                }
+                else if (node->children)
+                {
+                    const auto children = node->children.get();
+                    nodesStack.emplace_back(children);
+                    nodesStack.emplace_back(children + 1);
+                }
+            }
+        }
+
     private:
         struct bvh_node
         {
@@ -196,9 +235,8 @@ namespace oblo
                 bucket_data forwardScan[numBuckets];
                 bucket_data backwardScan[numBuckets];
 
-                constexpr auto accumulate = [](const bucket_data& lhs, const bucket_data& rhs) {
-                    return bucket_data{lhs.count + rhs.count, extend(lhs.bounds, rhs.bounds)};
-                };
+                constexpr auto accumulate = [](const bucket_data& lhs, const bucket_data& rhs)
+                { return bucket_data{lhs.count + rhs.count, extend(lhs.bounds, rhs.bounds)}; };
 
                 std::inclusive_scan(std::begin(buckets),
                     std::end(buckets),

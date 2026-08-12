@@ -16,6 +16,7 @@ target_link_libraries(
     oblo::modules
     PRIVATE
     oblo::editor::common
+    oblo::cpurt
     oblo::graphics
     oblo::input
     oblo::options

@@ -8,22 +8,26 @@
 #include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/editor/ui/constants.hpp>
+#include <oblo/editor/utility/placement_collision.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/gpu_components.hpp>
 #include <oblo/graphics/components/mesh_internal.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
+#include <oblo/math/aabb.hpp>
 #include <oblo/math/constants.hpp>
 #include <oblo/math/plane.hpp>
 #include <oblo/math/ray.hpp>
 #include <oblo/math/transform.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/scene/components/children_component.hpp>
 #include <oblo/scene/components/global_transform_component.hpp>
 #include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/scale_component.hpp>
+#include <oblo/scene/resources/mesh.hpp>
 #include <oblo/scene/resources/skeleton.hpp>
 
 #include <imgui.h>
@@ -578,22 +582,23 @@ namespace oblo::editor
             const vec3& axisDir2,
             f32 referenceLength)
         {
-            drag = {};
-            drag.active = true;
-            drag.isJoint = isJoint;
-            drag.jointIndex = jointIndex;
-            drag.handle = handle;
-            drag.startPivot = frame.pivot;
-            drag.startPosition = world.position;
-            drag.startRotation = world.rotation;
-            drag.startScale = world.scale;
-            drag.startLocalPosition = local.position;
-            drag.startLocalRotation = local.rotation;
-            drag.startLocalScale = local.scale;
-            drag.dragPlaneNormal = planeNormal;
-            drag.axisDir = axisDir;
-            drag.axisDir2 = axisDir2;
-            drag.referenceLength = referenceLength;
+            drag = {
+                .active = true,
+                .isJoint = isJoint,
+                .jointIndex = jointIndex,
+                .handle = handle,
+                .startPosition = world.position,
+                .startRotation = world.rotation,
+                .startScale = world.scale,
+                .startLocalPosition = local.position,
+                .startLocalRotation = local.rotation,
+                .startLocalScale = local.scale,
+                .startPivot = frame.pivot,
+                .dragPlaneNormal = planeNormal,
+                .axisDir = axisDir,
+                .axisDir2 = axisDir2,
+                .referenceLength = referenceLength,
+            };
 
             const plane p{planeNormal, -dot(planeNormal, frame.pivot)};
 
@@ -1122,6 +1127,11 @@ namespace oblo::editor
         operation op{};
         gizmo_drag_state drag{};
         gizmo_handle_type hovered{};
+
+        placement_collision collision;
+        aabb shapeAabb;
+        bool collisionReady{};
+        bool hasShape{};
     };
 
     gizmo_handler::gizmo_handler() = default;
@@ -1220,11 +1230,18 @@ namespace oblo::editor
 
         bool interacting = false;
 
+        const auto endDrag = [this, viewport]
+        {
+            end_drag(m_impl->drag, viewport);
+            m_impl->collisionReady = false;
+            m_impl->hasShape = false;
+        };
+
         if (reg.has<joint_pose_component, joint_skinning_transform_component>(e))
         {
             if (m_impl->drag.active && !m_impl->drag.isJoint)
             {
-                end_drag(m_impl->drag, viewport);
+                endDrag();
             }
 
             auto&& [poseComp, jointTransforms] = reg.get<joint_pose_component, joint_skinning_transform_component>(e);
@@ -1327,7 +1344,7 @@ namespace oblo::editor
         {
             if (m_impl->drag.active && m_impl->drag.isJoint)
             {
-                end_drag(m_impl->drag, viewport);
+                endDrag();
             }
 
             auto&& [positionComp, rotationComp, scaleComp, transformComp] =
@@ -1394,6 +1411,78 @@ namespace oblo::editor
 
             if (m_impl->drag.active && !m_impl->drag.isJoint)
             {
+                if (m_impl->op == operation::translation)
+                {
+                    const bool collisionAware = ImGui::IsKeyDown(ImGuiKey_LeftShift);
+
+                    if (collisionAware && !m_impl->collisionReady)
+                    {
+                        // Build a BVH once to speed up the collison
+                        m_impl->collisionReady = true;
+
+                        dynamic_array<ecs::entity> excluded;
+                        collect_entity_and_descendants(reg, e, excluded);
+
+                        m_impl->collision.build(resources, reg, excluded);
+                        m_impl->hasShape = false;
+
+                        aabb bounds = aabb::make_invalid();
+
+                        for (const ecs::entity descendant : excluded)
+                        {
+                            if (const mesh_component* const meshComp = reg.try_get<mesh_component>(descendant))
+                            {
+                                auto meshRes = resources.get_resource(meshComp->mesh);
+
+                                if (meshRes)
+                                {
+                                    // Sync loading definitely not ideal, rater we should build the bounds
+                                    // asynchronously
+                                    meshRes.load_sync();
+
+                                    if (meshRes.is_successfully_loaded() && is_valid(meshRes->get_aabb()))
+                                    {
+                                        // Get the global transform without the translation to transform the aabb
+                                        mat4 m = mat4::identity();
+
+                                        const global_transform_component* t =
+                                            reg.try_get<global_transform_component>(descendant);
+
+                                        if (t)
+                                        {
+                                            m = t->localToWorld;
+                                            m.columns[3] = {0.f, 0.f, 0.f, 1.f};
+                                        }
+
+                                        const aabb current = transform_affine(meshRes->get_aabb(), m);
+
+                                        bounds = extend(bounds, current);
+                                        m_impl->hasShape = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        m_impl->shapeAabb = bounds;
+                    }
+
+                    if (collisionAware && m_impl->hasShape && !m_impl->collision.empty())
+                    {
+                        const vec3 candidatePosition =
+                            m_impl->drag.startPosition + (out.position - m_impl->drag.startLocalPosition);
+
+                        const aabb query{
+                            .min = m_impl->shapeAabb.min + candidatePosition,
+                            .max = m_impl->shapeAabb.max + candidatePosition,
+                        };
+
+                        const aabb resolved = m_impl->collision.resolve(query);
+                        const vec3 correction = resolved.min - query.min;
+
+                        out.position = out.position + correction;
+                    }
+                }
+
                 positionComp.value = out.position;
                 rotationComp.value = out.rotation;
                 scaleComp.value = out.scale;
@@ -1403,7 +1492,7 @@ namespace oblo::editor
 
         if (m_impl->drag.active && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
-            end_drag(m_impl->drag, viewport);
+            endDrag();
         }
 
         return interacting || m_impl->drag.active;
