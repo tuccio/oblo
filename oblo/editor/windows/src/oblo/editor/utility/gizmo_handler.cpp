@@ -7,15 +7,15 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/ecs/entity_registry.hpp>
-#include <oblo/editor/utility/gizmo.hpp>
+#include <oblo/editor/ui/constants.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
 #include <oblo/graphics/components/gpu_components.hpp>
 #include <oblo/graphics/components/mesh_internal.hpp>
 #include <oblo/graphics/components/skin_component.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
-#include <oblo/graphics/tags/tags.hpp>
 #include <oblo/math/constants.hpp>
 #include <oblo/math/plane.hpp>
+#include <oblo/math/ray.hpp>
 #include <oblo/math/transform.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/resource/resource_registry.hpp>
@@ -28,7 +28,6 @@
 
 #include <imgui.h>
 
-#include <cfloat>
 #include <cmath>
 
 namespace oblo::editor
@@ -36,7 +35,12 @@ namespace oblo::editor
     namespace
     {
         constexpr u32 AxisCount = 3;
-        constexpr vec3 AxisDirections[AxisCount] = {{1.f, 0.f, 0.f}, {0.f, 1.f, 0.f}, {0.f, 0.f, 1.f}};
+
+        constexpr vec3 AxisDirections[AxisCount] = {
+            {1.f, 0.f, 0.f},
+            {0.f, 1.f, 0.f},
+            {0.f, 0.f, 1.f},
+        };
 
         constexpr f32 AxisLengthPixels = 90.f;
         constexpr f32 AxisThickness = 2.f;
@@ -48,9 +52,6 @@ namespace oblo::editor
         constexpr u32 RingSegments = 48;
         constexpr f32 ScaleBoxSizePixels = 7.f;
 
-        // Offset applied along the surface normal when snapping the pivot to a surface, to avoid coplanar z-fighting
-        constexpr f32 SurfaceSnapOffset{0.01f};
-
         constexpr ImU32 ActiveColor = IM_COL32(255, 200, 60, 255);
         constexpr ImU32 HoverColor = IM_COL32(255, 255, 255, 255);
         constexpr ImU32 ViewRingColor = IM_COL32(255, 255, 255, 160);
@@ -61,11 +62,13 @@ namespace oblo::editor
             switch (axis)
             {
             case 0:
-                return IM_COL32(229, 57, 53, 255);
+                return colors::red;
             case 1:
-                return IM_COL32(76, 175, 80, 255);
+                return colors::green;
+            case 2:
+                return colors::blue;
             default:
-                return IM_COL32(66, 165, 245, 255);
+                unreachable();
             }
         }
 
@@ -85,6 +88,183 @@ namespace oblo::editor
                 (color_channel(a, IM_COL32_G_SHIFT) + color_channel(b, IM_COL32_G_SHIFT)) / 2,
                 (color_channel(a, IM_COL32_B_SHIFT) + color_channel(b, IM_COL32_B_SHIFT)) / 2,
                 255);
+        }
+
+        vec2 world_to_screen(const mat4& viewProj, vec2 origin, vec2 size, const vec3& p)
+        {
+            const vec4 projected = viewProj * vec4{p.x, p.y, p.z, 1.f};
+            const vec2 ndc = vec2{projected.x, projected.y} / projected.w;
+
+            return {
+                origin.x + (ndc.x + 1.f) * .5f * size.x,
+                origin.y + (1.f - ndc.y) * .5f * size.y,
+            };
+        }
+
+        ray screen_to_world_ray(const mat4& invViewProj, vec2 origin, vec2 size, vec2 screen)
+        {
+            const vec2 ndc = {
+                (screen.x - origin.x) / size.x * 2.f - 1.f,
+                1.f - (screen.y - origin.y) / size.y * 2.f,
+            };
+
+            const auto unproject = [&invViewProj, &ndc](f32 z) -> vec3
+            {
+                const vec4 world = invViewProj * vec4{ndc.x, ndc.y, z, 1.f};
+                return vec3{world.x, world.y, world.z} / world.w;
+            };
+
+            // The projection matrix uses reverse-Z, so near maps to clip z = 1 and far to clip z = 0.
+            const vec3 near = unproject(1.f);
+            const vec3 far = unproject(0.f);
+
+            return ray{.origin = near, .direction = normalize(far - near)};
+        }
+
+        bool ray_plane_intersection(const ray& r, const plane& p, vec3& outPoint)
+        {
+            const f32 denom = dot(p.normal, r.direction);
+
+            if (std::abs(denom) < 1e-6f)
+            {
+                return false;
+            }
+
+            const f32 t = -(dot(p.normal, r.origin) + p.offset) / denom;
+
+            if (t < 0.f)
+            {
+                return false;
+            }
+
+            outPoint = r.origin + r.direction * t;
+            return true;
+        }
+
+        f32 distance_to_segment(const vec2& p, const vec2& a, const vec2& b)
+        {
+            const vec2 ab = b - a;
+            const f32 len2 = length2(ab);
+
+            if (len2 < 1e-8f)
+            {
+                return length(p - a);
+            }
+
+            const f32 t = max(0.f, min(1.f, dot(p - a, ab) / len2));
+            return length(p - (a + ab * t));
+        }
+
+        bool point_in_quad(const vec2& p, const vec2 (&corners)[4])
+        {
+            f32 sign = 0.f;
+
+            for (u32 i = 0; i < 4; ++i)
+            {
+                const vec2& a = corners[i];
+                const vec2& b = corners[(i + 1) % 4];
+
+                const f32 cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+
+                if (cross != 0.f)
+                {
+                    if (sign == 0.f)
+                    {
+                        sign = cross;
+                    }
+                    else if ((sign > 0.f) != (cross > 0.f))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        f32 compute_gizmo_scale(const mat4& viewProj, const vec3& pivot, f32 viewportHeight, f32 desiredPixels)
+        {
+            const vec4 clip = viewProj * vec4{pivot.x, pivot.y, pivot.z, 1.f};
+
+            if (clip.w <= 0.f)
+            {
+                return 1.f;
+            }
+
+            // clip.w is the view-space depth, and at(1, 1) is the vertical focal length. Together they give the world
+            // size covered by a single pixel at the pivot's depth.
+            const f32 worldPerPixel = (2.f * clip.w / viewProj.at(1, 1)) / max(1.f, viewportHeight);
+
+            return desiredPixels * worldPerPixel;
+        }
+
+        void draw_arrow(ImDrawList* drawList, vec2 from, vec2 to, ImU32 color, f32 thickness, f32 headSize)
+        {
+            drawList->AddLine({from.x, from.y}, {to.x, to.y}, color, thickness);
+
+            const vec2 dir = to - from;
+            const f32 len = length(dir);
+
+            if (len < headSize * 2.f)
+            {
+                return;
+            }
+
+            const vec2 n = dir / len;
+            const vec2 p = vec2{-n.y, n.x};
+            const vec2 tip = to;
+            const vec2 base = to - n * headSize;
+            const vec2 halfWidth = p * headSize * .5f;
+
+            drawList->AddTriangleFilled({tip.x, tip.y},
+                {(base + halfWidth).x, (base + halfWidth).y},
+                {(base - halfWidth).x, (base - halfWidth).y},
+                color);
+        }
+
+        void draw_ring(ImDrawList* drawList,
+            const mat4& viewProj,
+            vec2 origin,
+            vec2 size,
+            const vec3& center,
+            const vec3& normal,
+            f32 radius,
+            ImU32 color,
+            f32 thickness,
+            u32 segments)
+        {
+            constexpr u32 MaxSegments = 64;
+            segments = min<u32>(segments, MaxSegments);
+
+            vec3 u = normalize(cross(normal, vec3{.y = 1.f}));
+
+            if (length2(u) < 1e-6f)
+            {
+                u = normalize(cross(normal, vec3{.x = 1.f}));
+            }
+
+            const vec3 v = normalize(cross(normal, u));
+
+            ImVec2 points[MaxSegments];
+
+            for (u32 i = 0; i < segments; ++i)
+            {
+                const f32 angle = f32(i) / f32(segments) * 2.f * pi;
+                const vec3 pointOnRing = center + u * (std::cos(angle) * radius) + v * (std::sin(angle) * radius);
+                const vec2 screen = world_to_screen(viewProj, origin, size, pointOnRing);
+                points[i] = {screen.x, screen.y};
+            }
+
+            drawList->AddPolyline(points, int(segments), color, ImDrawFlags_Closed, thickness);
+        }
+
+        void draw_quad(ImDrawList* drawList, const vec2 (&corners)[4], ImU32 color)
+        {
+            drawList->AddQuadFilled({corners[0].x, corners[0].y},
+                {corners[1].x, corners[1].y},
+                {corners[2].x, corners[2].y},
+                {corners[3].x, corners[3].y},
+                color);
         }
 
         struct trs
@@ -157,12 +337,12 @@ namespace oblo::editor
 
         vec2 project_point(const gizmo_frame& frame, const vec3& p)
         {
-            return gizmo::world_to_screen(frame.viewProj, frame.origin, frame.size, p);
+            return world_to_screen(frame.viewProj, frame.origin, frame.size, p);
         }
 
         ray get_mouse_ray(const gizmo_frame& frame)
         {
-            return gizmo::screen_to_world_ray(frame.invViewProj, frame.origin, frame.size, frame.mouse);
+            return screen_to_world_ray(frame.invViewProj, frame.origin, frame.size, frame.mouse);
         }
 
         constexpr bool is_axis(gizmo_handle_type h)
@@ -225,7 +405,7 @@ namespace oblo::editor
 
             for (u32 i = 0; i < AxisCount; ++i)
             {
-                const f32 dist = gizmo::distance_to_segment(frame.mouse,
+                const f32 dist = distance_to_segment(frame.mouse,
                     project_point(frame, frame.pivot),
                     project_point(frame, axis_end(frame, i)));
 
@@ -256,7 +436,7 @@ namespace oblo::editor
                     project_point(frame, frame.pivot + AxisDirections[j] * planeSizeWorld),
                 };
 
-                if (!gizmo::point_in_quad(frame.mouse, corners))
+                if (!point_in_quad(frame.mouse, corners))
                 {
                     continue;
                 }
@@ -320,7 +500,7 @@ namespace oblo::editor
 
             for (u32 i = 0; i < RingSegments; ++i)
             {
-                best = min(best, gizmo::distance_to_segment(frame.mouse, points[i], points[(i + 1) % RingSegments]));
+                best = min(best, distance_to_segment(frame.mouse, points[i], points[(i + 1) % RingSegments]));
             }
 
             return best;
@@ -362,7 +542,7 @@ namespace oblo::editor
 
             for (u32 i = 0; i < AxisCount; ++i)
             {
-                const f32 dist = gizmo::distance_to_segment(frame.mouse,
+                const f32 dist = distance_to_segment(frame.mouse,
                     project_point(frame, frame.pivot),
                     project_point(frame, axis_end(frame, i)));
 
@@ -417,16 +597,15 @@ namespace oblo::editor
 
             const plane p{planeNormal, -dot(planeNormal, frame.pivot)};
 
-            if (!gizmo::ray_plane_intersection(get_mouse_ray(frame), p, drag.startGrabPoint))
+            if (!ray_plane_intersection(get_mouse_ray(frame), p, drag.startGrabPoint))
             {
                 drag.startGrabPoint = frame.pivot;
             }
         }
 
-        void end_drag(gizmo_drag_state& drag, bool& surfaceSnapping, viewport_component* viewport)
+        void end_drag(gizmo_drag_state& drag, viewport_component* viewport)
         {
             drag = {};
-            surfaceSnapping = false;
 
             if (viewport)
             {
@@ -458,7 +637,7 @@ namespace oblo::editor
                 const plane p{drag.dragPlaneNormal, -dot(drag.dragPlaneNormal, drag.startPivot)};
                 vec3 currentPoint;
 
-                if (gizmo::ray_plane_intersection(get_mouse_ray(frame), p, currentPoint))
+                if (ray_plane_intersection(get_mouse_ray(frame), p, currentPoint))
                 {
                     const vec3 delta = currentPoint - drag.startGrabPoint;
                     const vec3 worldDelta = is_axis(drag.handle) ? drag.axisDir * dot(delta, drag.axisDir) : delta;
@@ -523,7 +702,6 @@ namespace oblo::editor
             return hovered != gizmo_handle_type::none;
         }
 
-        // Runs the rotation gizmo interaction. See manipulate_translation.
         bool manipulate_rotation(gizmo_drag_state& drag,
             gizmo_handle_type& hovered,
             const gizmo_frame& frame,
@@ -546,7 +724,7 @@ namespace oblo::editor
                 const plane p{drag.axisDir, -dot(drag.axisDir, drag.startPivot)};
                 vec3 currentPoint;
 
-                if (gizmo::ray_plane_intersection(get_mouse_ray(frame), p, currentPoint))
+                if (ray_plane_intersection(get_mouse_ray(frame), p, currentPoint))
                 {
                     const f32 currentAngle = std::atan2(dot(currentPoint - drag.startPivot, drag.basisV),
                         dot(currentPoint - drag.startPivot, drag.basisU));
@@ -589,7 +767,7 @@ namespace oblo::editor
 
                 const plane p{axis, -dot(axis, frame.pivot)};
 
-                if (gizmo::ray_plane_intersection(get_mouse_ray(frame), p, drag.startGrabPoint))
+                if (ray_plane_intersection(get_mouse_ray(frame), p, drag.startGrabPoint))
                 {
                     drag.startAngle = std::atan2(dot(drag.startGrabPoint - drag.startPivot, v),
                         dot(drag.startGrabPoint - drag.startPivot, u));
@@ -606,7 +784,6 @@ namespace oblo::editor
             return hovered != gizmo_handle_type::none;
         }
 
-        // Runs the scale gizmo interaction. See manipulate_translation.
         bool manipulate_scale(gizmo_drag_state& drag,
             gizmo_handle_type& hovered,
             const gizmo_frame& frame,
@@ -629,7 +806,7 @@ namespace oblo::editor
                 const plane p{drag.dragPlaneNormal, -dot(drag.dragPlaneNormal, drag.startPivot)};
                 vec3 currentPoint;
 
-                if (gizmo::ray_plane_intersection(get_mouse_ray(frame), p, currentPoint))
+                if (ray_plane_intersection(get_mouse_ray(frame), p, currentPoint))
                 {
                     const vec3 delta = currentPoint - drag.startGrabPoint;
                     const f32 factor = max(0.01f, 1.f + dot(delta, drag.axisDir) / drag.referenceLength);
@@ -713,7 +890,7 @@ namespace oblo::editor
                 const ImU32 color = highlighted ? with_alpha(ActiveColor, PlaneAlpha)
                                                 : with_alpha(blend_colors(axis_color(i), axis_color(j)), PlaneAlpha);
 
-                gizmo::draw_quad(frame.drawList, corners, color);
+                draw_quad(frame.drawList, corners, color);
             }
 
             for (u32 i = 0; i < AxisCount; ++i)
@@ -722,7 +899,7 @@ namespace oblo::editor
                 const bool highlighted = active == handle || hovered == handle;
                 const ImU32 color = highlighted ? (active == handle ? ActiveColor : HoverColor) : axis_color(i);
 
-                gizmo::draw_arrow(frame.drawList,
+                draw_arrow(frame.drawList,
                     project_point(frame, frame.pivot),
                     project_point(frame, axis_end(frame, i)),
                     color,
@@ -741,7 +918,7 @@ namespace oblo::editor
                 const bool highlighted = active == handle || hovered == handle;
                 const ImU32 color = highlighted ? (active == handle ? ActiveColor : HoverColor) : axis_color(i);
 
-                gizmo::draw_ring(frame.drawList,
+                draw_ring(frame.drawList,
                     frame.viewProj,
                     frame.origin,
                     frame.size,
@@ -758,7 +935,7 @@ namespace oblo::editor
             const ImU32 color =
                 highlighted ? (active == gizmo_handle_type::ring_view ? ActiveColor : HoverColor) : ViewRingColor;
 
-            gizmo::draw_ring(frame.drawList,
+            draw_ring(frame.drawList,
                 frame.viewProj,
                 frame.origin,
                 frame.size,
@@ -778,7 +955,7 @@ namespace oblo::editor
                 const bool highlighted = active == handle || hovered == handle;
                 const ImU32 color = highlighted ? (active == handle ? ActiveColor : HoverColor) : axis_color(i);
 
-                gizmo::draw_arrow(frame.drawList,
+                draw_arrow(frame.drawList,
                     project_point(frame, frame.pivot),
                     project_point(frame, axis_end(frame, i)),
                     color,
@@ -943,22 +1120,8 @@ namespace oblo::editor
     {
         u32 id{};
         operation op{};
-        bool surfaceSnapping{};
         gizmo_drag_state drag{};
         gizmo_handle_type hovered{};
-
-        // The entity currently excluded from picking, while it is being dragged.
-        ecs::entity excludedFromPicking{};
-
-        void update_surface_snap(ecs::entity_registry& reg,
-            viewport_component* viewport,
-            ecs::entity e,
-            vec2 pickingCoordinates,
-            vec3& outPosition);
-
-        void set_picking_exclusion(ecs::entity_registry& reg, ecs::entity e);
-
-        void clear_picking_exclusion(ecs::entity_registry& reg);
     };
 
     gizmo_handler::gizmo_handler() = default;
@@ -985,95 +1148,6 @@ namespace oblo::editor
         m_impl->op = op;
     }
 
-    void gizmo_handler::impl::update_surface_snap(ecs::entity_registry& reg,
-        viewport_component* viewport,
-        ecs::entity e,
-        vec2 pickingCoordinates,
-        vec3& outPosition)
-    {
-        if (!viewport || !drag.active || drag.isJoint)
-        {
-            return;
-        }
-
-        const bool wantSnap = op == operation::translation;
-
-        switch (viewport->picking.state)
-        {
-        case picking_request::state::none:
-            if (wantSnap)
-            {
-                viewport->picking.coordinates = pickingCoordinates;
-                viewport->picking.state = picking_request::state::requested;
-                surfaceSnapping = true;
-            }
-            break;
-
-        case picking_request::state::served: {
-            const auto& result = viewport->picking.result;
-            const ecs::entity pickedEntity{result.entityId};
-
-            if (pickedEntity && pickedEntity != e && reg.contains(pickedEntity))
-            {
-                const vec3 surfacePosition{result.position.x, result.position.y, result.position.z};
-                const vec3 surfaceNormal{result.normal.x, result.normal.y, result.normal.z};
-
-                outPosition = surfacePosition + surfaceNormal * SurfaceSnapOffset;
-            }
-
-            if (wantSnap)
-            {
-                viewport->picking.coordinates = pickingCoordinates;
-                viewport->picking.state = picking_request::state::requested;
-            }
-            else
-            {
-                surfaceSnapping = false;
-                viewport->picking.state = picking_request::state::none;
-            }
-            break;
-        }
-
-        case picking_request::state::failed:
-            surfaceSnapping = false;
-            viewport->picking.state = picking_request::state::none;
-            break;
-
-        case picking_request::state::awaiting:
-            break;
-
-        default:
-            unreachable();
-        }
-    }
-
-    void gizmo_handler::impl::set_picking_exclusion(ecs::entity_registry& reg, ecs::entity e)
-    {
-        if (excludedFromPicking != e)
-        {
-            clear_picking_exclusion(reg);
-            excludedFromPicking = e;
-
-            if (e && reg.contains(e))
-            {
-                reg.add<picking_excluded_tag>(e);
-            }
-        }
-    }
-
-    void gizmo_handler::impl::clear_picking_exclusion(ecs::entity_registry& reg)
-    {
-        if (excludedFromPicking)
-        {
-            if (reg.contains(excludedFromPicking))
-            {
-                reg.remove<picking_excluded_tag>(excludedFromPicking);
-            }
-
-            excludedFromPicking = {};
-        }
-    }
-
     bool gizmo_handler::handle(const resource_registry& resources,
         ecs::entity_registry& reg,
         std::span<const ecs::entity> entities,
@@ -1085,13 +1159,11 @@ namespace oblo::editor
         if (!cameraEntity)
         {
             OBLO_ASSERT(cameraEntity);
-            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
         if (entities.size() != 1)
         {
-            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
@@ -1100,13 +1172,11 @@ namespace oblo::editor
         // TODO (#60): Maybe ignore all editor entities?
         if (e == cameraEntity)
         {
-            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
         if (!reg.contains(e))
         {
-            m_impl->clear_picking_exclusion(reg);
             return false;
         }
 
@@ -1154,8 +1224,7 @@ namespace oblo::editor
         {
             if (m_impl->drag.active && !m_impl->drag.isJoint)
             {
-                end_drag(m_impl->drag, m_impl->surfaceSnapping, viewport);
-                m_impl->clear_picking_exclusion(reg);
+                end_drag(m_impl->drag, viewport);
             }
 
             auto&& [poseComp, jointTransforms] = reg.get<joint_pose_component, joint_skinning_transform_component>(e);
@@ -1192,7 +1261,7 @@ namespace oblo::editor
                     .cameraPosition = cameraPosition,
                     .cameraForward = cameraForward,
                     .pivot = pivot,
-                    .pixelsToWorld = gizmo::compute_gizmo_scale(viewProj, pivot, size.y, 1.f),
+                    .pixelsToWorld = compute_gizmo_scale(viewProj, pivot, size.y, 1.f),
                     .mouse = mouse,
                     .drawList = drawList,
                 };
@@ -1258,8 +1327,7 @@ namespace oblo::editor
         {
             if (m_impl->drag.active && m_impl->drag.isJoint)
             {
-                end_drag(m_impl->drag, m_impl->surfaceSnapping, viewport);
-                m_impl->clear_picking_exclusion(reg);
+                end_drag(m_impl->drag, viewport);
             }
 
             auto&& [positionComp, rotationComp, scaleComp, transformComp] =
@@ -1293,7 +1361,7 @@ namespace oblo::editor
                 .cameraPosition = cameraPosition,
                 .cameraForward = cameraForward,
                 .pivot = pivot,
-                .pixelsToWorld = gizmo::compute_gizmo_scale(viewProj, pivot, size.y, 1.f),
+                .pixelsToWorld = compute_gizmo_scale(viewProj, pivot, size.y, 1.f),
                 .mouse = mouse,
                 .drawList = drawList,
             };
@@ -1319,20 +1387,6 @@ namespace oblo::editor
                 unreachable();
             }
 
-            if (m_impl->op == operation::translation && m_impl->drag.active && !m_impl->drag.isJoint)
-            {
-                m_impl->set_picking_exclusion(reg, e);
-            }
-            else
-            {
-                m_impl->clear_picking_exclusion(reg);
-            }
-
-            if (m_impl->op == operation::translation)
-            {
-                m_impl->update_surface_snap(reg, viewport, e, mouse - origin, out.position);
-            }
-
             const gizmo_handle_type active =
                 m_impl->drag.active && !m_impl->drag.isJoint ? m_impl->drag.handle : gizmo_handle_type::none;
 
@@ -1349,8 +1403,7 @@ namespace oblo::editor
 
         if (m_impl->drag.active && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
         {
-            end_drag(m_impl->drag, m_impl->surfaceSnapping, viewport);
-            m_impl->clear_picking_exclusion(reg);
+            end_drag(m_impl->drag, viewport);
         }
 
         return interacting || m_impl->drag.active;

@@ -2,9 +2,7 @@
 
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/ecs/handles.hpp>
-#include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec2.hpp>
-#include <oblo/math/vec3.hpp>
 
 #include <span>
 
@@ -46,8 +44,6 @@ namespace oblo::editor
         operation get_operation() const;
         void set_operation(operation op);
 
-        // Handles gizmo interaction and rendering for the selected entities. When the viewport component is provided,
-        // surface snapping during translation drags is driven through its picking request.
         bool handle(const resource_registry& resources,
             ecs::entity_registry& reg,
             std::span<const ecs::entity> entities,
