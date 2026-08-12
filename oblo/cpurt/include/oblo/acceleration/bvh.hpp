@@ -6,12 +6,9 @@
 #include <oblo/math/aabb.hpp>
 #include <oblo/math/ray_intersection.hpp>
 
-#include <algorithm>
 #include <concepts>
-#include <memory>
-#include <memory_resource>
+#include <limits>
 #include <numeric>
-#include <span>
 
 namespace oblo
 {
@@ -35,45 +32,38 @@ namespace oblo
                 return;
             }
 
-            m_node = std::make_unique<bvh_node>();
+            m_root = &m_nodes.emplace_back();
 
             const auto size = narrow_cast<u32>(primitives.size());
-            build_impl_sah(*m_node, primitives, 0, size);
+            build_impl_sah(*m_root, primitives, 0, size);
         }
 
         bool empty() const
         {
-            return !bool{m_node};
+            return m_root == nullptr;
         }
 
         void clear()
         {
-            m_node.reset();
+            m_nodes.clear();
+            m_root = {};
         }
 
         template <typename F>
         void visit(F&& visitor) const
             requires std::invocable<F, u32, aabb, u32, u32>
         {
-            if (m_node)
+            if (m_root)
             {
-                visit_impl(*m_node, visitor);
+                visit_impl(*m_root, visitor);
             }
         }
 
         template <typename F>
         void traverse(const ray& ray, F&& f) const
         {
-            constexpr auto BufferSize = 4096;
-            constexpr auto MaxStackElements = BufferSize / sizeof(void*);
-
-            std::byte buffer[BufferSize];
-            std::pmr::monotonic_buffer_resource resource{buffer, BufferSize};
-
-            std::pmr::vector<const bvh_node*> nodesStack{&resource};
-            nodesStack.reserve(MaxStackElements);
-
-            nodesStack.emplace_back(m_node.get());
+            deque<const bvh_node*> nodesStack;
+            nodesStack.emplace_back(m_root);
 
             f32 distance = std::numeric_limits<f32>::max();
 
@@ -89,38 +79,29 @@ namespace oblo
 
                 if (node->numPrimitives > 0)
                 {
-                    OBLO_ASSERT(node->children == nullptr);
+                    OBLO_ASSERT(node->children[0] == nullptr);
                     f(node->offset, node->numPrimitives, distance);
                 }
-                else if (node->children)
+                else if (node->children[0])
                 {
                     // TODO: Pick the closest child first
-                    const auto children = node->children.get();
-                    nodesStack.emplace_back(children);
-                    nodesStack.emplace_back(children + 1);
+                    nodesStack.emplace_back(node->children[0]);
+                    nodesStack.emplace_back(node->children[1]);
                 }
             }
         }
 
         aabb get_bounds() const
         {
-            return m_node ? m_node->bounds : aabb::make_invalid();
+            return m_root ? m_root->bounds : aabb::make_invalid();
         }
 
         template <typename F>
         void intersect_aabb(const aabb& query, F&& f) const
             requires std::invocable<F, u32, u32>
         {
-            constexpr auto BufferSize = 4096;
-            constexpr auto MaxStackElements = BufferSize / sizeof(void*);
-
-            std::byte buffer[BufferSize];
-            std::pmr::monotonic_buffer_resource resource{buffer, BufferSize};
-
-            std::pmr::vector<const bvh_node*> nodesStack{&resource};
-            nodesStack.reserve(MaxStackElements);
-
-            nodesStack.emplace_back(m_node.get());
+            deque<const bvh_node*> nodesStack;
+            nodesStack.emplace_back(m_root);
 
             while (!nodesStack.empty())
             {
@@ -136,11 +117,10 @@ namespace oblo
                 {
                     f(node->offset, node->numPrimitives);
                 }
-                else if (node->children)
+                else if (node->children[0])
                 {
-                    const auto children = node->children.get();
-                    nodesStack.emplace_back(children);
-                    nodesStack.emplace_back(children + 1);
+                    nodesStack.emplace_back(node->children[0]);
+                    nodesStack.emplace_back(node->children[1]);
                 }
             }
         }
@@ -149,7 +129,7 @@ namespace oblo
         struct bvh_node
         {
             aabb bounds;
-            std::unique_ptr<bvh_node[]> children;
+            bvh_node* children[2];
             u32 offset;
             u16 numPrimitives;
             i8 splitAxis;
@@ -157,7 +137,7 @@ namespace oblo
 
     private:
         template <typename PrimitiveContainer>
-        void build_impl(bvh_node& node, PrimitiveContainer& primitives, u32 begin, u32 end) const
+        void build_impl(bvh_node& node, PrimitiveContainer& primitives, u32 begin, u32 end)
         {
             node.bounds = primitives.primitives_bounds(begin, end);
 
@@ -180,15 +160,16 @@ namespace oblo
                 }
                 else
                 {
-                    node.children = std::make_unique<bvh_node[]>(2);
-                    build_impl(node.children[0], primitives, begin, midIndex);
-                    build_impl(node.children[1], primitives, midIndex, end);
+                    node.children[0] = &m_nodes.emplace_back();
+                    node.children[1] = &m_nodes.emplace_back();
+                    build_impl(*node.children[0], primitives, begin, midIndex);
+                    build_impl(*node.children[1], primitives, midIndex, end);
                 }
             }
         }
 
         template <typename PrimitiveContainer>
-        void build_impl_sah(bvh_node& node, PrimitiveContainer& primitives, u32 begin, u32 end) const
+        void build_impl_sah(bvh_node& node, PrimitiveContainer& primitives, u32 begin, u32 end)
         {
             node.bounds = primitives.primitives_bounds(begin, end);
 
@@ -215,7 +196,11 @@ namespace oblo
                 constexpr auto init_bucket_data = [] { return bucket_data{0, aabb::make_invalid()}; };
 
                 bucket_data buckets[numBuckets];
-                std::fill(std::begin(buckets), std::end(buckets), init_bucket_data());
+
+                for (auto& bucket : buckets)
+                {
+                    bucket = init_bucket_data();
+                }
 
                 const auto maxDistance = centroidsBounds.max[maxExtentAxis] - centroidsBounds.min[maxExtentAxis];
                 OBLO_ASSERT(maxDistance > 0.f);
@@ -223,8 +208,7 @@ namespace oblo
                 for (u32 primitiveIndex = begin; primitiveIndex < end; ++primitiveIndex)
                 {
                     const auto distance = centroids[primitiveIndex][maxExtentAxis] - centroidsBounds.min[maxExtentAxis];
-                    const auto bucketIndex =
-                        std::min(narrow_cast<i32>(numBuckets * distance / maxDistance), numBuckets - 1);
+                    const auto bucketIndex = min(narrow_cast<i32>(numBuckets * distance / maxDistance), numBuckets - 1);
 
                     auto& bucket = buckets[bucketIndex];
 
@@ -287,16 +271,17 @@ namespace oblo
                 else
                 {
                     node.splitAxis = narrow_cast<i8>(maxExtentAxis);
-                    node.children = std::make_unique<bvh_node[]>(2);
-                    build_impl_sah(node.children[0], primitives, begin, midIndex);
-                    build_impl_sah(node.children[1], primitives, midIndex, end);
+                    node.children[0] = &m_nodes.emplace_back();
+                    node.children[1] = &m_nodes.emplace_back();
+                    build_impl_sah(*node.children[0], primitives, begin, midIndex);
+                    build_impl_sah(*node.children[1], primitives, midIndex, end);
                 }
             }
         }
 
         void init_leaf(bvh_node& node, u32 offset, u16 numPrimitives) const
         {
-            OBLO_ASSERT(!node.children);
+            OBLO_ASSERT(!node.children[0]);
             node.offset = offset;
             node.numPrimitives = numPrimitives;
             node.splitAxis = -1;
@@ -307,14 +292,15 @@ namespace oblo
         {
             visitor(depth, node.bounds, node.offset, node.numPrimitives);
 
-            if (node.children)
+            if (node.children[0])
             {
-                visit_impl(node.children[0], visitor, depth + 1);
-                visit_impl(node.children[1], visitor, depth + 1);
+                visit_impl(*node.children[0], visitor, depth + 1);
+                visit_impl(*node.children[1], visitor, depth + 1);
             }
         }
 
     private:
-        std::unique_ptr<bvh_node> m_node;
+        deque<bvh_node> m_nodes;
+        bvh_node* m_root{};
     };
 }
