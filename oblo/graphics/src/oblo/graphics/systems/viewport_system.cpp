@@ -10,9 +10,9 @@
 #include <oblo/ecs/systems/system_update_context.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/graphics/components/camera_component.hpp>
+#include <oblo/graphics/components/tags.hpp>
 #include <oblo/graphics/components/viewport_component.hpp>
 #include <oblo/graphics/services/scene_renderer.hpp>
-#include <oblo/graphics/tags/tags.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/math/view_projection.hpp>
 #include <oblo/renderer/data/async_download.hpp>

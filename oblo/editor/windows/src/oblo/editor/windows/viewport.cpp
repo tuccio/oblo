@@ -27,6 +27,7 @@
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
 #include <oblo/scene/components/entity_hierarchy_component.hpp>
+#include <oblo/scene/components/parent_component.hpp>
 #include <oblo/scene/components/position_component.hpp>
 #include <oblo/scene/components/rotation_component.hpp>
 #include <oblo/scene/components/tags.hpp>
@@ -201,7 +202,31 @@ namespace oblo::editor
                     if (const ecs::entity selectedEntity{v.picking.result.entityId};
                         selectedEntity && m_entities->contains(selectedEntity))
                     {
-                        m_selection->add({&selectedEntity, 1});
+                        ecs::entity entityToSelect{selectedEntity};
+
+                        // For entity hierarchies, select the root by default
+                        // Maybe we want different behaviours to be somehow configurable though
+                        if (m_entities->has<entity_hierarchy_instance_tag>(selectedEntity))
+                        {
+                            while (true)
+                            {
+                                if (m_entities->has<entity_hierarchy_component>(entityToSelect))
+                                {
+                                    break;
+                                }
+
+                                auto* const parent = m_entities->try_get<parent_component>(entityToSelect);
+
+                                if (!parent || !parent->parent || !m_entities->contains(parent->parent))
+                                {
+                                    break;
+                                }
+
+                                entityToSelect = parent->parent;
+                            }
+                        }
+
+                        m_selection->add({&entityToSelect, 1});
                         m_selection->push_refresh_event();
                     }
 
