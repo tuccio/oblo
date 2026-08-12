@@ -89,21 +89,25 @@ namespace oblo
                     .width = resolution.x,
                     .height = resolution.y,
                     .format = gpu::image_format::d24_unorm_s8_uint,
-                    .isStable = true,
+                    .isStable = !isPickingInstance,
                 },
                 texture_usage::depth_stencil_write);
 
-            ctx.create(depthBuffers[readDepthIndex],
-                {
-                    .width = resolution.x,
-                    .height = resolution.y,
-                    .format = gpu::image_format::d24_unorm_s8_uint,
-                    .isStable = true,
-                },
-                texture_usage::depth_stencil_read);
-
             ctx.reroute(depthBuffers[writeDepthIndex], outDepthBuffer);
-            ctx.reroute(depthBuffers[readDepthIndex], outLastFrameDepthBuffer);
+
+            if (!isPickingInstance)
+            {
+                ctx.create(depthBuffers[readDepthIndex],
+                    {
+                        .width = resolution.x,
+                        .height = resolution.y,
+                        .format = gpu::image_format::d24_unorm_s8_uint,
+                        .isStable = true,
+                    },
+                    texture_usage::depth_stencil_read);
+
+                ctx.reroute(depthBuffers[readDepthIndex], outLastFrameDepthBuffer);
+            }
 
             outputIndex = readDepthIndex;
         }
@@ -180,7 +184,8 @@ namespace oblo
             const draw_buffer_data& culledDraw = drawData[drawCallIndex];
             OBLO_ASSERT(culledDraw.sourceData.kind == batch_kind::draw);
 
-            if (pickingExcludedTag && culledDraw.sourceData.componentsAndTags.tags.contains(pickingExcludedTag))
+            if (isPickingInstance && pickingExcludedTag &&
+                culledDraw.sourceData.componentsAndTags.tags.contains(pickingExcludedTag))
             {
                 continue;
             }
