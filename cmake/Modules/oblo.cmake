@@ -23,6 +23,7 @@ set(OBLO_EXTRA_MODULE_DIRS "" CACHE STRING "A list of directories for extra modu
 
 define_property(GLOBAL PROPERTY oblo_cxx_compile_options BRIEF_DOCS "C++ compile options for oblo targets")
 define_property(GLOBAL PROPERTY oblo_cxx_compile_definitions BRIEF_DOCS "C++ compile definitions for oblo targets")
+define_property(GLOBAL PROPERTY oblo_cxx_link_options BRIEF_DOCS "C++ link options for oblo targets")
 
 set(OBLO_FOLDER_BUILD "0 - Build")
 set(OBLO_FOLDER_APPLICATIONS "1 - Applications")
@@ -145,6 +146,7 @@ endmacro(_oblo_setup_target_namespace)
 function(_oblo_configure_cxx_target target)
     get_property(_oblo_cxx_compile_options GLOBAL PROPERTY oblo_cxx_compile_options)
     get_property(_oblo_cxx_compile_definitions GLOBAL PROPERTY oblo_cxx_compile_definitions)
+    get_property(_oblo_cxx_link_options GLOBAL PROPERTY oblo_cxx_link_options)
 
     cmake_parse_arguments(
         ARG
@@ -159,6 +161,7 @@ function(_oblo_configure_cxx_target target)
     else()
         target_compile_definitions(${target} PUBLIC ${_oblo_cxx_compile_definitions})
         target_compile_options(${target} PRIVATE ${_oblo_cxx_compile_options})
+        target_link_options(${target} PRIVATE ${_oblo_cxx_link_options})
     endif()
 
     set_target_properties(${target} PROPERTIES

@@ -3,6 +3,7 @@ function(oblo_init_build_configurations)
 
     set(_oblo_cxx_compile_options)
     set(_oblo_cxx_compile_definitions)
+    set(_oblo_cxx_link_options)
 
     set(_is_msvc FALSE)
     set(_is_clang FALSE)
@@ -55,6 +56,14 @@ function(oblo_init_build_configurations)
                 /MP
                 /Zc:preprocessor
             )
+        else()
+            list(APPEND _oblo_cxx_compile_options
+                $<$<CONFIG:Debug>:/Zi>
+            )
+
+            list(APPEND _oblo_cxx_link_options
+                $<$<CONFIG:Debug>:/DEBUG>
+            )
         endif()
     elseif(_is_clang)
         set(_oblo_cxx_compile_options
@@ -96,4 +105,5 @@ function(oblo_init_build_configurations)
 
     set_property(GLOBAL PROPERTY oblo_cxx_compile_options "${_oblo_cxx_compile_options}")
     set_property(GLOBAL PROPERTY oblo_cxx_compile_definitions "${_oblo_cxx_compile_definitions}")
+    set_property(GLOBAL PROPERTY oblo_cxx_link_options "${_oblo_cxx_link_options}")
 endfunction()
