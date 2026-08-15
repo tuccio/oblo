@@ -424,17 +424,9 @@ namespace oblo
 
         service_registry services;
 
-        try
-        {
-            if (!module->startup({
-                    .services = &services,
-                }))
-            {
-                m_modules.erase(it);
-                return nullptr;
-            }
-        }
-        catch (const std::exception&)
+        if (!module->startup({
+                .services = &services,
+            }))
         {
             m_modules.erase(it);
             return nullptr;

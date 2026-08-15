@@ -227,7 +227,7 @@ namespace oblo
 
         if (!expected)
         {
-            throw "Failed to parse UUID";
+            OBLO_DEBUGBREAK();
         }
 
         return *expected;

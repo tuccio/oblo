@@ -234,8 +234,8 @@ namespace oblo::importers
 
             if (pos == string_view::npos)
             {
-                // Since it's consteval, we throw to fail compilation
-                throw;
+                // Since it's consteval, we trap to fail compilation
+                OBLO_DEBUGBREAK();
             }
 
             return {name.begin() + pos + 1, name.end()};

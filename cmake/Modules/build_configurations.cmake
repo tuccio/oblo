@@ -3,6 +3,7 @@ function(oblo_init_build_configurations)
 
     set(_oblo_cxx_compile_options)
     set(_oblo_cxx_compile_definitions)
+    set(_oblo_cxx_link_options)
 
     set(_is_msvc FALSE)
     set(_is_clang FALSE)
@@ -25,12 +26,16 @@ function(oblo_init_build_configurations)
     endif()
 
     if(_is_msvc OR _is_clangcl)
-        set(_oblo_cxx_compile_options
+        list(APPEND _oblo_cxx_compile_options
             /W4
             /WX
             /wd4324 # Ignore warning C4324: i.e. padding of structs
             /wd4275 # Ignore warning C4275: i.e. dll exported class inheriting from a non-exported one
             /permissive-
+        )
+
+        list(APPEND _oblo_cxx_compile_definitions
+            _CRT_SECURE_NO_WARNINGS
         )
 
         if(_is_x64)
@@ -50,6 +55,14 @@ function(oblo_init_build_configurations)
             list(APPEND _oblo_cxx_compile_options
                 /MP
                 /Zc:preprocessor
+            )
+        else()
+            list(APPEND _oblo_cxx_compile_options
+                $<$<CONFIG:Debug>:/Zi>
+            )
+
+            list(APPEND _oblo_cxx_link_options
+                $<$<CONFIG:Debug>:/DEBUG>
             )
         endif()
     elseif(_is_clang)
@@ -92,4 +105,5 @@ function(oblo_init_build_configurations)
 
     set_property(GLOBAL PROPERTY oblo_cxx_compile_options "${_oblo_cxx_compile_options}")
     set_property(GLOBAL PROPERTY oblo_cxx_compile_definitions "${_oblo_cxx_compile_definitions}")
+    set_property(GLOBAL PROPERTY oblo_cxx_link_options "${_oblo_cxx_link_options}")
 endfunction()

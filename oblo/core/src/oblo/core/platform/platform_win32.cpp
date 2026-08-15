@@ -12,7 +12,7 @@
 
     #include <utf8cpp/utf8.h>
 
-    #if defined(WIN32)
+    #if defined(_WIN32)
         #define NOMINMAX
         #include <Windows.h>
 

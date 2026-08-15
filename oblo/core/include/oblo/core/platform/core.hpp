@@ -25,7 +25,7 @@ namespace oblo::platform
 
     consteval bool is_windows() noexcept
     {
-#ifdef WIN32
+#ifdef _WIN32
         return true;
 #else
         return false;

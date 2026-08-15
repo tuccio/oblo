@@ -1,4 +1,4 @@
-﻿#ifdef WIN32
+﻿#ifdef _WIN32
 
     #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/invoke/function_ref.hpp>

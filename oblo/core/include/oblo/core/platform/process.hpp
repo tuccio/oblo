@@ -41,7 +41,7 @@ namespace oblo::platform
         void detach();
 
     private:
-#if WIN32
+#ifdef _WIN32
         void* m_hProcess{};
 #elif __linux__
         int m_pid{-1};

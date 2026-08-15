@@ -16,9 +16,9 @@ namespace oblo
 
         ast.add_node(root, func);
 
-        const ast_node& node = ast.children(root).begin() != ast.children(root).end()
-            ? ast.get(*ast.children(root).begin())
-            : throw std::runtime_error("Function node not added");
+        ASSERT_TRUE(ast.children(root).begin() != ast.children(root).end());
+
+        const ast_node& node = ast.get(*ast.children(root).begin());
 
         ASSERT_EQ(node.kind, ast_node_kind::function_declaration);
         ASSERT_EQ(node.node.functionDecl.name, "main");
