@@ -490,7 +490,7 @@ endfunction(oblo_set_target_folder)
 function(oblo_post_build_copy_dlls target)
     if(WIN32)
         add_custom_command(TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
             -t "$<TARGET_FILE_DIR:${target}>"
             "$<TARGET_RUNTIME_DLLS:${target}>"
             COMMAND_EXPAND_LISTS
