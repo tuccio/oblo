@@ -25,12 +25,16 @@ function(oblo_init_build_configurations)
     endif()
 
     if(_is_msvc OR _is_clangcl)
-        set(_oblo_cxx_compile_options
+        list(APPEND _oblo_cxx_compile_options
             /W4
             /WX
             /wd4324 # Ignore warning C4324: i.e. padding of structs
             /wd4275 # Ignore warning C4275: i.e. dll exported class inheriting from a non-exported one
             /permissive-
+        )
+
+        list(APPEND _oblo_cxx_compile_definitions
+            _CRT_SECURE_NO_WARNINGS
         )
 
         if(_is_x64)

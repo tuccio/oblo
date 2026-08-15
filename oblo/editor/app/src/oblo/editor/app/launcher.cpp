@@ -106,35 +106,28 @@ namespace oblo::editor
     {
         bool hasProject = false;
 
-        try
+        cxxopts::Options options("oblo");
+
+        options.add_options()("project", "The path to the project file", cxxopts::value<string_builder>());
+
+        auto r = options.parse(argc, argv);
+
+        if (r.count("project"))
         {
-            cxxopts::Options options("oblo");
+            auto projectPath = r["project"].as<string_builder>();
 
-            options.add_options()("project", "The path to the project file", cxxopts::value<string_builder>());
+            string_builder absoluteProjecPath;
 
-            auto r = options.parse(argc, argv);
-
-            if (r.count("project"))
+            if (filesystem::absolute(projectPath.view(), absoluteProjecPath))
             {
-                auto projectPath = r["project"].as<string_builder>();
-
-                string_builder absoluteProjecPath;
-
-                if (filesystem::absolute(projectPath.view(), absoluteProjecPath))
-                {
-                    outConfig.projectPath = absoluteProjecPath;
-                }
-                else
-                {
-                    outConfig.projectPath = projectPath.as<string>();
-                }
-
-                hasProject = true;
+                outConfig.projectPath = absoluteProjecPath;
             }
-        }
-        catch (...)
-        {
-            return "Failed to parse options"_err;
+            else
+            {
+                outConfig.projectPath = projectPath.as<string>();
+            }
+
+            hasProject = true;
         }
 
         auto appDir = get_default_app_dir();

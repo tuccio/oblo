@@ -16,7 +16,7 @@ namespace oblo::platform
             unspecified
         };
 
-#if WIN32
+#ifdef _WIN32
         using native_handle = void*;
 #else
         using native_handle = int;

@@ -164,7 +164,7 @@ namespace oblo::filesystem
 
         wMode[N] = 0;
 
-#ifdef WIN32
+#ifdef _WIN32
         wchar_t buf[win32::MaxPath];
         win32::convert_path(path, buf);
 

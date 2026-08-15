@@ -2,7 +2,7 @@
 
 #include <oblo/core/string/string_builder.hpp>
 
-#if defined(WIN32)
+#if defined(_WIN32)
     #define NOMINMAX
     #include <Windows.h>
 

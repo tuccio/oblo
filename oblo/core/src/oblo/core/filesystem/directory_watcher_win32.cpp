@@ -1,4 +1,4 @@
-#ifdef WIN32
+#ifdef _WIN32
 
     #include <oblo/core/array_size.hpp>
     #include <oblo/core/filesystem/directory_watcher.hpp>

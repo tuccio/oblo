@@ -1,4 +1,4 @@
-#ifdef WIN32
+#ifdef _WIN32
 
     #include <oblo/log/sinks/win32_debug_sink.hpp>
 

@@ -6,13 +6,7 @@
         {                                                                                                              \
             if (!(Condition))                                                                                          \
             {                                                                                                          \
-                try                                                                                                    \
-                {                                                                                                      \
-                    throw oblo::debug_assert(__FILE__, __LINE__, Message);                                             \
-                }                                                                                                      \
-                catch (const oblo::debug_assert&)                                                                      \
-                {                                                                                                      \
-                }                                                                                                      \
+                oblo::debug_assert(__FILE__, __LINE__, Message);                                                       \
             }                                                                                                          \
         }
 
@@ -50,8 +44,8 @@ namespace oblo
 #endif
 }
 
-#if defined(_MSC_VER)
-    #define OBLO_DEBUGBREAK() __debugbreak()
-#elif defined(__clang__)
+#if defined(__clang__)
     #define OBLO_DEBUGBREAK() __builtin_debugtrap()
+#elif defined(_MSC_VER)
+    #define OBLO_DEBUGBREAK() __debugbreak()
 #endif

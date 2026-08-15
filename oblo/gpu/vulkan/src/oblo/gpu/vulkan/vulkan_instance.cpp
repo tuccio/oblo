@@ -108,7 +108,7 @@ namespace oblo::gpu::vk
             VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
             VK_KHR_SURFACE_EXTENSION_NAME,
 
-#ifdef WIN32
+#ifdef _WIN32
             "VK_KHR_win32_surface",
 #endif
         };
@@ -3179,7 +3179,7 @@ namespace oblo::gpu::vk
     }
 }
 
-#ifdef WIN32
+#ifdef _WIN32
     #include <Windows.h>
 
     #include <vulkan/vulkan_win32.h>
