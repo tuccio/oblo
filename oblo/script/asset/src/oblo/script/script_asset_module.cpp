@@ -697,34 +697,30 @@ namespace oblo
 
         bool finalize() override
         {
-            bool success = true;
-
             // Types
-            success =
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::i32>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::vec3>());
+            register_primitive<node_primitive_kind::i32>();
+            register_primitive<node_primitive_kind::f32>();
+            register_primitive<node_primitive_kind::vec3>();
 
             // Nodes
-            success = m_scriptRegistry.register_node(make_node_descriptor<input_node>()) && success;
+            register_node<input_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<i32_constant_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<vec3_constant_node>()) && success;
+            register_node<bool_constant_node>();
+            register_node<i32_constant_node>();
+            register_node<f32_constant_node>();
+            register_node<vec3_constant_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<vec_nodes::make_vec3_node>()) && success;
+            register_node<vec_nodes::make_vec3_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<add_operator>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<mul_operator>()) && success;
+            register_node<add_operator>();
+            register_node<mul_operator>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::cosine_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::sine_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::tangent_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::arctangent_node>()) && success;
+            register_node<math_nodes::cosine_node>();
+            register_node<math_nodes::sine_node>();
+            register_node<math_nodes::tangent_node>();
+            register_node<math_nodes::arctangent_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<api_nodes::get_time_node>()) && success;
+            register_node<api_nodes::get_time_node>();
 
             auto* const runtimeModule = module_manager::get().find<runtime_module>();
 
@@ -834,25 +830,23 @@ namespace oblo
                             const uuid getPropertyId = getPropertyIdGen.generate_from_hash(propertyHash);
                             const uuid setPropertyId = setPropertyIdGen.generate_from_hash(propertyHash);
 
-                            success = m_scriptRegistry.register_node({
-                                          .id = getPropertyId,
-                                          .name = nodeName.as<string>(),
-                                          .category = categoryBuilder.as<string>(),
-                                          .instantiate = instantiateGetFn,
-                                          .userdata = make_any<ecs_property_userdata>(userdata),
-                                      }) &&
-                                success;
+                            register_node({
+                                .id = getPropertyId,
+                                .name = nodeName.as<string>(),
+                                .category = categoryBuilder.as<string>(),
+                                .instantiate = instantiateGetFn,
+                                .userdata = make_any<ecs_property_userdata>(userdata),
+                            });
 
                             nodeName.clear().append("Set ").append(componentName).append("::").append(propertyPath);
 
-                            success = m_scriptRegistry.register_node({
-                                          .id = setPropertyId,
-                                          .name = nodeName.as<string>(),
-                                          .category = categoryBuilder.as<string>(),
-                                          .instantiate = instantiateSetFn,
-                                          .userdata = make_any<ecs_property_userdata>(userdata),
-                                      }) &&
-                                success;
+                            register_node({
+                                .id = setPropertyId,
+                                .name = nodeName.as<string>(),
+                                .category = categoryBuilder.as<string>(),
+                                .instantiate = instantiateSetFn,
+                                .userdata = make_any<ecs_property_userdata>(userdata),
+                            });
                         }
                     }
                 }
@@ -862,6 +856,39 @@ namespace oblo
         }
 
         void shutdown() override {}
+
+    private:
+        template <node_primitive_kind Kind>
+        void register_primitive()
+        {
+            node_primitive_type desc = make_node_primitive_type<Kind>();
+            const expected success = m_scriptRegistry.register_primitive_type(std::move(desc));
+
+            if (!success)
+            {
+                log::debug("Failed to register script primitive type: {} [{}]", desc.name, success.error().message);
+            }
+
+            OBLO_ASSERT(success);
+        }
+
+        template <typename Node>
+        void register_node()
+        {
+            register_node(make_node_descriptor<Node>());
+        }
+
+        void register_node(node_descriptor&& desc)
+        {
+            const expected success = m_scriptRegistry.register_node(std::move(desc));
+
+            if (!success)
+            {
+                log::debug("Failed to register script node: {} [{}]", desc.name, success.error().message);
+            }
+
+            OBLO_ASSERT(success);
+        }
 
     private:
         node_graph_registry m_scriptRegistry;
