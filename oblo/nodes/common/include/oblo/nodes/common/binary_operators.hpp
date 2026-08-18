@@ -171,7 +171,12 @@ namespace oblo
                         return ast_binary_operator_kind::add_f32;
                     }
 
-                    return "Failed to create node"_err;
+                    if (outType == get_node_primitive_type_id<node_primitive_kind::vec3>())
+                    {
+                        return ast_binary_operator_kind::add_vec3;
+                    }
+
+                    return "Unhandled output type"_err;
                 });
         }
     };
@@ -215,7 +220,7 @@ namespace oblo
                         return ast_binary_operator_kind::mul_vec3;
                     }
 
-                    return "Node not found"_err;
+                    return "Unhandled output type"_err;
                 });
         }
     };

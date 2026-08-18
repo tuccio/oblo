@@ -313,6 +313,11 @@ namespace oblo
                             thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
+                        case ast_binary_operator_kind::add_vec3:
+                            m.text.push_back({.op = bytecode_op::add_vec_f32, .payload = lo16(3u)});
+                            thisNodeInfo.expressionResultSize = 3 * sizeof(f32);
+                            break;
+
                         case ast_binary_operator_kind::mul_vec3:
                             m.text.push_back({.op = bytecode_op::mul_vec_f32, .payload = lo16(3u)});
                             thisNodeInfo.expressionResultSize = 3 * sizeof(f32);

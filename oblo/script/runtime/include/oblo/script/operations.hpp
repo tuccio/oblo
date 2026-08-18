@@ -90,6 +90,7 @@ namespace oblo
         sub_i64,
         sub_u64,
 
+        add_vec_f32,
         mul_vec_f32,
 
         div_f32,

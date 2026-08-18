@@ -117,7 +117,6 @@ namespace oblo
                 {
                     constexpr auto sine_f32 = [](script_api_impl*, f32 v) { return std::sin(v); };
                     return reinterpret_cast<void*>(+sine_f32);
-                    ;
                 }
 
                 if (hName == script_api::sine_vec3)
@@ -209,12 +208,10 @@ namespace oblo
             const oblo::property* propertyData{};
 
             const auto p = fetch_component_property_ptr(componentType, propertyName, &propertyData);
-            OBLO_ASSERT(p);
-
-            OBLO_ASSERT(propertyData->kind == property_kind::f32);
 
             if (!p || propertyData->kind != property_kind::f32) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return 0.f;
             }
 
@@ -226,12 +223,10 @@ namespace oblo
             const oblo::property* propertyData{};
 
             const auto p = fetch_component_property_ptr(componentType, propertyName, &propertyData);
-            OBLO_ASSERT(p);
-
-            OBLO_ASSERT(propertyData->kind == property_kind::f32);
 
             if (!p || propertyData->kind != property_kind::f32) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return;
             }
 
@@ -247,6 +242,7 @@ namespace oblo
 
             if (!propertyPtr || propertyData->type != get_type_id<vec3>()) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return vec3{};
             }
 
@@ -261,6 +257,7 @@ namespace oblo
 
             if (!propertyPtr || propertyData->type != get_type_id<vec3>()) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return;
             }
 

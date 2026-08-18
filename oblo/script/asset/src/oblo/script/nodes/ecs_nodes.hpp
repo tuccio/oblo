@@ -50,9 +50,25 @@ namespace oblo::ecs_nodes
             const std::span<const h32<ast_node>>,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
+            hashed_string_view name;
+
+            switch (Kind)
+            {
+            case node_primitive_kind::f32:
+                name = script_api::ecs::get_property_f32;
+                break;
+
+            case node_primitive_kind::vec3:
+                name = script_api::ecs::get_property_vec3;
+                break;
+
+            default:
+                return false;
+            }
+
             const h32 getPropertyCall = ast.add_node(parent,
                 ast_function_call{
-                    .name = script_api::ecs::get_property_f32,
+                    .name = name,
                 });
 
             {

@@ -476,7 +476,6 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(u32);
                             break;
 
                         case ast_binary_operator_kind::sub_f32:
@@ -484,7 +483,6 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
                         case ast_binary_operator_kind::mul_f32:
@@ -492,7 +490,6 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
                         case ast_binary_operator_kind::div_f32:
@@ -500,7 +497,20 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(f32);
+                            break;
+
+                        case ast_binary_operator_kind::add_vec3:
+                            if (!write_binary_operation("+", "vec3"))
+                            {
+                                return "Operation failed"_err;
+                            }
+                            break;
+
+                        case ast_binary_operator_kind::sub_vec3:
+                            if (!write_binary_operation("-", "vec3"))
+                            {
+                                return "Operation failed"_err;
+                            }
                             break;
 
                         case ast_binary_operator_kind::mul_vec3:
@@ -508,7 +518,13 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = 3 * sizeof(f32);
+                            break;
+
+                        case ast_binary_operator_kind::div_vec3:
+                            if (!write_binary_operation("/", "vec3"))
+                            {
+                                return "Operation failed"_err;
+                            }
                             break;
 
                         default:
