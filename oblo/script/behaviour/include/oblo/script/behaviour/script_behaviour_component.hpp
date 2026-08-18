@@ -24,7 +24,8 @@ namespace oblo
         resource_ptr<compiled_script> script{};
         resource_ptr<compiled_native_module> native{};
         set_global_context_fn setGlobalContext{};
-        execute_fn execute{};
+        execute_fn spawnFn{};
+        execute_fn updateFn{};
     } OBLO_COMPONENT("e1cd78e6-6ec0-4e14-bbff-cdc0a8b0a50d", Transient);
 
     struct script_behaviour_update_tag

@@ -28,6 +28,8 @@ namespace oblo
         const node_descriptor* find_node(const uuid& id) const;
         const node_primitive_type* find_primitive_type(const uuid& id) const;
 
+        uuid find_primitive_type_id(node_primitive_kind kind) const;
+
         void fetch_nodes(dynamic_array<const node_descriptor*>& outNodes) const;
         void fetch_primitive_types(dynamic_array<const node_primitive_type*>& outPrimitiveTypes) const;
 

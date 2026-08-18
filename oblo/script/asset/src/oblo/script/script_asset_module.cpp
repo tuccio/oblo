@@ -655,6 +655,7 @@ namespace oblo
         bool finalize() override
         {
             // Types
+            register_primitive<node_primitive_kind::execution>();
             register_primitive<node_primitive_kind::i32>();
             register_primitive<node_primitive_kind::f32>();
             register_primitive<node_primitive_kind::vec3>();
@@ -691,8 +692,6 @@ namespace oblo
 
                 const uuid_namespace_generator getPropertyIdGen{"598e9195-326b-4ab8-a397-004d85a9c036"_uuid};
                 const uuid_namespace_generator setPropertyIdGen{"b05cf6fe-ecbb-4699-9a8f-ad48a7889086"_uuid};
-
-                const uuid_namespace_generator eventIdGen{"d80d32f1-8bd6-4abd-b6c0-3dc137c0ee05"_uuid};
 
                 string_builder nodeName;
                 string_builder propertyPath;
@@ -823,12 +822,18 @@ namespace oblo
                     const string_view name =
                         prettyName.value_or(reflection::pretty_name{.identifier = typeData.type.name}).identifier;
 
+                    const std::optional id = reflectionRegistry.find_concept<uuid>(eventType);
+
+                    if (!id)
+                    {
+                        log::error("No uuid for event type {}", name);
+                        continue;
+                    }
+
                     nodeName.clear().append("Event ").append(name);
 
-                    const uuid id = eventIdGen.generate_from_hash(hashed_string_view{name}.hash());
-
                     register_node({
-                        .id = id,
+                        .id = *id,
                         .name = nodeName.as<string>(),
                         .category = "Events",
                         .instantiate = [](const any&) -> unique_ptr<node_interface>

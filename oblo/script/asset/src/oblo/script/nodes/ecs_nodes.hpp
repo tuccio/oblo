@@ -179,7 +179,7 @@ namespace oblo::ecs_nodes
                     });
 
                 // Initialize the value on the stack
-                h32 valueExpression = inputs[0];
+                h32 valueExpression = inputs[1];
 
                 if (valueExpression)
                 {
@@ -256,9 +256,11 @@ namespace oblo::ecs_nodes
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
             const std::span<const h32<ast_node>> inputs,
-            dynamic_array<h32<ast_node>>&) const override
+            dynamic_array<h32<ast_node>>& outputs) const override
         {
-            if (inputs[0])
+            add_node_execution_ast_node(outputs);
+
+            if (inputs[1])
             {
                 const h32 callNode = generate_call_with_no_value(ast, parent, 0b111);
 
@@ -269,7 +271,7 @@ namespace oblo::ecs_nodes
                         });
 
                     // Initialize the value on the stack
-                    h32 valueExpression = inputs[0];
+                    h32 valueExpression = inputs[1];
 
                     if (valueExpression)
                     {
@@ -293,7 +295,7 @@ namespace oblo::ecs_nodes
 
             for (u32 i = 0; i < 3; ++i)
             {
-                const h32 componentIn = inputs[i + 1];
+                const h32 componentIn = inputs[i + 2];
 
                 if (componentIn)
                 {

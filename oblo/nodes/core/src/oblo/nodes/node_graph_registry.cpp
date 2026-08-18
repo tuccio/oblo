@@ -57,6 +57,11 @@ namespace oblo
         return it == m_primitiveTypes.end() ? nullptr : &it->second;
     }
 
+    uuid node_graph_registry::find_primitive_type_id(node_primitive_kind kind) const
+    {
+        return m_primitiveKindToTypeId[u32(kind)];
+    }
+
     void node_graph_registry::fetch_nodes(dynamic_array<const node_descriptor*>& outNodes) const
     {
         outNodes.reserve(outNodes.size() + m_descriptors.size());

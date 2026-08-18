@@ -5,6 +5,7 @@
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/uuid_generator.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
@@ -18,6 +19,7 @@
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
+#include <oblo/script/behaviour/events.hpp>
 #include <oblo/script/behaviour/script_behaviour_component.hpp>
 #include <oblo/script/resources/builtin_api.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
@@ -158,14 +160,37 @@ namespace oblo
             const auto setContext =
                 reinterpret_cast<void (*)(void*)>(state.native->module.symbol("oblo_set_global_context"));
 
-            const auto execute = reinterpret_cast<void (*)()>(state.native->module.symbol("node_graph_execute"));
-
-            const bool wasInitialized = loadSymbols && setContext && execute && loadSymbols(loader);
+            const bool wasInitialized = loadSymbols && setContext && loadSymbols(loader);
 
             if (wasInitialized)
             {
                 state.setGlobalContext = setContext;
-                state.execute = execute;
+
+                string_builder builder;
+
+                for (const auto [member, id] : {
+                         pair{
+                             &script_behaviour_state_component::spawnFn,
+                             string_view{"1f176cb6-ffb4-4d53-b8d2-15b510f42094"},
+                         },
+                         pair{
+                             &script_behaviour_state_component::updateFn,
+                             string_view{"dc6777ec-97c3-4c7e-8797-4d5b325a9c1c"},
+                         },
+                     })
+                {
+
+                    builder.clear().append("oblo_node_graph_fn_");
+
+                    for (const char c : id)
+                    {
+                        const char r = std::isalnum(c) ? c : '_';
+                        builder.append(r);
+                    }
+
+                    (state.*member) = reinterpret_cast<script_behaviour_state_component::execute_fn>(
+                        state.native->module.symbol(builder.c_str()));
+                }
             }
 
             return wasInitialized;
@@ -560,7 +585,17 @@ namespace oblo
                 apiCtx.entityId = e;
 
                 state.setGlobalContext(&apiCtx);
-                state.execute();
+
+                if (state.spawnFn)
+                {
+                    state.spawnFn();
+                    state.spawnFn = {};
+                }
+
+                if (state.updateFn)
+                {
+                    state.updateFn();
+                }
             }
         }
 

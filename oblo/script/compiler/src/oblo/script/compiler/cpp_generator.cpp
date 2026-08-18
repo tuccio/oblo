@@ -253,6 +253,11 @@ namespace oblo
                 unreachable();
                 break;
 
+            case ast_node_kind::comment:
+                g.format("// {}", node.node.comment.comment);
+                g.new_line();
+                break;
+
             case ast_node_kind::type_declaration:
                 types[node.node.typeDecl.name] = {
                     .size = node.node.typeDecl.size,
@@ -635,6 +640,11 @@ namespace oblo
                         stmt.append(n.node.varRef.name);
                     }
                     break;
+
+                    case ast_node_kind::comment:
+                        stmt.format("// {}", n.node.comment.comment);
+                        stmt.set_is_expression(false);
+                        break;
 
                     case ast_node_kind::compound:
                         stmt.set_is_expression(false);
