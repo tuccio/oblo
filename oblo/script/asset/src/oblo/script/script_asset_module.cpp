@@ -39,7 +39,6 @@
 #include <oblo/script/assets/providers/script_api_provider.hpp>
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
-#include <oblo/script/compiler/bytecode_generator.hpp>
 #include <oblo/script/compiler/cpp_compiler.hpp>
 #include <oblo/script/compiler/cpp_generator.hpp>
 #include <oblo/script/nodes/api_nodes.hpp>
@@ -138,13 +137,11 @@ namespace oblo
         class script_graph_importer : public file_importer
         {
             static constexpr cstring_view artifact_script_paths = "script_paths.json";
-            static constexpr cstring_view artifact_bytecode = "script.obytecode";
             static constexpr cstring_view artifact_x86_64_avx2 = "x86_64_avx2.odynamiclib";
 
             enum class importer_artifact
             {
                 script_paths,
-                bytecode,
                 x86_64_avx2,
                 enum_max,
             };
@@ -162,12 +159,6 @@ namespace oblo
                     auto& n = preview.nodes[u32(importer_artifact::script_paths)];
                     n.artifactType = resource_type<compiled_script>;
                     n.name = artifact_script_paths;
-                }
-
-                {
-                    auto& n = preview.nodes[u32(importer_artifact::bytecode)];
-                    n.artifactType = resource_type<compiled_bytecode_module>;
-                    n.name = artifact_bytecode;
                 }
 
                 {
@@ -221,19 +212,6 @@ namespace oblo
                 }
 
                 // Then compile to the various targets
-
-                {
-                    const auto& byteCodeNode = configs[u32(importer_artifact::bytecode)];
-
-                    if (byteCodeNode.enabled &&
-                        (!prepare_path(destination, ctx, byteCodeNode.id, artifact_bytecode) ||
-                            !import_bytecode(byteCodeNode, destination, ast)))
-                    {
-                        return false;
-                    }
-
-                    script.bytecode = resource_ref<compiled_bytecode_module>{byteCodeNode.id};
-                }
 
                 {
                     const auto& avx2Node = configs[u32(importer_artifact::x86_64_avx2)];
@@ -301,32 +279,6 @@ namespace oblo
                 }
 
                 destination.append_path(artifactName);
-                return true;
-            }
-
-            bool import_bytecode(
-                const import_node_config& nodeConfig, cstring_view destination, const abstract_syntax_tree& ast)
-            {
-
-                expected module = bytecode_generator{}.generate_module(ast);
-
-                if (!module)
-                {
-                    return false;
-                }
-
-                if (!save(*module, destination))
-                {
-                    return false;
-                }
-
-                auto& artifact = m_artifacts.emplace_back();
-
-                artifact.id = nodeConfig.id;
-                artifact.name = artifact_bytecode;
-                artifact.path = destination.as<string>();
-                artifact.type = resource_type<compiled_bytecode_module>;
-
                 return true;
             }
 

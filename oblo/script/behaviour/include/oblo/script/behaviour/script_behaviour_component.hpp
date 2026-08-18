@@ -5,12 +5,10 @@
 #include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_ref.hpp>
-#include <oblo/script/interpreter.hpp>
 
 namespace oblo
 {
     struct compiled_script;
-    struct compiled_bytecode_module;
     struct compiled_native_module;
 
     struct script_behaviour_component
@@ -24,12 +22,9 @@ namespace oblo
         using execute_fn = void (*)();
 
         resource_ptr<compiled_script> script{};
-        resource_ptr<compiled_bytecode_module> bytecode{};
         resource_ptr<compiled_native_module> native{};
-        unique_ptr<interpreter> runtime;
         set_global_context_fn setGlobalContext{};
         execute_fn execute{};
-        bool fallbackToInterpreted{};
     } OBLO_COMPONENT("e1cd78e6-6ec0-4e14-bbff-cdc0a8b0a50d", Transient);
 
     struct script_behaviour_update_tag
