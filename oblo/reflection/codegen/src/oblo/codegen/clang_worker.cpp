@@ -138,6 +138,12 @@ namespace oblo::gen
                 return annotation_property_result::expect_none;
             }
 
+            if (property == "ScriptEvent"_hsv)
+            {
+                r.flags.set(record_flags::script_event);
+                return annotation_property_result::expect_none;
+            }
+
             if (property == "Transient"_hsv)
             {
                 r.flags.set(record_flags::transient);

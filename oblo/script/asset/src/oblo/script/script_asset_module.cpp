@@ -630,6 +630,11 @@ namespace oblo
             propertyUserdata->propertyPath);
     }
 
+    struct event_userdata
+    {
+        type_id eventType;
+    };
+
     class script_asset_module final : public module_interface
     {
     public:
@@ -681,17 +686,19 @@ namespace oblo
                 const auto& propertyRegistry = runtimeModule->get_property_registry();
                 const auto& reflectionRegistry = propertyRegistry.get_reflection_registry();
 
-                deque<reflection::type_handle> componentTypes;
-                reflectionRegistry.find_by_tag<ecs::component_type_tag>(componentTypes);
+                deque<reflection::type_handle> foundTypes;
+                reflectionRegistry.find_by_tag<ecs::component_type_tag>(foundTypes);
 
                 const uuid_namespace_generator getPropertyIdGen{"598e9195-326b-4ab8-a397-004d85a9c036"_uuid};
                 const uuid_namespace_generator setPropertyIdGen{"b05cf6fe-ecbb-4699-9a8f-ad48a7889086"_uuid};
+
+                const uuid_namespace_generator eventIdGen{"d80d32f1-8bd6-4abd-b6c0-3dc137c0ee05"_uuid};
 
                 string_builder nodeName;
                 string_builder propertyPath;
                 string_builder categoryBuilder;
 
-                for (const auto& componentType : componentTypes)
+                for (const auto& componentType : foundTypes)
                 {
                     if (!reflectionRegistry.has_tag<reflection::script_api>(componentType))
                     {
@@ -801,6 +808,55 @@ namespace oblo
                             });
                         }
                     }
+                }
+
+                foundTypes.clear();
+                reflectionRegistry.find_by_tag<reflection::script_event>(foundTypes);
+
+                for (const auto& eventType : foundTypes)
+                {
+                    const auto& typeData = reflectionRegistry.get_type_data(eventType);
+
+                    const std::optional prettyName =
+                        reflectionRegistry.find_concept<reflection::pretty_name>(eventType);
+
+                    const string_view name =
+                        prettyName.value_or(reflection::pretty_name{.identifier = typeData.type.name}).identifier;
+
+                    nodeName.clear().append("Event ").append(name);
+
+                    const uuid id = eventIdGen.generate_from_hash(hashed_string_view{name}.hash());
+
+                    register_node({
+                        .id = id,
+                        .name = nodeName.as<string>(),
+                        .category = "Events",
+                        .instantiate = [](const any&) -> unique_ptr<node_interface>
+                        {
+                            class event_received_node : public zero_properties_node
+                            {
+                            public:
+                                void on_create(const node_graph_context& g) override
+                                {
+                                    add_node_execution_pins(g, false, true);
+                                }
+
+                                void on_input_change(const node_graph_context&) override {}
+
+                                bool generate(const node_graph_context&,
+                                    abstract_syntax_tree&,
+                                    h32<ast_node>,
+                                    const std::span<const h32<ast_node>>,
+                                    dynamic_array<h32<ast_node>>& outputs) const override
+                                {
+                                    add_node_execution_ast_node(outputs);
+                                    return true;
+                                }
+                            };
+
+                            return allocate_unique<event_received_node>();
+                        },
+                    });
                 }
             }
 

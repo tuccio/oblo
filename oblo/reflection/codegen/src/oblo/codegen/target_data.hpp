@@ -23,6 +23,7 @@ namespace oblo::gen
         ecs_tag,
         resource,
         script_api,
+        script_event,
         transient,
         uuid,
         enum_max,

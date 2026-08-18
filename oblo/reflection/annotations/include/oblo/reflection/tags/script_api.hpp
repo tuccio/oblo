@@ -6,4 +6,9 @@ namespace oblo::reflection
     struct script_api
     {
     };
+
+    // @brief Annotates the type as script event, bindings will be generated for it.
+    struct script_event
+    {
+    };
 }

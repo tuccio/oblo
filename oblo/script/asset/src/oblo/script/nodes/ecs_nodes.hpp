@@ -6,6 +6,7 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/nodes/common/ast_utils.hpp>
+#include <oblo/nodes/common/execution.hpp>
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/common/zero_properties_node.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
@@ -31,6 +32,8 @@ namespace oblo::ecs_nodes
 
         void on_create(const node_graph_context& g) override
         {
+            add_node_execution_pins(g, true, true);
+
             const h32 outPin = g.add_out_pin({
                 .id = "114f1733-9f3a-470c-9a50-8585db310c49"_uuid,
                 .name = "Get",
@@ -39,10 +42,7 @@ namespace oblo::ecs_nodes
             g.set_deduced_type(outPin, get_type_uuid());
         }
 
-        void on_input_change(const node_graph_context&) override
-        {
-            OBLO_ASSERT(false);
-        }
+        void on_input_change(const node_graph_context&) override {}
 
         bool generate(const node_graph_context&,
             abstract_syntax_tree& ast,
@@ -50,6 +50,8 @@ namespace oblo::ecs_nodes
             const std::span<const h32<ast_node>>,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
+            add_node_execution_ast_node(outputs);
+
             hashed_string_view name;
 
             switch (Kind)
@@ -121,6 +123,8 @@ namespace oblo::ecs_nodes
 
         void on_create(const node_graph_context& g) override
         {
+            add_node_execution_pins(g, true, true);
+
             m_input = g.add_in_pin({
                 .id = "efa8ae2b-c1dd-4741-a280-47e970977fa3"_uuid,
                 .name = "Set",
@@ -135,8 +139,10 @@ namespace oblo::ecs_nodes
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
             const std::span<const h32<ast_node>> inputs,
-            dynamic_array<h32<ast_node>>&) const override
+            dynamic_array<h32<ast_node>>& outputs) const override
         {
+            add_node_execution_ast_node(outputs);
+
             const h32 callNode = ast.add_node(parent,
                 ast_function_call{
                     .name = script_api::ecs::set_property_f32,
@@ -199,6 +205,7 @@ namespace oblo::ecs_nodes
     protected:
         type_id m_componentType;
         string m_propertyPath;
+        h32<node_graph_in_pin> m_execution{};
         h32<node_graph_in_pin> m_input{};
     };
 
@@ -217,6 +224,8 @@ namespace oblo::ecs_nodes
 
         void on_create(const node_graph_context& g) override
         {
+            add_node_execution_pins(g, true, true);
+
             m_input = g.add_in_pin({
                 .id = "4cc2d571-5cee-4c9f-bd63-b88d965d7a98"_uuid,
                 .name = "xyz",

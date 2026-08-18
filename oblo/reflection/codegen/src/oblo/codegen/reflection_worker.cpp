@@ -217,6 +217,14 @@ namespace oblo::gen
             addPrettyName = true;
         }
 
+        if (r.flags.contains(record_flags::script_event))
+        {
+            m_content.append("classBuilder.add_tag<::oblo::reflection::script_event>();");
+            new_line();
+
+            addPrettyName = true;
+        }
+
         if (r.flags.contains(record_flags::transient))
         {
             m_content.append("classBuilder.add_tag<::oblo::reflection::transient_type_tag>();");
