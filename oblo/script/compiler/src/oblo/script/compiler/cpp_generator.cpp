@@ -641,6 +641,44 @@ namespace oblo
                     }
                     break;
 
+                    case ast_node_kind::address_of: {
+                        h32<ast_node> child[1];
+
+                        if (!get_children(ast, node, child))
+                        {
+                            return "Operation failed"_err;
+                        }
+
+                        stmt.append('&');
+                        append_var_name(stmt, child[0]);
+                    }
+                    break;
+
+                    case ast_node_kind::null:
+                        stmt.append("nullptr");
+                        break;
+
+                    case ast_node_kind::array_declaration: {
+                        stmt.format("{} _n{}[{}] = {{ ", n.node.arrayDecl.elementType, node.value, n.node.arrayDecl.size);
+
+                        bool isFirst = true;
+
+                        for (const h32 child : ast.children(node))
+                        {
+                            if (!isFirst)
+                            {
+                                stmt.append(", ");
+                            }
+
+                            isFirst = false;
+                            append_var_name(stmt, child);
+                        }
+
+                        stmt.append(" };");
+                        stmt.set_is_expression(false);
+                    }
+                    break;
+
                     case ast_node_kind::comment:
                         stmt.format("// {}", n.node.comment.comment);
                         stmt.set_is_expression(false);

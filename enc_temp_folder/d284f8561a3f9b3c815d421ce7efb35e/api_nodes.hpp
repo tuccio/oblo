@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/ast/abstract_syntax_tree.hpp>
+#include <oblo/core/buffered_array.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -14,6 +15,7 @@
 #include <oblo/nodes/node_graph.hpp>
 #include <oblo/nodes/node_interface.hpp>
 #include <oblo/script/resources/builtin_api.hpp>
+#include <oblo/script/resources/reflection_script_api.hpp>
 
 #include <optional>
 #include <span>

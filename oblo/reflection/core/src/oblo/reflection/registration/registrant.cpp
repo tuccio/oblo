@@ -190,15 +190,20 @@ namespace oblo::reflection
         enumData.values.append(value.begin(), value.end());
     }
 
-    u32 reflection_registry::registrant::add_function_type(
-        cstring_view fullyQualifiedName, void* f, const type_id& returnType, std::span<const type_id> parameterTypes)
+    u32 reflection_registry::registrant::add_function_type(cstring_view fullyQualifiedName,
+        void* f,
+        invoker_fn invoker,
+        const type_id& returnType,
+        std::span<const type_id> parameterTypes)
     {
         const ecs::entity e = m_impl.registry.create<function_data>();
+
         m_impl.registry.get<function_data>(e) = {
             .fullyQualifiedName = fullyQualifiedName,
             .returnType = returnType,
             .parameterTypes = {get_global_allocator(), parameterTypes.begin(), parameterTypes.end()},
             .functionPtr = f,
+            .invoker = invoker,
         };
 
         return e.value;

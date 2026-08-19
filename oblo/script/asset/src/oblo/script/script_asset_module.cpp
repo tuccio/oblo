@@ -12,6 +12,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -492,6 +493,12 @@ namespace oblo
 
                 tree.add_node(root,
                     ast_type_declaration{
+                        .name = script_api::bool_t,
+                        .size = sizeof(bool),
+                    });
+
+                tree.add_node(root,
+                    ast_type_declaration{
                         .name = script_api::vec3_t,
                         .size = sizeof(f32) * 3,
                     });
@@ -591,17 +598,39 @@ namespace oblo
                         .returnType = script_api::f32_t,
                     });
 
-                const h32 invokeReflected = tree.add_node(root,
-                    ast_function_declaration{
-                        .name = script_api::invoke_reflected_function,
-                        .returnType = script_api::void_t,
-                    });
+                const auto addInvokeReflectedFunction =
+                    [&tree, root](hashed_string_view name, hashed_string_view returnType)
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = name,
+                            .returnType = returnType,
+                        });
 
-                tree.add_node(invokeReflected,
-                    ast_function_parameter{
-                        .name = "name",
-                        .type = script_api::string_t,
-                    });
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "fqn",
+                            .type = script_api::string_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "count",
+                            .type = script_api::u32_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "args",
+                            .type = script_api::void_const_ptr_const_ptr_t,
+                        });
+                };
+
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_void, script_api::void_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_i32, script_api::i32_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_f32, script_api::f32_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_vec3, script_api::vec3_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_bool, script_api::bool_t);
 
                 return true;
             }
@@ -616,6 +645,51 @@ namespace oblo
                 .category = string{T::category},
                 .instantiate = [](const any&) -> unique_ptr<node_interface> { return allocate_unique<T>(); },
             };
+        }
+    }
+
+    namespace
+    {
+        constexpr expected<node_primitive_kind> reflected_function_param_kind(const type_id& type)
+        {
+            if (type == get_type_id<i32>())
+            {
+                return node_primitive_kind::i32;
+            }
+
+            if (type == get_type_id<f32>())
+            {
+                return node_primitive_kind::f32;
+            }
+
+            if (type == get_type_id<vec3>())
+            {
+                return node_primitive_kind::vec3;
+            }
+
+            if (type == get_type_id<bool>())
+            {
+                return node_primitive_kind::boolean;
+            }
+
+            return "Unknown type"_err;
+        }
+
+        constexpr expected<std::optional<node_primitive_kind>> reflected_function_return_kind(type_id type)
+        {
+            if (type == get_type_id<void>())
+            {
+                return std::nullopt;
+            }
+
+            const expected k = reflected_function_param_kind(type);
+
+            if (!k)
+            {
+                return k.error();
+            }
+
+            return *k;
         }
     }
 
@@ -651,6 +725,9 @@ namespace oblo
     struct reflected_function_userdata
     {
         string name;
+        std::optional<node_primitive_kind> returnKind;
+        dynamic_array<node_primitive_kind> paramKinds;
+        u32 paramCount{};
     };
 
     class script_asset_module final : public module_interface
@@ -674,6 +751,7 @@ namespace oblo
         {
             // Types
             register_primitive<node_primitive_kind::execution>();
+            register_primitive<node_primitive_kind::boolean>();
             register_primitive<node_primitive_kind::i32>();
             register_primitive<node_primitive_kind::f32>();
             register_primitive<node_primitive_kind::vec3>();
@@ -887,15 +965,41 @@ namespace oblo
                 const uuid_namespace_generator scriptFunctionIdGen{"7f4b3d9e-8c2a-4e6f-b1d5-9a3c2f8e6d4b"_uuid};
 
                 script_api::for_each_script_function(reflectionRegistry,
-                    [&](cstring_view fullyQualifiedName, void*) -> bool
+                    [&](const reflection::function_data& data) -> bool
                     {
-                        const uuid id = scriptFunctionIdGen.generate(fullyQualifiedName.as<string_view>());
+                        const u32 paramCount = data.parameterTypes.size32();
 
-                        const reflected_function_userdata userdata{
-                            .name = fullyQualifiedName.as<string>(),
+                        dynamic_array<node_primitive_kind> paramKinds;
+                        paramKinds.reserve(paramCount);
+
+                        for (u32 i = 0; i < paramCount; ++i)
+                        {
+                            const expected kind = reflected_function_param_kind(data.parameterTypes[i]);
+
+                            if (!kind)
+                            {
+                                return true;
+                            }
+
+                            paramKinds.emplace_back(*kind);
+                        }
+
+                        const expected returnKind = reflected_function_return_kind(data.returnType);
+
+                        if (!returnKind)
+                        {
+                            return true;
+                        }
+
+                        const uuid id = scriptFunctionIdGen.generate(data.fullyQualifiedName.as<string_view>());
+
+                        reflected_function_userdata userdata{
+                            .name = data.fullyQualifiedName.as<string>(),
+                            .returnKind = *returnKind,
+                            .paramKinds = std::move(paramKinds),
                         };
 
-                        nodeName.clear().append(fullyQualifiedName);
+                        nodeName.clear().append(data.fullyQualifiedName);
 
                         register_node({
                             .id = id,
@@ -904,9 +1008,12 @@ namespace oblo
                             .instantiate = [](const any& userdata) -> unique_ptr<node_interface>
                             {
                                 const auto* const fnUserdata = userdata.as<reflected_function_userdata>();
-                                return allocate_unique<api_nodes::invoke_reflected_function_node>(fnUserdata->name);
+
+                                return allocate_unique<api_nodes::invoke_reflected_function_node>(fnUserdata->name,
+                                    fnUserdata->returnKind,
+                                    std::span{fnUserdata->paramKinds});
                             },
-                            .userdata = make_any<reflected_function_userdata>(userdata),
+                            .userdata = make_any<reflected_function_userdata>(std::move(userdata)),
                         });
 
                         return true;

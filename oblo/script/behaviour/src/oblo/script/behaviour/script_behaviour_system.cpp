@@ -6,6 +6,7 @@
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
+#include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -26,6 +27,9 @@
 #include <oblo/script/resources/compiled_script.hpp>
 #include <oblo/script/resources/reflection_script_api.hpp>
 
+#include <type_traits>
+#include <utility>
+
 namespace oblo
 {
     namespace
@@ -34,6 +38,13 @@ namespace oblo
         {
             time currentTime;
             ecs::entity entityId;
+        };
+
+        struct script_function_entry
+        {
+            void* fn{};
+            reflection::invoker_fn invoker{};
+            u32 paramCount{};
         };
     }
 
@@ -48,10 +59,19 @@ namespace oblo
             const reflection::reflection_registry& reflectionRegistry = m_propertyRegistry->get_reflection_registry();
 
             script_api::for_each_script_function(reflectionRegistry,
-                [this](cstring_view name, void* function)
+                [this](const reflection::function_data& data)
                 {
-                    m_scriptFunctions.emplace(hashed_string_view{name},
-                        std::bit_cast<script_api::script_function_fn>(function));
+                    if (!data.invoker || !data.functionPtr)
+                    {
+                        return true;
+                    }
+
+                    m_scriptFunctions.emplace(hashed_string_view{data.fullyQualifiedName},
+                        script_function_entry{
+                            .fn = data.functionPtr,
+                            .invoker = data.invoker,
+                            .paramCount = data.parameterTypes.size32(),
+                        });
 
                     return true;
                 });
@@ -164,12 +184,65 @@ namespace oblo
                     return reinterpret_cast<void*>(+set_property_vec3);
                 }
 
-                if (hName == script_api::invoke_reflected_function)
+                if (hName == script_api::invoke_reflected_function_void)
                 {
-                    const auto invoke_reflected_function = [](script_api_impl* api, const char* name) -> void
-                    { api->invoke_reflected_function(name); };
+                    constexpr auto invoke_reflected_function_void =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> void
+                    { api->invoke_reflected_function(name, nullptr, count, args); };
 
-                    return reinterpret_cast<void*>(+invoke_reflected_function);
+                    return reinterpret_cast<void*>(+invoke_reflected_function_void);
+                }
+
+                if (hName == script_api::invoke_reflected_function_i32)
+                {
+                    constexpr auto invoke_reflected_function_i32 =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> i32
+                    {
+                        i32 result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_i32);
+                }
+
+                if (hName == script_api::invoke_reflected_function_f32)
+                {
+                    constexpr auto invoke_reflected_function_f32 =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> f32
+                    {
+                        f32 result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_f32);
+                }
+
+                if (hName == script_api::invoke_reflected_function_vec3)
+                {
+                    constexpr auto invoke_reflected_function_vec3 =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> vec3
+                    {
+                        vec3 result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_vec3);
+                }
+
+                if (hName == script_api::invoke_reflected_function_bool)
+                {
+                    constexpr auto invoke_reflected_function_bool =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> bool
+                    {
+                        bool result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_bool);
                 }
 
                 return nullptr;
@@ -297,18 +370,27 @@ namespace oblo
             return;
         }
 
-        void invoke_reflected_function(string_view name)
+        void invoke_reflected_function(string_view name, void* out, u32 count, void* const* args)
         {
             const auto it = m_scriptFunctions.find(name);
 
-            if (it == m_scriptFunctions.end() || !it->second) [[unlikely]]
+            if (it == m_scriptFunctions.end() || !it->second.invoker) [[unlikely]]
             {
                 OBLO_ASSERT_ONCE(false);
                 log::error("Failed to invoke reflected function {}", name);
                 return;
             }
 
-            it->second();
+            const auto& entry = it->second;
+
+            if (count != entry.paramCount) [[unlikely]]
+            {
+                OBLO_ASSERT_ONCE(false);
+                log::error("Reflected function {} expected {} parameters, got {}", name, entry.paramCount, count);
+                return;
+            }
+
+            entry.invoker(entry.fn, out, args);
         }
 
         OBLO_FORCEINLINE expected<byte*> fetch_component_property_ptr(
@@ -406,8 +488,8 @@ namespace oblo
             property_entry_kind kind;
         };
 
-        using functions_map = std::
-            unordered_map<hashed_string_view, script_api::script_function_fn, transparent_string_hash, std::equal_to<>>;
+        using functions_map =
+            std::unordered_map<hashed_string_view, script_function_entry, transparent_string_hash, std::equal_to<>>;
 
     private:
         property_entry get_or_add_to_cache(hashed_string_view typeName,

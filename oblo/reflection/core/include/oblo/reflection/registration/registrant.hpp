@@ -78,6 +78,7 @@ namespace oblo::reflection
 
         u32 add_function_type(cstring_view fullyQualifiedName,
             void* f,
+            invoker_fn invoker,
             const type_id& returnType,
             std::span<const type_id> parameterTypes);
 
@@ -104,6 +105,12 @@ namespace oblo::reflection
         }
 
         void make_array_type(u32 entityIndex, std::span<const usize> extents);
+
+        template <typename R, typename... Args, usize... I>
+        static OBLO_FORCEINLINE R invoke_impl(R (*cb)(Args...), void* const* args, std::index_sequence<I...>)
+        {
+            return cb((*static_cast<std::remove_reference_t<Args>*>(args[I]))...);
+        }
 
     private:
         reflection_registry_impl& m_impl;
@@ -268,6 +275,19 @@ namespace oblo::reflection
             *this,
             add_function_type(fullyQualifiedName,
                 std::bit_cast<void*>(f),
+                [](void* f, void* out, void* const* args)
+                {
+                    const auto cb = reinterpret_cast<R (*)(Args...)>(f);
+
+                    if constexpr (std::is_void_v<R>)
+                    {
+                        invoke_impl(cb, args, std::index_sequence_for<Args...>{});
+                    }
+                    else
+                    {
+                        *reinterpret_cast<R*>(out) = invoke_impl(cb, args, std::index_sequence_for<Args...>{});
+                    }
+                },
                 get_type_id<R>(),
                 {parameters, parameters + sizeof...(Args)}),
         };

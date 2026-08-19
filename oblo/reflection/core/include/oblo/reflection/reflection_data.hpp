@@ -44,11 +44,14 @@ namespace oblo::reflection
         buffered_array<usize, 2> extents;
     };
 
+    using invoker_fn = void (*)(void* f, void* out, void* const* args);
+
     struct function_data
     {
         cstring_view fullyQualifiedName;
         type_id returnType;
         dynamic_array<type_id> parameterTypes;
         void* functionPtr;
+        invoker_fn invoker;
     };
 }

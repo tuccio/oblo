@@ -98,7 +98,7 @@ namespace oblo::reflection
 
         registrant.add_function("oblo::math::cos", cosFn).add_tag<function_test_tag>();
 
-        deque<type_handle> foundFunctions;
+        deque<function_handle> foundFunctions;
         reg.find_by_tag<function_test_tag>(foundFunctions);
 
         ASSERT_EQ(foundFunctions.size(), 1);
