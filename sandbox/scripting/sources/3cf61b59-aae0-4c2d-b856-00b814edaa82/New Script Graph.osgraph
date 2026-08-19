@@ -1,0 +1,160 @@
+{
+    "nodes": [
+        {
+            "id": 1,
+            "type": "1f176cb6-ffb4-4d53-b8d2-15b510f42094",
+            "uiPosition": [
+                38.49993896484375,
+                82.99998474121094
+            ],
+            "data": {}
+        },
+        {
+            "id": 3,
+            "type": "dc6777ec-97c3-4c7e-8797-4d5b325a9c1c",
+            "uiPosition": [
+                436.4936828613281,
+                263.63848876953125
+            ],
+            "data": {}
+        },
+        {
+            "id": 5,
+            "type": "e8da722a-1292-17f9-1555-d3cf01f457de",
+            "uiPosition": [
+                575.78076171875,
+                131.36776733398438
+            ],
+            "data": {}
+        },
+        {
+            "id": 8,
+            "type": "665d1779-f284-0dc3-8a06-b6c07868802e",
+            "uiPosition": [
+                1164.8333740234375,
+                450.63092041015625
+            ],
+            "data": {}
+        },
+        {
+            "id": 15,
+            "type": "868c9abd-b37e-6b34-b762-3b5ee09b6b11",
+            "uiPosition": [
+                847.78076171875,
+                559.4730224609375
+            ],
+            "data": {}
+        },
+        {
+            "id": 33,
+            "type": "e6b96480-a66f-4b08-83e8-235722d79a7a",
+            "uiPosition": [
+                349.31573486328125,
+                384.3157958984375
+            ],
+            "data": {
+                "value": 1
+            }
+        },
+        {
+            "id": 31,
+            "type": "c02a725e-f8d0-46d0-80e6-78081db8d2ec",
+            "uiPosition": [
+                45.24516296386719,
+                548.81982421875
+            ],
+            "data": {}
+        },
+        {
+            "id": 28,
+            "type": "23f1f6d1-e626-4e56-8ac7-ac3700569268",
+            "uiPosition": [
+                396.51763916015625,
+                536.0519409179688
+            ],
+            "data": {}
+        },
+        {
+            "id": 268435479,
+            "type": "07a7955f-4aa9-4ae6-a781-9d8417755249",
+            "uiPosition": [
+                484.5367431640625,
+                803.6473999023438
+            ],
+            "data": {
+                "value": true
+            }
+        },
+        {
+            "id": 536870937,
+            "type": "a41d6255-b421-4301-b11d-57424bb5186f",
+            "uiPosition": [
+                374.010498046875,
+                638.3841552734375
+            ],
+            "data": {
+                "xyz": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        }
+    ],
+    "edges": [
+        {
+            "sourceNode": 1,
+            "targetNode": 5,
+            "sourcePin": "a672953d-95f8-4002-a257-d204fe3c5736",
+            "targetPin": "d1d0f3b1-656a-49e5-89bb-e5802b6ebafe"
+        },
+        {
+            "sourceNode": 3,
+            "targetNode": 15,
+            "sourcePin": "a672953d-95f8-4002-a257-d204fe3c5736",
+            "targetPin": "d1d0f3b1-656a-49e5-89bb-e5802b6ebafe"
+        },
+        {
+            "sourceNode": 15,
+            "targetNode": 8,
+            "sourcePin": "a672953d-95f8-4002-a257-d204fe3c5736",
+            "targetPin": "d1d0f3b1-656a-49e5-89bb-e5802b6ebafe"
+        },
+        {
+            "sourceNode": 15,
+            "targetNode": 8,
+            "sourcePin": "8cdf939f-f32a-30d7-3697-89c5e9d513de",
+            "targetPin": "98edf5fa-5c2d-4821-962e-7c9ce2047ef0"
+        },
+        {
+            "sourceNode": 28,
+            "targetNode": 15,
+            "sourcePin": "9d1a9454-f023-40c6-af76-d2fbea316e72",
+            "targetPin": "1c3465ec-6e9e-7a9a-a6bc-86b49c20d6a5"
+        },
+        {
+            "sourceNode": 33,
+            "targetNode": 15,
+            "sourcePin": "3168ae07-af54-4a01-a861-7c56d7d90418",
+            "targetPin": "b2759915-6d22-61fe-007d-824f98dcdcc1"
+        },
+        {
+            "sourceNode": 31,
+            "targetNode": 28,
+            "sourcePin": "5eebb786-e7b1-4c21-8da1-3b209cd9ba35",
+            "targetPin": "7c82cf9a-25fd-4a67-8736-abdd362a9032"
+        },
+        {
+            "sourceNode": 268435479,
+            "targetNode": 15,
+            "sourcePin": "3168ae07-af54-4a01-a861-7c56d7d90418",
+            "targetPin": "ee33ce43-6dcd-3e79-d4bb-7d1998711a38"
+        },
+        {
+            "sourceNode": 536870937,
+            "targetNode": 15,
+            "sourcePin": "3168ae07-af54-4a01-a861-7c56d7d90418",
+            "targetPin": "11d3d06c-1faa-b20f-a19b-74340a548e17"
+        }
+    ]
+}
