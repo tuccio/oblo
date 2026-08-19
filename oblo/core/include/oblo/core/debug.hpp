@@ -2,6 +2,15 @@
 
 #ifdef OBLO_ENABLE_ASSERT
 
+namespace oblo::detail
+{
+    namespace
+    {
+        template <int line>
+        bool assert_triggered = false;
+    }
+}
+
     #define OBLO_ASSERT_2(Condition, Message)                                                                          \
         {                                                                                                              \
             if (!(Condition))                                                                                          \
@@ -14,9 +23,17 @@
     #define OBLO_ASSERT_OVERLOAD(_1, _2, NAME, ...) NAME
     #define OBLO_ASSERT(...) OBLO_ASSERT_OVERLOAD(__VA_ARGS__, OBLO_ASSERT_2, OBLO_ASSERT_1)(__VA_ARGS__)
 
+    #define OBLO_ASSERT_ONCE(...)                                                                                      \
+        if (!oblo::detail::assert_triggered<__LINE__>)                                                                 \
+        {                                                                                                              \
+            OBLO_ASSERT(__VA_ARGS__);                                                                                  \
+            oblo::detail::assert_triggered<__LINE__> = true;                                                           \
+        }
+
 #else
 
     #define OBLO_ASSERT(...)
+    #define OBLO_ASSERT_ONCE(...)
 
 #endif
 

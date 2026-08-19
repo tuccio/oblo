@@ -190,10 +190,48 @@ namespace oblo::reflection
         enumData.values.append(value.begin(), value.end());
     }
 
+    u32 reflection_registry::registrant::add_function_type(cstring_view fullyQualifiedName,
+        void* f,
+        invoker_fn invoker,
+        const type_id& returnType,
+        std::span<const type_id> parameterTypes)
+    {
+        const auto [it, inserted] =
+            m_impl.functionsMap.emplace(fullyQualifiedName.as<hashed_string_view>(), ecs::entity{});
+
+        if (!inserted)
+        {
+            return it->second.value;
+        }
+
+        const ecs::entity e = m_impl.registry.create<function_data>();
+        it->second = e;
+
+        m_impl.registry.get<function_data>(e) = {
+            .fullyQualifiedName = fullyQualifiedName,
+            .returnType = returnType,
+            .parameterTypes = {get_global_allocator(), parameterTypes.begin(), parameterTypes.end()},
+            .parameterNames = {get_global_allocator(), parameterTypes.size()},
+            .functionPtr = f,
+            .invoker = invoker,
+        };
+
+        return e.value;
+    }
+
     void reflection_registry::registrant::make_array_type(u32 entityIndex, std::span<const usize> extents)
     {
         const ecs::entity e{entityIndex};
         auto& arrayData = m_impl.registry.get<array_data>(e);
         arrayData.extents.assign(extents.begin(), extents.end());
     }
+
+    void reflection_registry::registrant::init_function_parameter(
+        u32 entityIndex, u32 parameterIndex, cstring_view name)
+    {
+        const ecs::entity e{entityIndex};
+        auto& funcData = m_impl.registry.get<function_data>(e);
+        funcData.parameterNames[parameterIndex] = name;
+    }
+
 }

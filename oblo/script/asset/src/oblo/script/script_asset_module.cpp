@@ -12,6 +12,7 @@
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/log/log.hpp>
+#include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -39,12 +40,12 @@
 #include <oblo/script/assets/providers/script_api_provider.hpp>
 #include <oblo/script/assets/script_graph.hpp>
 #include <oblo/script/assets/traits.hpp>
-#include <oblo/script/compiler/bytecode_generator.hpp>
 #include <oblo/script/compiler/cpp_compiler.hpp>
 #include <oblo/script/compiler/cpp_generator.hpp>
 #include <oblo/script/nodes/api_nodes.hpp>
 #include <oblo/script/nodes/ecs_nodes.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
+#include <oblo/script/resources/reflection_script_api.hpp>
 #include <oblo/script/resources/traits.hpp>
 
 namespace oblo
@@ -138,13 +139,11 @@ namespace oblo
         class script_graph_importer : public file_importer
         {
             static constexpr cstring_view artifact_script_paths = "script_paths.json";
-            static constexpr cstring_view artifact_bytecode = "script.obytecode";
             static constexpr cstring_view artifact_x86_64_avx2 = "x86_64_avx2.odynamiclib";
 
             enum class importer_artifact
             {
                 script_paths,
-                bytecode,
                 x86_64_avx2,
                 enum_max,
             };
@@ -162,12 +161,6 @@ namespace oblo
                     auto& n = preview.nodes[u32(importer_artifact::script_paths)];
                     n.artifactType = resource_type<compiled_script>;
                     n.name = artifact_script_paths;
-                }
-
-                {
-                    auto& n = preview.nodes[u32(importer_artifact::bytecode)];
-                    n.artifactType = resource_type<compiled_bytecode_module>;
-                    n.name = artifact_bytecode;
                 }
 
                 {
@@ -221,19 +214,6 @@ namespace oblo
                 }
 
                 // Then compile to the various targets
-
-                {
-                    const auto& byteCodeNode = configs[u32(importer_artifact::bytecode)];
-
-                    if (byteCodeNode.enabled &&
-                        (!prepare_path(destination, ctx, byteCodeNode.id, artifact_bytecode) ||
-                            !import_bytecode(byteCodeNode, destination, ast)))
-                    {
-                        return false;
-                    }
-
-                    script.bytecode = resource_ref<compiled_bytecode_module>{byteCodeNode.id};
-                }
 
                 {
                     const auto& avx2Node = configs[u32(importer_artifact::x86_64_avx2)];
@@ -301,32 +281,6 @@ namespace oblo
                 }
 
                 destination.append_path(artifactName);
-                return true;
-            }
-
-            bool import_bytecode(
-                const import_node_config& nodeConfig, cstring_view destination, const abstract_syntax_tree& ast)
-            {
-
-                expected module = bytecode_generator{}.generate_module(ast);
-
-                if (!module)
-                {
-                    return false;
-                }
-
-                if (!save(*module, destination))
-                {
-                    return false;
-                }
-
-                auto& artifact = m_artifacts.emplace_back();
-
-                artifact.id = nodeConfig.id;
-                artifact.name = artifact_bytecode;
-                artifact.path = destination.as<string>();
-                artifact.type = resource_type<compiled_bytecode_module>;
-
                 return true;
             }
 
@@ -539,6 +493,12 @@ namespace oblo
 
                 tree.add_node(root,
                     ast_type_declaration{
+                        .name = script_api::bool_t,
+                        .size = sizeof(bool),
+                    });
+
+                tree.add_node(root,
+                    ast_type_declaration{
                         .name = script_api::vec3_t,
                         .size = sizeof(f32) * 3,
                     });
@@ -638,6 +598,40 @@ namespace oblo
                         .returnType = script_api::f32_t,
                     });
 
+                const auto addInvokeReflectedFunction =
+                    [&tree, root](hashed_string_view name, hashed_string_view returnType)
+                {
+                    const h32 h = tree.add_node(root,
+                        ast_function_declaration{
+                            .name = name,
+                            .returnType = returnType,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "fqn",
+                            .type = script_api::string_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "count",
+                            .type = script_api::u32_t,
+                        });
+
+                    tree.add_node(h,
+                        ast_function_parameter{
+                            .name = "args",
+                            .type = script_api::void_const_ptr_const_ptr_t,
+                        });
+                };
+
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_void, script_api::void_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_i32, script_api::i32_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_f32, script_api::f32_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_vec3, script_api::vec3_t);
+                addInvokeReflectedFunction(script_api::invoke_reflected_function_bool, script_api::bool_t);
+
                 return true;
             }
         };
@@ -651,6 +645,51 @@ namespace oblo
                 .category = string{T::category},
                 .instantiate = [](const any&) -> unique_ptr<node_interface> { return allocate_unique<T>(); },
             };
+        }
+    }
+
+    namespace
+    {
+        constexpr expected<node_primitive_kind> reflected_function_param_kind(const type_id& type)
+        {
+            if (type == get_type_id<i32>())
+            {
+                return node_primitive_kind::i32;
+            }
+
+            if (type == get_type_id<f32>())
+            {
+                return node_primitive_kind::f32;
+            }
+
+            if (type == get_type_id<vec3>())
+            {
+                return node_primitive_kind::vec3;
+            }
+
+            if (type == get_type_id<bool>())
+            {
+                return node_primitive_kind::boolean;
+            }
+
+            return "Unknown type"_err;
+        }
+
+        constexpr expected<std::optional<node_primitive_kind>> reflected_function_return_kind(type_id type)
+        {
+            if (type == get_type_id<void>())
+            {
+                return std::nullopt;
+            }
+
+            const expected k = reflected_function_param_kind(type);
+
+            if (!k)
+            {
+                return k.error();
+            }
+
+            return *k;
         }
     }
 
@@ -678,6 +717,20 @@ namespace oblo
             propertyUserdata->propertyPath);
     }
 
+    struct event_userdata
+    {
+        type_id eventType;
+    };
+
+    struct reflected_function_userdata
+    {
+        string name;
+        std::optional<node_primitive_kind> returnKind;
+        dynamic_array<node_primitive_kind> paramKinds;
+        dynamic_array<cstring_view> paramNames;
+        u32 paramCount{};
+    };
+
     class script_asset_module final : public module_interface
     {
     public:
@@ -697,34 +750,32 @@ namespace oblo
 
         bool finalize() override
         {
-            bool success = true;
-
             // Types
-            success =
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::boolean>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::i32>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::f32>()) &&
-                m_scriptRegistry.register_primitive_type(make_node_primitive_type<node_primitive_kind::vec3>());
+            register_primitive<node_primitive_kind::execution>();
+            register_primitive<node_primitive_kind::boolean>();
+            register_primitive<node_primitive_kind::i32>();
+            register_primitive<node_primitive_kind::f32>();
+            register_primitive<node_primitive_kind::vec3>();
 
             // Nodes
-            success = m_scriptRegistry.register_node(make_node_descriptor<input_node>()) && success;
+            register_node<input_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<bool_constant_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<i32_constant_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<f32_constant_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<vec3_constant_node>()) && success;
+            register_node<bool_constant_node>();
+            register_node<i32_constant_node>();
+            register_node<f32_constant_node>();
+            register_node<vec3_constant_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<vec_nodes::make_vec3_node>()) && success;
+            register_node<vec_nodes::make_vec3_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<add_operator>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<mul_operator>()) && success;
+            register_node<add_operator>();
+            register_node<mul_operator>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::cosine_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::sine_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::tangent_node>()) && success;
-            success = m_scriptRegistry.register_node(make_node_descriptor<math_nodes::arctangent_node>()) && success;
+            register_node<math_nodes::cosine_node>();
+            register_node<math_nodes::sine_node>();
+            register_node<math_nodes::tangent_node>();
+            register_node<math_nodes::arctangent_node>();
 
-            success = m_scriptRegistry.register_node(make_node_descriptor<api_nodes::get_time_node>()) && success;
+            register_node<api_nodes::get_time_node>();
 
             auto* const runtimeModule = module_manager::get().find<runtime_module>();
 
@@ -733,8 +784,8 @@ namespace oblo
                 const auto& propertyRegistry = runtimeModule->get_property_registry();
                 const auto& reflectionRegistry = propertyRegistry.get_reflection_registry();
 
-                deque<reflection::type_handle> componentTypes;
-                reflectionRegistry.find_by_tag<ecs::component_type_tag>(componentTypes);
+                deque<reflection::type_handle> foundTypes;
+                reflectionRegistry.find_by_tag<ecs::component_type_tag>(foundTypes);
 
                 const uuid_namespace_generator getPropertyIdGen{"598e9195-326b-4ab8-a397-004d85a9c036"_uuid};
                 const uuid_namespace_generator setPropertyIdGen{"b05cf6fe-ecbb-4699-9a8f-ad48a7889086"_uuid};
@@ -743,7 +794,7 @@ namespace oblo
                 string_builder propertyPath;
                 string_builder categoryBuilder;
 
-                for (const auto& componentType : componentTypes)
+                for (const auto& componentType : foundTypes)
                 {
                     if (!reflectionRegistry.has_tag<reflection::script_api>(componentType))
                     {
@@ -834,34 +885,184 @@ namespace oblo
                             const uuid getPropertyId = getPropertyIdGen.generate_from_hash(propertyHash);
                             const uuid setPropertyId = setPropertyIdGen.generate_from_hash(propertyHash);
 
-                            success = m_scriptRegistry.register_node({
-                                          .id = getPropertyId,
-                                          .name = nodeName.as<string>(),
-                                          .category = categoryBuilder.as<string>(),
-                                          .instantiate = instantiateGetFn,
-                                          .userdata = make_any<ecs_property_userdata>(userdata),
-                                      }) &&
-                                success;
+                            register_node({
+                                .id = getPropertyId,
+                                .name = nodeName.as<string>(),
+                                .category = categoryBuilder.as<string>(),
+                                .instantiate = instantiateGetFn,
+                                .userdata = make_any<ecs_property_userdata>(userdata),
+                            });
 
                             nodeName.clear().append("Set ").append(componentName).append("::").append(propertyPath);
 
-                            success = m_scriptRegistry.register_node({
-                                          .id = setPropertyId,
-                                          .name = nodeName.as<string>(),
-                                          .category = categoryBuilder.as<string>(),
-                                          .instantiate = instantiateSetFn,
-                                          .userdata = make_any<ecs_property_userdata>(userdata),
-                                      }) &&
-                                success;
+                            register_node({
+                                .id = setPropertyId,
+                                .name = nodeName.as<string>(),
+                                .category = categoryBuilder.as<string>(),
+                                .instantiate = instantiateSetFn,
+                                .userdata = make_any<ecs_property_userdata>(userdata),
+                            });
                         }
                     }
                 }
+
+                foundTypes.clear();
+                reflectionRegistry.find_by_tag<reflection::script_event>(foundTypes);
+
+                for (const auto& eventType : foundTypes)
+                {
+                    const auto& typeData = reflectionRegistry.get_type_data(eventType);
+
+                    const std::optional prettyName =
+                        reflectionRegistry.find_concept<reflection::pretty_name>(eventType);
+
+                    const string_view name =
+                        prettyName.value_or(reflection::pretty_name{.identifier = typeData.type.name}).identifier;
+
+                    const std::optional id = reflectionRegistry.find_concept<uuid>(eventType);
+
+                    if (!id)
+                    {
+                        log::error("No uuid for event type {}", name);
+                        continue;
+                    }
+
+                    nodeName.clear().append("Event ").append(name);
+
+                    register_node({
+                        .id = *id,
+                        .name = nodeName.as<string>(),
+                        .category = "Events",
+                        .instantiate = [](const any&) -> unique_ptr<node_interface>
+                        {
+                            class event_received_node : public zero_properties_node
+                            {
+                            public:
+                                void on_create(const node_graph_context& g) override
+                                {
+                                    add_node_execution_pins(g, false, true);
+                                }
+
+                                void on_input_change(const node_graph_context&) override {}
+
+                                bool generate(const node_graph_context&,
+                                    abstract_syntax_tree&,
+                                    h32<ast_node>,
+                                    const std::span<const h32<ast_node>>,
+                                    dynamic_array<h32<ast_node>>& outputs) const override
+                                {
+                                    add_node_execution_ast_node(outputs);
+                                    return true;
+                                }
+                            };
+
+                            return allocate_unique<event_received_node>();
+                        },
+                    });
+                }
+
+                constexpr string_view category = "Script API";
+
+                const uuid_namespace_generator scriptFunctionIdGen{"7f4b3d9e-8c2a-4e6f-b1d5-9a3c2f8e6d4b"_uuid};
+
+                script_api::for_each_script_function(reflectionRegistry,
+                    [&](const reflection::function_data& data) -> bool
+                    {
+                        const u32 paramCount = data.parameterTypes.size32();
+
+                        dynamic_array<node_primitive_kind> paramKinds;
+                        dynamic_array<cstring_view> paramNames;
+                        paramKinds.reserve(paramCount);
+                        paramNames.reserve(paramCount);
+
+                        for (u32 i = 0; i < paramCount; ++i)
+                        {
+                            const expected kind = reflected_function_param_kind(data.parameterTypes[i]);
+
+                            if (!kind)
+                            {
+                                return true;
+                            }
+
+                            paramKinds.emplace_back(*kind);
+                            paramNames.emplace_back(data.parameterNames[i]);
+                        }
+
+                        const expected returnKind = reflected_function_return_kind(data.returnType);
+
+                        if (!returnKind)
+                        {
+                            return true;
+                        }
+
+                        const uuid id = scriptFunctionIdGen.generate(data.fullyQualifiedName.as<string_view>());
+
+                        reflected_function_userdata userdata{
+                            .name = data.fullyQualifiedName.as<string>(),
+                            .returnKind = *returnKind,
+                            .paramKinds = std::move(paramKinds),
+                            .paramNames = std::move(paramNames),
+                        };
+
+                        nodeName.clear().append(data.fullyQualifiedName);
+
+                        register_node({
+                            .id = id,
+                            .name = nodeName.as<string>(),
+                            .category = string{category},
+                            .instantiate = [](const any& userdata) -> unique_ptr<node_interface>
+                            {
+                                const auto* const fnUserdata = userdata.as<reflected_function_userdata>();
+
+                                return allocate_unique<api_nodes::invoke_reflected_function_node>(fnUserdata->name,
+                                    fnUserdata->returnKind,
+                                    std::span{fnUserdata->paramKinds},
+                                    std::span{fnUserdata->paramNames});
+                            },
+                            .userdata = make_any<reflected_function_userdata>(std::move(userdata)),
+                        });
+
+                        return true;
+                    });
             }
 
             return true;
         }
 
         void shutdown() override {}
+
+    private:
+        template <node_primitive_kind Kind>
+        void register_primitive()
+        {
+            node_primitive_type desc = make_node_primitive_type<Kind>();
+            const expected success = m_scriptRegistry.register_primitive_type(std::move(desc));
+
+            if (!success)
+            {
+                log::debug("Failed to register script primitive type: {} [{}]", desc.name, success.error().message);
+            }
+
+            OBLO_ASSERT(success);
+        }
+
+        template <typename Node>
+        void register_node()
+        {
+            register_node(make_node_descriptor<Node>());
+        }
+
+        void register_node(node_descriptor&& desc)
+        {
+            const expected success = m_scriptRegistry.register_node(std::move(desc));
+
+            if (!success)
+            {
+                log::debug("Failed to register script node: {} [{}]", desc.name, success.error().message);
+            }
+
+            OBLO_ASSERT(success);
+        }
 
     private:
         node_graph_registry m_scriptRegistry;

@@ -7,7 +7,6 @@ target_link_libraries(
     oblo_script_compiler
     PUBLIC
     oblo::ast
-    oblo::script::runtime
 )
 
 set(outDir "${CMAKE_CURRENT_BINARY_DIR}/include")

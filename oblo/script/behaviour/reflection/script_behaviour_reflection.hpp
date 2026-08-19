@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/script/behaviour/events.hpp>
 #include <oblo/script/behaviour/script_behaviour_component.hpp>
 
 // Includes required by the generated code

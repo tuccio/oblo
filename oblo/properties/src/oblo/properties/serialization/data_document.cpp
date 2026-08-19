@@ -508,6 +508,16 @@ namespace oblo
             return f32(*reinterpret_cast<const f64*>(n.value.data));
         }
 
+        if (n.valueKind == property_kind::i32)
+        {
+            return f32(*reinterpret_cast<const i32*>(n.value.data));
+        }
+
+        if (n.valueKind == property_kind::u32)
+        {
+            return f32(*reinterpret_cast<const u32*>(n.value.data));
+        }
+
         return error::value_kind_mismatch;
     }
 
@@ -527,12 +537,22 @@ namespace oblo
 
         if (n.valueKind == property_kind::f32)
         {
-            return *reinterpret_cast<const f64*>(n.value.data);
+            return *reinterpret_cast<const f32*>(n.value.data);
         }
 
         if (n.valueKind == property_kind::f64)
         {
             return *reinterpret_cast<const f64*>(n.value.data);
+        }
+
+        if (n.valueKind == property_kind::i32)
+        {
+            return *reinterpret_cast<const i32*>(n.value.data);
+        }
+
+        if (n.valueKind == property_kind::u32)
+        {
+            return *reinterpret_cast<const u32*>(n.value.data);
         }
 
         return error::value_kind_mismatch;

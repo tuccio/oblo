@@ -9,6 +9,7 @@
 #include <atomic>
 #include <format>
 #include <memory_resource>
+#include <semaphore>
 #include <span>
 #include <thread>
 
@@ -72,6 +73,11 @@ namespace oblo
             bool pop(job_impl*& job)
             {
                 return m_jobs.try_dequeue(job);
+            }
+
+            bool has_jobs() const
+            {
+                return m_jobs.size_approx() > 0;
             }
 
         private:
@@ -153,6 +159,25 @@ namespace oblo
             }
         }
 
+        struct semaphore
+        {
+        public:
+            semaphore() : m_semaphore{0} {}
+
+            void wait()
+            {
+                m_semaphore.acquire();
+            }
+
+            void signal(u32 n = 1u)
+            {
+                m_semaphore.release(n);
+            }
+
+        private:
+            std::counting_semaphore<~0u> m_semaphore;
+        };
+
         enum class worker_state : u8
         {
             uninitialized,
@@ -184,9 +209,18 @@ namespace oblo
             state->store(worker_state::ready, std::memory_order_release);
         }
 
-        void worker_thread_run(
-            job_manager* jm, u32 id, std::span<job_queue* const> queues, const std::atomic<worker_state>* state)
+        void worker_thread_run(job_manager* jm,
+            u32 id,
+            std::span<job_queue* const> queues,
+            const std::atomic<worker_state>* state,
+            semaphore& workReady)
         {
+            // After a few attempts of polling to keep latency low, wait on a condition variable for jobs to avoid
+            // getting the CPU to 100% all the time.
+            constexpr u32 waitThreshold = 32;
+
+            u32 noJobsCounter = 0;
+
             while (state->load(std::memory_order_relaxed) != worker_state::stop_requested)
             {
                 job_impl* job{};
@@ -202,9 +236,16 @@ namespace oblo
                 if (!job)
                 {
                     std::this_thread::yield();
+
+                    if (++noJobsCounter > waitThreshold)
+                    {
+                        workReady.wait();
+                    }
                 }
                 else
                 {
+                    noJobsCounter = 0;
+
                     execute(jm, job, id);
                     signal_finished_job(job);
                 }
@@ -218,6 +259,7 @@ namespace oblo
 
         dynamic_array<worker_thread> threads;
         std::pmr::synchronized_pool_resource userdataPool;
+        semaphore workReady;
     };
 
     OBLO_THREAD_API job_manager* job_manager::get()
@@ -291,6 +333,7 @@ namespace oblo
     void job_manager::push_job_impl(job_handle h)
     {
         s_tlsWorkerCtx.queue->push(as_job_impl(h));
+        m_impl->workReady.signal();
     }
 
     bool job_manager::init(const job_manager_config& cfg)
@@ -327,7 +370,7 @@ namespace oblo
                     }
 
                     worker_thread_init(this, i, &thisThread.queue, &thisThread.state);
-                    worker_thread_run(this, i, queues, &thisThread.state);
+                    worker_thread_run(this, i, queues, &thisThread.state, m_impl->workReady);
                 }};
         }
 
@@ -355,6 +398,8 @@ namespace oblo
         {
             worker.state.store(worker_state::stop_requested, std::memory_order_relaxed);
         }
+
+        m_impl->workReady.signal(u32(workers.size()));
 
         // TODO: (#51) This actually leaks jobs that are still pending
 

@@ -343,7 +343,10 @@ namespace oblo
         const h32 srcPinVertex = to_vertex_handle(src);
         const h32 dstPinVertex = to_vertex_handle(dst);
 
-        m_graph.add_edge(srcPinVertex, dstPinVertex);
+        if (!m_graph.add_edge(srcPinVertex, dstPinVertex))
+        {
+            return false;
+        }
 
         const pin_data& pinData = m_graph[dstPinVertex].data.as<pin_data>();
 
@@ -714,20 +717,65 @@ namespace oblo
             return "Failed to create node"_err;
         }
 
+        const uuid executionTypeId = m_registry->find_primitive_type_id(node_primitive_kind::execution);
+
+        const auto is_execution_pin = [&executionTypeId](const pin_data& pin)
+        { return !executionTypeId.is_nil() && pin.deducedType == executionTypeId; };
+
+        // Events are the entry points of the graph, and they are identified by having an execution output pin but no
+        // execution input pin.
+        dynamic_array<node_graph_vertex_handle> eventVertices;
+
+        if (!executionTypeId.is_nil())
+        {
+            for (const h32 v : m_graph.get_vertices())
+            {
+                if (!m_graph[v].data.is<node_data>())
+                {
+                    continue;
+                }
+
+                const node_data& node = m_graph[v].data.as<node_data>();
+
+                bool hasInputExecution = false;
+                bool hasOutputExecution = false;
+
+                for (const h32 inPin : node.inputPins)
+                {
+                    if (is_execution_pin(m_graph[inPin].data.as<pin_data>()))
+                    {
+                        hasInputExecution = true;
+                        break;
+                    }
+                }
+
+                for (const h32 outPin : node.outputPins)
+                {
+                    if (is_execution_pin(m_graph[outPin].data.as<pin_data>()))
+                    {
+                        hasOutputExecution = true;
+                        break;
+                    }
+                }
+
+                if (hasOutputExecution && !hasInputExecution)
+                {
+                    eventVertices.emplace_back(v);
+                }
+            }
+        }
+
+        // Events are the only entry points, without them we don't have anything to generate
+        if (eventVertices.empty())
+        {
+            return no_error;
+        }
+
         const h32 root = ast.get_root();
 
-        const h32 executeDecl = ast.add_node(root,
-            ast_function_declaration{
-                .name = "node_graph_execute",
-                .returnType = "void",
-            });
-
-        const h32 functionBody = ast.add_node(executeDecl, ast_function_body{});
-
-        // We use a compound for statements we need to execute before the rest (e.g. variables we store because they are
-        // used by multiple nodes)
-        const h32 executeStatements = ast.add_node(functionBody, ast_compound{});
-        const h32 preExecuteStatements = ast.add_node(functionBody, ast_compound{});
+        dynamic_array<bool> reachableFlags;
+        dynamic_array<bool> affectedFlags;
+        dynamic_array<node_graph_vertex_handle> visitStack;
 
         struct output_pin_data
         {
@@ -735,24 +783,132 @@ namespace oblo
             h32<ast_node> varDecl;
         };
 
-        h32_flat_extpool_dense_map<node_graph_vertex_handle::tag_type, output_pin_data> outputPins;
-
         dynamic_array<h32<ast_node>> inputs;
         dynamic_array<h32<ast_node>> outputs;
 
         inputs.reserve(32);
         outputs.reserve(32);
 
-        for (const h32 currentVertex : reverse_range(sortedVertices))
+        for (const h32 eventVertex : eventVertices)
         {
-            auto& vertexData = m_graph[currentVertex].data;
+            // A node is affected by an event if there is a path from the event to the node, or a path from the node to
+            // a node that is affected. In practice this is the event, the nodes downstream of it and every node feeding
+            // data into them.
+            reachableFlags.assign(m_graph.get_vertex_count(), false);
+            affectedFlags.assign(m_graph.get_vertex_count(), false);
 
-            if (vertexData.is<pin_data>())
+            // First, mark every vertex reachable from the event following the edges.
+            visitStack.clear();
+            visitStack.emplace_back(eventVertex);
+
+            while (!visitStack.empty())
             {
-                const pin_data& pin = m_graph[currentVertex].data.as<pin_data>();
+                const h32 currentVertex = visitStack.back();
+                visitStack.pop_back();
 
-                if (pin.kind == pin_kind::output)
+                const usize denseIndex = m_graph.get_dense_index(currentVertex);
+
+                if (reachableFlags[denseIndex])
                 {
+                    continue;
+                }
+
+                reachableFlags[denseIndex] = true;
+
+                for (const auto& e : m_graph.get_out_edges(currentVertex))
+                {
+                    visitStack.emplace_back(e.vertex);
+                }
+            }
+
+            // Then, mark every vertex that can reach one of the reachable vertices (i.e. the nodes feeding data into
+            // the affected ones).
+            visitStack.clear();
+
+            for (const h32 v : m_graph.get_vertices())
+            {
+                if (reachableFlags[m_graph.get_dense_index(v)])
+                {
+                    visitStack.emplace_back(v);
+                }
+            }
+
+            while (!visitStack.empty())
+            {
+                const h32 currentVertex = visitStack.back();
+                visitStack.pop_back();
+
+                const usize denseIndex = m_graph.get_dense_index(currentVertex);
+
+                if (affectedFlags[denseIndex])
+                {
+                    continue;
+                }
+
+                affectedFlags[denseIndex] = true;
+
+                for (const auto& e : m_graph.get_in_edges(currentVertex))
+                {
+                    visitStack.emplace_back(e.vertex);
+                }
+            }
+
+            // The function for an event is named after the event node uuid, since it's what we require to be stable.
+            const node_data& eventNode = m_graph[eventVertex].data.as<node_data>();
+            const auto* const eventDescriptor = m_registry->find_node(eventNode.typeId);
+
+            if (!eventDescriptor)
+            {
+                return "Failed to create node"_err;
+            }
+
+            builderBuffer.clear();
+            builderBuffer.append("oblo_node_graph_fn_");
+
+            char uuidBuffer[36];
+
+            for (const char c : eventDescriptor->id.format_to(uuidBuffer))
+            {
+                builderBuffer.append(std::isalnum(c) ? c : '_');
+            }
+
+            const h32 executeDecl = ast.add_node(root,
+                ast_function_declaration{
+                    .name = builderBuffer.as<hashed_string_view>(),
+                    .returnType = "void",
+                });
+
+            const h32 functionBody = ast.add_node(executeDecl, ast_function_body{});
+
+            // We use a compound for statements we need to execute before the rest (e.g. variables we store because they
+            // are used by multiple nodes)
+            const h32 executeStatements = ast.add_node(functionBody, ast_compound{});
+            const h32 preExecuteStatements = ast.add_node(functionBody, ast_compound{});
+
+            // For debugging purposes, a friendlier name for the event handled in a comment
+            ast.add_node(functionBody, ast_comment{.comment = eventDescriptor->name.as<hashed_string_view>()});
+
+            h32_flat_extpool_dense_map<node_graph_vertex_handle::tag_type, output_pin_data> outputPins;
+
+            for (const h32 currentVertex : reverse_range(sortedVertices))
+            {
+                auto& vertexData = m_graph[currentVertex].data;
+
+                if (vertexData.is<pin_data>())
+                {
+                    const pin_data& pin = m_graph[currentVertex].data.as<pin_data>();
+
+                    if (pin.kind != pin_kind::output || !affectedFlags[m_graph.get_dense_index(pin.ownerNode)])
+                    {
+                        continue;
+                    }
+
+                    // Execution pins don't carry a value, so there is nothing to store
+                    if (is_execution_pin(pin))
+                    {
+                        continue;
+                    }
+
                     auto* const outPin = outputPins.try_find(currentVertex);
 
                     // When we find output pins, they should have already been generated
@@ -779,71 +935,84 @@ namespace oblo
                         outPin->varDecl = decl;
                     }
                 }
-            }
-            else if (vertexData.is<node_data>())
-            {
-                const node_data& node = m_graph[currentVertex].data.as<node_data>();
-
-                inputs.clear();
-                outputs.clear();
-
-                for (const h32 inPin : node.inputPins)
+                else if (vertexData.is<node_data>())
                 {
-                    auto& inputAstNode = inputs.emplace_back();
-
-                    for (const auto& edge : m_graph.get_in_edges(inPin))
+                    if (!affectedFlags[m_graph.get_dense_index(currentVertex)])
                     {
-                        if (!m_graph[edge.vertex].data.is<pin_data>())
+                        continue;
+                    }
+
+                    const node_data& node = m_graph[currentVertex].data.as<node_data>();
+
+                    inputs.clear();
+                    outputs.clear();
+
+                    for (const h32 inPin : node.inputPins)
+                    {
+                        auto& inputAstNode = inputs.emplace_back();
+
+                        for (const auto& edge : m_graph.get_in_edges(inPin))
                         {
-                            continue;
-                        }
-
-                        auto* const astNode = outputPins.try_find(edge.vertex);
-
-                        if (!astNode || !astNode->expression)
-                        {
-                            return "Failed to connect nodes"_err;
-                        }
-
-                        if (astNode->varDecl)
-                        {
-                            // This means that the node was referenced by more than one input, so we reference the
-                            // variable.
-                            inputAstNode = create_variable_decl_or_ref<ast_variable_reference>(ast,
-                                builderBuffer,
-                                astNode->expression);
-
-                            // We lazily reparent the statements when they are used
-                            // We need to preserve the topological order when reparenting
-                            if (ast.get_parent(astNode->varDecl) != preExecuteStatements)
+                            if (!m_graph[edge.vertex].data.is<pin_data>())
                             {
-                                ast.reparent_first(astNode->varDecl, preExecuteStatements);
+                                continue;
+                            }
+
+                            auto* const astNode = outputPins.try_find(edge.vertex);
+
+                            if (!astNode)
+                            {
+                                return "Failed to connect nodes"_err;
+                            }
+
+                            const pin_data& sourcePin = m_graph[edge.vertex].data.as<pin_data>();
+
+                            // Execution pins don't carry a value, so a missing expression is expected
+                            if (!astNode->expression && !is_execution_pin(sourcePin))
+                            {
+                                return "Failed to connect nodes"_err;
+                            }
+
+                            if (astNode->varDecl)
+                            {
+                                // This means that the node was referenced by more than one input, so we reference the
+                                // variable.
+                                inputAstNode = create_variable_decl_or_ref<ast_variable_reference>(ast,
+                                    builderBuffer,
+                                    astNode->expression);
+
+                                // We lazily reparent the statements when they are used
+                                // We need to preserve the topological order when reparenting
+                                if (ast.get_parent(astNode->varDecl) != preExecuteStatements)
+                                {
+                                    ast.reparent_first(astNode->varDecl, preExecuteStatements);
+                                }
+                            }
+                            else
+                            {
+                                inputAstNode = astNode->expression;
                             }
                         }
-                        else
-                        {
-                            inputAstNode = astNode->expression;
-                        }
                     }
-                }
 
-                // TODO: Parametrize graph context for const/non-const
-                const node_graph_context ctx{*const_cast<node_graph*>(this), currentVertex};
+                    // TODO: Parametrize graph context for const/non-const
+                    const node_graph_context ctx{*const_cast<node_graph*>(this), currentVertex};
 
-                if (!node.node->generate(ctx, ast, executeStatements, inputs, outputs))
-                {
-                    return "Node graph operation failed"_err;
-                }
+                    if (!node.node->generate(ctx, ast, executeStatements, inputs, outputs))
+                    {
+                        return "Node graph operation failed"_err;
+                    }
 
-                if (node.outputPins.size() != outputs.size())
-                {
-                    return "Failed to connect nodes"_err;
-                }
+                    if (node.outputPins.size() != outputs.size())
+                    {
+                        return "Failed to connect nodes"_err;
+                    }
 
-                // Store the generated AST node for each output pin, they will be used to feed the connected inputs
-                for (const auto [outPin, astNode] : zip_range(node.outputPins, outputs))
-                {
-                    outputPins.emplace(outPin, astNode);
+                    // Store the generated AST node for each output pin, they will be used to feed the connected inputs
+                    for (const auto [outPin, astNode] : zip_range(node.outputPins, outputs))
+                    {
+                        outputPins.emplace(outPin, astNode);
+                    }
                 }
             }
         }

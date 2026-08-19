@@ -32,4 +32,5 @@ namespace oblo
     class unique_ptr;
 
     struct time;
+    struct uuid;
 }

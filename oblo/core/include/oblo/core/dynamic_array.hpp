@@ -41,8 +41,12 @@ namespace oblo
     public:
         dynamic_array();
         explicit dynamic_array(allocator* allocator);
-        explicit dynamic_array(allocator* allocator, std::initializer_list<T> init);
-        explicit dynamic_array(allocator* allocator, usize count);
+        dynamic_array(allocator* allocator, std::initializer_list<T> init);
+        dynamic_array(allocator* allocator, usize count);
+
+        template <typename Iterator>
+            requires std::forward_iterator<Iterator>
+        dynamic_array(allocator* allocator, Iterator begin, const Iterator& end);
 
         dynamic_array(const dynamic_array& other);
         dynamic_array(dynamic_array&& other) noexcept;
@@ -125,7 +129,7 @@ namespace oblo
 
         template <typename Iterator>
             requires std::forward_iterator<Iterator>
-        void assign(Iterator first, Iterator last) noexcept;
+        void assign(Iterator first, const Iterator& last) noexcept;
 
         void assign(usize count, const T& value) noexcept;
         void assign_default(usize count) noexcept;
@@ -165,6 +169,14 @@ namespace oblo
     dynamic_array<T>::dynamic_array(allocator* allocator, std::initializer_list<T> init) : m_allocator{allocator}
     {
         *this = init;
+    }
+
+    template <typename T>
+    template <typename Iterator>
+        requires std::forward_iterator<Iterator>
+    dynamic_array<T>::dynamic_array(allocator* allocator, Iterator begin, const Iterator& end) : m_allocator{allocator}
+    {
+        assign(std::move(begin), end);
     }
 
     template <typename T>
@@ -532,7 +544,7 @@ namespace oblo
     template <typename T>
     template <typename Iterator>
         requires std::forward_iterator<Iterator>
-    void dynamic_array<T>::assign(Iterator first, Iterator last) noexcept
+    void dynamic_array<T>::assign(Iterator first, const Iterator& last) noexcept
     {
         clear();
 

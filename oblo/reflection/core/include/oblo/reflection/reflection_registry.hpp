@@ -2,6 +2,7 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/reflection/handles.hpp>
@@ -51,12 +52,16 @@ namespace oblo::reflection
         type_handle find_type(const type_id& type) const;
         class_handle find_class(const type_id& type) const;
         enum_handle find_enum(const type_id& type) const;
+        function_handle find_function(hashed_string_view function) const;
 
         type_data get_type_data(type_handle typeId) const;
         class_handle try_get_class(type_handle typeId) const;
         enum_handle try_get_enum(type_handle typeId) const;
 
         std::span<const field_data> get_fields(class_handle classId) const;
+
+        std::span<const function_handle> get_functions(class_handle classId) const;
+        function_data get_function_data(function_handle functionId) const;
 
         std::span<const cstring_view> get_enumerator_names(enum_handle enumId) const;
         std::span<const byte> get_enumerator_values(enum_handle enumId) const;
@@ -66,10 +71,19 @@ namespace oblo::reflection
         bool has_tag(type_handle typeId) const;
 
         template <typename T>
+        bool has_tag(function_handle function) const;
+
+        template <typename T>
         void find_by_tag(deque<type_handle>& types) const;
 
         template <typename T>
         void find_by_concept(deque<type_handle>& types) const;
+
+        template <typename T>
+        void find_by_tag(deque<function_handle>& functions) const;
+
+        template <typename T>
+        void find_by_concept(deque<function_handle>& functions) const;
 
         template <typename T>
         std::optional<T> find_concept(type_handle typeId) const;
@@ -77,9 +91,15 @@ namespace oblo::reflection
         bool is_fundamental(type_handle typeId) const;
 
     private:
-        bool has_tag(const type_id& tag, type_handle type) const;
-        void find_by_tag(const type_id& tag, deque<type_handle>& types) const;
-        void find_by_concept(const type_id& type, deque<type_handle>& types) const;
+        template <typename T>
+        bool has_tag(const type_id& tag, T type) const;
+
+        template <typename T>
+        void find_by_tag(const type_id& tag, deque<T>& handles) const;
+
+        template <typename T>
+        void find_by_concept(const type_id& type, deque<T>& handles) const;
+
         const void* find_concept(type_handle typeId, const type_id& type) const;
 
     private:
@@ -120,6 +140,18 @@ namespace oblo::reflection
     }
 
     template <typename T>
+    void reflection_registry::find_by_tag(deque<function_handle>& functions) const
+    {
+        find_by_tag(get_type_id<tag_type<T>>(), functions);
+    }
+
+    template <typename T>
+    void reflection_registry::find_by_concept(deque<function_handle>& functions) const
+    {
+        find_by_concept(get_type_id<concept_type<T>>(), functions);
+    }
+
+    template <typename T>
     std::optional<T> reflection_registry::find_concept(type_handle typeId) const
     {
         std::optional<T> res;
@@ -137,5 +169,11 @@ namespace oblo::reflection
     bool reflection_registry::has_tag(type_handle type) const
     {
         return has_tag(get_type_id<tag_type<T>>(), type);
+    }
+
+    template <typename T>
+    bool reflection_registry::has_tag(function_handle function) const
+    {
+        return has_tag(get_type_id<tag_type<T>>(), function);
     }
 };

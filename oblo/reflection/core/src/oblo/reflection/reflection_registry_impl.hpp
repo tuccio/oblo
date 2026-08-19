@@ -1,11 +1,13 @@
 #pragma once
 
-#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/deque.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
+
 
 #include <functional>
 #include <memory_resource>
@@ -18,8 +20,7 @@ namespace oblo::reflection
     public:
         any_attribute(
             std::pmr::unsynchronized_pool_resource* pool, void* ptr, void (*destroy)(void*), u32 size, u32 alignment) :
-            m_pool{pool},
-            m_ptr{ptr}, m_destroy{destroy}, m_size{size}, m_alignment{alignment}
+            m_pool{pool}, m_ptr{ptr}, m_destroy{destroy}, m_size{size}, m_alignment{alignment}
         {
         }
 
@@ -64,6 +65,7 @@ namespace oblo::reflection
     {
         type_id type;
         dynamic_array<field_data> fields;
+        dynamic_array<function_handle> functions;
         deque<any_attribute> attributeStorage;
     };
 
@@ -83,5 +85,6 @@ namespace oblo::reflection
         ecs::entity_registry registry{&typesRegistry};
 
         std::unordered_map<type_id, ecs::entity> typesMap;
+        std::unordered_map<hashed_string_view, ecs::entity, hash<hashed_string_view>> functionsMap;
     };
 }

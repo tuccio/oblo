@@ -74,6 +74,11 @@ namespace oblo::gen
             generate_enum(enumType);
         }
 
+        for (const auto& function : target.functions)
+        {
+            generate_function(function);
+        }
+
         deindent();
         new_line();
 
@@ -217,6 +222,14 @@ namespace oblo::gen
             addPrettyName = true;
         }
 
+        if (r.flags.contains(record_flags::script_event))
+        {
+            m_content.append("classBuilder.add_tag<::oblo::reflection::script_event>();");
+            new_line();
+
+            addPrettyName = true;
+        }
+
         if (r.flags.contains(record_flags::transient))
         {
             m_content.append("classBuilder.add_tag<::oblo::reflection::transient_type_tag>();");
@@ -288,6 +301,37 @@ namespace oblo::gen
         }
 
         m_content.append(";");
+
+        deindent();
+        new_line();
+
+        m_content.append("}");
+        new_line();
+    }
+
+    void reflection_worker::generate_function(const function_type& f)
+    {
+        m_content.append("{");
+
+        indent();
+        new_line();
+
+        m_content.format("[[maybe_unused]] auto&& funcBuilder = reg.add_function(\"{0}\", &{0});",
+            f.fullyQualifiedName);
+
+        new_line();
+
+        for (usize i = 0; i < f.parameterNames.size(); ++i)
+        {
+            m_content.format("funcBuilder.parameter({}, \"{}\");", i, f.parameterNames[i]);
+            new_line();
+        }
+
+        if (f.flags.contains(function_flags::script_api))
+        {
+            m_content.append("funcBuilder.add_tag<::oblo::reflection::script_api>();");
+            new_line();
+        }
 
         deindent();
         new_line();

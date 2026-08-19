@@ -7,6 +7,7 @@ namespace oblo
 {
     enum class node_primitive_kind : u8
     {
+        execution,
         boolean,
         i32,
         f32,

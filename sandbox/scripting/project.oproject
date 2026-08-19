@@ -1,0 +1,11 @@
+{
+    "name": "Scripting Sandbox",
+    "directories": {
+        "assets": "assets",
+        "artifacts": ".artifacts",
+        "sources": "sources"
+    },
+    "modules": [
+        "oblo_scripting_sandbox"
+    ]
+}

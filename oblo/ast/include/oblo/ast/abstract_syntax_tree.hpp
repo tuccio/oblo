@@ -23,6 +23,7 @@ namespace oblo
         function_body,
         function_call,
         function_argument,
+        comment,
         compound,
         construct_type,
         binary_operator,
@@ -37,6 +38,9 @@ namespace oblo
         variable_definition,
         variable_reference,
         return_statement,
+        address_of,
+        null,
+        array_declaration,
     };
 
     enum class ast_binary_operator_kind
@@ -96,6 +100,13 @@ namespace oblo
         static constexpr ast_node_kind node_kind = ast_node_kind::function_argument;
 
         hashed_string_view name;
+    };
+
+    struct ast_comment
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::comment;
+
+        hashed_string_view comment;
     };
 
     struct ast_compound
@@ -189,6 +200,24 @@ namespace oblo
         static constexpr ast_node_kind node_kind = ast_node_kind::return_statement;
     };
 
+    struct ast_address_of
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::address_of;
+    };
+
+    struct ast_null
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::null;
+    };
+
+    struct ast_array_declaration
+    {
+        static constexpr ast_node_kind node_kind = ast_node_kind::array_declaration;
+
+        hashed_string_view elementType;
+        u32 size;
+    };
+
     struct ast_node
     {
         h32<ast_node> firstChild{};
@@ -207,6 +236,7 @@ namespace oblo
             ast_function_body functionBody;
             ast_function_call functionCall;
             ast_function_argument functionArgument;
+            ast_comment comment;
             ast_compound compound;
             ast_construct_type constructType;
             ast_binary_operator binaryOp;
@@ -221,6 +251,9 @@ namespace oblo
             ast_variable_definition varDef;
             ast_variable_reference varRef;
             ast_return_statement retStmt;
+            ast_address_of addressOf;
+            ast_null null;
+            ast_array_declaration arrayDecl;
         } node = {.root = {}};
     };
 
@@ -311,6 +344,13 @@ namespace oblo
             n.node.functionArgument.name = intern_h_str(v.name);
         }
 
+        void set_node(ast_node& n, const ast_comment& v)
+        {
+            n.kind = ast_node_kind::comment;
+            n.node.comment = v;
+            n.node.comment.comment = intern_h_str(v.comment);
+        }
+
         void set_node(ast_node& n, const ast_compound& v)
         {
             n.kind = ast_node_kind::compound;
@@ -399,6 +439,25 @@ namespace oblo
         {
             n.kind = ast_node_kind::return_statement;
             n.node.retStmt = v;
+        }
+
+        void set_node(ast_node& n, const ast_address_of& v)
+        {
+            n.kind = ast_node_kind::address_of;
+            n.node.addressOf = v;
+        }
+
+        void set_node(ast_node& n, const ast_null& v)
+        {
+            n.kind = ast_node_kind::null;
+            n.node.null = v;
+        }
+
+        void set_node(ast_node& n, const ast_array_declaration& v)
+        {
+            n.kind = ast_node_kind::array_declaration;
+            n.node.arrayDecl = v;
+            n.node.arrayDecl.elementType = intern_h_str(v.elementType);
         }
 
         hashed_string_view intern_h_str(hashed_string_view str)

@@ -54,4 +54,16 @@ namespace oblo::reflection
             return type_handle{value};
         }
     };
+
+    struct function_handle
+    {
+        constexpr explicit operator bool() const noexcept
+        {
+            return value != u32{};
+        }
+
+        constexpr auto operator<=>(const function_handle&) const = default;
+
+        u32 value;
+    };
 }

@@ -5,10 +5,8 @@
 #include <oblo/core/platform/process.hpp>
 #include <oblo/core/platform/shared_library.hpp>
 #include <oblo/math/constants.hpp>
-#include <oblo/script/compiler/bytecode_generator.hpp>
 #include <oblo/script/compiler/cpp_compiler.hpp>
 #include <oblo/script/compiler/cpp_generator.hpp>
-#include <oblo/script/interpreter.hpp>
 
 #include <gtest/gtest.h>
 
@@ -39,31 +37,6 @@ namespace oblo
 
             return ast;
         }
-    }
-
-    TEST(bytecode_generator, add_sub_f32_constants)
-    {
-        const abstract_syntax_tree ast = make_add_sub_f32_constants_ast();
-
-        bytecode_generator gen;
-        const auto m = gen.generate_module(ast);
-        ASSERT_TRUE(m);
-
-        interpreter rt;
-        rt.init(1u << 8);
-
-        rt.load_module(*m);
-        const h32 hFuncInstance = rt.find_function("add_sub"_hsv);
-        ASSERT_TRUE(hFuncInstance);
-
-        ASSERT_TRUE(rt.call_function(hFuncInstance));
-
-        // We should have the result at the top
-        const expected<f32, interpreter_error> r = rt.read_f32(0);
-        ASSERT_TRUE(r);
-
-        ASSERT_EQ(rt.used_stack_size(), sizeof(f32));
-        ASSERT_FLOAT_EQ(*r, 42.f);
     }
 
     namespace

@@ -253,6 +253,11 @@ namespace oblo
                 unreachable();
                 break;
 
+            case ast_node_kind::comment:
+                g.format("// {}", node.node.comment.comment);
+                g.new_line();
+                break;
+
             case ast_node_kind::type_declaration:
                 types[node.node.typeDecl.name] = {
                     .size = node.node.typeDecl.size,
@@ -476,7 +481,6 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(u32);
                             break;
 
                         case ast_binary_operator_kind::sub_f32:
@@ -484,7 +488,6 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
                         case ast_binary_operator_kind::mul_f32:
@@ -492,7 +495,6 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(f32);
                             break;
 
                         case ast_binary_operator_kind::div_f32:
@@ -500,7 +502,20 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = sizeof(f32);
+                            break;
+
+                        case ast_binary_operator_kind::add_vec3:
+                            if (!write_binary_operation("+", "vec3"))
+                            {
+                                return "Operation failed"_err;
+                            }
+                            break;
+
+                        case ast_binary_operator_kind::sub_vec3:
+                            if (!write_binary_operation("-", "vec3"))
+                            {
+                                return "Operation failed"_err;
+                            }
                             break;
 
                         case ast_binary_operator_kind::mul_vec3:
@@ -508,7 +523,13 @@ namespace oblo
                             {
                                 return "Operation failed"_err;
                             }
-                            // thisNodeInfo.expressionResultSize = 3 * sizeof(f32);
+                            break;
+
+                        case ast_binary_operator_kind::div_vec3:
+                            if (!write_binary_operation("/", "vec3"))
+                            {
+                                return "Operation failed"_err;
+                            }
                             break;
 
                         default:
@@ -619,6 +640,49 @@ namespace oblo
                         stmt.append(n.node.varRef.name);
                     }
                     break;
+
+                    case ast_node_kind::address_of: {
+                        h32<ast_node> child[1];
+
+                        if (!get_children(ast, node, child))
+                        {
+                            return "Operation failed"_err;
+                        }
+
+                        stmt.append('&');
+                        append_var_name(stmt, child[0]);
+                    }
+                    break;
+
+                    case ast_node_kind::null:
+                        stmt.append("nullptr");
+                        break;
+
+                    case ast_node_kind::array_declaration: {
+                        stmt.format("{} _n{}[{}] = {{ ", n.node.arrayDecl.elementType, node.value, n.node.arrayDecl.size);
+
+                        bool isFirst = true;
+
+                        for (const h32 child : ast.children(node))
+                        {
+                            if (!isFirst)
+                            {
+                                stmt.append(", ");
+                            }
+
+                            isFirst = false;
+                            append_var_name(stmt, child);
+                        }
+
+                        stmt.append(" };");
+                        stmt.set_is_expression(false);
+                    }
+                    break;
+
+                    case ast_node_kind::comment:
+                        stmt.format("// {}", n.node.comment.comment);
+                        stmt.set_is_expression(false);
+                        break;
 
                     case ast_node_kind::compound:
                         stmt.set_is_expression(false);

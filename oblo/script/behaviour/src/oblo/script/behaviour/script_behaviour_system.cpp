@@ -1,9 +1,13 @@
 #include <oblo/script/behaviour/script_behaviour_system.hpp>
 
 #include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/formatters/uuid_formatter.hpp>
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
+#include <oblo/core/unreachable.hpp>
+#include <oblo/core/uuid_generator.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/range.hpp>
@@ -12,28 +16,35 @@
 #include <oblo/log/log.hpp>
 #include <oblo/math/vec3.hpp>
 #include <oblo/modules/module_manager.hpp>
-#include <oblo/options/options_module.hpp>
 #include <oblo/properties/property_registry.hpp>
 #include <oblo/properties/property_tree.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 #include <oblo/resource/resource_ptr.hpp>
 #include <oblo/resource/resource_registry.hpp>
-#include <oblo/script/behaviour/options.hpp>
+#include <oblo/script/behaviour/events.hpp>
 #include <oblo/script/behaviour/script_behaviour_component.hpp>
-#include <oblo/script/interpreter.hpp>
 #include <oblo/script/resources/builtin_api.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
+#include <oblo/script/resources/reflection_script_api.hpp>
+
+#include <type_traits>
+#include <utility>
 
 namespace oblo
 {
     namespace
     {
-        constexpr u32 g_StackSize = 4096;
-
         struct script_api_context
         {
             time currentTime;
             ecs::entity entityId;
+        };
+
+        struct script_function_entry
+        {
+            void* fn{};
+            reflection::invoker_fn invoker{};
+            u32 paramCount{};
         };
     }
 
@@ -45,39 +56,32 @@ namespace oblo
             m_propertyRegistry = &propertyRegistry;
             m_entities = &entities;
 
+            const reflection::reflection_registry& reflectionRegistry = m_propertyRegistry->get_reflection_registry();
+
+            script_api::for_each_script_function(reflectionRegistry,
+                [this](const reflection::function_data& data)
+                {
+                    if (!data.invoker || !data.functionPtr)
+                    {
+                        return true;
+                    }
+
+                    m_scriptFunctions.emplace(hashed_string_view{data.fullyQualifiedName},
+                        script_function_entry{
+                            .fn = data.functionPtr,
+                            .invoker = data.invoker,
+                            .paramCount = data.parameterTypes.size32(),
+                        });
+
+                    return true;
+                });
+
             return true;
         }
 
         bool is_initialized() const
         {
             return m_propertyRegistry != nullptr;
-        }
-
-        void register_api_functions(interpreter& i)
-        {
-            i.register_api(
-                script_api::get_time,
-                [this](interpreter& interp) { return get_time_impl(interp); },
-                0,
-                sizeof(f32));
-
-            i.register_api(
-                script_api::ecs::set_property_f32,
-                [this](interpreter& interp) { return ecs_set_property_impl<f32>(interp); },
-                script_string_ref_size() * 2 + sizeof(f32),
-                0);
-
-            i.register_api(
-                script_api::ecs::get_property_f32,
-                [this](interpreter& interp) { return ecs_get_property_impl<f32>(interp); },
-                script_string_ref_size() * 2,
-                sizeof(f32));
-
-            i.register_api(
-                script_api::ecs::set_property_vec3,
-                [this](interpreter& interp) { return ecs_set_property_vec3(interp); },
-                script_string_ref_size() * 2 + sizeof(u32) + 3 * sizeof(f32),
-                0);
         }
 
         script_api_context& global_context()
@@ -117,7 +121,6 @@ namespace oblo
                 {
                     constexpr auto sine_f32 = [](script_api_impl*, f32 v) { return std::sin(v); };
                     return reinterpret_cast<void*>(+sine_f32);
-                    ;
                 }
 
                 if (hName == script_api::sine_vec3)
@@ -181,6 +184,67 @@ namespace oblo
                     return reinterpret_cast<void*>(+set_property_vec3);
                 }
 
+                if (hName == script_api::invoke_reflected_function_void)
+                {
+                    constexpr auto invoke_reflected_function_void =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> void
+                    { api->invoke_reflected_function(name, nullptr, count, args); };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_void);
+                }
+
+                if (hName == script_api::invoke_reflected_function_i32)
+                {
+                    constexpr auto invoke_reflected_function_i32 =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> i32
+                    {
+                        i32 result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_i32);
+                }
+
+                if (hName == script_api::invoke_reflected_function_f32)
+                {
+                    constexpr auto invoke_reflected_function_f32 =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> f32
+                    {
+                        f32 result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_f32);
+                }
+
+                if (hName == script_api::invoke_reflected_function_vec3)
+                {
+                    constexpr auto invoke_reflected_function_vec3 =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> vec3
+                    {
+                        vec3 result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_vec3);
+                }
+
+                if (hName == script_api::invoke_reflected_function_bool)
+                {
+                    constexpr auto invoke_reflected_function_bool =
+                        [](script_api_impl* api, const char* name, u32 count, void* const* args) -> bool
+                    {
+                        bool result{};
+                        api->invoke_reflected_function(name, &result, count, args);
+                        return result;
+                    };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function_bool);
+                }
+
                 return nullptr;
             };
 
@@ -190,14 +254,37 @@ namespace oblo
             const auto setContext =
                 reinterpret_cast<void (*)(void*)>(state.native->module.symbol("oblo_set_global_context"));
 
-            const auto execute = reinterpret_cast<void (*)()>(state.native->module.symbol("node_graph_execute"));
-
-            const bool wasInitialized = loadSymbols && setContext && execute && loadSymbols(loader);
+            const bool wasInitialized = loadSymbols && setContext && loadSymbols(loader);
 
             if (wasInitialized)
             {
                 state.setGlobalContext = setContext;
-                state.execute = execute;
+
+                string_builder builder;
+
+                for (const auto [member, id] : {
+                         pair{
+                             &script_behaviour_state_component::spawnFn,
+                             string_view{"1f176cb6-ffb4-4d53-b8d2-15b510f42094"},
+                         },
+                         pair{
+                             &script_behaviour_state_component::updateFn,
+                             string_view{"dc6777ec-97c3-4c7e-8797-4d5b325a9c1c"},
+                         },
+                     })
+                {
+
+                    builder.clear().append("oblo_node_graph_fn_");
+
+                    for (const char c : id)
+                    {
+                        const char r = std::isalnum(c) ? c : '_';
+                        builder.append(r);
+                    }
+
+                    (state.*member) = reinterpret_cast<script_behaviour_state_component::execute_fn>(
+                        state.native->module.symbol(builder.c_str()));
+                }
             }
 
             return wasInitialized;
@@ -209,12 +296,10 @@ namespace oblo
             const oblo::property* propertyData{};
 
             const auto p = fetch_component_property_ptr(componentType, propertyName, &propertyData);
-            OBLO_ASSERT(p);
-
-            OBLO_ASSERT(propertyData->kind == property_kind::f32);
 
             if (!p || propertyData->kind != property_kind::f32) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return 0.f;
             }
 
@@ -226,12 +311,10 @@ namespace oblo
             const oblo::property* propertyData{};
 
             const auto p = fetch_component_property_ptr(componentType, propertyName, &propertyData);
-            OBLO_ASSERT(p);
-
-            OBLO_ASSERT(propertyData->kind == property_kind::f32);
 
             if (!p || propertyData->kind != property_kind::f32) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return;
             }
 
@@ -247,6 +330,7 @@ namespace oblo
 
             if (!propertyPtr || propertyData->type != get_type_id<vec3>()) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return vec3{};
             }
 
@@ -261,6 +345,7 @@ namespace oblo
 
             if (!propertyPtr || propertyData->type != get_type_id<vec3>()) [[unlikely]]
             {
+                OBLO_ASSERT_ONCE(false);
                 return;
             }
 
@@ -285,144 +370,30 @@ namespace oblo
             return;
         }
 
-        expected<void, interpreter_error> get_time_impl(interpreter& interp)
+        void invoke_reflected_function(string_view name, void* out, u32 count, void* const* args)
         {
-            const f32 t = to_f32_seconds(m_ctx.currentTime);
-            return interp.set_function_return(as_bytes(std::span{&t, 1}));
+            const auto it = m_scriptFunctions.find(name);
+
+            if (it == m_scriptFunctions.end() || !it->second.invoker) [[unlikely]]
+            {
+                OBLO_ASSERT_ONCE(false);
+                log::error("Failed to invoke reflected function {}", name);
+                return;
+            }
+
+            const auto& entry = it->second;
+
+            if (count != entry.paramCount) [[unlikely]]
+            {
+                OBLO_ASSERT_ONCE(false);
+                log::error("Reflected function {} expected {} parameters, got {}", name, entry.paramCount, count);
+                return;
+            }
+
+            entry.invoker(entry.fn, out, args);
         }
 
-        template <typename T>
-        expected<void, interpreter_error> ecs_set_property_impl(interpreter& interp)
-        {
-            const expected componentType = interp.get_string_view(0);
-            const expected property = interp.get_string_view(script_string_ref_size());
-
-            if (!componentType || !property)
-            {
-                return interpreter_error::invalid_arguments;
-            }
-
-            T inData;
-
-            if constexpr (sizeof(T) == sizeof(u32))
-            {
-                const expected data = interp.read_u32(2 * script_string_ref_size());
-
-                if (!data)
-                {
-                    return data.error();
-                }
-
-                std::memcpy(&inData, &data.value(), sizeof(u32));
-            }
-            else
-            {
-                OBLO_ASSERT(false);
-                return interpreter_error::invalid_arguments;
-            }
-
-            const oblo::property* propertyData{};
-            const expected propertyPtr = fetch_component_property_ptr(*componentType, *property, &propertyData);
-
-            if (!propertyPtr)
-            {
-                return propertyPtr.error();
-            }
-
-            property_value_wrapper w;
-            w.assign_from(propertyData->kind, &inData);
-            w.assign_to(propertyData->kind, *propertyPtr);
-
-            m_entities->notify(m_ctx.entityId);
-
-            return no_error;
-        }
-
-        expected<void, interpreter_error> ecs_set_property_vec3(interpreter& interp)
-        {
-            const expected componentType = interp.get_string_view(0);
-            const expected property = interp.get_string_view(script_string_ref_size());
-            const expected mask = interp.read_u32(2 * script_string_ref_size());
-
-            if (!componentType || !property)
-            {
-                return interpreter_error::invalid_arguments;
-            }
-
-            const u32 valueOffset = u32(2 * script_string_ref_size() + sizeof(u32));
-
-            const expected<f32, interpreter_error> inData[3] = {
-                interp.read_f32(valueOffset),
-                interp.read_f32(valueOffset + sizeof(f32)),
-                interp.read_f32(valueOffset + sizeof(f32) * 2),
-            };
-
-            for (u32 i = 0; i < 3; ++i)
-            {
-                if (!inData[i])
-                {
-                    return inData[i].error();
-                }
-            }
-
-            const property_node* propertyData{};
-            const expected propertyPtr = fetch_component_property_node_ptr(*componentType, *property, &propertyData);
-
-            if (!propertyPtr)
-            {
-                return propertyPtr.error();
-            }
-
-            if (propertyData->type != get_type_id<vec3>())
-            {
-                return interpreter_error::invalid_arguments;
-            }
-
-            const u32 valuesMask = *mask;
-
-            if (valuesMask != 0)
-            {
-                for (u32 i = 0, iMask = 1; i < 3; ++i, iMask <<= 1)
-                {
-                    if ((iMask & valuesMask) == 0)
-                    {
-                        continue;
-                    }
-
-                    byte* const dst = *propertyPtr + i * sizeof(f32);
-                    const f32* const src = &*inData[i];
-
-                    std::memcpy(dst, src, sizeof(f32));
-                }
-
-                m_entities->notify(m_ctx.entityId);
-            }
-
-            return no_error;
-        }
-
-        template <typename T>
-        expected<void, interpreter_error> ecs_get_property_impl(interpreter& interp)
-        {
-            const expected componentType = interp.get_string_view(0);
-            const expected property = interp.get_string_view(script_string_ref_size());
-
-            if (!componentType || !property)
-            {
-                return interpreter_error::invalid_arguments;
-            }
-
-            const expected propertyPtr = fetch_component_property_ptr(*componentType, *property);
-
-            if (!propertyPtr)
-            {
-                return propertyPtr.error();
-            }
-
-            return interp.set_function_return({*propertyPtr, sizeof(T)});
-        }
-
-        OBLO_FORCEINLINE expected<byte*, interpreter_error> fetch_component_property_ptr(
+        OBLO_FORCEINLINE expected<byte*> fetch_component_property_ptr(
             string_view componentType, string_view property, const oblo::property** outProperty = nullptr)
         {
             const auto entry = get_or_add_to_cache(hashed_string_view{componentType},
@@ -434,7 +405,7 @@ namespace oblo
                 entry.index >= entry.tree->properties.size()) [[unlikely]]
             {
                 log::error("Failed to locate property {}::{}", componentType, property);
-                return interpreter_error::invalid_arguments;
+                return "Invalid argument"_err;
             }
 
             const auto& propertyData = entry.tree->properties[entry.index];
@@ -442,7 +413,7 @@ namespace oblo
             if (propertyData.kind == property_kind::string)
             {
                 log::error("Unsupported property type {}::{}", componentType, property);
-                return interpreter_error::invalid_arguments;
+                return "Invalid argument"_err;
             }
 
             byte* componentPtr[1];
@@ -452,7 +423,7 @@ namespace oblo
             if (!componentPtr[0])
             {
                 log::debug("Entity {} has no component {}", m_ctx.entityId.value, componentType);
-                return interpreter_error::invalid_arguments;
+                return "Missing component"_err;
             }
 
             if (outProperty)
@@ -463,7 +434,7 @@ namespace oblo
             return componentPtr[0] + propertyData.offset;
         }
 
-        OBLO_FORCEINLINE expected<byte*, interpreter_error> fetch_component_property_node_ptr(
+        OBLO_FORCEINLINE expected<byte*> fetch_component_property_node_ptr(
             string_view componentType, string_view property, const property_node** outPropertyNode = nullptr)
         {
             const auto entry = get_or_add_to_cache(hashed_string_view{componentType},
@@ -475,7 +446,7 @@ namespace oblo
                 entry.index >= entry.tree->nodes.size()) [[unlikely]]
             {
                 log::error("Failed to locate property {}::{}", componentType, property);
-                return interpreter_error::invalid_arguments;
+                return "No such property"_err;
             }
 
             const auto& propertyData = entry.tree->nodes[entry.index];
@@ -487,7 +458,7 @@ namespace oblo
             if (!componentPtr[0])
             {
                 log::debug("Entity {} has no component {}", m_ctx.entityId.value, componentType);
-                return interpreter_error::invalid_arguments;
+                return "No such property"_err;
             }
 
             if (outPropertyNode)
@@ -516,6 +487,9 @@ namespace oblo
             u32 index;
             property_entry_kind kind;
         };
+
+        using functions_map =
+            std::unordered_map<hashed_string_view, script_function_entry, transparent_string_hash, std::equal_to<>>;
 
     private:
         property_entry get_or_add_to_cache(hashed_string_view typeName,
@@ -606,6 +580,7 @@ namespace oblo
         const property_registry* m_propertyRegistry{};
         ecs::entity_registry* m_entities{};
         std::unordered_map<property_hash, property_entry> m_componentProperties;
+        functions_map m_scriptFunctions;
     };
 
     script_behaviour_system::script_behaviour_system() = default;
@@ -613,22 +588,6 @@ namespace oblo
 
     void script_behaviour_system::first_update(const ecs::system_update_context& ctx)
     {
-        option_proxy<script_options::use_native_runtime> useNativeRuntimeProxy;
-
-        if (auto* optsModule = module_manager::get().find<options_module>(); optsModule)
-        {
-            auto& optsManager = optsModule->manager();
-            useNativeRuntimeProxy.init(optsManager);
-            preferNativeRuntime = useNativeRuntimeProxy.read(optsManager);
-        }
-        else
-        {
-            log::debug("Failed to retrieve options manager, " OBLO_STRINGIZE(
-                script_behaviour_system) " might be misconfigured");
-
-            preferNativeRuntime = useNativeRuntimeProxy.descriptor().defaultValue.get_bool();
-        }
-
         m_scriptApi = allocate_unique<script_api_impl>();
 
         auto* const propertyRegistry = ctx.services->find<const property_registry>();
@@ -676,108 +635,62 @@ namespace oblo
             for (auto&& [e, b, state] :
                 chunk.zip<ecs::entity, script_behaviour_component, script_behaviour_state_component>())
             {
-                if (state.script.is_invalidated() || state.bytecode.is_invalidated() || state.native.is_invalidated() ||
-                    state.script.as_ref() != b.script)
+                if (state.script.is_invalidated() || state.native.is_invalidated() || state.script.as_ref() != b.script)
                 {
                     deferred.remove<script_behaviour_state_component, script_behaviour_update_tag>(e);
                     continue;
                 }
 
-                const bool useNative = preferNativeRuntime && !state.fallbackToInterpreted;
-
-                // Try to load the native library if available
-                if (useNative)
+                if (ctx.entities->has<script_behaviour_update_tag>(e))
                 {
-                    if (ctx.entities->has<script_behaviour_update_tag>(e))
+                    continue;
+                }
+
+                if (!state.native)
+                {
+                    if (!state.script.is_successfully_loaded())
                     {
+                        state.script.load_start_async();
+                        continue;
+                    }
+
+                    if constexpr (platform::is_x86_64() && platform::is_avx2())
+                    {
+                        state.native = m_resourceRegistry->get_resource(state.script->x86_64_avx2);
+                    }
+
+                    if (state.native && !state.native.is_successfully_loaded())
+                    {
+                        state.native.load_start_async();
                         continue;
                     }
 
                     if (!state.native)
                     {
-                        if (!state.script.is_successfully_loaded())
-                        {
-                            state.script.load_start_async();
-                            continue;
-                        }
-
-                        if constexpr (platform::is_x86_64() && platform::is_avx2())
-                        {
-                            state.native = m_resourceRegistry->get_resource(state.script->x86_64_avx2);
-                        }
-
-                        if (state.native && !state.native.is_successfully_loaded())
-                        {
-                            state.native.load_start_async();
-                            continue;
-                        }
-
-                        if (!state.native)
-                        {
-                            // No native module for the platform, use the interpreted version
-                            state.fallbackToInterpreted = true;
-                        }
+                        log::error("No compiled native code for script {}", state.script.get_id());
                     }
-                    else if (state.native.is_currently_loading())
+                }
+                else if (state.native.is_currently_loading())
+                {
+                    // Still loading, keep waiting
+                    continue;
+                }
+                else if (state.native.is_successfully_loaded() && state.native->module.is_open())
+                {
+                    // Loaded, we can set up the state
+                    if (m_scriptApi->load_native_module(state))
                     {
-                        // Still loading, keep waiting
+                        deferred.add<script_behaviour_update_tag>(e);
                         continue;
-                    }
-                    else if (state.native.is_successfully_loaded() && state.native->module.is_open())
-                    {
-                        // Loaded, we can set up the state
-                        if (m_scriptApi->load_native_module(state))
-                        {
-                            deferred.add<script_behaviour_update_tag>(e);
-                            continue;
-                        }
-                        else
-                        {
-                            state.fallbackToInterpreted = true;
-                        }
                     }
                     else
                     {
-                        // We failed to load the binary, let's try the bytecode
-                        state.fallbackToInterpreted = true;
+                        log::error("Failed to initialize native module for script {}", state.script.get_id());
                     }
                 }
                 else
                 {
-                    if (ctx.entities->has<script_behaviour_update_tag>(e))
-                    {
-                        continue;
-                    }
-
-                    if (state.script.is_successfully_loaded())
-                    {
-                        if (!state.bytecode)
-                        {
-                            auto& scriptInfo = *state.script;
-                            state.bytecode = m_resourceRegistry->get_resource(scriptInfo.bytecode);
-
-                            if (!state.bytecode.is_successfully_loaded())
-                            {
-                                state.bytecode.load_start_async();
-                                continue;
-                            }
-                        }
-                        else if (!state.bytecode.is_successfully_loaded())
-                        {
-                            continue;
-                        }
-
-                        // TOOD: Every script owns the stack here, we would like to share memory instead
-                        state.runtime = allocate_unique<interpreter>();
-                        state.runtime->init(g_StackSize);
-                        state.runtime->load_module(state.bytecode->module);
-
-                        m_scriptApi->register_api_functions(*state.runtime);
-
-                        // Assume the whole module is an update function for now
-                        // TODO: Handle multiple entry points (e.g. init, update)
-                        deferred.add<script_behaviour_update_tag>(e);
-                    }
+                    log::error("Failed to load native binary for script {}", state.script.get_id());
                 }
             }
         }
@@ -792,19 +705,17 @@ namespace oblo
             {
                 apiCtx.entityId = e;
 
-                if (!preferNativeRuntime || state.fallbackToInterpreted)
-                {
-                    if (!state.runtime->run())
-                    {
-                        log::debug("Script execution failed for entity {}", e.value);
-                    }
+                state.setGlobalContext(&apiCtx);
 
-                    state.runtime->reset_execution();
-                }
-                else
+                if (state.spawnFn)
                 {
-                    state.setGlobalContext(&apiCtx);
-                    state.execute();
+                    state.spawnFn();
+                    state.spawnFn = {};
+                }
+
+                if (state.updateFn)
+                {
+                    state.updateFn();
                 }
             }
         }

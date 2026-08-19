@@ -5,13 +5,11 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/utility/registration.hpp>
-#include <oblo/options/options_provider.hpp>
 #include <oblo/reflection/codegen/registration.hpp>
 #include <oblo/resource/descriptors/resource_type_descriptor.hpp>
 #include <oblo/resource/providers/resource_types_provider.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/scene/systems/usages.hpp>
-#include <oblo/script/behaviour/options.hpp>
 #include <oblo/script/behaviour/script_behaviour_system.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
 #include <oblo/script/resources/traits.hpp>
@@ -65,8 +63,6 @@ namespace oblo
                     }
                 },
             });
-
-            option_proxy_struct<script_behaviour_options>::register_options(*initializer.services);
 
             return true;
         }

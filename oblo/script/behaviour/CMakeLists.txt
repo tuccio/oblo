@@ -13,10 +13,8 @@ target_link_libraries(
     oblo::ecs
     oblo::log
     oblo::modules
-    oblo::options
     oblo::properties
     oblo::reflection
     oblo::resource
     oblo::scene::headers
-    oblo::script::runtime
 )
