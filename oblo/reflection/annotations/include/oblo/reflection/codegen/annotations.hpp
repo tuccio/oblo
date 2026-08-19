@@ -11,6 +11,7 @@
 #define OBLO_COMPONENT(Uuid, ...) OBLO_REFLECT(Component, UUID=Uuid, __VA_ARGS__)
 #define OBLO_ENUM(...) OBLO_REFLECT(__VA_ARGS__)
 #define OBLO_EVENT(Uuid, ...) OBLO_REFLECT(ScriptEvent, UUID=Uuid, __VA_ARGS__)
+#define OBLO_FUNCTION(...) OBLO_REFLECT(__VA_ARGS__)
 #define OBLO_PROPERTY(...) OBLO_REFLECT(__VA_ARGS__)
 #define OBLO_RESOURCE(...) OBLO_REFLECT(Resource, __VA_ARGS__)
 #define OBLO_TAG(Uuid, ...) OBLO_REFLECT(Tag, UUID=Uuid, __VA_ARGS__)

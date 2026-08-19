@@ -9,6 +9,7 @@
 #include <oblo/reflection/concepts/ranged_type_erasure.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 
+#include <bit>
 #include <memory>
 #include <type_traits>
 
@@ -51,7 +52,7 @@ namespace oblo::reflection
         void add_fundamental();
 
         template <typename R, typename... Args>
-        function_builder<R, Args...> add_function(cstring_view fullyQualifiedName);
+        function_builder<R, Args...> add_function(cstring_view fullyQualifiedName, R (*f)(Args...));
 
     private:
         template <typename T>
@@ -75,8 +76,10 @@ namespace oblo::reflection
             u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src);
         void add_enumerator(u32 entityIndex, cstring_view name, std::span<const byte> value);
 
-        u32 add_function_type(
-            cstring_view fullyQualifiedName, const type_id& returnType, std::span<const type_id> parameterTypes);
+        u32 add_function_type(cstring_view fullyQualifiedName,
+            void* f,
+            const type_id& returnType,
+            std::span<const type_id> parameterTypes);
 
         template <typename C>
         void add_concept(u32 entityIndex, C value)
@@ -257,13 +260,16 @@ namespace oblo::reflection
 
     template <typename R, typename... Args>
     reflection_registry::registrant::function_builder<R, Args...> reflection_registry::registrant::add_function(
-        cstring_view fullyQualifiedName)
+        cstring_view fullyQualifiedName, R (*f)(Args...))
     {
         const type_id parameters[1 + sizeof...(Args)] = {get_type_id<Args>()...};
 
         return {
             *this,
-            add_function_type(fullyQualifiedName, get_type_id<R>(), {parameters, parameters + sizeof...(Args)}),
+            add_function_type(fullyQualifiedName,
+                std::bit_cast<void*>(f),
+                get_type_id<R>(),
+                {parameters, parameters + sizeof...(Args)}),
         };
     }
 

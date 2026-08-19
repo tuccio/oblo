@@ -70,9 +70,14 @@ namespace oblo::gen
                 return;
             }
 
-            build_fully_qualified_name(out, clang_getCursorSemanticParent(cursor));
+            const auto parent = clang_getCursorLexicalParent(cursor);
 
-            const auto name = clang_getCursorDisplayName(cursor);
+            if (!clang_Cursor_isNull(parent) && !clang_equalCursors(parent, cursor))
+            {
+                build_fully_qualified_name(out, parent);
+            }
+
+            const auto name = clang_getCursorSpelling(cursor);
 
             out.append("::");
             out.append(clang_getCString(name));
@@ -188,6 +193,16 @@ namespace oblo::gen
                 return annotation_property_result::expect_none;
             }
 
+            return annotation_property_result::expect_none;
+        }
+
+        annotation_property_result process_annotation_property(function_type& f, hashed_string_view property, i32**)
+        {
+            if (property == "ScriptAPI"_hsv)
+            {
+                f.flags.set(function_flags::script_api);
+                return annotation_property_result::expect_none;
+            }
             return annotation_property_result::expect_none;
         }
 
@@ -337,8 +352,9 @@ namespace oblo::gen
         {
             target_data& targetReflection = *reinterpret_cast<target_data*>(userdata);
 
-            if (clang_isCursorDefinition(cursor) &&
-                (cursor.kind == CXCursor_ClassDecl || cursor.kind == CXCursor_StructDecl))
+            const bool isDefinition = clang_isCursorDefinition(cursor);
+
+            if (isDefinition && (cursor.kind == CXCursor_ClassDecl || cursor.kind == CXCursor_StructDecl))
             {
                 // TODO: We should determine whether the definition belongs to the project (i.e. is the file it's
                 // defined in within the project directory?)
@@ -348,7 +364,7 @@ namespace oblo::gen
 
                 if (annotation)
                 {
-                    auto& recordType = targetReflection.recordTypes.emplace_back();
+                    record_type& recordType = targetReflection.recordTypes.emplace_back();
                     parse_annotation(targetReflection, recordType, annotation.view());
 
                     string_builder fullyQualifiedName;
@@ -364,7 +380,7 @@ namespace oblo::gen
                     clang_visitChildren(cursor, add_fields, &ctx);
                 }
             }
-            else if (clang_isCursorDefinition(cursor) && cursor.kind == CXCursor_EnumDecl)
+            else if (isDefinition && cursor.kind == CXCursor_EnumDecl)
             {
                 // TODO: We should determine whether the definition belongs to the project (i.e. is the file it's
                 // defined in within the project directory?)
@@ -374,7 +390,7 @@ namespace oblo::gen
 
                 if (annotation)
                 {
-                    auto& enumType = targetReflection.enumTypes.emplace_back();
+                    enum_type& enumType = targetReflection.enumTypes.emplace_back();
 
                     string_builder fullyQualifiedName;
                     build_fully_qualified_name(fullyQualifiedName, cursor);
@@ -382,6 +398,36 @@ namespace oblo::gen
                     enumType.name = fullyQualifiedName;
 
                     clang_visitChildren(cursor, add_enumerators, &enumType);
+                }
+            }
+            else if (cursor.kind == CXCursor_FunctionDecl)
+            {
+                clang_string annotation{};
+                clang_visitChildren(cursor, find_annotation, &annotation);
+
+                if (annotation)
+                {
+                    function_type& function = targetReflection.functions.emplace_back();
+                    parse_annotation(targetReflection, function, annotation.view());
+
+                    string_builder builder;
+
+                    build_fully_qualified_name(builder, cursor);
+                    function.fullyQualifiedName = builder;
+
+                    const CXType returnType = clang_getCursorResultType(cursor);
+                    build_fully_qualified_name(builder.clear(), clang_getTypeDeclaration(returnType));
+                    function.returnType = builder;
+
+                    const int numArgs = clang_Cursor_getNumArguments(cursor);
+
+                    for (int i = 0; i < numArgs; ++i)
+                    {
+                        const CXCursor argument = clang_Cursor_getArgument(cursor, u32(i));
+                        const CXType argType = clang_getCursorType(argument);
+                        build_fully_qualified_name(builder.clear(), clang_getTypeDeclaration(argType));
+                        function.returnType = builder;
+                    }
                 }
             }
 

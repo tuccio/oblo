@@ -29,6 +29,12 @@ namespace oblo::gen
         enum_max,
     };
 
+    enum class function_flags : u8
+    {
+        script_api,
+        enum_max,
+    };
+
     struct enum_type
     {
         string name;
@@ -57,12 +63,23 @@ namespace oblo::gen
         i32 attrUuid{-1};
     };
 
+    struct function_type
+    {
+        string fullyQualifiedName;
+        string returnType;
+
+        flags<function_flags> flags;
+
+        dynamic_array<string> parameterTypes;
+    };
+
     struct target_data
     {
         string name;
 
         deque<record_type> recordTypes;
         deque<enum_type> enumTypes;
+        deque<function_type> functions;
         deque<double> numberAttributeData;
         deque<string> stringAttributeData;
     };
