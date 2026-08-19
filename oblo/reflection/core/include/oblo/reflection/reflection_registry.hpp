@@ -69,10 +69,19 @@ namespace oblo::reflection
         bool has_tag(type_handle typeId) const;
 
         template <typename T>
+        bool has_tag(function_handle function) const;
+
+        template <typename T>
         void find_by_tag(deque<type_handle>& types) const;
 
         template <typename T>
         void find_by_concept(deque<type_handle>& types) const;
+
+        template <typename T>
+        void find_by_tag(deque<function_handle>& functions) const;
+
+        template <typename T>
+        void find_by_concept(deque<function_handle>& functions) const;
 
         template <typename T>
         std::optional<T> find_concept(type_handle typeId) const;
@@ -80,9 +89,15 @@ namespace oblo::reflection
         bool is_fundamental(type_handle typeId) const;
 
     private:
-        bool has_tag(const type_id& tag, type_handle type) const;
-        void find_by_tag(const type_id& tag, deque<type_handle>& types) const;
-        void find_by_concept(const type_id& type, deque<type_handle>& types) const;
+        template <typename T>
+        bool has_tag(const type_id& tag, T type) const;
+
+        template <typename T>
+        void find_by_tag(const type_id& tag, deque<T>& handles) const;
+
+        template <typename T>
+        void find_by_concept(const type_id& type, deque<T>& handles) const;
+
         const void* find_concept(type_handle typeId, const type_id& type) const;
 
     private:
@@ -123,6 +138,18 @@ namespace oblo::reflection
     }
 
     template <typename T>
+    void reflection_registry::find_by_tag(deque<function_handle>& functions) const
+    {
+        find_by_tag(get_type_id<tag_type<T>>(), functions);
+    }
+
+    template <typename T>
+    void reflection_registry::find_by_concept(deque<function_handle>& functions) const
+    {
+        find_by_concept(get_type_id<concept_type<T>>(), functions);
+    }
+
+    template <typename T>
     std::optional<T> reflection_registry::find_concept(type_handle typeId) const
     {
         std::optional<T> res;
@@ -140,5 +167,11 @@ namespace oblo::reflection
     bool reflection_registry::has_tag(type_handle type) const
     {
         return has_tag(get_type_id<tag_type<T>>(), type);
+    }
+
+    template <typename T>
+    bool reflection_registry::has_tag(function_handle function) const
+    {
+        return has_tag(get_type_id<tag_type<T>>(), function);
     }
 };

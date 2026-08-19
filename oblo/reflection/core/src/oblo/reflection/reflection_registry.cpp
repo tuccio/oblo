@@ -135,7 +135,8 @@ namespace oblo::reflection
         return m_impl->registry.get<enum_data>(e).underlyingType;
     }
 
-    bool reflection_registry::has_tag(const type_id& tag, type_handle type) const
+    template <typename T>
+    bool reflection_registry::has_tag(const type_id& tag, T handle) const
     {
         const auto tagType = m_impl->typesRegistry.find_tag(tag);
 
@@ -144,11 +145,33 @@ namespace oblo::reflection
             return false;
         }
 
-        const auto e = ecs::entity{type.value};
+        const auto e = ecs::entity{handle.value};
         return m_impl->registry.get_component_and_tag_sets(e).tags.contains(tagType);
     }
 
-    void reflection_registry::find_by_tag(const type_id& tag, deque<type_handle>& types) const
+    namespace
+    {
+        template <typename T>
+        struct range_filter;
+
+        template <>
+        struct range_filter<type_handle>
+        {
+            using type = type_data;
+        };
+
+        template <>
+        struct range_filter<function_handle>
+        {
+            using type = function_data;
+        };
+
+        template <typename T>
+        using range_filter_t = typename range_filter<T>::type;
+    }
+
+    template <typename T>
+    void reflection_registry::find_by_tag(const type_id& tag, deque<T>& handles) const
     {
         const auto tagType = m_impl->typesRegistry.find_tag(tag);
 
@@ -160,16 +183,17 @@ namespace oblo::reflection
         ecs::component_and_tag_sets sets{};
         sets.tags.add(tagType);
 
-        for (auto&& chunk : m_impl->registry.range<>().with(sets))
+        for (auto&& chunk : m_impl->registry.range<range_filter_t<T>>().with(sets))
         {
-            for (const auto e : chunk.get<ecs::entity>())
+            for (const auto e : chunk.template get<ecs::entity>())
             {
-                types.emplace_back(e.value);
+                handles.emplace_back(e.value);
             }
         }
     }
 
-    void reflection_registry::find_by_concept(const type_id& type, deque<type_handle>& types) const
+    template <typename T>
+    void reflection_registry::find_by_concept(const type_id& type, deque<T>& handles) const
     {
         const auto componentType = m_impl->typesRegistry.find_component(type);
 
@@ -181,11 +205,11 @@ namespace oblo::reflection
         ecs::component_and_tag_sets sets{};
         sets.components.add(componentType);
 
-        for (auto&& chunk : m_impl->registry.range<>().with(sets))
+        for (auto&& chunk : m_impl->registry.range<range_filter_t<T>>().with(sets))
         {
-            for (const auto e : chunk.get<ecs::entity>())
+            for (const auto e : chunk.template get<ecs::entity>())
             {
-                types.emplace_back(e.value);
+                handles.emplace_back(e.value);
             }
         }
     }
@@ -202,4 +226,13 @@ namespace oblo::reflection
     {
         return m_impl->registry.has<fundamental_tag>(ecs::entity{typeId.value});
     }
+
+    template bool reflection_registry::has_tag<type_handle>(type_handle) const;
+    template bool reflection_registry::has_tag<function_handle>(function_handle) const;
+
+    template void reflection_registry::find_by_tag<type_handle>(const type_id&, deque<type_handle>&) const;
+    template void reflection_registry::find_by_tag<function_handle>(const type_id&, deque<function_handle>&) const;
+
+    template void reflection_registry::find_by_concept<type_handle>(const type_id&, deque<type_handle>&) const;
+    template void reflection_registry::find_by_concept<function_handle>(const type_id&, deque<function_handle>&) const;
 }

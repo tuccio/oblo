@@ -3,7 +3,9 @@
 #include <oblo/ast/abstract_syntax_tree.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/string/string_view.hpp>
 #include <oblo/nodes/common/ast_utils.hpp>
+#include <oblo/nodes/common/execution.hpp>
 #include <oblo/nodes/common/fundamental_types.hpp>
 #include <oblo/nodes/common/zero_properties_node.hpp>
 #include <oblo/nodes/node_descriptor.hpp>
@@ -50,5 +52,49 @@ namespace oblo::api_nodes
 
             return true;
         }
+    };
+
+    class invoke_reflected_function_node final : public zero_properties_node
+    {
+    public:
+        explicit invoke_reflected_function_node(string_view name) : m_name{name} {}
+
+        void on_create(const node_graph_context& g) override
+        {
+            add_node_execution_pins(g, true, true);
+        }
+
+        void on_input_change(const node_graph_context&) override {}
+
+        bool generate(const node_graph_context&,
+            abstract_syntax_tree& ast,
+            h32<ast_node> parent,
+            const std::span<const h32<ast_node>>,
+            dynamic_array<h32<ast_node>>& outputs) const override
+        {
+            add_node_execution_ast_node(outputs);
+
+            const h32 call = ast.add_node(parent,
+                ast_function_call{
+                    .name = script_api::invoke_reflected_function,
+                });
+
+            {
+                const h32 nameParameter = ast.add_node(call,
+                    ast_function_argument{
+                        .name = "name"_hsv,
+                    });
+
+                ast.add_node(nameParameter,
+                    ast_string_constant{
+                        .value = hashed_string_view{m_name},
+                    });
+            }
+
+            return true;
+        }
+
+    private:
+        string m_name;
     };
 }

@@ -5,6 +5,7 @@
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/service_registry.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/entity_registry.hpp>
@@ -23,6 +24,7 @@
 #include <oblo/script/behaviour/script_behaviour_component.hpp>
 #include <oblo/script/resources/builtin_api.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
+#include <oblo/script/resources/reflection_script_api.hpp>
 
 namespace oblo
 {
@@ -42,6 +44,17 @@ namespace oblo
         {
             m_propertyRegistry = &propertyRegistry;
             m_entities = &entities;
+
+            const reflection::reflection_registry& reflectionRegistry = m_propertyRegistry->get_reflection_registry();
+
+            script_api::for_each_script_function(reflectionRegistry,
+                [this](cstring_view name, void* function)
+                {
+                    m_scriptFunctions.emplace(hashed_string_view{name},
+                        std::bit_cast<script_api::script_function_fn>(function));
+
+                    return true;
+                });
 
             return true;
         }
@@ -149,6 +162,14 @@ namespace oblo
                     { api->set_property_vec3(componentType, propertyName, mask, value); };
 
                     return reinterpret_cast<void*>(+set_property_vec3);
+                }
+
+                if (hName == script_api::invoke_reflected_function)
+                {
+                    const auto invoke_reflected_function = [](script_api_impl* api, const char* name) -> void
+                    { api->invoke_reflected_function(name); };
+
+                    return reinterpret_cast<void*>(+invoke_reflected_function);
                 }
 
                 return nullptr;
@@ -276,6 +297,20 @@ namespace oblo
             return;
         }
 
+        void invoke_reflected_function(string_view name)
+        {
+            const auto it = m_scriptFunctions.find(name);
+
+            if (it == m_scriptFunctions.end() || !it->second) [[unlikely]]
+            {
+                OBLO_ASSERT_ONCE(false);
+                log::error("Failed to invoke reflected function {}", name);
+                return;
+            }
+
+            it->second();
+        }
+
         OBLO_FORCEINLINE expected<byte*> fetch_component_property_ptr(
             string_view componentType, string_view property, const oblo::property** outProperty = nullptr)
         {
@@ -371,6 +406,9 @@ namespace oblo
             property_entry_kind kind;
         };
 
+        using functions_map = std::
+            unordered_map<hashed_string_view, script_api::script_function_fn, transparent_string_hash, std::equal_to<>>;
+
     private:
         property_entry get_or_add_to_cache(hashed_string_view typeName,
             string_view property,
@@ -460,6 +498,7 @@ namespace oblo
         const property_registry* m_propertyRegistry{};
         ecs::entity_registry* m_entities{};
         std::unordered_map<property_hash, property_entry> m_componentProperties;
+        functions_map m_scriptFunctions;
     };
 
     script_behaviour_system::script_behaviour_system() = default;

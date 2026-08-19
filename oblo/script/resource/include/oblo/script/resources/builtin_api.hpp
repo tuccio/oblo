@@ -15,6 +15,8 @@ namespace oblo::script_api
 
     constexpr hashed_string_view get_time = "__get_time"_hsv;
 
+    constexpr hashed_string_view invoke_reflected_function = "__invoke_reflected_function"_hsv;
+
     constexpr hashed_string_view cosine_f32 = "__intrin_cos_f32"_hsv;
     constexpr hashed_string_view cosine_vec3 = "__intrin_cos_vec3"_hsv;
     constexpr hashed_string_view sine_f32 = "__intrin_sin_f32"_hsv;

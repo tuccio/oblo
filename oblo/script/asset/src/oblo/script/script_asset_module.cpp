@@ -44,6 +44,7 @@
 #include <oblo/script/nodes/api_nodes.hpp>
 #include <oblo/script/nodes/ecs_nodes.hpp>
 #include <oblo/script/resources/compiled_script.hpp>
+#include <oblo/script/resources/reflection_script_api.hpp>
 #include <oblo/script/resources/traits.hpp>
 
 namespace oblo
@@ -590,6 +591,18 @@ namespace oblo
                         .returnType = script_api::f32_t,
                     });
 
+                const h32 invokeReflected = tree.add_node(root,
+                    ast_function_declaration{
+                        .name = script_api::invoke_reflected_function,
+                        .returnType = script_api::void_t,
+                    });
+
+                tree.add_node(invokeReflected,
+                    ast_function_parameter{
+                        .name = "name",
+                        .type = script_api::string_t,
+                    });
+
                 return true;
             }
         };
@@ -633,6 +646,11 @@ namespace oblo
     struct event_userdata
     {
         type_id eventType;
+    };
+
+    struct reflected_function_userdata
+    {
+        string name;
     };
 
     class script_asset_module final : public module_interface
@@ -863,6 +881,36 @@ namespace oblo
                         },
                     });
                 }
+
+                constexpr string_view category = "Script API";
+
+                const uuid_namespace_generator scriptFunctionIdGen{"7f4b3d9e-8c2a-4e6f-b1d5-9a3c2f8e6d4b"_uuid};
+
+                script_api::for_each_script_function(reflectionRegistry,
+                    [&](cstring_view fullyQualifiedName, void*) -> bool
+                    {
+                        const uuid id = scriptFunctionIdGen.generate(fullyQualifiedName.as<string_view>());
+
+                        const reflected_function_userdata userdata{
+                            .name = fullyQualifiedName.as<string>(),
+                        };
+
+                        nodeName.clear().append(fullyQualifiedName);
+
+                        register_node({
+                            .id = id,
+                            .name = nodeName.as<string>(),
+                            .category = string{category},
+                            .instantiate = [](const any& userdata) -> unique_ptr<node_interface>
+                            {
+                                const auto* const fnUserdata = userdata.as<reflected_function_userdata>();
+                                return allocate_unique<api_nodes::invoke_reflected_function_node>(fnUserdata->name);
+                            },
+                            .userdata = make_any<reflected_function_userdata>(userdata),
+                        });
+
+                        return true;
+                    });
             }
 
             return true;
