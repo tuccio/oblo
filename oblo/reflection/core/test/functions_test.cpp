@@ -12,17 +12,23 @@ namespace oblo::reflection
         struct function_test_tag
         {
         };
+
+        function_handle register_and_find_function(reflection_registry& reg, cstring_view name, auto f)
+        {
+            auto registrant = reg.get_registrant();
+            registrant.add_function(name, f);
+
+            return reg.find_function(hashed_string_view{name});
+        }
     }
 
     TEST(functions_reflection, add_function_with_parameters)
     {
         reflection_registry reg;
 
-        auto registrant = reg.get_registrant();
-
         const auto addFn = +[](i32 a, i32 b) -> i32 { return a + b; };
 
-        const function_handle fn = registrant.add_function("oblo::math::add", addFn);
+        const function_handle fn = register_and_find_function(reg, "oblo::math::add", addFn);
         ASSERT_TRUE(fn);
 
         const function_data data = reg.get_function_data(fn);
@@ -37,11 +43,9 @@ namespace oblo::reflection
     {
         reflection_registry reg;
 
-        auto registrant = reg.get_registrant();
-
         const auto getDeltaFn = +[]() -> f32 { return 0.f; };
 
-        const function_handle fn = registrant.add_function("oblo::time::get_delta", getDeltaFn);
+        const function_handle fn = register_and_find_function(reg, "oblo::time::get_delta", getDeltaFn);
         ASSERT_TRUE(fn);
 
         const function_data data = reg.get_function_data(fn);
@@ -54,11 +58,9 @@ namespace oblo::reflection
     {
         reflection_registry reg;
 
-        auto registrant = reg.get_registrant();
-
         const auto setFn = +[](f32, f32) -> void {};
 
-        const function_handle fn = registrant.add_function("oblo::math::set", setFn);
+        const function_handle fn = register_and_find_function(reg, "oblo::math::set", setFn);
         ASSERT_TRUE(fn);
 
         const function_data data = reg.get_function_data(fn);
@@ -73,13 +75,11 @@ namespace oblo::reflection
     {
         reflection_registry reg;
 
-        auto registrant = reg.get_registrant();
-
         const auto addFn = +[](i32 a, i32 b) -> i32 { return a + b; };
         const auto subFn = +[](i32 a, i32 b) -> i32 { return a - b; };
 
-        const function_handle fn1 = registrant.add_function("oblo::math::add", addFn);
-        const function_handle fn2 = registrant.add_function("oblo::math::sub", subFn);
+        const function_handle fn1 = register_and_find_function(reg, "oblo::math::add", addFn);
+        const function_handle fn2 = register_and_find_function(reg, "oblo::math::sub", subFn);
 
         ASSERT_TRUE(fn1);
         ASSERT_TRUE(fn2);
@@ -92,10 +92,9 @@ namespace oblo::reflection
     {
         reflection_registry reg;
 
-        auto registrant = reg.get_registrant();
-
         const auto cosFn = +[](f32 x) -> f32 { return std::cos(x); };
 
+        auto registrant = reg.get_registrant();
         registrant.add_function("oblo::math::cos", cosFn).add_tag<function_test_tag>();
 
         deque<function_handle> foundFunctions;

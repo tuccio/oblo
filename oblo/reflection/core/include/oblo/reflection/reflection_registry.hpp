@@ -2,6 +2,7 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/reflection/handles.hpp>
@@ -51,6 +52,7 @@ namespace oblo::reflection
         type_handle find_type(const type_id& type) const;
         class_handle find_class(const type_id& type) const;
         enum_handle find_enum(const type_id& type) const;
+        function_handle find_function(hashed_string_view function) const;
 
         type_data get_type_data(type_handle typeId) const;
         class_handle try_get_class(type_handle typeId) const;

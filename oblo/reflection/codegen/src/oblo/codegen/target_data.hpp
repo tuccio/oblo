@@ -70,7 +70,7 @@ namespace oblo::gen
 
         flags<function_flags> flags;
 
-        dynamic_array<string> parameterTypes;
+        dynamic_array<string> parameterNames;
     };
 
     struct target_data

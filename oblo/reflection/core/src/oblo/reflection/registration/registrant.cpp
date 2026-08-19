@@ -196,12 +196,22 @@ namespace oblo::reflection
         const type_id& returnType,
         std::span<const type_id> parameterTypes)
     {
+        const auto [it, inserted] =
+            m_impl.functionsMap.emplace(fullyQualifiedName.as<hashed_string_view>(), ecs::entity{});
+
+        if (!inserted)
+        {
+            return it->second.value;
+        }
+
         const ecs::entity e = m_impl.registry.create<function_data>();
+        it->second = e;
 
         m_impl.registry.get<function_data>(e) = {
             .fullyQualifiedName = fullyQualifiedName,
             .returnType = returnType,
             .parameterTypes = {get_global_allocator(), parameterTypes.begin(), parameterTypes.end()},
+            .parameterNames = {get_global_allocator(), parameterTypes.size()},
             .functionPtr = f,
             .invoker = invoker,
         };
@@ -215,4 +225,13 @@ namespace oblo::reflection
         auto& arrayData = m_impl.registry.get<array_data>(e);
         arrayData.extents.assign(extents.begin(), extents.end());
     }
+
+    void reflection_registry::registrant::init_function_parameter(
+        u32 entityIndex, u32 parameterIndex, cstring_view name)
+    {
+        const ecs::entity e{entityIndex};
+        auto& funcData = m_impl.registry.get<function_data>(e);
+        funcData.parameterNames[parameterIndex] = name;
+    }
+
 }

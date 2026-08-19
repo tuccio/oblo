@@ -727,6 +727,7 @@ namespace oblo
         string name;
         std::optional<node_primitive_kind> returnKind;
         dynamic_array<node_primitive_kind> paramKinds;
+        dynamic_array<cstring_view> paramNames;
         u32 paramCount{};
     };
 
@@ -970,7 +971,9 @@ namespace oblo
                         const u32 paramCount = data.parameterTypes.size32();
 
                         dynamic_array<node_primitive_kind> paramKinds;
+                        dynamic_array<cstring_view> paramNames;
                         paramKinds.reserve(paramCount);
+                        paramNames.reserve(paramCount);
 
                         for (u32 i = 0; i < paramCount; ++i)
                         {
@@ -982,6 +985,7 @@ namespace oblo
                             }
 
                             paramKinds.emplace_back(*kind);
+                            paramNames.emplace_back(data.parameterNames[i]);
                         }
 
                         const expected returnKind = reflected_function_return_kind(data.returnType);
@@ -997,6 +1001,7 @@ namespace oblo
                             .name = data.fullyQualifiedName.as<string>(),
                             .returnKind = *returnKind,
                             .paramKinds = std::move(paramKinds),
+                            .paramNames = std::move(paramNames),
                         };
 
                         nodeName.clear().append(data.fullyQualifiedName);
@@ -1011,7 +1016,8 @@ namespace oblo
 
                                 return allocate_unique<api_nodes::invoke_reflected_function_node>(fnUserdata->name,
                                     fnUserdata->returnKind,
-                                    std::span{fnUserdata->paramKinds});
+                                    std::span{fnUserdata->paramKinds},
+                                    std::span{fnUserdata->paramNames});
                             },
                             .userdata = make_any<reflected_function_userdata>(std::move(userdata)),
                         });

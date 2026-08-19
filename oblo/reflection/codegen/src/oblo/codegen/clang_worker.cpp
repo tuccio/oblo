@@ -77,12 +77,10 @@ namespace oblo::gen
                 build_fully_qualified_name(out, parent);
             }
 
-            const auto name = clang_getCursorSpelling(cursor);
+            const clang_string name{clang_getCursorSpelling(cursor)};
 
             out.append("::");
-            out.append(clang_getCString(name));
-
-            clang_disposeString(name);
+            out.append(name.view());
         }
 
         CXChildVisitResult find_annotation(CXCursor cursor, CXCursor, CXClientData userdata)
@@ -424,9 +422,9 @@ namespace oblo::gen
                     for (int i = 0; i < numArgs; ++i)
                     {
                         const CXCursor argument = clang_Cursor_getArgument(cursor, u32(i));
-                        const CXType argType = clang_getCursorType(argument);
-                        build_fully_qualified_name(builder.clear(), clang_getTypeDeclaration(argType));
-                        function.returnType = builder;
+
+                        const clang_string spelling{clang_getCursorSpelling(argument)};
+                        function.parameterNames.emplace_back(spelling.view());
                     }
                 }
             }

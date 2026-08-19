@@ -343,7 +343,10 @@ namespace oblo
         const h32 srcPinVertex = to_vertex_handle(src);
         const h32 dstPinVertex = to_vertex_handle(dst);
 
-        m_graph.add_edge(srcPinVertex, dstPinVertex);
+        if (!m_graph.add_edge(srcPinVertex, dstPinVertex))
+        {
+            return false;
+        }
 
         const pin_data& pinData = m_graph[dstPinVertex].data.as<pin_data>();
 

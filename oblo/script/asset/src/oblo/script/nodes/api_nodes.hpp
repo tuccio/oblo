@@ -108,14 +108,17 @@ namespace oblo::api_nodes
     public:
         invoke_reflected_function_node(string_view name,
             std::optional<node_primitive_kind> returnKind,
-            std::span<const node_primitive_kind> paramKinds) : m_name{name}, m_returnKind{returnKind}
+            std::span<const node_primitive_kind> paramKinds,
+            std::span<const cstring_view> paramNames) : m_name{name}, m_returnKind{returnKind}
         {
             const usize paramCount = paramKinds.size();
             m_paramKinds.reserve(paramCount);
+            m_paramNames.reserve(paramCount);
 
             for (u32 i = 0; i < paramCount; ++i)
             {
                 m_paramKinds.emplace_back(paramKinds[i]);
+                m_paramNames.emplace_back(paramNames[i]);
             }
         }
 
@@ -129,11 +132,12 @@ namespace oblo::api_nodes
 
             for (u32 i = 0; i < m_paramKinds.size32(); ++i)
             {
-                builder.clear().format("{}.param.{}", m_name.as<string_view>(), i);
+                const cstring_view realName = m_paramNames[i];
+                const cstring_view idName = realName.empty() ? realName : builder.clear().format("#{}", i).view();
 
                 const h32 pin = g.add_in_pin({
-                    .id = idGen.generate(builder.as<string_view>()),
-                    .name = builder.as<string>(),
+                    .id = idGen.generate(idName.as<string_view>()),
+                    .name = realName.as<string>(),
                 });
 
                 g.set_deduced_type(pin, get_primitive_type_id(m_paramKinds[i]));
@@ -250,6 +254,7 @@ namespace oblo::api_nodes
         string m_name;
         std::optional<node_primitive_kind> m_returnKind;
         dynamic_array<node_primitive_kind> m_paramKinds;
+        dynamic_array<string> m_paramNames;
         dynamic_array<h32<node_graph_in_pin>> m_inPins;
     };
 }

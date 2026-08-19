@@ -316,9 +316,16 @@ namespace oblo::gen
         indent();
         new_line();
 
-        m_content.format("[[maybe_unused]] auto&& funcBuilder = reg.add_function(\"{0}\", &{0});", f.fullyQualifiedName);
+        m_content.format("[[maybe_unused]] auto&& funcBuilder = reg.add_function(\"{0}\", &{0});",
+            f.fullyQualifiedName);
 
         new_line();
+
+        for (usize i = 0; i < f.parameterNames.size(); ++i)
+        {
+            m_content.format("funcBuilder.parameter({}, \"{}\");", i, f.parameterNames[i]);
+            new_line();
+        }
 
         if (f.flags.contains(function_flags::script_api))
         {

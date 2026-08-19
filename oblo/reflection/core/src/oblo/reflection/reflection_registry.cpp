@@ -43,6 +43,21 @@ namespace oblo::reflection
         return typeId;
     }
 
+    function_handle reflection_registry::find_function(hashed_string_view function) const
+    {
+        function_handle handle{};
+
+        const auto it = m_impl->functionsMap.find(function);
+
+        if (it != m_impl->functionsMap.end())
+        {
+            const auto e = it->second;
+            handle = function_handle{e.value};
+        }
+
+        return handle;
+    }
+
     class_handle reflection_registry::find_class(const type_id& type) const
     {
         class_handle classId{};

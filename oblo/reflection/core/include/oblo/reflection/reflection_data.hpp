@@ -51,6 +51,7 @@ namespace oblo::reflection
         cstring_view fullyQualifiedName;
         type_id returnType;
         dynamic_array<type_id> parameterTypes;
+        dynamic_array<cstring_view> parameterNames;
         void* functionPtr;
         invoker_fn invoker;
     };

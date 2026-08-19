@@ -106,6 +106,8 @@ namespace oblo::reflection
 
         void make_array_type(u32 entityIndex, std::span<const usize> extents);
 
+        void init_function_parameter(u32 entityIndex, u32 parameterIndex, cstring_view name);
+
         template <typename R, typename... Args, usize... I>
         static OBLO_FORCEINLINE R invoke_impl(R (*cb)(Args...), void* const* args, std::index_sequence<I...>)
         {
@@ -201,9 +203,10 @@ namespace oblo::reflection
             return *this;
         }
 
-        operator function_handle() const noexcept
+        function_builder& parameter(u32 index, cstring_view name)
         {
-            return function_handle{m_entityIndex};
+            m_registrant.init_function_parameter(m_entityIndex, index, name);
+            return *this;
         }
 
     private:
