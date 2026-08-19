@@ -58,6 +58,9 @@ namespace oblo::reflection
 
         std::span<const field_data> get_fields(class_handle classId) const;
 
+        std::span<const function_handle> get_functions(class_handle classId) const;
+        function_data get_function_data(function_handle functionId) const;
+
         std::span<const cstring_view> get_enumerator_names(enum_handle enumId) const;
         std::span<const byte> get_enumerator_values(enum_handle enumId) const;
         type_id get_underlying_type(enum_handle enumId) const;

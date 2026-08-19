@@ -5,6 +5,7 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
+#include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
 
 #include <functional>
@@ -64,6 +65,7 @@ namespace oblo::reflection
     {
         type_id type;
         dynamic_array<field_data> fields;
+        dynamic_array<function_handle> functions;
         deque<any_attribute> attributeStorage;
     };
 

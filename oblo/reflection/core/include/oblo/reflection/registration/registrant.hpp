@@ -34,6 +34,9 @@ namespace oblo::reflection
         template <typename T>
         class field_builder;
 
+        template <typename R, typename... Args>
+        class function_builder;
+
     public:
         explicit registrant(reflection_registry& registry) : m_impl{*registry.m_impl} {}
 
@@ -46,6 +49,9 @@ namespace oblo::reflection
         template <typename T>
             requires std::is_fundamental_v<T>
         void add_fundamental();
+
+        template <typename R, typename... Args>
+        function_builder<R, Args...> add_function(cstring_view fullyQualifiedName);
 
     private:
         template <typename T>
@@ -69,6 +75,9 @@ namespace oblo::reflection
             u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src);
         void add_enumerator(u32 entityIndex, cstring_view name, std::span<const byte> value);
 
+        u32 add_function_type(
+            cstring_view fullyQualifiedName, const type_id& returnType, std::span<const type_id> parameterTypes);
+
         template <typename C>
         void add_concept(u32 entityIndex, C value)
         {
@@ -81,7 +90,7 @@ namespace oblo::reflection
         }
 
         template <typename T, typename U>
-        static u32 get_member_offset(U(T::*m))
+        static u32 get_member_offset(U(T::* m))
         {
             alignas(T) std::byte buf[sizeof(T)];
             auto& t = *start_lifetime_as<T>(buf);
@@ -103,7 +112,7 @@ namespace oblo::reflection
     {
     public:
         template <typename U>
-        field_builder<T> add_field(U(T::*member), cstring_view name);
+        field_builder<T> add_field(U(T::* member), cstring_view name);
 
         template <typename U>
         class_builder& add_tag()
@@ -164,6 +173,40 @@ namespace oblo::reflection
         u32 m_entityIndex;
     };
 
+    template <typename R, typename... Args>
+    class reflection_registry::registrant::function_builder
+    {
+    public:
+        template <typename U>
+        function_builder& add_tag()
+        {
+            m_registrant.add_tag(m_entityIndex, get_type_id<tag_type<U>>());
+            return *this;
+        }
+
+        template <typename C>
+        function_builder& add_concept(C value)
+        {
+            m_registrant.add_concept(m_entityIndex, value);
+            return *this;
+        }
+
+        operator function_handle() const noexcept
+        {
+            return function_handle{m_entityIndex};
+        }
+
+    private:
+        function_builder(registrant& reg, u32 entityIndex) : m_registrant{reg}, m_entityIndex{entityIndex} {}
+
+    private:
+        friend class registrant;
+
+    protected:
+        registrant& m_registrant;
+        u32 m_entityIndex;
+    };
+
     template <typename T>
     class reflection_registry::registrant::field_builder : public class_builder<T>
     {
@@ -209,6 +252,18 @@ namespace oblo::reflection
         return {
             *this,
             add_enum_type(get_type_id<T>(), sizeof(T), alignof(T), get_type_id<std::underlying_type_t<T>>()),
+        };
+    }
+
+    template <typename R, typename... Args>
+    reflection_registry::registrant::function_builder<R, Args...> reflection_registry::registrant::add_function(
+        cstring_view fullyQualifiedName)
+    {
+        const type_id parameters[1 + sizeof...(Args)] = {get_type_id<Args>()...};
+
+        return {
+            *this,
+            add_function_type(fullyQualifiedName, get_type_id<R>(), {parameters, parameters + sizeof...(Args)}),
         };
     }
 
@@ -286,7 +341,7 @@ namespace oblo::reflection
         requires std::is_class_v<T>
     template <typename U>
     inline reflection_registry::registrant::field_builder<T> reflection_registry::registrant::class_builder<
-        T>::add_field(U(T::*member), cstring_view name)
+        T>::add_field(U(T::* member), cstring_view name)
     {
         const u32 offset = get_member_offset<T>(member);
         const u32 fieldIndex = m_registrant.add_field(m_entityIndex, get_type_id<U>(), name, offset);

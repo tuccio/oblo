@@ -13,6 +13,7 @@ namespace oblo::reflection
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<class_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<enum_data>());
         m_impl->typesRegistry.register_component(ecs::make_component_type_desc<array_data>());
+        m_impl->typesRegistry.register_component(ecs::make_component_type_desc<function_data>());
         m_impl->typesRegistry.register_tag(ecs::make_tag_type_desc<fundamental_tag>());
     }
 
@@ -102,6 +103,18 @@ namespace oblo::reflection
     {
         const auto e = ecs::entity{classId.value};
         return m_impl->registry.get<class_data>(e).fields;
+    }
+
+    std::span<const function_handle> reflection_registry::get_functions(class_handle classId) const
+    {
+        const auto e = ecs::entity{classId.value};
+        return m_impl->registry.get<class_data>(e).functions;
+    }
+
+    function_data reflection_registry::get_function_data(function_handle functionId) const
+    {
+        const auto e = ecs::entity{functionId.value};
+        return m_impl->registry.get<function_data>(e);
     }
 
     std::span<const cstring_view> reflection_registry::get_enumerator_names(enum_handle enumId) const

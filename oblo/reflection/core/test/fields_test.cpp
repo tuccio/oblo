@@ -22,7 +22,7 @@ namespace oblo::reflection
             f64 f64Field;
             char charField;
             char8_t char8Field;
-            wchar_t wharField;
+            wchar_t wcharField;
         };
 
         auto find_field_by_name(std::span<const field_data> fields, const string_view name)
@@ -52,7 +52,7 @@ namespace oblo::reflection
             .add_field(&test_pod::f64Field, "f64Field")
             .add_field(&test_pod::charField, "charField")
             .add_field(&test_pod::char8Field, "char8Field")
-            .add_field(&test_pod::wharField, "wharField");
+            .add_field(&test_pod::wcharField, "wcharField");
 
         const class_handle podType = reg.find_class<test_pod>();
         ASSERT_TRUE(podType);
@@ -220,16 +220,16 @@ namespace oblo::reflection
         }
 
         {
-            const auto it = find_field_by_name(fields, "wharField");
+            const auto it = find_field_by_name(fields, "wcharField");
             ASSERT_NE(it, fields.end());
-            ASSERT_EQ(it->offset, offsetof(test_pod, wharField));
+            ASSERT_EQ(it->offset, offsetof(test_pod, wcharField));
             ASSERT_EQ(it->type, get_type_id<wchar_t>());
 
             auto& fRef = access_field<wchar_t>(&theStruct, it->offset);
             ASSERT_EQ(fRef, 0);
-            ASSERT_EQ(theStruct.wharField, 0);
+            ASSERT_EQ(theStruct.wcharField, 0);
             fRef = 42;
-            ASSERT_EQ(theStruct.wharField, 42);
+            ASSERT_EQ(theStruct.wcharField, 42);
         }
     }
 }

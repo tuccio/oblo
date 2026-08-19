@@ -3,6 +3,7 @@
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/string.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 
@@ -41,5 +42,13 @@ namespace oblo::reflection
     struct array_data
     {
         buffered_array<usize, 2> extents;
+    };
+
+    struct function_data
+    {
+        cstring_view fullyQualifiedName;
+        type_id returnType;
+        dynamic_array<type_id> parameterTypes;
+        void* functionPtr;
     };
 }
