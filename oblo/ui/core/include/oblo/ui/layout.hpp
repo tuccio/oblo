@@ -1,17 +1,16 @@
 #pragma once
 
-#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/forward.hpp>
+#include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/ui/forward.hpp>
 
-#include <span>
-
 namespace oblo::ui
 {
-    // An RGBA color, with channels normalized in the [0, 1] range.
     struct color
     {
         f32 r;
@@ -20,7 +19,6 @@ namespace oblo::ui
         f32 a;
     };
 
-    // An axis aligned rectangle in layout space. x/y are the top-left corner, width/height the size.
     struct rect
     {
         f32 x;
@@ -54,8 +52,6 @@ namespace oblo::ui
         }
     };
 
-    // Easing functions take an input in [0, 1] and return an output in the same range,
-    // with the exception of back/elastic/bounce curves which can overshoot.
     enum class easing_function : u8
     {
         linear,
@@ -68,9 +64,7 @@ namespace oblo::ui
         ease_out_bounce,
     };
 
-    // Which properties of an element participate in a transition.
-    // The enum values are bit *indices* for use with the flags<> helper.
-    enum class transition_property : u8
+    enum class animation_property : u8
     {
         x,
         y,
@@ -82,16 +76,13 @@ namespace oblo::ui
         enum_max,
     };
 
-    using transition_properties = flags<transition_property>;
+    using animation_properties = flags<animation_property>;
 
-    constexpr transition_properties position_properties = transition_property::x | transition_property::y;
-    constexpr transition_properties dimensions_properties = transition_property::width | transition_property::height;
-    constexpr transition_properties bounding_box_properties = position_properties | dimensions_properties;
+    constexpr animation_properties position_properties = animation_property::x | animation_property::y;
+    constexpr animation_properties dimensions_properties = animation_property::width | animation_property::height;
+    constexpr animation_properties bounding_box_properties = position_properties | dimensions_properties;
 
-    // The values that can be transitioned for a single element. The layout resolves the
-    // "target" values each frame, and the transition system interpolates between the
-    // previous rendered values and the target over time.
-    struct transitioned_values
+    struct animated_values
     {
         rect boundingBox;
         color backgroundColor{};
@@ -101,11 +92,13 @@ namespace oblo::ui
 
     // Called when an element first appears. Given the resolved target state, returns the
     // state the element should animate from (e.g. transparent, scaled to zero, offset).
-    using enter_state_fn = transitioned_values (*)(const transitioned_values& target, transition_properties properties);
+    using enter_state_fn =
+        function_ref<animated_values(const animated_values& target, animation_properties properties)>;
 
     // Called when an element is removed. Given the state it was last rendered in, returns
     // the state it should animate towards before being discarded.
-    using exit_state_fn = transitioned_values (*)(const transitioned_values& initial, transition_properties properties);
+    using exit_state_fn =
+        function_ref<animated_values(const animated_values& initial, animation_properties properties)>;
 
     struct transition_enter_config
     {
@@ -125,7 +118,7 @@ namespace oblo::ui
     {
         f32 duration;
         easing_function easing;
-        transition_properties properties;
+        animation_properties properties;
         transition_enter_config enter{};
         transition_exit_config exit{};
     };
@@ -196,22 +189,14 @@ namespace oblo::ui
         transition_config transition;
     };
 
-    // Sentinel index marking the absence of a parent, child or sibling.
     constexpr u32 invalid_index = ~u32{};
 
-    // A single container declared this frame. Elements form a tree; traverse it through
-    // parent_index / first_child / next_sibling (indices into the layout state's element tree).
     struct layout_element
     {
-        // The descriptor this element was declared with.
         container_descriptor desc{};
 
-        // The stable id, copied from desc for convenience.
         layout_id elementId{};
 
-        // The resolved bounding box for this frame, in absolute layout coordinates. For
-        // elements with an active transition this is the target the animation is moving
-        // towards; use `animated` for the interpolated box to render.
         rect targetRect{};
 
         vec4 cornerRadius;
@@ -222,54 +207,24 @@ namespace oblo::ui
 
         // Interpolated values to render this frame, or nullptr when the element has no id
         // or no transition configured. When nullptr, target_rect is the final box.
-        const transitioned_values* animated{};
+        const animated_values* animated{};
 
         u32 parentIndex{invalid_index};
         u32 firstChild{invalid_index};
         u32 nextSibling{invalid_index};
-
-        // Internal: last child appended, used while building the tree.
         u32 lastChild{invalid_index};
     };
 
-    // The layout state is an opaque object owned by the caller through create_state()/
-    // destroy_state(). Its full definition lives in a private header; consumers must go
-    // through the free functions below rather than touching its members directly.
     struct layout_state;
 
     layout_state* create_state();
     void destroy_state(layout_state* state);
 
-    // The available layout area. Percentage sizing on the root is resolved against this.
     void set_layout_size(layout_state& state, vec2 size);
 
-    // Call at the start of every frame, with the frame time in seconds. Clears the
-    // previous frame's element tree.
     void begin_frame(layout_state& state, f32 dt);
-
-    // Call at the end of every frame, after all elements have been declared. Resolves the
-    // layout, feeds the transition system and advances exiting elements.
     void end_frame(layout_state& state);
 
-    // Returns the first element declared this frame with the given id, or nullptr.
-    // Exiting elements are not declared and are not returned here; use get_animated()
-    // for those.
-    const layout_element* find_element(const layout_state& state, layout_id element);
-
-    // Feeds the resolved target state of an element to the animation system. Used by the
-    // layout solver during end_frame; also available for manual use.
-    const transitioned_values* update_element(layout_state& state,
-        layout_id element,
-        layout_id parent,
-        vec2 parentOrigin,
-        const transitioned_values& target,
-        const transition_config& config);
-
-    // Returns the current interpolated values of an element, or nullptr if the element is
-    // not being animated.
-    const transitioned_values* get_animated(const layout_state& state, layout_id element);
-
-    // All elements declared this frame, in declaration order.
     std::span<const layout_element> get_elements(const layout_state& state);
 
     void begin_container(layout_state& state, const container_descriptor& desc);

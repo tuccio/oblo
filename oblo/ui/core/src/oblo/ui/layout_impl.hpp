@@ -1,8 +1,7 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/ui/layout.hpp>
-
-#include <span>
 
 namespace oblo::ui
 {
@@ -21,12 +20,12 @@ namespace oblo::ui
         layout_id elementId{};
         transition_state state{transition_state::idle};
 
-        transitioned_values initial{};
-        transitioned_values current{};
-        transitioned_values target{};
+        animated_values initial{};
+        animated_values current{};
+        animated_values target{};
 
-        transition_properties properties{};
-        transition_properties activeProperties{};
+        animation_properties properties{};
+        animation_properties activeProperties{};
 
         easing_function easing{easing_function::ease_out};
         f32 duration{};
@@ -65,16 +64,16 @@ namespace oblo::ui
         // animation. parentOrigin is the absolute position of the parent this frame, used to
         // avoid animating an element when only its parent moved.
         // Returns a pointer to the interpolated values to render this frame.
-        const transitioned_values* update(layout_id element,
+        const animated_values* update(layout_id element,
             layout_id parent,
             vec2 parentOrigin,
-            const transitioned_values& target,
+            const animated_values& target,
             const transition_config& config);
 
         // Returns the current interpolated values of an element, or nullptr if the element
         // was never declared or has already finished exiting.
-        const transitioned_values* try_get(layout_id element) const;
-        transitioned_values* try_get(layout_id element);
+        const animated_values* try_get(layout_id element) const;
+        animated_values* try_get(layout_id element);
 
         // All active records, including elements that are currently exiting.
         std::span<const transition_record> records() const;
@@ -108,4 +107,22 @@ namespace oblo::ui
 
         vec2 layoutSize{};
     };
+
+    // Returns the first element declared this frame with the given id, or nullptr.
+    // Exiting elements are not declared and are not returned here; use get_animated()
+    // for those.
+    const layout_element* find_element(const layout_state& state, layout_id element);
+
+    // Feeds the resolved target state of an element to the animation system. Used by the
+    // layout solver during end_frame; also available for manual use.
+    const animated_values* update_element(layout_state& state,
+        layout_id element,
+        layout_id parent,
+        vec2 parentOrigin,
+        const animated_values& target,
+        const transition_config& config);
+
+    // Returns the current interpolated values of an element, or nullptr if the element is
+    // not being animated.
+    const animated_values* get_animated(const layout_state& state, layout_id element);
 }

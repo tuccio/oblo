@@ -9,24 +9,24 @@ namespace oblo::ui
 {
     namespace
     {
-        transitioned_values make_values(f32 x, f32 y, f32 w, f32 h)
+        animated_values make_values(f32 x, f32 y, f32 w, f32 h)
         {
-            transitioned_values v;
+            animated_values v;
             v.boundingBox = {x, y, w, h};
             return v;
         }
 
-        transitioned_values enter_initial(const transitioned_values& target, transition_properties)
+        animated_values enter_initial(const animated_values& target, animation_properties)
         {
-            transitioned_values out = target;
+            animated_values out = target;
             out.boundingBox.width = 0.f;
             out.backgroundColor = {0.f, 0.f, 0.f, 0.f};
             return out;
         }
 
-        transitioned_values exit_final(const transitioned_values& initial, transition_properties)
+        animated_values exit_final(const animated_values& initial, animation_properties)
         {
-            transitioned_values out = initial;
+            animated_values out = initial;
             out.backgroundColor.a = 0.f;
             return out;
         }
@@ -129,7 +129,7 @@ namespace oblo::ui
         const auto blue = color{0.f, 0.f, 1.f, 1.f};
 
         auto config = linear_config();
-        config.properties = transition_property::background_color;
+        config.properties = animation_property::background_color;
 
         store.begin_frame(0.5f);
         auto values = make_values(0, 0, 100, 100);
@@ -200,7 +200,7 @@ namespace oblo::ui
         transition_store store;
 
         auto config = linear_config();
-        config.properties = bounding_box_properties | transition_property::background_color;
+        config.properties = bounding_box_properties | animation_property::background_color;
         config.enter.setInitialState = enter_initial;
 
         // Frame 1: element appears, starts from the enter initial state
@@ -244,7 +244,7 @@ namespace oblo::ui
         transition_store store;
 
         auto config = linear_config();
-        config.properties = bounding_box_properties | transition_property::background_color;
+        config.properties = bounding_box_properties | animation_property::background_color;
         config.exit.setFinalState = exit_final;
 
         auto values = make_values(10, 10, 100, 50);

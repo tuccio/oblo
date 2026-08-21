@@ -91,7 +91,7 @@ namespace oblo::ui
             // Feed the transition system, parents before children.
             if (element.elementId != layout_id{} && desc.has_transition)
             {
-                transitioned_values target;
+                animated_values target;
                 target.boundingBox = element.targetRect;
                 target.cornerRadius = element.cornerRadius;
 
@@ -125,35 +125,35 @@ namespace oblo::ui
             }
         }
 
-        void interpolate(const transitioned_values& initial,
-            const transitioned_values& target,
+        void interpolate(const animated_values& initial,
+            const animated_values& target,
             f32 u,
-            transition_properties active,
-            transitioned_values& out)
+            animation_properties active,
+            animated_values& out)
         {
             const auto lerpF = [](f32 a, f32 b, f32 u) { return a + (b - a) * u; };
 
-            if (active.contains(transition_property::x))
+            if (active.contains(animation_property::x))
             {
                 out.boundingBox.x = lerpF(initial.boundingBox.x, target.boundingBox.x, u);
             }
 
-            if (active.contains(transition_property::y))
+            if (active.contains(animation_property::y))
             {
                 out.boundingBox.y = lerpF(initial.boundingBox.y, target.boundingBox.y, u);
             }
 
-            if (active.contains(transition_property::width))
+            if (active.contains(animation_property::width))
             {
                 out.boundingBox.width = lerpF(initial.boundingBox.width, target.boundingBox.width, u);
             }
 
-            if (active.contains(transition_property::height))
+            if (active.contains(animation_property::height))
             {
                 out.boundingBox.height = lerpF(initial.boundingBox.height, target.boundingBox.height, u);
             }
 
-            if (active.contains(transition_property::background_color))
+            if (active.contains(animation_property::background_color))
             {
                 out.backgroundColor = {
                     lerpF(initial.backgroundColor.r, target.backgroundColor.r, u),
@@ -163,7 +163,7 @@ namespace oblo::ui
                 };
             }
 
-            if (active.contains(transition_property::overlay_color))
+            if (active.contains(animation_property::overlay_color))
             {
                 out.overlayColor = {
                     lerpF(initial.overlayColor.r, target.overlayColor.r, u),
@@ -173,7 +173,7 @@ namespace oblo::ui
                 };
             }
 
-            if (active.contains(transition_property::corner_radius))
+            if (active.contains(animation_property::corner_radius))
             {
                 out.cornerRadius = {
                     lerpF(initial.cornerRadius.x, target.cornerRadius.x, u),
@@ -394,11 +394,11 @@ namespace oblo::ui
         return nullptr;
     }
 
-    const transitioned_values* update_element(layout_state& state,
+    const animated_values* update_element(layout_state& state,
         layout_id element,
         layout_id parent,
         vec2 parentOrigin,
-        const transitioned_values& target,
+        const animated_values& target,
         const transition_config& config)
     {
         if (element == layout_id{})
@@ -409,7 +409,7 @@ namespace oblo::ui
         return state.animations.update(element, parent, parentOrigin, target, config);
     }
 
-    const transitioned_values* get_animated(const layout_state& state, layout_id element)
+    const animated_values* get_animated(const layout_state& state, layout_id element)
     {
         return state.animations.try_get(element);
     }
@@ -501,10 +501,10 @@ namespace oblo::ui
         record.activeProperties = record.properties;
     }
 
-    const transitioned_values* transition_store::update(layout_id element,
+    const animated_values* transition_store::update(layout_id element,
         layout_id parent,
         vec2 parentOrigin,
-        const transitioned_values& target,
+        const animated_values& target,
         const transition_config& config)
     {
         const vec2 newRelativePosition = target.boundingBox.position() - parentOrigin;
@@ -562,48 +562,48 @@ namespace oblo::ui
         const auto oldTarget = record->target;
         const auto& props = config.properties;
 
-        transition_properties newActive{};
+        animation_properties newActive{};
 
-        if (props.contains(transition_property::x) && !float_equal(oldTarget.boundingBox.x, target.boundingBox.x) &&
+        if (props.contains(animation_property::x) && !float_equal(oldTarget.boundingBox.x, target.boundingBox.x) &&
             (record->reparented || !float_equal(record->oldRelativePosition.x, newRelativePosition.x)))
         {
-            newActive.set(transition_property::x);
+            newActive.set(animation_property::x);
         }
 
-        if (props.contains(transition_property::y) && !float_equal(oldTarget.boundingBox.y, target.boundingBox.y) &&
+        if (props.contains(animation_property::y) && !float_equal(oldTarget.boundingBox.y, target.boundingBox.y) &&
             (record->reparented || !float_equal(record->oldRelativePosition.y, newRelativePosition.y)))
         {
-            newActive.set(transition_property::y);
+            newActive.set(animation_property::y);
         }
 
-        if (props.contains(transition_property::width) &&
+        if (props.contains(animation_property::width) &&
             !float_equal(oldTarget.boundingBox.width, target.boundingBox.width))
         {
-            newActive.set(transition_property::width);
+            newActive.set(animation_property::width);
         }
 
-        if (props.contains(transition_property::height) &&
+        if (props.contains(animation_property::height) &&
             !float_equal(oldTarget.boundingBox.height, target.boundingBox.height))
         {
-            newActive.set(transition_property::height);
+            newActive.set(animation_property::height);
         }
 
-        if (props.contains(transition_property::background_color) &&
+        if (props.contains(animation_property::background_color) &&
             !float_equal(oldTarget.backgroundColor, target.backgroundColor))
         {
-            newActive.set(transition_property::background_color);
+            newActive.set(animation_property::background_color);
         }
 
-        if (props.contains(transition_property::overlay_color) &&
+        if (props.contains(animation_property::overlay_color) &&
             !float_equal(oldTarget.overlayColor, target.overlayColor))
         {
-            newActive.set(transition_property::overlay_color);
+            newActive.set(animation_property::overlay_color);
         }
 
-        if (props.contains(transition_property::corner_radius) &&
+        if (props.contains(animation_property::corner_radius) &&
             !float_equal(oldTarget.cornerRadius, target.cornerRadius))
         {
-            newActive.set(transition_property::corner_radius);
+            newActive.set(animation_property::corner_radius);
         }
 
         record->oldRelativePosition = newRelativePosition;
@@ -690,13 +690,13 @@ namespace oblo::ui
         }
     }
 
-    const transitioned_values* transition_store::try_get(layout_id element) const
+    const animated_values* transition_store::try_get(layout_id element) const
     {
         const auto* const record = find_record(element);
         return record ? &record->current : nullptr;
     }
 
-    transitioned_values* transition_store::try_get(layout_id element)
+    animated_values* transition_store::try_get(layout_id element)
     {
         auto* const record = find_record(element);
         return record ? &record->current : nullptr;
