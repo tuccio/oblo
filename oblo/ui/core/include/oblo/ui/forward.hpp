@@ -1,10 +1,18 @@
 #pragma once
 
+#include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo::ui
 {
-    using id = u32;
+    struct rect;
+    struct transition_config;
+    struct transitioned_values;
 
+    class transition_store;
+
+    struct layout_element;
     struct layout_state;
+
+    using layout_id = h32<layout_element>;
 }

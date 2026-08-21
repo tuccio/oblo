@@ -1,0 +1,11 @@
+{
+    "name": "UI Layout Sandbox",
+    "directories": {
+        "assets": "assets",
+        "artifacts": ".artifacts",
+        "sources": "sources"
+    },
+    "modules": [
+        "oblo_ui_layout_sandbox"
+    ]
+}

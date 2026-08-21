@@ -96,6 +96,7 @@ function(_oblo_add_test_impl name subfolder)
 
     target_include_directories(
         ${_test_target} PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test>
     )
 
