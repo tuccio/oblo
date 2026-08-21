@@ -1179,6 +1179,11 @@ namespace oblo
         pm.trace_rays(m_state.rtCtx, x, y, z);
     }
 
+    void frame_graph_execute_context::draw(u32 vertexCount, u32 instanceCount, u32 vertexOffset, u32 firstInstance) const
+    {
+        m_state.gpu->cmd_draw(m_state.commandBuffer, vertexCount, instanceCount, vertexOffset, firstInstance);
+    }
+
     void frame_graph_execute_context::draw_indexed(
         u32 indexCount, u32 instanceCount, u32 firstIndex, u32 vertexOffset, u32 firstInstance) const
     {
