@@ -6,11 +6,13 @@ target_link_libraries(
     oblo::app
     oblo::ecs
     oblo::graphics
+    oblo::input
     oblo::log
     oblo::modules
     oblo::renderer
     oblo::scene::headers
     oblo::ui::core
+    oblo::ui::game
 )
 
 oblo_add_data_folder(oblo::ui_layout_sandbox::data "${CMAKE_CURRENT_SOURCE_DIR}/resources")
