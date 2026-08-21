@@ -243,6 +243,13 @@ namespace oblo
     }
 
     template <flags_enum E>
+    constexpr flags<E> operator|(flags<E> lhs, flags<E> rhs) noexcept
+    {
+        lhs |= rhs;
+        return lhs;
+    }
+
+    template <flags_enum E>
     constexpr flags<E> operator&(flags<E> lhs, E rhs) noexcept
     {
         lhs &= rhs;
@@ -250,7 +257,21 @@ namespace oblo
     }
 
     template <flags_enum E>
+    constexpr flags<E> operator&(flags<E> lhs, flags<E> rhs) noexcept
+    {
+        lhs &= rhs;
+        return lhs;
+    }
+
+    template <flags_enum E>
     constexpr flags<E> operator^(flags<E> lhs, E rhs) noexcept
+    {
+        lhs ^= rhs;
+        return lhs;
+    }
+
+    template <flags_enum E>
+    constexpr flags<E> operator^(flags<E> lhs, flags<E> rhs) noexcept
     {
         lhs ^= rhs;
         return lhs;
