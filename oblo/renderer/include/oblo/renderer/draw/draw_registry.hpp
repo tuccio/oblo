@@ -3,6 +3,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
@@ -12,7 +13,6 @@
 
 #include <array>
 #include <span>
-#include <unordered_map>
 
 namespace oblo
 {
@@ -92,7 +92,7 @@ namespace oblo
         h32<gpu::acceleration_structure> get_tlas() const;
 
         ecs::entity_registry& get_entity_registry() const;
-        
+
         usize calculate_mesh_data_size() const;
 
     private:
@@ -133,7 +133,7 @@ namespace oblo
 
         std::span<const std::byte> m_meshDatabaseData;
 
-        std::unordered_map<uuid, h32<draw_mesh>> m_cachedMeshes;
+        unordered_map<uuid, h32<draw_mesh>> m_cachedMeshes;
 
         flat_dense_map<ecs::component_type, instance_data_type_info> m_instanceDataTypeNames;
         ecs::type_set m_instanceDataTypes{};

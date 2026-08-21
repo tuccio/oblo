@@ -3,15 +3,14 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_registry.hpp>
 #include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
 
-
 #include <functional>
 #include <memory_resource>
-#include <unordered_map>
 
 namespace oblo::reflection
 {
@@ -84,7 +83,7 @@ namespace oblo::reflection
         ecs::type_registry typesRegistry;
         ecs::entity_registry registry{&typesRegistry};
 
-        std::unordered_map<type_id, ecs::entity> typesMap;
+        unordered_map<type_id, ecs::entity> typesMap;
         std::unordered_map<hashed_string_view, ecs::entity, hash<hashed_string_view>> functionsMap;
     };
 }

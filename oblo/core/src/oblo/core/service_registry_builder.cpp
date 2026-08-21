@@ -3,8 +3,7 @@
 #include <oblo/core/graph/directed_graph.hpp>
 #include <oblo/core/graph/topological_sort.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
-
-#include <unordered_map>
+#include <oblo/core/unordered_map.hpp>
 
 namespace oblo
 {
@@ -16,7 +15,7 @@ namespace oblo
         dynamic_array<graph_t::vertex_handle> vertices;
         vertices.reserve(m_builders.size());
 
-        std::unordered_map<type_id, graph_t::vertex_handle> typeToBuilderMap;
+        unordered_map<type_id, graph_t::vertex_handle> typeToBuilderMap;
 
         for (usize builderIndex = 0; builderIndex < m_builders.size(); ++builderIndex)
         {

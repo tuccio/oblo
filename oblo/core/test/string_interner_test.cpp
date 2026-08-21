@@ -3,9 +3,9 @@
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_interner.hpp>
+#include <oblo/core/unordered_map.hpp>
 
 #include <random>
-#include <unordered_map>
 
 namespace oblo
 {

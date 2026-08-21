@@ -5,9 +5,9 @@
 #include <oblo/ecs/forward.hpp>
 #include <oblo/ecs/systems/system_graph_usages.hpp>
 #include <oblo/ecs/systems/system_trampoline.hpp>
+#include <oblo/core/unordered_map.hpp>
 
 #include <span>
-#include <unordered_map>
 
 namespace oblo::ecs
 {
@@ -51,7 +51,7 @@ namespace oblo::ecs
 
     private:
         system_graph m_graph;
-        std::unordered_map<type_id, barrier_systems> m_barrier;
+        unordered_map<type_id, barrier_systems> m_barrier;
         system_graph_usages m_usages{};
     };
 

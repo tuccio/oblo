@@ -2,8 +2,7 @@
 
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/type_id.hpp>
-
-#include <unordered_map>
+#include <oblo/core/unordered_map.hpp>
 
 namespace oblo
 {
@@ -39,6 +38,6 @@ namespace oblo
         }
 
     private:
-        std::unordered_map<type_id, instance_data_type_info, hash<type_id>> m_instanceDataTypeNames;
+        unordered_map<type_id, instance_data_type_info, hash<type_id>> m_instanceDataTypeNames;
     };
 }

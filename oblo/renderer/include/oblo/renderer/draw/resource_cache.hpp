@@ -3,9 +3,8 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <unordered_map>
 
 namespace oblo
 {
@@ -44,7 +43,7 @@ namespace oblo
 
     private:
         texture_registry* m_textureRegistry{};
-        std::unordered_map<uuid, cached_texture> m_textures;
+        unordered_map<uuid, cached_texture> m_textures;
         deque<async_load> m_asyncLoads;
     };
 }

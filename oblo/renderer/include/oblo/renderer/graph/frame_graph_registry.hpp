@@ -1,10 +1,9 @@
 #pragma once
 
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
 #include <oblo/renderer/graph/frame_graph_node_desc.hpp>
-
-#include <unordered_map>
 
 namespace oblo
 {
@@ -25,7 +24,7 @@ namespace oblo
         const frame_graph_node_desc* find_node(const uuid& id) const;
 
     private:
-        std::unordered_map<uuid, frame_graph_node_desc> m_nodes;
+        unordered_map<uuid, frame_graph_node_desc> m_nodes;
     };
 
     template <typename T>

@@ -16,6 +16,7 @@
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/time/clock.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/data/drag_and_drop_payload.hpp>
 #include <oblo/editor/providers/asset_editor_provider.hpp>
@@ -33,7 +34,6 @@
 #include <IconsFontAwesome6.h>
 
 #include <filesystem>
-#include <unordered_map>
 
 namespace oblo::editor
 {

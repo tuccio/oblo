@@ -2,8 +2,7 @@
 
 #include <oblo/asset/asset_traits.hpp>
 #include <oblo/core/string/string_builder.hpp>
-
-#include <unordered_map>
+#include <oblo/core/unordered_map.hpp>
 
 namespace oblo
 {

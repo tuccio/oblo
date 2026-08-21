@@ -2,9 +2,9 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/unordered_map.hpp>
 
 #include <span>
-#include <unordered_map>
 #include <vector>
 
 namespace oblo

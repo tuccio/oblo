@@ -1,3 +1,5 @@
+include(common)
+
 [settings]
 os=Windows
 arch=x86_64
@@ -8,12 +10,6 @@ compiler.runtime=dynamic
 compiler.cppstd=20
 compiler.runtime_version=v145
 
-ktx/*:compiler.cppstd=17
-
 [conf]
 tools.cmake.cmaketoolchain:generator=Ninja
 tools.build:compiler_executables={'c': 'clang-cl', 'cpp': 'clang-cl'}
-tools.cmake.cmakedeps:new=will_break_next
-
-[tool_requires]
-!cmake/*: cmake/[>=3 <4]
