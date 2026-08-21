@@ -1,0 +1,8 @@
+[settings]
+ktx/*:compiler.cppstd=17
+
+[tool_requires]
+!cmake/*: cmake/[>=3 <4]
+
+[conf]
+tools.cmake.cmakedeps:new=will_break_next
