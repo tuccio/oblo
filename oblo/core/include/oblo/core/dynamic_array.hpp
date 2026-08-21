@@ -1,9 +1,10 @@
 #pragma once
 
+#include <oblo/core/algorithm/equal.hpp>
+#include <oblo/core/algorithm/rotate.hpp>
 #include <oblo/core/allocator.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/platform/compiler.hpp>
-#include <oblo/core/rotate.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/power_of_two.hpp>
 
@@ -768,7 +769,7 @@ namespace oblo
     bool dynamic_array<T>::operator==(const dynamic_array& other) const noexcept
     {
         const auto isSizeEqual = m_size == other.m_size;
-        return isSizeEqual && std::equal(begin(), end(), other.begin());
+        return isSizeEqual && equal(begin(), end(), other.begin());
     }
 
     template <typename T>
@@ -776,7 +777,7 @@ namespace oblo
         requires(!std::convertible_to<const Other&, const dynamic_array<T>&>)
     bool dynamic_array<T>::operator==(const Other& other) const noexcept
     {
-        return std::equal(begin(), end(), std::begin(other), std::end(other));
+        return equal(begin(), end(), std::begin(other), std::end(other));
     }
 
     template <typename T>

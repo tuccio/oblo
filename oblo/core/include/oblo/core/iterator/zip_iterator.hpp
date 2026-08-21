@@ -38,11 +38,6 @@ namespace oblo
             return std::get<0>(other.m_iterators) == std::get<0>(m_iterators);
         }
 
-        OBLO_FORCEINLINE bool operator!=(const zip_iterator& other) const
-        {
-            return !(*this == other);
-        }
-
         OBLO_FORCEINLINE zip_iterator& operator++()
         {
             std::apply([](auto&... it) { (++it, ...); }, m_iterators);

@@ -9,9 +9,8 @@
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <unordered_map>
 
 namespace oblo
 {
@@ -56,14 +55,14 @@ namespace oblo
         static uuid generate_uuid();
 
     public:
-        std::unordered_map<type_id, file_importer_info> importers;
-        std::unordered_map<uuid, native_asset_descriptor> nativeAssetTypes;
-        std::unordered_map<uuid, asset_entry> assets;
-        std::unordered_map<uuid, artifact_entry> artifactsMap;
+        unordered_map<type_id, file_importer_info> importers;
+        unordered_map<uuid, native_asset_descriptor> nativeAssetTypes;
+        unordered_map<uuid, asset_entry> assets;
+        unordered_map<uuid, artifact_entry> artifactsMap;
 
         std::unordered_map<string, uuid, transparent_string_hash, std::equal_to<>> assetFileMap;
 
-        std::unordered_map<hashed_string_view, h32<asset_repository>, hash<hashed_string_view>> assetSourceNameToIdx;
+        unordered_map<hashed_string_view, h32<asset_repository>> assetSourceNameToIdx;
         dynamic_array<asset_repository> assetRepositories;
 
         string_builder artifactsDir;

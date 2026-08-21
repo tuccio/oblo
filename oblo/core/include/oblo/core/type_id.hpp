@@ -60,18 +60,3 @@ namespace oblo
         }
     };
 }
-
-namespace std
-{
-    template <typename T>
-    struct hash;
-
-    template <>
-    struct hash<oblo::type_id>
-    {
-        auto operator()(const oblo::type_id& typeId) const noexcept
-        {
-            return typeId.name.hash();
-        }
-    };
-}
