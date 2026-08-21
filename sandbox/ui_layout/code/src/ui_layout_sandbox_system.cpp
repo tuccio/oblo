@@ -83,7 +83,7 @@ namespace oblo
         const vec2u resolution{max(windowSize.x, 1u), max(windowSize.y, 1u)};
 
         sandbox::ui_layout_set_size(vec2{f32(resolution.x), f32(resolution.y)});
-        sandbox::ui_layout_update(to_f32_seconds(ctx.dt));
+        sandbox::ui_layout_update(ctx.dt);
 
         sandbox::get_ui_layout_elements(m_elements);
 

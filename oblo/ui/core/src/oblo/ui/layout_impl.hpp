@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/time/time.hpp>
 #include <oblo/ui/layout.hpp>
 
 namespace oblo::ui
@@ -28,8 +29,8 @@ namespace oblo::ui
         animation_properties activeProperties{};
 
         easing_function easing{easing_function::ease_out};
-        f32 duration{};
-        f32 elapsedTime{};
+        time duration{};
+        time elapsedTime{};
 
         layout_id parentId{};
         vec2 oldRelativePosition{};
@@ -52,12 +53,7 @@ namespace oblo::ui
         transition_store& operator=(const transition_store&) = delete;
         transition_store& operator=(transition_store&&) noexcept = delete;
 
-        // Must be called once per frame, before any update() call. dt is the frame time in
-        // seconds.
-        void begin_frame(f32 dt);
-
-        // Must be called once per frame, after all update() calls. Advances exiting elements
-        // and prunes finished transitions.
+        void begin_frame(time dt);
         void end_frame();
 
         // Declares the resolved target state of an element for this frame and advances its
@@ -88,13 +84,13 @@ namespace oblo::ui
         transition_record* find_record(layout_id element) noexcept;
         const transition_record* find_record(layout_id element) const noexcept;
 
-        void advance(transition_record& record, f32 dt);
+        void advance(transition_record& record, time dt);
         void snap_to_target(transition_record& record);
         void start_exit(transition_record& record);
 
     private:
         dynamic_array<transition_record> m_records;
-        f32 m_dt{};
+        time m_dt{};
     };
 
     struct layout_state

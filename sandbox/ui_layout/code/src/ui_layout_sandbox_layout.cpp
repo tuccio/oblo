@@ -3,10 +3,11 @@
 #include <ui_layout_render_node.hpp>
 
 #include <oblo/core/array_size.hpp>
+#include <oblo/core/dynamic_array.hpp>
+#include <oblo/math/vec2.hpp>
 #include <oblo/ui/layout.hpp>
 
 #include <cmath>
-#include <iterator>
 
 namespace oblo::sandbox
 {
@@ -14,7 +15,7 @@ namespace oblo::sandbox
     {
         ui::layout_state* g_layoutState{};
         bool g_initialized{};
-        f32 g_time{};
+        time g_time{};
 
         ui::color palette_for_id(ui::layout_id id)
         {
@@ -49,7 +50,7 @@ namespace oblo::sandbox
         ui::transition_config default_transition()
         {
             return {
-                .duration = 0.25f,
+                .duration = time::from_milliseconds(0.25f),
                 .easing = ui::easing_function::ease_out,
                 .properties = ui::bounding_box_properties,
             };
@@ -62,7 +63,7 @@ namespace oblo::sandbox
         {
             g_layoutState = ui::create_state();
             ui::set_layout_size(*g_layoutState, {1280.f, 720.f});
-            g_time = 0.f;
+            g_time = {};
             g_initialized = true;
         }
     }
@@ -75,7 +76,7 @@ namespace oblo::sandbox
         }
     }
 
-    void ui_layout_update(f32 dt)
+    void ui_layout_update(time dt)
     {
         if (!g_layoutState)
         {
@@ -84,12 +85,12 @@ namespace oblo::sandbox
 
         ui::layout_state& state = *g_layoutState;
 
-        g_time += dt;
+        g_time.hns += dt.hns;
 
         ui::begin_frame(state, dt);
 
         // A slowly oscillating width for the sidebar, so the transition system is exercised.
-        const f32 animatedWidth = 0.2f + 0.15f * (0.5f + 0.5f * std::sin(g_time * 1.5f));
+        const f32 animatedWidth = 0.2f + 0.15f * (0.5f + 0.5f * std::sin(to_f32_seconds(g_time) * 1.5f));
 
         {
             auto root = ui::container_builder{}

@@ -8,14 +8,8 @@
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_interface.hpp>
 #include <oblo/modules/utility/registration.hpp>
-#include <oblo/reflection/codegen/registration.hpp>
 #include <oblo/scene/systems/barriers.hpp>
 #include <oblo/scene/systems/usages.hpp>
-
-namespace oblo
-{
-    class viewport_system;
-}
 
 namespace oblo::sandbox
 {
@@ -24,8 +18,6 @@ namespace oblo::sandbox
     public:
         bool startup(const module_initializer& initializer) override
         {
-            reflection::gen::load_module_and_register();
-
             initializer.services->add<ecs::world_builder>().unique({
                 .systems =
                     [](ecs::system_graph_builder& builder)
@@ -34,7 +26,6 @@ namespace oblo::sandbox
                     {
                         builder.add_system<ui_layout_sandbox_system>()
                             .after<barriers::renderer_extract>()
-                            .after<viewport_system>()
                             .before<barriers::renderer_update>();
                     }
                 },

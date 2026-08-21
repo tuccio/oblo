@@ -1,9 +1,9 @@
 #pragma once
 
 #include <oblo/core/flags.hpp>
-#include <oblo/core/forward.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/span.hpp>
+#include <oblo/core/time/time.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec4.hpp>
@@ -116,7 +116,7 @@ namespace oblo::ui
 
     struct transition_config
     {
-        f32 duration;
+        time duration;
         easing_function easing;
         animation_properties properties;
         transition_enter_config enter{};
@@ -185,7 +185,7 @@ namespace oblo::ui
 
         layout_id elementId;
 
-        bool has_transition;
+        bool hasTransition;
         transition_config transition;
     };
 
@@ -222,7 +222,7 @@ namespace oblo::ui
 
     void set_layout_size(layout_state& state, vec2 size);
 
-    void begin_frame(layout_state& state, f32 dt);
+    void begin_frame(layout_state& state, time dt);
     void end_frame(layout_state& state);
 
     std::span<const layout_element> get_elements(const layout_state& state);
@@ -274,7 +274,7 @@ namespace oblo::ui
         container_builder&& transition(const transition_config& config) &&
         {
             m_desc.transition = config;
-            m_desc.has_transition = true;
+            m_desc.hasTransition = true;
             return static_cast<container_builder&&>(*this);
         }
 

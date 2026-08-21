@@ -89,7 +89,7 @@ namespace oblo::ui
             element.targetRect = {pos.x, pos.y, size.x, size.y};
 
             // Feed the transition system, parents before children.
-            if (element.elementId != layout_id{} && desc.has_transition)
+            if (element.elementId != layout_id{} && desc.hasTransition)
             {
                 animated_values target;
                 target.boundingBox = element.targetRect;
@@ -188,7 +188,7 @@ namespace oblo::ui
     f32 ease(easing_function fn, f32 t)
     {
         /// @see https://easings.net/ https://github.com/ai/easings.net
-        const f32 x = oblo::min(oblo::max(t, 0.f), 1.f);
+        const f32 x = min(max(t, 0.f), 1.f);
 
         switch (fn)
         {
@@ -353,7 +353,7 @@ namespace oblo::ui
         state.layoutSize = size;
     }
 
-    void begin_frame(layout_state& state, f32 dt)
+    void begin_frame(layout_state& state, time dt)
     {
         state.elements.clear();
         state.openContainerIdxStack.clear();
@@ -445,7 +445,7 @@ namespace oblo::ui
         return nullptr;
     }
 
-    void transition_store::begin_frame(f32 dt)
+    void transition_store::begin_frame(time dt)
     {
         m_dt = dt;
 
@@ -458,15 +458,15 @@ namespace oblo::ui
     void transition_store::snap_to_target(transition_record& record)
     {
         record.state = transition_state::idle;
-        record.elapsedTime = 0.f;
+        record.elapsedTime = time{};
         record.activeProperties = {};
         record.initial = record.target;
         record.current = record.target;
     }
 
-    void transition_store::advance(transition_record& record, f32 dt)
+    void transition_store::advance(transition_record& record, time dt)
     {
-        if (record.duration <= 0.f)
+        if (record.duration <= time{})
         {
             snap_to_target(record);
             return;
@@ -474,17 +474,17 @@ namespace oblo::ui
 
         // The elapsed time is used *before* adding this frame's dt, so the first frame of a
         // transition renders the initial state.
-        const f32 t = oblo::min(record.elapsedTime / record.duration, 1.f);
+        const f32 t = min(to_f32_seconds(record.elapsedTime) / to_f32_seconds(record.duration), 1.f);
         const f32 u = ease(record.easing, t);
 
         interpolate(record.initial, record.target, u, record.activeProperties, record.current);
 
-        record.elapsedTime += dt;
+        record.elapsedTime.hns += dt.hns;
 
         if (t >= 1.f)
         {
             record.state = transition_state::idle;
-            record.elapsedTime = 0.f;
+            record.elapsedTime = time{};
             record.activeProperties = {};
             record.current = record.target;
         }
@@ -497,7 +497,7 @@ namespace oblo::ui
         record.state = transition_state::exiting;
         record.initial = record.current;
         record.target = record.exitFinal(record.initial, record.properties);
-        record.elapsedTime = 0.f;
+        record.elapsedTime = time{};
         record.activeProperties = record.properties;
     }
 
@@ -532,7 +532,7 @@ namespace oblo::ui
             const bool animateEnter =
                 config.enter.setInitialState != nullptr && (config.enter.triggerOnFirstParentFrame || !parentAppeared);
 
-            if (animateEnter && r.duration > 0.f)
+            if (animateEnter && r.duration > time::from_seconds(0.f))
             {
                 r.state = transition_state::entering;
                 r.initial = config.enter.setInitialState(target, config.properties);
@@ -623,7 +623,7 @@ namespace oblo::ui
             record->state = transition_state::transitioning;
             record->initial = record->current;
             record->activeProperties = newActive;
-            record->elapsedTime = 0.f;
+            record->elapsedTime = {};
         }
         else
         {
@@ -631,7 +631,7 @@ namespace oblo::ui
             if (!newActive.is_empty())
             {
                 record->initial = record->current;
-                record->elapsedTime = 0.f;
+                record->elapsedTime = {};
                 record->activeProperties |= newActive;
             }
         }
@@ -656,18 +656,18 @@ namespace oblo::ui
 
             if (record.state == transition_state::exiting)
             {
-                if (record.duration <= 0.f)
+                if (record.duration <= time{})
                 {
                     m_records.erase_unordered(m_records.begin() + i);
                     continue;
                 }
 
-                const f32 t = oblo::min(record.elapsedTime / record.duration, 1.f);
+                const f32 t = min(to_f32_seconds(record.elapsedTime) / to_f32_seconds(record.duration), 1.f);
                 const f32 u = ease(record.easing, t);
 
                 interpolate(record.initial, record.target, u, record.activeProperties, record.current);
 
-                record.elapsedTime += m_dt;
+                record.elapsedTime.hns += m_dt.hns;
 
                 if (t >= 1.f)
                 {
