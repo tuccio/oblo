@@ -6,9 +6,9 @@
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/core/unordered_map.hpp>
 
 #include <span>
-#include <unordered_map>
 
 namespace oblo
 {
@@ -86,7 +86,7 @@ namespace oblo
 
     private:
         std::unordered_map<hashed_string_view, module_storage, hash<hashed_string_view>> m_modules;
-        std::unordered_map<type_id, service_storage> m_services;
+        unordered_map<type_id, service_storage> m_services;
         deque<string> m_loadPaths;
         u32 m_nextLoadIndex{};
         state m_state{state::idle};

@@ -2,9 +2,8 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/unordered_set.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <unordered_set>
 
 namespace oblo::gen
 {

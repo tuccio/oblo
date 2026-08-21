@@ -19,6 +19,7 @@
 #include <oblo/core/platform/core.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/core/uuid_generator.hpp>
@@ -29,7 +30,6 @@
 
 #include <atomic>
 #include <filesystem>
-#include <unordered_map>
 
 namespace oblo
 {

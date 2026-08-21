@@ -2,10 +2,9 @@
 
 #include <oblo/core/forward.hpp>
 #include <oblo/core/pair.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/nodes/node_primitive_type.hpp>
-
-#include <unordered_map>
 
 namespace oblo
 {

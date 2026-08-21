@@ -3,8 +3,8 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unordered_map.hpp>
 
-#include <unordered_map>
 #include <utility>
 
 namespace oblo
@@ -73,7 +73,7 @@ namespace oblo
         friend class service_builder;
 
     private:
-        std::unordered_map<type_id, void*> m_map;
+        unordered_map<type_id, void*> m_map;
         deque<service> m_services;
     };
 

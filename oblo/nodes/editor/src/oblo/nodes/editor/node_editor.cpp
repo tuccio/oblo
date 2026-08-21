@@ -993,7 +993,7 @@ namespace oblo
         ImGuiTextFilter addNodeFilter;
         ImVec2 addNodePosition;
 
-        std::unordered_map<uuid, u32, hash<uuid>> nodeTypeToDense;
+        unordered_map<uuid, u32, hash<uuid>> nodeTypeToDense;
         std::unordered_map<string, u32, hash<string>> categoriesToDense;
         dynamic_array<node_category_info> denseCategories;
         dynamic_array<node_type_info> nodeTypesInfo;

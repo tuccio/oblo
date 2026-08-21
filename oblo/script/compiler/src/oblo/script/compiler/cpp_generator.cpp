@@ -5,10 +5,9 @@
 #include <oblo/core/finally.hpp>
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
+#include <oblo/core/unordered_map.hpp>
+#include <oblo/core/unordered_set.hpp>
 #include <oblo/core/unreachable.hpp>
-
-#include <unordered_map>
-#include <unordered_set>
 
 #include <cppgenlib.gen.hpp>
 
@@ -236,9 +235,9 @@ namespace oblo
 
         deque<ast_function_ref> functions;
 
-        std::unordered_set<hashed_string_view, hash<hashed_string_view>> referencedFunctions;
-        std::unordered_map<hashed_string_view, ast_function_decl_ref, transparent_string_hash> functionDeclarations;
-        std::unordered_map<hashed_string_view, ast_type_ref, transparent_string_hash> types;
+        unordered_set<hashed_string_view, hash<hashed_string_view>> referencedFunctions;
+        unordered_map<hashed_string_view, ast_function_decl_ref, transparent_string_hash> functionDeclarations;
+        unordered_map<hashed_string_view, ast_type_ref, transparent_string_hash> types;
 
         dynamic_array<h32<ast_node>> forwardDeclaredFunctions;
         forwardDeclaredFunctions.reserve(64);
@@ -659,7 +658,10 @@ namespace oblo
                         break;
 
                     case ast_node_kind::array_declaration: {
-                        stmt.format("{} _n{}[{}] = {{ ", n.node.arrayDecl.elementType, node.value, n.node.arrayDecl.size);
+                        stmt.format("{} _n{}[{}] = {{ ",
+                            n.node.arrayDecl.elementType,
+                            node.value,
+                            n.node.arrayDecl.size);
 
                         bool isFirst = true;
 

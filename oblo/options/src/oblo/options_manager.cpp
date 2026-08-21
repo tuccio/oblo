@@ -7,10 +7,9 @@
 #include <oblo/core/iterator/iterator_range.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/options/option_traits.hpp>
 #include <oblo/properties/serialization/data_document.hpp>
-
-#include <unordered_map>
 
 namespace oblo
 {
@@ -48,7 +47,7 @@ namespace oblo
         deque<option_data> options;
         deque<option_layer_value> values;
 
-        std::unordered_map<uuid, h32<option>> optionsMap;
+        unordered_map<uuid, h32<option>> optionsMap;
 
         u32 lastChangeId{};
     };
@@ -345,7 +344,7 @@ namespace oblo
         }
 
         for (u32 child = doc.child_next(root, data_node::Invalid); child != data_node::Invalid;
-             child = doc.child_next(root, child))
+            child = doc.child_next(root, child))
         {
             const auto idNode = doc.find_child(child, "id"_hsv);
             const auto valueNode = doc.find_child(child, "value"_hsv);

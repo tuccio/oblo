@@ -3,11 +3,11 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/window_handle.hpp>
 
 #include <span>
-#include <unordered_map>
 
 namespace oblo
 {
@@ -59,9 +59,9 @@ namespace oblo::editor
     private:
         asset_registry& m_assetRegistry;
         const resource_registry& m_resourceRegistry;
-        std::unordered_map<uuid, unique_ptr<asset_editor>> m_editors;
-        std::unordered_map<uuid, unique_ptr<resource_viewer>> m_viewers;
-        std::unordered_map<uuid, uuid> m_uniqueEditors;
+        unordered_map<uuid, unique_ptr<asset_editor>> m_editors;
+        unordered_map<uuid, unique_ptr<resource_viewer>> m_viewers;
+        unordered_map<uuid, uuid> m_uniqueEditors;
         deque<asset_editor_descriptor> m_editorDescriptors;
         deque<resource_viewer_descriptor> m_viewerDescriptors;
         window_handle m_root{};

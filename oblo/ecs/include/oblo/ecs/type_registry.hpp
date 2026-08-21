@@ -2,11 +2,11 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/ecs/handles.hpp>
 
 #include <span>
-#include <unordered_map>
 
 namespace oblo::ecs
 {
@@ -51,8 +51,8 @@ namespace oblo::ecs
         struct any_type_info;
 
     private:
-        std::unordered_map<type_id, any_type_info> m_typesByRuntimeId;
-        std::unordered_map<uuid, any_type_info> m_typesByUuid;
+        unordered_map<type_id, any_type_info> m_typesByRuntimeId;
+        unordered_map<uuid, any_type_info> m_typesByUuid;
         dynamic_array<component_type_desc> m_components;
         dynamic_array<tag_type_desc> m_tags;
     };

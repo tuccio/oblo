@@ -2,6 +2,7 @@
 
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_builder.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_tree.hpp>
@@ -9,7 +10,6 @@
 #include <oblo/reflection/reflection_registry.hpp>
 
 #include <algorithm>
-#include <unordered_map>
 
 namespace oblo
 {
@@ -36,8 +36,8 @@ namespace oblo
     struct property_registry::impl
     {
         const reflection::reflection_registry* reflection{};
-        std::unordered_map<type_id, property_tree> propertyTrees;
-        std::unordered_map<type_id, property_kind> kindLookups;
+        unordered_map<type_id, property_tree> propertyTrees;
+        unordered_map<type_id, property_kind> kindLookups;
 
         void init(const reflection::reflection_registry* reflectionPtr)
         {

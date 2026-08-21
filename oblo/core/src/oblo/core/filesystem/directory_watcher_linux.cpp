@@ -5,6 +5,7 @@
     #include <oblo/core/filesystem/filesystem.hpp>
     #include <oblo/core/string/hashed_string_view.hpp>
     #include <oblo/core/string/string_builder.hpp>
+    #include <oblo/core/unordered_map.hpp>
 
     #include <sys/inotify.h>
     #include <sys/stat.h>
@@ -12,7 +13,6 @@
 
     #include <cerrno>
     #include <cstring>
-    #include <unordered_map>
 
 namespace oblo::filesystem
 {
@@ -23,8 +23,8 @@ namespace oblo::filesystem
 
         string_builder path;
 
-        std::unordered_map<hashed_string_view, int, hash<hashed_string_view>> pathToWd;
-        std::unordered_map<int, string_builder> wdToPath;
+        unordered_map<hashed_string_view, int> pathToWd;
+        unordered_map<int, string_builder> wdToPath;
 
         alignas(void*) u8 buffer[4096];
 
@@ -387,4 +387,3 @@ namespace oblo::filesystem
 }
 
 #endif
-

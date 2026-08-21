@@ -2,10 +2,9 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/structs.hpp>
-
-#include <unordered_map>
 
 namespace oblo
 {

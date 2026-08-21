@@ -8,12 +8,12 @@
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/scene/resources/traits.hpp>
 
 #include <span>
-#include <unordered_map>
 
 namespace oblo
 {

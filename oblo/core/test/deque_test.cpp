@@ -2,10 +2,10 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/deque.hpp>
+#include <oblo/core/unordered_map.hpp>
 
 #include <deque>
 #include <span>
-#include <unordered_map>
 #include <vector>
 
 namespace oblo

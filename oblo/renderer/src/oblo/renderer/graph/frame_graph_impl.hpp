@@ -9,6 +9,8 @@
 #include <oblo/core/random_generator.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/types.hpp>
+#include <oblo/core/unordered_map.hpp>
+#include <oblo/core/unordered_set.hpp>
 #include <oblo/gpu/image_state_tracker.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/renderer/data/async_download.hpp>
@@ -22,8 +24,6 @@
 
 #include <iosfwd>
 #include <memory_resource>
-#include <unordered_map>
-#include <unordered_set>
 
 #include <vulkan/vulkan_core.h>
 
@@ -298,7 +298,6 @@ namespace oblo
         deque<frame_graph_pending_download> pendingDownloads;
         deque<frame_graph_texture_impl> pendingTexturesToFree;
 
-
         deque<frame_graph_pin_reroute> rerouteStash;
 
         bool isCollectingMetrics{};
@@ -316,7 +315,7 @@ namespace oblo
         u32 frameCounter{};
 
         // Used to send signals to the frame graph (e.g. reset an effect)
-        std::unordered_set<type_id> emptyEvents;
+        unordered_set<type_id> emptyEvents;
 
         // Temporary until we make the acceleration structure a proper resource
         h32<gpu::acceleration_structure> globalTLAS{};

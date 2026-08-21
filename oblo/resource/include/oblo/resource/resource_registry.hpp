@@ -5,12 +5,11 @@
 #include <oblo/core/handle.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/resource/providers/resource_provider.hpp>
 #include <oblo/resource/resource_ref.hpp>
 #include <oblo/resource/resource_traits.hpp>
-
-#include <unordered_map>
 
 namespace oblo
 {
@@ -66,9 +65,9 @@ namespace oblo
         struct events_storage;
 
     private:
-        std::unordered_map<uuid, resource_type_descriptor> m_resourceTypes;
-        std::unordered_map<uuid, resource_storage> m_resources;
-        std::unordered_map<uuid, events_storage> m_events;
+        unordered_map<uuid, resource_type_descriptor> m_resourceTypes;
+        unordered_map<uuid, resource_storage> m_resources;
+        unordered_map<uuid, events_storage> m_events;
         dynamic_array<provider_storage> m_providers;
         deque<uuid> m_noEvents;
     };

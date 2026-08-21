@@ -1,9 +1,8 @@
 #pragma once
 
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/resource/resource_ref.hpp>
-
-#include <unordered_map>
 
 namespace oblo::ecs
 {
@@ -44,6 +43,6 @@ namespace oblo
         const resource_registry* m_resourceRegistry;
         resource_cache* m_resourceCache;
 
-        std::unordered_map<uuid, skin_info> m_skinInfo;
+        unordered_map<uuid, skin_info> m_skinInfo;
     };
 }

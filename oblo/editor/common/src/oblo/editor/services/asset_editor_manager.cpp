@@ -37,8 +37,8 @@ namespace oblo::editor
 
             uuid id{};
             uuid assetType{};
-            std::unordered_map<uuid, unique_ptr<T>>* editors{};
-            std::unordered_map<uuid, uuid>* uniqueEditors{};
+            unordered_map<uuid, unique_ptr<T>>* editors{};
+            unordered_map<uuid, uuid>* uniqueEditors{};
         };
 
         using asset_destroy_subscription = destroy_subscription<asset_editor>;

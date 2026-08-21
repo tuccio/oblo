@@ -7,8 +7,7 @@
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
-
-#include <unordered_map>
+#include <oblo/core/unordered_map.hpp>
 
 namespace oblo
 {

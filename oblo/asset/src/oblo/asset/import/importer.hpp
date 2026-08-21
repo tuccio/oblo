@@ -6,10 +6,10 @@
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 
 #include <span>
-#include <unordered_map>
 
 namespace oblo
 {
@@ -27,8 +27,10 @@ namespace oblo
         struct file_import_data;
 
     public:
-        static bool read_source_file_path(
-            const asset_registry_impl& registry, uuid sourceFileId, h32<asset_repository> assetSource, string_builder& out);
+        static bool read_source_file_path(const asset_registry_impl& registry,
+            uuid sourceFileId,
+            h32<asset_repository> assetSource,
+            string_builder& out);
 
     public:
         importer();
@@ -67,7 +69,7 @@ namespace oblo
         deque<file_import_data> m_fileImports;
         string_builder m_temporaryPath;
         string m_assetName;
-        std::unordered_map<uuid, artifact_meta> m_artifacts;
+        unordered_map<uuid, artifact_meta> m_artifacts;
         uuid m_assetId{};
         uuid m_nativeAssetType{};
         bool m_isReimport{};
