@@ -76,8 +76,6 @@ namespace oblo::ui
             };
 
             vec2 pos = parentOrigin;
-            pos.x += desc.padding.left;
-            pos.y += desc.padding.top;
 
             if (parentDirection == layout_direction::left_to_right)
             {
@@ -108,15 +106,18 @@ namespace oblo::ui
                     desc.transition);
             }
 
-            // Position the children along this element's layout axis.
+            // Position the children along this element's layout axis, inset by this
+            // element's padding. The padding offsets the children, not the element itself.
             const vec2 inner_size = {max(size.x - desc.padding.left - desc.padding.right, 0.f),
                 max(size.y - desc.padding.top - desc.padding.bottom, 0.f)};
+
+            const vec2 childOrigin = element.targetRect.position() + vec2{desc.padding.left, desc.padding.top};
 
             f32 cursor = 0.f;
 
             for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
             {
-                resolve_element(state, child, element.targetRect.position(), inner_size, cursor, desc.direction);
+                resolve_element(state, child, childOrigin, inner_size, cursor, desc.direction);
 
                 const vec2 childSize = elements[child].targetRect.size();
                 cursor +=
