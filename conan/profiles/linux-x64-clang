@@ -4,5 +4,7 @@ include(common)
 arch=x86_64
 compiler=clang
 compiler.cppstd=20
-compiler.version=19
+compiler.version=22
 os=Linux
+
+libxml2/*:build_type=Release

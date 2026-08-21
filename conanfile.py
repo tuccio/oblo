@@ -46,6 +46,9 @@ class ObloConanRecipe(ConanFile):
         self.requires("utfcpp/4.0.1")
         self.requires("xxhash/0.8.2")
 
+        if self.settings.os == "Linux":
+            self.requires("sdl/2.32.10")
+
         # This is only needed for unit tests
         self.requires("eigen/3.4.0")
 
@@ -76,6 +79,43 @@ class ObloConanRecipe(ConanFile):
             tracy.enable = True
             tracy.shared = True
             tracy.on_demand = True
+
+        if self.settings.os == "Linux":
+            sdl = self.options["sdl/*"]
+
+            sdl.shared = False
+            sdl.fPIC = True
+
+            sdl.x11 = True
+            sdl.wayland = True
+            sdl.vulkan = True
+
+            sdl.opengl = False
+            sdl.opengles = False
+
+            sdl.directx = False
+            sdl.alsa = False
+            sdl.jack = False
+            sdl.pulse = False
+            sdl.sndio = False
+            sdl.nas = False
+            sdl.esd = False
+            sdl.arts = False
+            sdl.directfb = False
+            sdl.video_rpi = False
+
+            sdl.xcursor = True
+            sdl.xinerama = True
+            sdl.xinput = True
+            sdl.xrandr = True
+
+            sdl.xscrnsaver = False
+            sdl.xshape = False
+            sdl.xvm = False
+
+            sdl.sdl2main = False
+            sdl.libunwind = False
+            sdl.hidapi = False
 
     def generate(self):
         imgui = self.dependencies["imgui"]

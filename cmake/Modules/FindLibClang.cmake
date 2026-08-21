@@ -10,7 +10,7 @@ if(NOT LIBCLANG_LIBRARY)
         PATHS
         $ENV{LLVM_DIR}/lib
         "C:/Program Files/LLVM/lib"
-        "/usr/lib/llvm-19/lib"
+        "/usr/lib/llvm-22/lib"
     )
 endif()
 
@@ -20,7 +20,7 @@ if(NOT LIBCLANG_INCLUDE_DIR)
         PATHS
         $ENV{LLVM_DIR}/include
         "C:/Program Files/LLVM/include"
-        "/usr/lib/llvm-19/include"
+        "/usr/lib/llvm-22/include"
     )
 endif()
 
