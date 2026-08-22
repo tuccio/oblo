@@ -129,6 +129,31 @@ namespace oblo::ui
         top_to_bottom,
     };
 
+    enum class alignment_x : u8
+    {
+        left,
+        center,
+        right,
+    };
+
+    enum class alignment_y : u8
+    {
+        top,
+        center,
+        bottom,
+    };
+
+    struct alignment
+    {
+        alignment_x x{alignment_x::left};
+        alignment_y y{alignment_y::top};
+
+        static constexpr alignment center() noexcept
+        {
+            return {alignment_x::center, alignment_y::center};
+        }
+    };
+
     enum class sizing_kind : u8
     {
         fit,
@@ -199,6 +224,8 @@ namespace oblo::ui
 
         f32 childGap;
         padding padding;
+
+        alignment alignment{};
 
         animation_config animation;
     };
@@ -328,6 +355,24 @@ namespace oblo::ui
         container_builder&& padding(const padding& p) &&
         {
             m_desc.padding = p;
+            return static_cast<container_builder&&>(*this);
+        }
+
+        container_builder&& align(alignment a) &&
+        {
+            m_desc.alignment = a;
+            return static_cast<container_builder&&>(*this);
+        }
+
+        container_builder&& align_x(alignment_x x) &&
+        {
+            m_desc.alignment.x = x;
+            return static_cast<container_builder&&>(*this);
+        }
+
+        container_builder&& align_y(alignment_y y) &&
+        {
+            m_desc.alignment.y = y;
             return static_cast<container_builder&&>(*this);
         }
 

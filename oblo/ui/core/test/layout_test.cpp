@@ -561,8 +561,7 @@ namespace oblo::ui
         begin_frame(*state, time::from_seconds(0.f));
 
         {
-            const auto root =
-                container_builder{}.width(percent_size(0.5f)).height(percent_size(0.5f)).build(*state);
+            const auto root = container_builder{}.width(percent_size(0.5f)).height(percent_size(0.5f)).build(*state);
         }
 
         end_frame(*state);
@@ -634,8 +633,7 @@ namespace oblo::ui
                     const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
                 }
                 {
-                    const auto b =
-                        container_builder{}.width(percent_size(0.5f)).height(fixed_size(50)).build(*state);
+                    const auto b = container_builder{}.width(percent_size(0.5f)).height(fixed_size(50)).build(*state);
                 }
             }
         }
@@ -715,8 +713,7 @@ namespace oblo::ui
 
         begin_frame(*state, time::from_seconds(.5f));
         {
-            const auto root =
-                container_builder{}.id({1}).width(fixed_size(100)).height(fixed_size(50)).build(*state);
+            const auto root = container_builder{}.id({1}).width(fixed_size(100)).height(fixed_size(50)).build(*state);
         }
         end_frame(*state);
 
@@ -782,6 +779,98 @@ namespace oblo::ui
         ASSERT_NE(get_animated(*state, {1}), nullptr);
         EXPECT_FLOAT_EQ(get_animated(*state, {1})->boundingBox.width, 100.f);
         EXPECT_EQ(find_element(*state, {1}), nullptr);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, align_center_x_within_wider_parent)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        set_layout_size(*state, {800, 600});
+        begin_frame(*state, time::from_seconds(0.f));
+
+        {
+            const auto root = container_builder{}
+                                  .width(fixed_size(800))
+                                  .height(fixed_size(600))
+                                  .align(alignment::center())
+                                  .build(*state);
+            {
+                const auto child = container_builder{}.width(fixed_size(200)).height(fixed_size(100)).build(*state);
+            }
+        }
+
+        end_frame(*state);
+
+        const std::span elements = state->elements;
+        // Single child centered along the main (x) axis of a left-to-right layout.
+        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 300.f);
+        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 0.f);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, align_center_y_within_taller_parent)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        set_layout_size(*state, {800, 600});
+        begin_frame(*state, time::from_seconds(0.f));
+
+        {
+            const auto root = container_builder{}
+                                  .direction(layout_direction::top_to_bottom)
+                                  .width(fixed_size(800))
+                                  .height(fixed_size(600))
+                                  .align(alignment::center())
+                                  .build(*state);
+            {
+                const auto child = container_builder{}.width(fixed_size(200)).height(fixed_size(100)).build(*state);
+            }
+        }
+
+        end_frame(*state);
+
+        const std::span elements = state->elements;
+        // Single child centered along the main (y) axis of a top-to-bottom layout.
+        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 0.f);
+        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 250.f);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, align_centers_percentage_child)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        set_layout_size(*state, {800, 600});
+        begin_frame(*state, time::from_seconds(0.f));
+
+        {
+            // A fixed box with a percentage child, both axes centered: the child expands
+            // against the box and is centered within it (the checkbox use case).
+            const auto root = container_builder{}
+                                  .width(fixed_size(100))
+                                  .height(fixed_size(100))
+                                  .align(alignment::center())
+                                  .build(*state);
+            {
+                const auto child =
+                    container_builder{}.width(percent_size(0.5f)).height(percent_size(0.5f)).build(*state);
+            }
+        }
+
+        end_frame(*state);
+
+        const std::span elements = state->elements;
+        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 25.f);
+        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 25.f);
+        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 50.f);
+        EXPECT_FLOAT_EQ(elements[1].targetRect.height, 50.f);
 
         destroy_state(state);
     }

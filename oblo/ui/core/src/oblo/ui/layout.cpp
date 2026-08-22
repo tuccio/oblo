@@ -118,15 +118,125 @@ namespace oblo::ui
 
             const vec2 childOrigin = element.targetRect.position() + vec2{desc.padding.left, desc.padding.top};
 
-            f32 cursor = 0.f;
+            const bool isHorizontal = desc.direction == layout_direction::left_to_right;
+
+            // Resolve each child's final size against this element's inner size. Percentage
+            // children are still 0 in targetRect at this point (they get expanded later, in
+            // resolve_element), so they must be resolved here to measure and align correctly.
+            auto resolve_child_size = [&](u32 child) -> vec2 {
+                const auto& cd = elements[child].desc;
+                return {resolve_axis_size(cd.width, elements[child].contentSize.x, inner_size.x),
+                    resolve_axis_size(cd.height, elements[child].contentSize.y, inner_size.y)};
+            };
+
+            // Measure the children's content extent along the main axis so the group can be aligned as a whole
+            f32 contentMain = 0.f;
+            u32 childCount = 0;
 
             for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
             {
-                resolve_element(state, child, childOrigin, inner_size, cursor, desc.direction);
+                const vec2 childSize = resolve_child_size(child);
+                contentMain += isHorizontal ? childSize.x : childSize.y;
+                ++childCount;
+            }
 
-                const vec2 childSize = elements[child].targetRect.size();
-                cursor +=
-                    (desc.direction == layout_direction::left_to_right ? childSize.x : childSize.y) + desc.childGap;
+            if (childCount > 1)
+            {
+                contentMain += (childCount - 1) * desc.childGap;
+            }
+
+            // On-axis alignment: shift the whole child group along the main axis.
+            const f32 innerMain = isHorizontal ? inner_size.x : inner_size.y;
+            const f32 extraSpace = max(0.f, innerMain - contentMain);
+
+            f32 mainOffset = 0.f;
+
+            if (isHorizontal)
+            {
+                switch (desc.alignment.x)
+                {
+                case alignment_x::center:
+                    mainOffset = extraSpace * 0.5f;
+                    break;
+                case alignment_x::right:
+                    mainOffset = extraSpace;
+                    break;
+                default:
+                    break;
+                }
+            }
+            else
+            {
+                switch (desc.alignment.y)
+                {
+                case alignment_y::center:
+                    mainOffset = extraSpace * 0.5f;
+                    break;
+                case alignment_y::bottom:
+                    mainOffset = extraSpace;
+                    break;
+                default:
+                    break;
+                }
+            }
+
+            f32 cursor = mainOffset;
+
+            for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
+            {
+                const vec2 childSize = resolve_child_size(child);
+                const f32 childMain = isHorizontal ? childSize.x : childSize.y;
+                const f32 childCross = isHorizontal ? childSize.y : childSize.x;
+
+                // Cross-axis alignment: shift each child along the cross axis independently.
+                const f32 innerCross = isHorizontal ? inner_size.y : inner_size.x;
+                const f32 whiteSpace = max(0.f, innerCross - childCross);
+
+                f32 crossOffset = 0.f;
+
+                if (isHorizontal)
+                {
+                    switch (desc.alignment.y)
+                    {
+                    case alignment_y::center:
+                        crossOffset = whiteSpace * 0.5f;
+                        break;
+                    case alignment_y::bottom:
+                        crossOffset = whiteSpace;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                else
+                {
+                    switch (desc.alignment.x)
+                    {
+                    case alignment_x::center:
+                        crossOffset = whiteSpace * 0.5f;
+                        break;
+                    case alignment_x::right:
+                        crossOffset = whiteSpace;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+
+                vec2 childOriginForChild = childOrigin;
+
+                if (isHorizontal)
+                {
+                    childOriginForChild.y += crossOffset;
+                }
+                else
+                {
+                    childOriginForChild.x += crossOffset;
+                }
+
+                resolve_element(state, child, childOriginForChild, inner_size, cursor, desc.direction);
+
+                cursor += childMain + desc.childGap;
             }
         }
 

@@ -211,13 +211,14 @@ namespace oblo::ui::game
                                  .width(fixed_size(style.boxSize))
                                  .height(fixed_size(style.boxSize))
                                  .background_color(style.boxColor)
+                                 .align(alignment::center())
                                  .build(ctx.get_layout());
 
             if (checked)
             {
                 const auto check = container_builder{}
-                                       .width(percent_size(.75f))
-                                       .height(percent_size(.75f))
+                                       .width(percent_size(.55f))
+                                       .height(percent_size(.55f))
                                        .background_color(style.checkColor)
                                        .build(ctx.get_layout());
             }
