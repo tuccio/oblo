@@ -89,12 +89,6 @@ function(oblo_init_build_configurations)
             # Disable -Wmissing-field-initializers, which warns if initializers are missing fields, because unfortunately it triggers with designated initializers too
             -Wno-missing-field-initializers
         )
-
-        if(LINUX)
-            list(APPEND _oblo_cxx_compile_options
-                -stdlib=libc++
-            )
-        endif()
     endif()
 
     if(OBLO_ENABLE_ASSERT)
