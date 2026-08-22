@@ -175,7 +175,7 @@ namespace oblo
             }
 
         private:
-            std::counting_semaphore<~0u> m_semaphore;
+            std::counting_semaphore<std::numeric_limits<i32>::max()> m_semaphore;
         };
 
         enum class worker_state : u8
