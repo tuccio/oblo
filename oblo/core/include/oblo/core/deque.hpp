@@ -283,6 +283,16 @@ namespace oblo
             return *this = (*this + offset);
         }
 
+        OBLO_FORCEINLINE deque_iterator& operator-=(size_type offset) noexcept
+        {
+            return *this = (*this - offset);
+        }
+
+        OBLO_FORCEINLINE reference operator[](size_type offset) const
+        {
+            return *(*this + offset);
+        }
+
     private:
         template <typename U>
         friend class deque;
