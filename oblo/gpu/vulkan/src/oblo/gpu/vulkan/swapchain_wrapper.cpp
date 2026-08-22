@@ -1,5 +1,6 @@
 #include <oblo/core/buffered_array.hpp>
 
+#include <oblo/core/algorithm/find.hpp>
 #include <oblo/gpu/vulkan/gpu_allocator.hpp>
 
 #include <vulkan/vulkan_core.h>
@@ -32,7 +33,7 @@ namespace oblo::gpu::vk
         surfaceFormats.resize(surfaceFormatsCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatsCount, surfaceFormats.data());
 
-        const auto surfaceFormatIt = std::find_if(surfaceFormats.begin(),
+        const auto surfaceFormatIt = find_if(surfaceFormats.begin(),
             surfaceFormats.end(),
             [format](const VkSurfaceFormatKHR& surfaceFormat) { return surfaceFormat.format == format; });
 
