@@ -17,9 +17,10 @@ namespace oblo::ui::game
 
     void context::begin_frame(span<const input_event> events, time dt, vec2 layoutSize)
     {
-        fill(std::begin(m_clickedThisFrame), std::end(m_clickedThisFrame), false);
-        fill(std::begin(m_releasedThisFrame), std::end(m_releasedThisFrame), false);
         fill(std::begin(m_itemClickedThisFrame), std::end(m_itemClickedThisFrame), {});
+
+        m_clickedThisFrame = {};
+        m_releasedThisFrame = {};
 
         for (const auto& e : events)
         {
@@ -30,15 +31,15 @@ namespace oblo::ui::game
                 break;
 
             case input_event_kind::mouse_press:
-                m_mouseDown[u32(e.mousePress.key)] = true;
-                m_clickedThisFrame[u32(e.mousePress.key)] = true;
+                m_mouseDown.set(e.mousePress.key);
+                m_clickedThisFrame.set(e.mousePress.key);
                 m_mouseClickPosition[u32(e.mousePress.key)] = {e.mousePress.x, e.mousePress.y};
                 m_mousePosition = {e.mousePress.x, e.mousePress.y};
                 break;
 
             case input_event_kind::mouse_release:
-                m_mouseDown[u32(e.mouseRelease.key)] = false;
-                m_releasedThisFrame[u32(e.mouseRelease.key)] = true;
+                m_mouseDown.unset(e.mousePress.key);
+                m_releasedThisFrame.set(e.mouseRelease.key);
                 m_mousePosition = {e.mousePress.x, e.mousePress.y};
                 break;
 

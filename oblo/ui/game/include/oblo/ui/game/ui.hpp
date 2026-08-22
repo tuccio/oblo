@@ -128,7 +128,7 @@ namespace oblo::ui::game
 
         bool mouse_clicked_this_frame(mouse_key key) const
         {
-            return m_clickedThisFrame[u32(key)];
+            return m_clickedThisFrame.contains(key);
         }
 
         const vec2& mouse_click_position(mouse_key key) const
@@ -138,12 +138,12 @@ namespace oblo::ui::game
 
         bool mouse_released_this_frame(mouse_key key) const
         {
-            return m_releasedThisFrame[u32(key)];
+            return m_releasedThisFrame.contains(key);
         }
 
         bool mouse_down_this_frame(mouse_key key) const
         {
-            return m_mouseDown[u32(key)];
+            return m_mouseDown.contains(key);
         }
 
     private:
@@ -153,9 +153,9 @@ namespace oblo::ui::game
         layout_state* m_layout{};
         vec2 m_mousePosition{};
         vec2 m_mouseClickPosition[u32(mouse_key::enum_max)]{};
-        bool m_mouseDown[u32(mouse_key::enum_max)]{};
-        bool m_clickedThisFrame[u32(mouse_key::enum_max)]{};
-        bool m_releasedThisFrame[u32(mouse_key::enum_max)]{};
+        flags<mouse_key> m_mouseDown{};
+        flags<mouse_key> m_clickedThisFrame{};
+        flags<mouse_key> m_releasedThisFrame{};
         measure_text_fn m_measureText{};
         layout_id m_hoveredId{};
         layout_id m_pressedId{};
