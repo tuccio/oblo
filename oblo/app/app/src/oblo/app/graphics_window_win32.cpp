@@ -3,7 +3,11 @@
 #include <oblo/app/graphics_window_context.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/core/unreachable.hpp>
+#include <oblo/input/input_queue.hpp>
 #include <oblo/modules/module_manager.hpp>
+
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 
 #include <Windows.h>
 #include <Windowsx.h>
@@ -44,12 +48,53 @@ namespace oblo
             return (style & check) == expected;
         }
 
+        constexpr mouse_key win32_map_mouse_key(u8 key)
+        {
+            switch (key)
+            {
+            case VK_LBUTTON:
+                return mouse_key::left;
+
+            case VK_RBUTTON:
+                return mouse_key::right;
+
+            case VK_MBUTTON:
+                return mouse_key::middle;
+
+            default:
+                return mouse_key::enum_max;
+            }
+        }
+
+        keyboard_key win32_map_keyboard_key(WPARAM key)
+        {
+            if (key >= 'A' && key <= 'Z')
+            {
+                return keyboard_key(u32(keyboard_key::a) + (key - 'A'));
+            }
+
+            switch (key)
+            {
+            case VK_CONTROL:
+                return keyboard_key::left_ctrl;
+            case VK_SHIFT:
+                return keyboard_key::left_shift;
+            }
+
+            return keyboard_key::enum_max;
+        }
+
+        time win32_convert_time(DWORD time)
+        {
+            return time::from_milliseconds(i64(time));
+        }
+
         LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             // Not sure yet if this can be obtained somehow from the Win32 API, maybe dwmapi has something
             static constexpr i32 invisibleBorderSize = 7;
 
-            graphics_window* const window = std::bit_cast<graphics_window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+            graphics_window* const window = std::bit_cast<graphics_window*>(GetWindowLongPtrA(hWnd, GWLP_USERDATA));
 
             switch (uMsg)
             {
@@ -66,13 +111,13 @@ namespace oblo
 
                     RECT rect;
 
-                    if (GetMonitorInfo(monitor, &monitorInfo))
+                    if (GetMonitorInfoA(monitor, &monitorInfo))
                     {
                         rect = monitorInfo.rcWork;
                     }
                     else
                     {
-                        SystemParametersInfo(SPI_GETWORKAREA, sizeof(RECT), &rect, 0);
+                        SystemParametersInfoA(SPI_GETWORKAREA, sizeof(RECT), &rect, 0);
                     }
 
                     auto* const minMaxInfo = reinterpret_cast<MINMAXINFO*>(lParam);
@@ -143,7 +188,7 @@ namespace oblo
 
             case WM_NCHITTEST: {
                 // Let the default procedure handle resizing areas
-                const LRESULT hit = DefWindowProc(hWnd, uMsg, wParam, lParam);
+                const LRESULT hit = DefWindowProcW(hWnd, uMsg, wParam, lParam);
                 switch (hit)
                 {
                 case HTNOWHERE:
@@ -195,6 +240,98 @@ namespace oblo
 
                 return HTCLIENT;
             }
+
+            case WM_LBUTTONDOWN:
+            case WM_RBUTTONDOWN:
+            case WM_MBUTTONDOWN: {
+                if (input_queue* const inputQueue = window->get_input_queue())
+                {
+                    const WPARAM key = uMsg == WM_LBUTTONDOWN ? VK_LBUTTON
+                        : uMsg == WM_RBUTTONDOWN              ? VK_RBUTTON
+                                                              : VK_MBUTTON;
+
+                    inputQueue->push({
+                        .kind = input_event_kind::mouse_press,
+                        .timestamp = win32_convert_time(GetMessageTime()),
+                        .mousePress =
+                            {
+                                .key = win32_map_mouse_key(key),
+                                .x = f32(GET_X_LPARAM(lParam)),
+                                .y = f32(GET_Y_LPARAM(lParam)),
+                            },
+                    });
+                }
+                break;
+            }
+
+            case WM_LBUTTONUP:
+            case WM_RBUTTONUP:
+            case WM_MBUTTONUP: {
+                if (input_queue* const inputQueue = window->get_input_queue())
+                {
+                    const WPARAM key = uMsg == WM_LBUTTONUP ? VK_LBUTTON
+                        : uMsg == WM_RBUTTONUP              ? VK_RBUTTON
+                                                            : VK_MBUTTON;
+
+                    inputQueue->push({
+                        .kind = input_event_kind::mouse_release,
+                        .timestamp = win32_convert_time(GetMessageTime()),
+                        .mouseRelease =
+                            {
+                                .key = win32_map_mouse_key(key),
+                                .x = f32(GET_X_LPARAM(lParam)),
+                                .y = f32(GET_Y_LPARAM(lParam)),
+                            },
+                    });
+                }
+                break;
+            }
+
+            case WM_MOUSEMOVE: {
+                if (input_queue* const inputQueue = window->get_input_queue())
+                {
+                    inputQueue->push({
+                        .kind = input_event_kind::mouse_move,
+                        .timestamp = win32_convert_time(GetMessageTime()),
+                        .mouseMove =
+                            {
+                                .x = f32(GET_X_LPARAM(lParam)),
+                                .y = f32(GET_Y_LPARAM(lParam)),
+                            },
+                    });
+                }
+                break;
+            }
+
+            case WM_KEYDOWN: {
+                if (input_queue* const inputQueue = window->get_input_queue())
+                {
+                    inputQueue->push({
+                        .kind = input_event_kind::keyboard_press,
+                        .timestamp = win32_convert_time(GetMessageTime()),
+                        .keyboardPress =
+                            {
+                                .key = win32_map_keyboard_key(wParam),
+                            },
+                    });
+                }
+                break;
+            }
+
+            case WM_KEYUP: {
+                if (input_queue* const inputQueue = window->get_input_queue())
+                {
+                    inputQueue->push({
+                        .kind = input_event_kind::keyboard_release,
+                        .timestamp = win32_convert_time(GetMessageTime()),
+                        .keyboardRelease =
+                            {
+                                .key = win32_map_keyboard_key(wParam),
+                            },
+                    });
+                }
+                break;
+            }
             }
 
             return DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -205,6 +342,8 @@ namespace oblo
         public:
             static constexpr const char* class_name = "oblo::graphics_window";
 
+            inline static ATOM class_atom{};
+
             win32_window_class()
             {
                 m_wc = {
@@ -214,16 +353,16 @@ namespace oblo
                     .lpszClassName = class_name,
                 };
 
-                RegisterClass(&m_wc);
+                class_atom = RegisterClassA(&m_wc);
             }
 
             ~win32_window_class()
             {
-                UnregisterClass(m_wc.lpszClassName, m_wc.hInstance);
+                UnregisterClassA(m_wc.lpszClassName, m_wc.hInstance);
             }
 
         private:
-            WNDCLASS m_wc{};
+            WNDCLASSA m_wc{};
         };
 
         static win32_window_class g_wndClass;
@@ -239,6 +378,11 @@ namespace oblo
 
         other.m_impl = nullptr;
         m_hitTest = {};
+
+        if (m_impl)
+        {
+            SetWindowLongPtrA(static_cast<HWND>(m_impl), GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
+        }
     }
 
     graphics_window::~graphics_window()
@@ -256,6 +400,11 @@ namespace oblo
 
         other.m_impl = nullptr;
         m_hitTest = {};
+
+        if (m_impl)
+        {
+            SetWindowLongPtrA(static_cast<HWND>(m_impl), GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
+        }
 
         return *this;
     }
@@ -302,7 +451,7 @@ namespace oblo
             h,
             nullptr,
             nullptr,
-            GetModuleHandle(nullptr),
+            GetModuleHandleA(nullptr),
             nullptr);
 
         if (!hWnd)
@@ -310,7 +459,7 @@ namespace oblo
             return false;
         }
 
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
+        SetWindowLongPtrA(hWnd, GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
 
         m_impl = hWnd;
 
@@ -481,58 +630,19 @@ namespace oblo
         }
     }
 
-    void window_event_processor::set_event_dispatcher(const window_event_dispatcher& dispatcher)
-    {
-        m_windowEventDispatcher = dispatcher;
-    }
-
-    void window_event_processor::set_input_queue(input_queue* inputQueue)
+    void graphics_window::set_input_queue(input_queue* inputQueue)
     {
         m_inputQueue = inputQueue;
     }
 
-    namespace
+    input_queue* graphics_window::get_input_queue() const
     {
-        constexpr mouse_key win32_map_mouse_key(u8 key)
-        {
-            switch (key)
-            {
-            case VK_LBUTTON:
-                return mouse_key::left;
+        return m_inputQueue;
+    }
 
-            case VK_RBUTTON:
-                return mouse_key::right;
-
-            case VK_MBUTTON:
-                return mouse_key::middle;
-
-            default:
-                return mouse_key::enum_max;
-            }
-        }
-
-        keyboard_key win32_map_keyboard_key(WPARAM key)
-        {
-            if (key >= 'A' && key <= 'Z')
-            {
-                return keyboard_key(u32(keyboard_key::a) + (key - 'A'));
-            }
-
-            switch (key)
-            {
-            case VK_CONTROL:
-                return keyboard_key::left_ctrl;
-            case VK_SHIFT:
-                return keyboard_key::left_shift;
-            }
-
-            return keyboard_key::enum_max;
-        }
-
-        time win32_convert_time(DWORD time)
-        {
-            return time::from_milliseconds(i64(time));
-        }
+    void window_event_processor::set_event_dispatcher(const window_event_dispatcher& dispatcher)
+    {
+        m_windowEventDispatcher = dispatcher;
     }
 
     bool window_event_processor::process_events() const
@@ -552,125 +662,6 @@ namespace oblo
             if (m_windowEventDispatcher.dispatch)
             {
                 m_windowEventDispatcher.dispatch(&msg);
-            }
-
-            if (m_inputQueue)
-            {
-                switch (msg.message)
-                {
-                case WM_LBUTTONDOWN:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::mouse_press,
-                        .timestamp = win32_convert_time(msg.time),
-                        .mousePress =
-                            {
-                                .key = win32_map_mouse_key(VK_LBUTTON),
-                                .x = f32(GET_X_LPARAM(msg.lParam)),
-                                .y = f32(GET_Y_LPARAM(msg.lParam)),
-                            },
-                    });
-                    break;
-
-                case WM_LBUTTONUP:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::mouse_release,
-                        .timestamp = win32_convert_time(msg.time),
-                        .mouseRelease =
-                            {
-                                .key = win32_map_mouse_key(VK_LBUTTON),
-                                .x = f32(GET_X_LPARAM(msg.lParam)),
-                                .y = f32(GET_Y_LPARAM(msg.lParam)),
-                            },
-                    });
-                    break;
-
-                case WM_RBUTTONDOWN:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::mouse_press,
-                        .timestamp = win32_convert_time(msg.time),
-                        .mousePress =
-                            {
-                                .key = win32_map_mouse_key(VK_RBUTTON),
-                                .x = f32(GET_X_LPARAM(msg.lParam)),
-                                .y = f32(GET_Y_LPARAM(msg.lParam)),
-                            },
-                    });
-                    break;
-
-                case WM_RBUTTONUP:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::mouse_release,
-                        .timestamp = win32_convert_time(msg.time),
-                        .mouseRelease =
-                            {
-                                .key = win32_map_mouse_key(VK_RBUTTON),
-                                .x = f32(GET_X_LPARAM(msg.lParam)),
-                                .y = f32(GET_Y_LPARAM(msg.lParam)),
-                            },
-                    });
-                    break;
-
-                case WM_MBUTTONDOWN:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::mouse_press,
-                        .timestamp = win32_convert_time(msg.time),
-                        .mousePress =
-                            {
-                                .key = win32_map_mouse_key(VK_MBUTTON),
-                                .x = f32(GET_X_LPARAM(msg.lParam)),
-                                .y = f32(GET_Y_LPARAM(msg.lParam)),
-                            },
-                    });
-                    break;
-
-                case WM_MBUTTONUP:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::mouse_release,
-                        .timestamp = win32_convert_time(msg.time),
-                        .mouseRelease =
-                            {
-                                .key = win32_map_mouse_key(VK_MBUTTON),
-                                .x = f32(GET_X_LPARAM(msg.lParam)),
-                                .y = f32(GET_Y_LPARAM(msg.lParam)),
-                            },
-                    });
-                    break;
-
-                case WM_MOUSEMOVE:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::mouse_move,
-                        .timestamp = win32_convert_time(msg.time),
-                        .mouseMove =
-                            {
-                                .x = f32(GET_X_LPARAM(msg.lParam)),
-                                .y = f32(GET_Y_LPARAM(msg.lParam)),
-                            },
-                    });
-                    break;
-
-                case WM_KEYDOWN:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::keyboard_press,
-                        .timestamp = win32_convert_time(msg.time),
-                        .keyboardPress =
-                            {
-                                .key = win32_map_keyboard_key(msg.wParam),
-                            },
-                    });
-                    break;
-
-                case WM_KEYUP:
-                    m_inputQueue->push({
-                        .kind = input_event_kind::keyboard_release,
-                        .timestamp = win32_convert_time(msg.time),
-                        .keyboardRelease =
-                            {
-                                .key = win32_map_keyboard_key(msg.wParam),
-                            },
-                    });
-
-                    break;
-                }
             }
         }
 

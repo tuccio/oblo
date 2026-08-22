@@ -1,7 +1,5 @@
 #pragma once
 
-#include <oblo/input/input_queue.hpp>
-
 namespace oblo
 {
     struct window_event_dispatcher
@@ -18,12 +16,10 @@ namespace oblo
         window_event_processor& operator=(const window_event_processor&) = default;
 
         void set_event_dispatcher(const window_event_dispatcher& dispatcher);
-        void set_input_queue(input_queue* inputQueue);
 
         bool process_events() const;
 
     private:
-        input_queue* m_inputQueue{};
         window_event_dispatcher m_windowEventDispatcher{};
     };
 }
