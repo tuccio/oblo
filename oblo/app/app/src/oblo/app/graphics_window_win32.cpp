@@ -210,6 +210,7 @@ namespace oblo
                 m_wc = {
                     .lpfnWndProc = WindowProc,
                     .hInstance = GetModuleHandle(nullptr),
+                    .hCursor = LoadCursor(nullptr, IDC_ARROW),
                     .lpszClassName = class_name,
                 };
 
