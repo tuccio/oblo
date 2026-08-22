@@ -140,7 +140,8 @@ namespace oblo::ui::game
         bool m_leftClickThisFrame{};
         bool m_leftReleaseThisFrame{};
         measure_text_fn m_measureText{};
-        dynamic_array<layout_element> m_prevElements;
+        layout_id m_hoveredId{};
+        layout_id m_pressedId{};
         layout_id m_activeId{};
         layout_id m_leftClickedThisFrame{};
     };

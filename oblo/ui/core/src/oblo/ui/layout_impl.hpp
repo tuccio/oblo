@@ -1,7 +1,9 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/hash.hpp>
 #include <oblo/core/time/time.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/ui/layout.hpp>
 
 namespace oblo::ui
@@ -72,8 +74,8 @@ namespace oblo::ui
         animated_values* try_get(layout_id element);
 
         // All active records, including elements that are currently exiting.
-        std::span<const transition_record> records() const;
-        std::span<transition_record> records();
+        span<const transition_record> records() const;
+        span<transition_record> records();
 
         bool empty() const noexcept;
         usize size() const noexcept;
@@ -100,6 +102,15 @@ namespace oblo::ui
         dynamic_array<u32> openContainerIdxStack;
 
         dynamic_array<layout_element> elements;
+
+        // Resolved elements from the previous frame, used for input hit-testing so that
+        // clicks are tested against the geometry the user actually saw last frame. The
+        // animated rects are baked in and the animated pointers are cleared to avoid
+        // dangling references into the transition store.
+        dynamic_array<layout_element> previousElements;
+
+        // Maps an element id to its index in previousElements for O(1) rect lookups.
+        unordered_map<layout_id, u32> previousElementIndex;
 
         vec2 layoutSize{};
     };

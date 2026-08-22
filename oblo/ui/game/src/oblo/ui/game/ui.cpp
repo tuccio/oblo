@@ -49,14 +49,17 @@ namespace oblo::ui::game
 
         ui::begin_frame(*m_layout, dt);
         ui::set_layout_size(*m_layout, layoutSize);
+
+        // Resolve input once per frame against the previous frame's resolved geometry.
+        // hit_test returns the topmost element, so clicks can't fall through to elements
+        // drawn underneath, and each widget just compares its id (O(1) per widget).
+        m_hoveredId = ui::hit_test(*m_layout, m_mousePosition);
+        m_pressedId = m_leftClickThisFrame ? ui::hit_test(*m_layout, m_leftClickPosition) : layout_id{};
     }
 
     void context::end_frame()
     {
         oblo::ui::end_frame(*m_layout);
-
-        const std::span elements = get_elements(*m_layout);
-        m_prevElements.assign(elements.begin(), elements.end());
     }
 
     vec2 context::measure(string_view text, f32 fontHeight) const
@@ -77,9 +80,9 @@ namespace oblo::ui::game
 
     bool context::begin_interaction(layout_id id)
     {
-        const rect* const r = find_prev_rect(id);
-
-        if (m_leftClickThisFrame && m_activeId == layout_id{} && r && r->contains(m_leftClickPosition))
+        // Only the topmost element under the click (computed once per frame) can become
+        // active, preventing clicks from leaking to elements drawn underneath it.
+        if (m_leftClickThisFrame && m_activeId == layout_id{} && m_pressedId == id)
         {
             m_activeId = id;
         }
@@ -90,27 +93,12 @@ namespace oblo::ui::game
             m_activeId = layout_id{};
         }
 
-        const bool hovered = r && r->contains(m_mousePosition);
-
-        return hovered;
+        return m_hoveredId == id;
     }
 
     bool context::was_clicked(layout_id id) const
     {
         return m_leftClickedThisFrame == id;
-    }
-
-    const rect* context::find_prev_rect(layout_id id) const
-    {
-        for (const auto& e : m_prevElements)
-        {
-            if (e.elementId == id)
-            {
-                return &e.targetRect;
-            }
-        }
-
-        return nullptr;
     }
 
     bool context::try_render_rect(layout_id id, rect& out) const

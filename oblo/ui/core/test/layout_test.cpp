@@ -875,6 +875,64 @@ namespace oblo::ui
         destroy_state(state);
     }
 
+    TEST(ui_layout, hit_test_returns_topmost)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        set_layout_size(*state, {800, 600});
+        begin_frame(*state, time::from_seconds(0.f));
+
+        {
+            // bottom: large element with id "bottom"
+            const auto bottom = container_builder{}
+                                    .id({1})
+                                    .width(fixed_size(400))
+                                    .height(fixed_size(400))
+                                    .build(*state);
+            // top: smaller element on top of bottom, overlapping, with id "top"
+            const auto top = container_builder{}
+                                 .id({2})
+                                 .width(fixed_size(100))
+                                 .height(fixed_size(100))
+                                 .build(*state);
+        }
+
+        end_frame(*state);
+
+        // A point inside the top element must report "top", not "bottom".
+        EXPECT_EQ(hit_test(*state, {50.f, 50.f}), layout_id{2});
+        // A point only inside the bottom element reports "bottom".
+        EXPECT_EQ(hit_test(*state, {300.f, 300.f}), layout_id{1});
+        // A point outside everything reports an empty id.
+        EXPECT_EQ(hit_test(*state, {700.f, 700.f}), layout_id{});
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, hit_test_ignores_elements_without_id)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        set_layout_size(*state, {800, 600});
+        begin_frame(*state, time::from_seconds(0.f));
+
+        {
+            // A non-interactive element covering the whole area, no id.
+            const auto background = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
+            // An interactive element on top.
+            const auto top = container_builder{}.id({1}).width(fixed_size(100)).height(fixed_size(100)).build(*state);
+        }
+
+        end_frame(*state);
+
+        // The background has no id, so the click passes through to the interactive element.
+        EXPECT_EQ(hit_test(*state, {50.f, 50.f}), layout_id{1});
+
+        destroy_state(state);
+    }
+
     TEST(ui_layout, manual_update_element)
     {
         auto* const state = create_state();

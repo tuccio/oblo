@@ -55,7 +55,7 @@ namespace oblo
         requires std::is_integral_v<T> || std::is_enum_v<T>
     struct hash<T>
     {
-        hash_type operator()(const T& v) const noexcept
+        OBLO_FORCEINLINE hash_type operator()(const T& v) const noexcept
         {
             return hash_xxhz(&v, sizeof(T));
         }
@@ -65,7 +65,7 @@ namespace oblo
         requires contiguous_container<T> && hashable<typename T::value_type>
     struct hash<T>
     {
-        hash_type operator()(const T& v) const noexcept
+        OBLO_FORCEINLINE hash_type operator()(const T& v) const noexcept
         {
             return hash_xxhz(v.data(), sizeof(*v.data()) * v.size());
         }
@@ -75,7 +75,7 @@ namespace oblo
         requires has_hash_value<T>
     struct hash<T>
     {
-        hash_type operator()(const T& v) const noexcept
+        OBLO_FORCEINLINE hash_type operator()(const T& v) const noexcept
         {
             return hash_value(v);
         }

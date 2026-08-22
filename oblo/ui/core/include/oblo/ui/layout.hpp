@@ -284,6 +284,14 @@ namespace oblo::ui
 
     span<const layout_element> get_elements(const layout_state& state);
 
+    // Returns the id of the topmost previous-frame element containing the point, or an
+    // empty id if none. Elements without an id are ignored, so non-interactive geometry
+    // does not capture input. Reverse iteration gives draw order (later = on top).
+    layout_id hit_test(const layout_state& state, vec2 point);
+
+    // Returns the previous-frame rect of the element with the given id, or nullptr.
+    const rect* get_rect(const layout_state& state, layout_id id);
+
     void begin_container(layout_state& state, const container_descriptor& desc);
     void end_container(layout_state& state);
 

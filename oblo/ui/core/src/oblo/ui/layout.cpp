@@ -489,6 +489,33 @@ namespace oblo::ui
             }
         }
 
+        // Snapshot the resolved elements for next frame's input hit-testing. Bake the
+        // rendered (possibly animated) rect and drop the animated pointer so the copy is
+        // self-contained.
+        state.previousElements.clear();
+        state.previousElementIndex.clear();
+
+        for (u32 i = 0; i < state.elements.size(); ++i)
+        {
+            const auto& e = state.elements[i];
+
+            layout_element snapshot = e;
+
+            if (snapshot.animated)
+            {
+                snapshot.targetRect = snapshot.animated->boundingBox;
+            }
+
+            snapshot.animated = nullptr;
+
+            if (e.elementId != layout_id{})
+            {
+                state.previousElementIndex.emplace(e.elementId, i);
+            }
+
+            state.previousElements.push_back(snapshot);
+        }
+
         state.animations.end_frame();
     }
 
@@ -533,6 +560,44 @@ namespace oblo::ui
     span<const layout_element> get_elements(const layout_state& state)
     {
         return state.elements;
+    }
+
+    layout_id hit_test(const layout_state& state, vec2 point)
+    {
+        // Later elements are drawn on top, so scan in reverse to report the topmost hit.
+        for (u32 i = u32(state.previousElements.size()); i-- > 0;)
+        {
+            const auto& e = state.previousElements[i];
+
+            if (e.elementId == layout_id{})
+            {
+                continue;
+            }
+
+            if (e.get_current_rect().contains(point))
+            {
+                return e.elementId;
+            }
+        }
+
+        return layout_id{};
+    }
+
+    const rect* get_rect(const layout_state& state, layout_id id)
+    {
+        if (id == layout_id{})
+        {
+            return nullptr;
+        }
+
+        const auto it = state.previousElementIndex.find(id);
+
+        if (it == state.previousElementIndex.end())
+        {
+            return nullptr;
+        }
+
+        return &state.previousElements[it->second].targetRect;
     }
 
     transition_record* transition_store::find_record(layout_id element) noexcept
