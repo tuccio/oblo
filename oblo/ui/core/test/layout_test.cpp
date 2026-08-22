@@ -92,14 +92,14 @@ namespace oblo::ui
 
         // Frame 1: element settles at x = 10
         store.begin_frame(time::from_seconds(.5f));
-        const auto* result = store.update({1}, {}, {}, make_values(10, 20, 100, 50), linear_config({}));
+        const auto* result = store.update({1}, {}, {}, make_values(10, 20, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 10.f);
         store.end_frame();
 
         // Frame 2: target moves to x = 30; first frame of the transition still renders the old value
         store.begin_frame(time::from_seconds(.5f));
-        result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config({}));
+        result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_EQ(store.records()[0].state, transition_state::transitioning);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 10.f);
@@ -107,14 +107,14 @@ namespace oblo::ui
 
         // Frame 3: halfway through the transition
         store.begin_frame(time::from_seconds(.5f));
-        result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config({}));
+        result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 20.f);
         store.end_frame();
 
         // Frame 4: transition completes
         store.begin_frame(time::from_seconds(.5f));
-        result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config({}));
+        result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 30.f);
         EXPECT_EQ(store.records()[0].state, transition_state::idle);
@@ -128,7 +128,7 @@ namespace oblo::ui
         const auto red = color{1.f, 0.f, 0.f, 1.f};
         const auto blue = color{0.f, 0.f, 1.f, 1.f};
 
-        auto config = linear_config({});
+        auto config = linear_config(time::from_seconds(1.f));
         config.properties = animation_property::background_color;
 
         store.begin_frame(time::from_seconds(.5f));
@@ -157,12 +157,12 @@ namespace oblo::ui
 
         // Frame 1: element at absolute x = 10, parent at x = 0 (relative 10)
         store.begin_frame(time::from_seconds(.5f));
-        store.update({1}, {2}, {}, make_values(10, 0, 100, 50), linear_config({}));
+        store.update({1}, {2}, {}, make_values(10, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         store.end_frame();
 
         // Frame 2: both parent and element move by 10; relative position unchanged, no x animation
         store.begin_frame(time::from_seconds(.5f));
-        const auto* result = store.update({1}, {2}, {10, 0}, make_values(20, 0, 100, 50), linear_config({}));
+        const auto* result = store.update({1}, {2}, {10, 0}, make_values(20, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_EQ(store.records()[0].state, transition_state::idle);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 20.f);
@@ -170,7 +170,7 @@ namespace oblo::ui
 
         // Frame 3: element moves within the parent, x animation starts
         store.begin_frame(time::from_seconds(.5f));
-        result = store.update({1}, {2}, {10, 0}, make_values(25, 0, 100, 50), linear_config({}));
+        result = store.update({1}, {2}, {10, 0}, make_values(25, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_EQ(store.records()[0].state, transition_state::transitioning);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 20.f);
@@ -182,13 +182,13 @@ namespace oblo::ui
         transition_store store;
 
         store.begin_frame(time::from_seconds(.5f));
-        store.update({1}, {2}, {}, make_values(10, 0, 100, 50), linear_config({}));
+        store.update({1}, {2}, {}, make_values(10, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         store.end_frame();
 
         // The element keeps the same relative offset, but its parent changed and moved.
         // Without reparenting detection this would be attributed to the parent moving.
         store.begin_frame(time::from_seconds(.5f));
-        const auto* result = store.update({1}, {3}, {5, 0}, make_values(15, 0, 100, 50), linear_config({}));
+        const auto* result = store.update({1}, {3}, {5, 0}, make_values(15, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_EQ(store.records()[0].state, transition_state::transitioning);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 10.f);
@@ -806,8 +806,9 @@ namespace oblo::ui
 
         const std::span elements = state->elements;
         // Single child centered along the main (x) axis of a left-to-right layout.
+        // With alignment::center() both axes are centered.
         EXPECT_FLOAT_EQ(elements[1].targetRect.x, 300.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 0.f);
+        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 250.f);
 
         destroy_state(state);
     }
@@ -836,7 +837,8 @@ namespace oblo::ui
 
         const std::span elements = state->elements;
         // Single child centered along the main (y) axis of a top-to-bottom layout.
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 0.f);
+        // With alignment::center() both axes are centered.
+        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 300.f);
         EXPECT_FLOAT_EQ(elements[1].targetRect.y, 250.f);
 
         destroy_state(state);

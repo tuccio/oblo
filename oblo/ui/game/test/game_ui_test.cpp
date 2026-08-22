@@ -34,19 +34,19 @@ namespace oblo::ui::game
             return e;
         }
 
-        input_event ev_press()
+        input_event ev_press(f32 x, f32 y)
         {
             input_event e{};
             e.kind = input_event_kind::mouse_press;
-            e.mousePress = {mouse_key::left};
+            e.mousePress = {mouse_key::left, x, y};
             return e;
         }
 
-        input_event ev_release()
+        input_event ev_release(f32 x, f32 y)
         {
             input_event e{};
             e.kind = input_event_kind::mouse_release;
-            e.mouseRelease = {mouse_key::left};
+            e.mouseRelease = {mouse_key::left, x, y};
             return e;
         }
     }
@@ -71,7 +71,7 @@ namespace oblo::ui::game
         const f32 cx = b->x + b->width * 0.5f;
         const f32 cy = b->y + b->height * 0.5f;
 
-        const input_event frame2[] = {ev_move(cx, cy), ev_press()};
+        const input_event frame2[] = {ev_move(cx, cy), ev_press(cx, cy)};
         ctx.begin_frame({frame2, 2}, time{}, layoutSize);
         {
             auto panel = begin_panel(ctx, {1});
@@ -79,7 +79,7 @@ namespace oblo::ui::game
         }
         ctx.end_frame();
 
-        const input_event frame3[] = {ev_move(cx, cy), ev_release()};
+        const input_event frame3[] = {ev_move(cx, cy), ev_release(cx, cy)};
         ctx.begin_frame({frame3, 2}, time{}, layoutSize);
         {
             auto panel = begin_panel(ctx, {1});
@@ -108,7 +108,7 @@ namespace oblo::ui::game
         const f32 cx = b->x + b->width * 0.5f;
         const f32 cy = b->y + b->height * 0.5f;
 
-        const input_event frame2[] = {ev_move(cx, cy), ev_press()};
+        const input_event frame2[] = {ev_move(cx, cy), ev_press(cx, cy)};
         ctx.begin_frame({frame2, 2}, time{}, layoutSize);
         {
             auto panel = begin_panel(ctx, {1});
@@ -116,7 +116,7 @@ namespace oblo::ui::game
         }
         ctx.end_frame();
 
-        const input_event frame3[] = {ev_move(0.f, 0.f), ev_release()};
+        const input_event frame3[] = {ev_move(0.f, 0.f), ev_release(0.f, 0.f)};
         ctx.begin_frame({frame3, 2}, time{}, layoutSize);
         {
             auto panel = begin_panel(ctx, {1});
@@ -146,7 +146,7 @@ namespace oblo::ui::game
         const f32 cx = c->x + c->width * 0.5f;
         const f32 cy = c->y + c->height * 0.5f;
 
-        const input_event frame2[] = {ev_move(cx, cy), ev_press()};
+        const input_event frame2[] = {ev_move(cx, cy), ev_press(cx, cy)};
         ctx.begin_frame({frame2, 2}, time{}, layoutSize);
         {
             auto panel = begin_panel(ctx, {1});
@@ -155,7 +155,7 @@ namespace oblo::ui::game
         }
         ctx.end_frame();
 
-        const input_event frame3[] = {ev_move(cx, cy), ev_release()};
+        const input_event frame3[] = {ev_move(cx, cy), ev_release(cx, cy)};
         ctx.begin_frame({frame3, 2}, time{}, layoutSize);
         {
             auto panel = begin_panel(ctx, {1});
@@ -187,7 +187,7 @@ namespace oblo::ui::game
         const f32 cy = b->y + b->height * 0.5f;
 
         // A press and release that both occur within a single frame must still register as a click.
-        const input_event frame[] = {ev_move(cx, cy), ev_press(), ev_release()};
+        const input_event frame[] = {ev_move(cx, cy), ev_press(cx, cy), ev_release(cx, cy)};
         ctx.begin_frame({frame, 3}, time{}, layoutSize);
         {
             auto panel = begin_panel(ctx, {1});

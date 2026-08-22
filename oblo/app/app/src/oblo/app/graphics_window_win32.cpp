@@ -539,7 +539,7 @@ namespace oblo
     {
         MSG msg;
 
-        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+        while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
         {
             if (msg.message == WM_QUIT)
             {
@@ -547,7 +547,7 @@ namespace oblo
             }
 
             TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            DispatchMessageA(&msg);
 
             if (m_windowEventDispatcher.dispatch)
             {
@@ -591,6 +591,8 @@ namespace oblo
                         .mousePress =
                             {
                                 .key = win32_map_mouse_key(VK_RBUTTON),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;
@@ -602,6 +604,8 @@ namespace oblo
                         .mouseRelease =
                             {
                                 .key = win32_map_mouse_key(VK_RBUTTON),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;
@@ -613,6 +617,8 @@ namespace oblo
                         .mousePress =
                             {
                                 .key = win32_map_mouse_key(VK_MBUTTON),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;
@@ -624,6 +630,8 @@ namespace oblo
                         .mouseRelease =
                             {
                                 .key = win32_map_mouse_key(VK_MBUTTON),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;

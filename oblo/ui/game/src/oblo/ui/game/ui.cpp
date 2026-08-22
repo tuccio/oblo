@@ -1,5 +1,6 @@
 #include <oblo/ui/game/ui.hpp>
 
+#include <oblo/core/algorithm/fill.hpp>
 #include <oblo/core/utility.hpp>
 
 namespace oblo::ui::game
@@ -16,9 +17,9 @@ namespace oblo::ui::game
 
     void context::begin_frame(span<const input_event> events, time dt, vec2 layoutSize)
     {
-        m_leftClickedThisFrame = layout_id{};
-        m_leftClickThisFrame = false;
-        m_leftReleaseThisFrame = false;
+        fill(std::begin(m_clickedThisFrame), std::end(m_clickedThisFrame), false);
+        fill(std::begin(m_releasedThisFrame), std::end(m_releasedThisFrame), false);
+        fill(std::begin(m_itemClickedThisFrame), std::end(m_itemClickedThisFrame), {});
 
         for (const auto& e : events)
         {
@@ -27,21 +28,20 @@ namespace oblo::ui::game
             case input_event_kind::mouse_move:
                 m_mousePosition = {e.mouseMove.x, e.mouseMove.y};
                 break;
+
             case input_event_kind::mouse_press:
-                if (e.mousePress.key == mouse_key::left)
-                {
-                    m_mouseLeftDown = true;
-                    m_leftClickThisFrame = true;
-                    m_leftClickPosition = {e.mousePress.x, e.mousePress.y};
-                }
+                m_mouseDown[u32(e.mousePress.key)] = true;
+                m_clickedThisFrame[u32(e.mousePress.key)] = true;
+                m_mouseClickPosition[u32(e.mousePress.key)] = {e.mousePress.x, e.mousePress.y};
+                m_mousePosition = {e.mousePress.x, e.mousePress.y};
                 break;
+
             case input_event_kind::mouse_release:
-                if (e.mouseRelease.key == mouse_key::left)
-                {
-                    m_mouseLeftDown = false;
-                    m_leftReleaseThisFrame = true;
-                }
+                m_mouseDown[u32(e.mouseRelease.key)] = false;
+                m_releasedThisFrame[u32(e.mouseRelease.key)] = true;
+                m_mousePosition = {e.mousePress.x, e.mousePress.y};
                 break;
+
             default:
                 break;
             }
@@ -54,12 +54,27 @@ namespace oblo::ui::game
         // hit_test returns the topmost element, so clicks can't fall through to elements
         // drawn underneath, and each widget just compares its id (O(1) per widget).
         m_hoveredId = ui::hit_test(*m_layout, m_mousePosition);
-        m_pressedId = m_leftClickThisFrame ? ui::hit_test(*m_layout, m_leftClickPosition) : layout_id{};
+        m_pressedId = mouse_clicked_this_frame(mouse_key::left)
+            ? ui::hit_test(*m_layout, mouse_click_position(mouse_key::left))
+            : layout_id{};
+
+        // Only the topmost element under the click can become active, preventing clicks
+        // from leaking to elements drawn underneath it.
+        if (mouse_clicked_this_frame(mouse_key::left) && m_activeId == layout_id{} && m_pressedId != layout_id{})
+        {
+            m_activeId = m_pressedId;
+        }
+
+        if (mouse_released_this_frame(mouse_key::left) && m_activeId != layout_id{})
+        {
+            m_itemClickedThisFrame[u32(mouse_key::left)] = m_activeId;
+            m_activeId = layout_id{};
+        }
     }
 
     void context::end_frame()
     {
-        oblo::ui::end_frame(*m_layout);
+        ui::end_frame(*m_layout);
     }
 
     vec2 context::measure(string_view text, f32 fontHeight) const
@@ -78,27 +93,14 @@ namespace oblo::ui::game
         return m_activeId == id;
     }
 
-    bool context::begin_interaction(layout_id id)
+    bool context::is_hovered(layout_id id) const
     {
-        // Only the topmost element under the click (computed once per frame) can become
-        // active, preventing clicks from leaking to elements drawn underneath it.
-        if (m_leftClickThisFrame && m_activeId == layout_id{} && m_pressedId == id)
-        {
-            m_activeId = id;
-        }
-
-        if (m_leftReleaseThisFrame && m_activeId == id)
-        {
-            m_leftClickedThisFrame = id;
-            m_activeId = layout_id{};
-        }
-
         return m_hoveredId == id;
     }
 
     bool context::was_clicked(layout_id id) const
     {
-        return m_leftClickedThisFrame == id;
+        return m_itemClickedThisFrame[u32(mouse_key::left)] == id;
     }
 
     bool context::try_render_rect(layout_id id, rect& out) const
@@ -148,9 +150,9 @@ namespace oblo::ui::game
         const f32 w = textSize.x + style.padding.left + style.padding.right;
         const f32 h = max(textSize.y, style.fontHeight) + style.padding.top + style.padding.bottom;
 
-        const bool hovered = ctx.begin_interaction(id);
         const bool active = ctx.is_active(id);
 
+        const bool hovered = ctx.is_hovered(id);
         const color bg = active ? style.activeColor : (hovered ? style.hoverColor : style.idleColor);
 
         const container_descriptor desc{
@@ -189,8 +191,6 @@ namespace oblo::ui::game
 
     bool checkbox(context& ctx, layout_id id, bool& checked, string_view text, const checkbox_style& style)
     {
-        ctx.begin_interaction(id);
-
         const auto container = container_builder{}.width(fit_size()).height(fit_size()).build(ctx.get_layout());
 
         {

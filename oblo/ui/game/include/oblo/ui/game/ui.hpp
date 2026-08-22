@@ -118,15 +118,32 @@ namespace oblo::ui::game
         vec2 measure(string_view text, f32 fontHeight) const;
 
         bool is_active(layout_id id) const;
+        bool is_hovered(layout_id id) const;
         bool was_clicked(layout_id id) const;
-
-        bool begin_interaction(layout_id id);
-
-        const rect* find_prev_rect(layout_id id) const;
 
         const vec2& mouse_position() const
         {
             return m_mousePosition;
+        }
+
+        bool mouse_clicked_this_frame(mouse_key key) const
+        {
+            return m_clickedThisFrame[u32(key)];
+        }
+
+        const vec2& mouse_click_position(mouse_key key) const
+        {
+            return m_mouseClickPosition[u32(key)];
+        }
+
+        bool mouse_released_this_frame(mouse_key key) const
+        {
+            return m_releasedThisFrame[u32(key)];
+        }
+
+        bool mouse_down_this_frame(mouse_key key) const
+        {
+            return m_mouseDown[u32(key)];
         }
 
     private:
@@ -135,15 +152,15 @@ namespace oblo::ui::game
     private:
         layout_state* m_layout{};
         vec2 m_mousePosition{};
-        vec2 m_leftClickPosition{};
-        bool m_mouseLeftDown{};
-        bool m_leftClickThisFrame{};
-        bool m_leftReleaseThisFrame{};
+        vec2 m_mouseClickPosition[u32(mouse_key::enum_max)]{};
+        bool m_mouseDown[u32(mouse_key::enum_max)]{};
+        bool m_clickedThisFrame[u32(mouse_key::enum_max)]{};
+        bool m_releasedThisFrame[u32(mouse_key::enum_max)]{};
         measure_text_fn m_measureText{};
         layout_id m_hoveredId{};
         layout_id m_pressedId{};
         layout_id m_activeId{};
-        layout_id m_leftClickedThisFrame{};
+        layout_id m_itemClickedThisFrame[u32(mouse_key::enum_max)]{};
     };
 
     class panel_scope
