@@ -2,18 +2,8 @@
 
 #include <oblo/core/utility.hpp>
 
-#include <cstring>
-
 namespace oblo::ui::game
 {
-    namespace
-    {
-        f32 clamp01(f32 x)
-        {
-            return x < 0.f ? 0.f : (x > 1.f ? 1.f : x);
-        }
-    }
-
     context::context()
     {
         m_layout = create_state();
@@ -26,10 +16,6 @@ namespace oblo::ui::game
 
     void context::begin_frame(span<const input_event> events, time dt, vec2 layoutSize)
     {
-        m_rects.clear();
-        m_texts.clear();
-        m_intents.clear();
-
         m_clickedThisFrame = layout_id{};
         m_pressedThisFrame = false;
         m_releasedThisFrame = false;
@@ -67,30 +53,6 @@ namespace oblo::ui::game
     void context::end_frame()
     {
         oblo::ui::end_frame(*m_layout);
-
-        for (const auto& it : m_intents)
-        {
-            rect wr;
-
-            if (!try_render_rect(it.id, wr))
-            {
-                continue;
-            }
-
-            const rect r =
-                it.local.width < 0.f ? wr : rect{wr.x + it.local.x, wr.y + it.local.y, it.local.width, it.local.height};
-
-            if (it.hasText)
-            {
-                m_texts.push_back({r, it.textColor, it.fontHeight, it.text});
-            }
-            else
-            {
-                m_rects.push_back({r, it.fill, it.cornerRadius});
-            }
-        }
-
-        m_intents.clear();
 
         const std::span elements = get_elements(*m_layout);
         m_prevElements.assign(elements.begin(), elements.end());
@@ -154,29 +116,6 @@ namespace oblo::ui::game
         return nullptr;
     }
 
-    void context::emit_rect(layout_id id, const color& fill, vec4 cornerRadius, const rect& local)
-    {
-        m_intents.push_back({
-            .id = id,
-            .local = local,
-            .fill = fill,
-            .cornerRadius = cornerRadius,
-            .hasText = false,
-        });
-    }
-
-    void context::emit_text(layout_id id, string_view text, const color& c, f32 fontHeight, const rect& local)
-    {
-        m_intents.push_back({
-            .id = id,
-            .local = local,
-            .text = text,
-            .textColor = c,
-            .fontHeight = fontHeight,
-            .hasText = true,
-        });
-    }
-
     bool context::try_render_rect(layout_id id, rect& out) const
     {
         for (const auto& e : get_elements(*m_layout))
@@ -220,16 +159,13 @@ namespace oblo::ui::game
             .direction = style.direction,
             .width = style.width,
             .height = style.height,
+            .backgroundColor = style.backgroundColor,
             .cornerRadius = vec4::splat(style.cornerRadius),
             .childGap = style.gap,
             .padding = style.padding,
         };
 
-        auto scope = begin_container(ctx, id, desc);
-
-        ctx.emit_rect(id, style.backgroundColor, vec4::splat(style.cornerRadius));
-
-        return scope;
+        return begin_container(ctx, id, desc);
     }
 
     bool button(context& ctx, layout_id id, string_view label, const button_style& style)
@@ -249,15 +185,13 @@ namespace oblo::ui::game
             .direction = layout_direction::left_to_right,
             .width = fixed_size(w),
             .height = fixed_size(h),
+            .backgroundColor = bg,
             .cornerRadius = vec4::splat(style.cornerRadius),
             .padding = style.padding,
         };
 
         ui::begin_container(ctx.get_layout(), desc);
         ui::end_container(ctx.get_layout());
-
-        ctx.emit_rect(id, bg, vec4::splat(style.cornerRadius));
-        ctx.emit_text(id, label, style.textColor, style.fontHeight);
 
         return ctx.was_clicked(id);
     }
@@ -278,120 +212,45 @@ namespace oblo::ui::game
 
         ui::begin_container(ctx.get_layout(), desc);
         ui::end_container(ctx.get_layout());
-
-        ctx.emit_text(id, text, style.textColor, style.fontHeight);
     }
 
     bool checkbox(context& ctx, layout_id id, bool& checked, string_view text, const checkbox_style& style)
     {
-        const vec2 textSize = ctx.measure(text, style.fontHeight);
-
-        const f32 w = style.boxSize + style.gap + textSize.x + style.padding.left + style.padding.right;
-        const f32 h = max(style.boxSize, textSize.y) + style.padding.top + style.padding.bottom;
-
         ctx.begin_interaction(id);
 
-        container_descriptor desc{};
-        desc.elementId = id;
-        desc.direction = layout_direction::left_to_right;
-        desc.padding = style.padding;
-        desc.width = fixed_size(w);
-        desc.height = fixed_size(h);
+        const auto container = container_builder{}.width(fit_size()).height(fit_size()).build(ctx.get_layout());
 
-        oblo::ui::begin_container(ctx.get_layout(), desc);
-        oblo::ui::end_container(ctx.get_layout());
-
-        const f32 boxY = (h - style.boxSize) * .5f;
-
-        ctx.emit_rect(id,
-            style.boxColor,
-            vec4::splat(style.cornerRadius),
-            rect{
-                style.padding.left,
-                boxY,
-                style.boxSize,
-                style.boxSize,
-            });
-
-        if (checked)
         {
-            const f32 inset = style.boxSize * 0.28f;
+            const auto box = container_builder{}
+                                 .id(id)
+                                 .width(fixed_size(style.boxSize))
+                                 .height(fixed_size(style.boxSize))
+                                 .background_color(style.boxColor)
+                                 .build(ctx.get_layout());
 
-            ctx.emit_rect(id,
-                style.checkColor,
-                vec4::splat(style.cornerRadius * .5f),
-                rect{
-                    style.padding.left + inset,
-                    boxY + inset,
-                    style.boxSize - 2.f * inset,
-                    style.boxSize - 2.f * inset,
-                });
-        }
-
-        const f32 textX = style.padding.left + style.boxSize + style.gap;
-        const f32 textY = (h - textSize.y) * .5f;
-
-        ctx.emit_text(id, text, style.textColor, style.fontHeight, rect{textX, textY, textSize.x, textSize.y});
-
-        if (ctx.was_clicked(id))
-        {
-            checked = !checked;
-            return true;
-        }
-
-        return false;
-    }
-
-    bool slider(context& ctx, layout_id id, f32& value, f32 min, f32 max, const slider_style& style)
-    {
-        const f32 w = style.width;
-        const f32 h = style.height;
-
-        const f32 oldValue = value;
-
-        ctx.begin_interaction(id);
-
-        if (ctx.is_active(id))
-        {
-            const rect* const track = ctx.find_prev_rect(id);
-
-            if (track && track->width > 0.f)
+            if (checked)
             {
-                const f32 trackX = style.padding.left;
-                const f32 trackW = w - style.padding.left - style.padding.right;
-                const f32 t = clamp01((ctx.mouse_position().x - (track->x + trackX)) / trackW);
-                value = min + t * (max - min);
+                const auto check = container_builder{}
+                                       .width(percent_size(.75f))
+                                       .height(percent_size(.75f))
+                                       .background_color(style.checkColor)
+                                       .build(ctx.get_layout());
             }
         }
 
-        const f32 t = clamp01((value - min) / (max - min));
+        // TODO: Add test instead of filler
+        const auto textFillerBox = container_builder{}
+                                       .width(fixed_size(f32(text.size32()) * .5f * style.fontHeight))
+                                       .height(fixed_size(style.fontHeight))
+                                       .build(ctx.get_layout());
 
-        container_descriptor desc{};
-        desc.elementId = id;
-        desc.direction = layout_direction::left_to_right;
-        desc.padding = style.padding;
-        desc.width = fixed_size(w);
-        desc.height = fixed_size(h);
+        const bool wasClicked = ctx.was_clicked(id);
 
-        oblo::ui::begin_container(ctx.get_layout(), desc);
-        oblo::ui::end_container(ctx.get_layout());
+        if (wasClicked)
+        {
+            checked = !checked;
+        }
 
-        const f32 trackX = style.padding.left;
-        const f32 trackW = w - style.padding.left - style.padding.right;
-        const f32 trackH = h - style.padding.top - style.padding.bottom;
-        const f32 trackY = style.padding.top;
-
-        const vec4 cornerRadius = vec4::splat(style.cornerRadius);
-
-        ctx.emit_rect(id, style.trackColor, cornerRadius, rect{trackX, trackY, trackW, trackH});
-
-        const f32 fillW = trackW * t;
-        ctx.emit_rect(id, style.fillColor, cornerRadius, rect{trackX, trackY, fillW, trackH});
-
-        const f32 handle = trackH;
-        const f32 handleX = trackX + trackW * t - handle * .5f;
-        ctx.emit_rect(id, style.handleColor, cornerRadius, rect{handleX, trackY, handle, trackH});
-
-        return value != oldValue;
+        return wasClicked;
     }
 }

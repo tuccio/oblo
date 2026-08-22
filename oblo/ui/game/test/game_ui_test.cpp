@@ -15,7 +15,7 @@ namespace oblo::ui::game
 
         const rect* rect_of(const context& ctx, layout_id id)
         {
-            for (const auto& e : ctx.elements())
+            for (const auto& e : ctx.get_layout_elements())
             {
                 if (e.elementId == id)
                 {
@@ -49,22 +49,6 @@ namespace oblo::ui::game
             e.mouseRelease = {mouse_key::left};
             return e;
         }
-    }
-
-    TEST(ui_game, emits_draw_intents)
-    {
-        context ctx;
-        ctx.set_measure_text(measure);
-
-        ctx.begin_frame({}, time{}, {800, 600});
-        {
-            auto panel = begin_panel(ctx, {1});
-            button(ctx, {2}, "OK");
-        }
-        ctx.end_frame();
-
-        EXPECT_EQ(ctx.rects().size(), 2);
-        EXPECT_EQ(ctx.texts().size(), 1);
     }
 
     TEST(ui_game, button_click)
@@ -139,41 +123,6 @@ namespace oblo::ui::game
             EXPECT_TRUE(button(ctx, {2}, "OK"));
         }
         ctx.end_frame();
-    }
-
-    TEST(ui_game, slider_drag)
-    {
-        context ctx;
-        ctx.set_measure_text(measure);
-
-        const vec2 layoutSize{800, 600};
-
-        ctx.begin_frame({}, time{}, layoutSize);
-        {
-            auto panel = begin_panel(ctx, {1});
-            f32 v = 0.5f;
-            slider(ctx, {3}, v, 0.f, 1.f, {});
-        }
-        ctx.end_frame();
-
-        const rect* const s = rect_of(ctx, {3});
-        ASSERT_NE(s, nullptr);
-
-        slider_style style{};
-        style.padding = {0.f, 0.f, 0.f, 0.f};
-        style.width = 200.f;
-
-        f32 value = 0.5f;
-
-        const input_event frame[] = {ev_move(s->x + 200.f * 0.25f, s->y + s->height * 0.5f), ev_press()};
-        ctx.begin_frame({frame, 1}, time{}, layoutSize);
-        {
-            auto panel = begin_panel(ctx, {1});
-            EXPECT_TRUE(slider(ctx, {3}, value, 0.f, 1.f, style));
-        }
-        ctx.end_frame();
-
-        EXPECT_NEAR(value, 0.25f, 0.01f);
     }
 
     TEST(ui_game, checkbox_toggle)

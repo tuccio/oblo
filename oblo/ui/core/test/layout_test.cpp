@@ -318,12 +318,12 @@ namespace oblo::ui
         begin_frame(*state, time::from_seconds(0.f));
 
         {
-            const auto root = container_builder{}.width(fixed_sizing{800}).height(fixed_sizing{600}).build(*state);
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
             {
-                const auto a = container_builder{}.width(fixed_sizing{300}).height(fixed_sizing{100}).build(*state);
+                const auto a = container_builder{}.width(fixed_size(300)).height(fixed_size(100)).build(*state);
             }
             {
-                const auto b = container_builder{}.width(fixed_sizing{500}).height(fixed_sizing{100}).build(*state);
+                const auto b = container_builder{}.width(fixed_size(500)).height(fixed_size(100)).build(*state);
             }
         }
 
@@ -358,14 +358,14 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .direction(layout_direction::top_to_bottom)
-                                  .width(fixed_sizing{800})
-                                  .height(fixed_sizing{600})
+                                  .width(fixed_size(800))
+                                  .height(fixed_size(600))
                                   .build(*state);
             {
-                const auto a = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{200}).build(*state);
+                const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(200)).build(*state);
             }
             {
-                const auto b = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{100}).build(*state);
+                const auto b = container_builder{}.width(fixed_size(100)).height(fixed_size(100)).build(*state);
             }
         }
 
@@ -389,14 +389,14 @@ namespace oblo::ui
         begin_frame(*state, time::from_seconds(0.f));
 
         {
-            const auto root = container_builder{}.width(fixed_sizing{800}).height(fixed_sizing{600}).build(*state);
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
             {
                 const auto panel = container_builder{}.build(*state);
                 {
-                    const auto a = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                    const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
                 }
                 {
-                    const auto b = container_builder{}.width(fixed_sizing{200}).height(fixed_sizing{30}).build(*state);
+                    const auto b = container_builder{}.width(fixed_size(200)).height(fixed_size(30)).build(*state);
                 }
             }
         }
@@ -424,11 +424,11 @@ namespace oblo::ui
         begin_frame(*state, time::from_seconds(0.f));
 
         {
-            const auto root = container_builder{}.width(fixed_sizing{800}).height(fixed_sizing{600}).build(*state);
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
             {
-                const auto panel = container_builder{}.width(fit_sizing{400, 600}).build(*state);
+                const auto panel = container_builder{}.width(fit_size(400, 600)).build(*state);
                 {
-                    const auto a = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                    const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
                 }
             }
         }
@@ -452,12 +452,12 @@ namespace oblo::ui
 
         {
             const auto root =
-                container_builder{}.gap(10.f).width(fixed_sizing{800}).height(fixed_sizing{600}).build(*state);
+                container_builder{}.gap(10.f).width(fixed_size(800)).height(fixed_size(600)).build(*state);
             {
-                const auto a = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
             }
             {
-                const auto b = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                const auto b = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
             }
         }
 
@@ -481,11 +481,11 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .padding({10, 10, 20, 20})
-                                  .width(fixed_sizing{800})
-                                  .height(fixed_sizing{600})
+                                  .width(fixed_size(800))
+                                  .height(fixed_size(600))
                                   .build(*state);
             {
-                const auto a = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
             }
         }
 
@@ -507,10 +507,10 @@ namespace oblo::ui
         begin_frame(*state, time::from_seconds(0.f));
 
         {
-            const auto root = container_builder{}.width(fixed_sizing{800}).height(fixed_sizing{600}).build(*state);
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
             {
                 const auto child =
-                    container_builder{}.width(percentage_sizing{0.5f}).height(percentage_sizing{0.25f}).build(*state);
+                    container_builder{}.width(percent_size(0.5f)).height(percent_size(0.25f)).build(*state);
             }
         }
 
@@ -534,11 +534,11 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .padding({10, 10, 0, 0})
-                                  .width(fixed_sizing{800})
-                                  .height(fixed_sizing{600})
+                                  .width(fixed_size(800))
+                                  .height(fixed_size(600))
                                   .build(*state);
             {
-                const auto child = container_builder{}.width(percentage_sizing{0.5f}).build(*state);
+                const auto child = container_builder{}.width(percent_size(0.5f)).build(*state);
             }
         }
 
@@ -562,7 +562,7 @@ namespace oblo::ui
 
         {
             const auto root =
-                container_builder{}.width(percentage_sizing{0.5f}).height(percentage_sizing{0.5f}).build(*state);
+                container_builder{}.width(percent_size(0.5f)).height(percent_size(0.5f)).build(*state);
         }
 
         end_frame(*state);
@@ -587,17 +587,17 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .padding({10, 10, 20, 20})
-                                  .width(fixed_sizing{800})
-                                  .height(fixed_sizing{600})
+                                  .width(fixed_size(800))
+                                  .height(fixed_size(600))
                                   .build(*state);
             {
                 const auto inner =
-                    container_builder{}.gap(5.f).width(fixed_sizing{400}).height(fixed_sizing{200}).build(*state);
+                    container_builder{}.gap(5.f).width(fixed_size(400)).height(fixed_size(200)).build(*state);
                 {
-                    const auto a = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                    const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
                 }
                 {
-                    const auto b = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                    const auto b = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
                 }
             }
         }
@@ -625,17 +625,17 @@ namespace oblo::ui
         begin_frame(*state, time::from_seconds(0.f));
 
         {
-            const auto root = container_builder{}.width(fixed_sizing{800}).height(fixed_sizing{600}).build(*state);
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
             {
                 // A fit panel measures its content from the fixed child; the percentage
                 // child contributes 0 and is expanded against the panel's final size.
                 const auto panel = container_builder{}.build(*state);
                 {
-                    const auto a = container_builder{}.width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                    const auto a = container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
                 }
                 {
                     const auto b =
-                        container_builder{}.width(percentage_sizing{0.5f}).height(fixed_sizing{50}).build(*state);
+                        container_builder{}.width(percent_size(0.5f)).height(fixed_size(50)).build(*state);
                 }
             }
         }
@@ -663,9 +663,9 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .id({1})
-                                  .transition(config)
-                                  .width(fixed_sizing{100})
-                                  .height(fixed_sizing{50})
+                                  .animation(config)
+                                  .width(fixed_size(100))
+                                  .height(fixed_size(50))
                                   .build(*state);
         }
         end_frame(*state);
@@ -679,9 +679,9 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .id({1})
-                                  .transition(config)
-                                  .width(fixed_sizing{200})
-                                  .height(fixed_sizing{50})
+                                  .animation(config)
+                                  .width(fixed_size(200))
+                                  .height(fixed_size(50))
                                   .build(*state);
         }
         end_frame(*state);
@@ -696,9 +696,9 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .id({1})
-                                  .transition(config)
-                                  .width(fixed_sizing{200})
-                                  .height(fixed_sizing{50})
+                                  .animation(config)
+                                  .width(fixed_size(200))
+                                  .height(fixed_size(50))
                                   .build(*state);
         }
         end_frame(*state);
@@ -716,7 +716,7 @@ namespace oblo::ui
         begin_frame(*state, time::from_seconds(.5f));
         {
             const auto root =
-                container_builder{}.id({1}).width(fixed_sizing{100}).height(fixed_sizing{50}).build(*state);
+                container_builder{}.id({1}).width(fixed_size(100)).height(fixed_size(50)).build(*state);
         }
         end_frame(*state);
 
@@ -740,9 +740,9 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .id({1})
-                                  .transition(config)
-                                  .width(fixed_sizing{100})
-                                  .height(fixed_sizing{50})
+                                  .animation(config)
+                                  .width(fixed_size(100))
+                                  .height(fixed_size(50))
                                   .build(*state);
         }
         end_frame(*state);
@@ -766,9 +766,9 @@ namespace oblo::ui
         {
             const auto root = container_builder{}
                                   .id({1})
-                                  .transition(config)
-                                  .width(fixed_sizing{100})
-                                  .height(fixed_sizing{50})
+                                  .animation(config)
+                                  .width(fixed_size(100))
+                                  .height(fixed_size(50))
                                   .build(*state);
         }
         end_frame(*state);

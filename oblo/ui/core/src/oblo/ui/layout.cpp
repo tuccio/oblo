@@ -269,6 +269,7 @@ namespace oblo::ui
         element.desc = desc;
         element.elementId = desc.elementId;
         element.parentIndex = parentIndex;
+        element.backgroundColor = desc.backgroundColor;
         element.cornerRadius = desc.cornerRadius;
 
         if (parentIndex != invalid_index)

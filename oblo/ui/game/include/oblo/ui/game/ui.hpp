@@ -41,21 +41,6 @@ namespace oblo::ui::game
         bool hasText;
     };
 
-    inline sizing fit_size() noexcept
-    {
-        return {sizing_kind::fit, {.fit = {0.f, 0.f}}};
-    }
-
-    inline sizing fixed_size(f32 s) noexcept
-    {
-        return {sizing_kind::fixed, {.fixed = {s}}};
-    }
-
-    inline sizing percent_size(f32 s) noexcept
-    {
-        return {sizing_kind::percentage, {.percentage = {s}}};
-    }
-
     struct panel_style
     {
         color backgroundColor{0.15f, 0.15f, 0.18f, 1.f};
@@ -102,8 +87,6 @@ namespace oblo::ui::game
         color trackColor{0.20f, 0.20f, 0.25f, 1.f};
         color fillColor{0.40f, 0.50f, 0.90f, 1.f};
         color handleColor{1.f, 1.f, 1.f, 1.f};
-        f32 height{20.f};
-        f32 width{200.f};
         f32 cornerRadius{10.f};
         padding padding{4.f, 4.f, 4.f, 4.f};
     };
@@ -122,12 +105,12 @@ namespace oblo::ui::game
         void begin_frame(span<const input_event> events, time dt, vec2 layoutSize);
         void end_frame();
 
-        layout_state& get_layout()
+        OBLO_FORCEINLINE layout_state& get_layout()
         {
             return *m_layout;
         }
 
-        span<const layout_element> elements() const
+        OBLO_FORCEINLINE span<const layout_element> get_layout_elements() const
         {
             return get_elements(*m_layout);
         }
@@ -140,36 +123,7 @@ namespace oblo::ui::game
 
         bool begin_interaction(layout_id id);
 
-        void emit_rect(
-            layout_id id, const color& fill, vec4 cornerRadius, const rect& local = rect{0.f, 0.f, -1.f, -1.f});
-
-        void emit_text(layout_id id,
-            string_view text,
-            const color& c,
-            f32 fontHeight,
-            const rect& local = rect{0.f, 0.f, -1.f, -1.f});
-
         const rect* find_prev_rect(layout_id id) const;
-
-        std::span<const draw_rect> rects() const
-        {
-            return m_rects;
-        }
-
-        span<const draw_text> texts() const
-        {
-            return m_texts;
-        }
-
-        void add_rect(const draw_rect& r)
-        {
-            m_rects.push_back(r);
-        }
-
-        void add_text(const draw_text& t)
-        {
-            m_texts.push_back(t);
-        }
 
         const vec2& mouse_position() const
         {
@@ -186,9 +140,6 @@ namespace oblo::ui::game
         bool m_pressedThisFrame{};
         bool m_releasedThisFrame{};
         measure_text_fn m_measureText{};
-        dynamic_array<draw_rect> m_rects;
-        dynamic_array<draw_text> m_texts;
-        dynamic_array<draw_intent> m_intents;
         dynamic_array<layout_element> m_prevElements;
         layout_id m_activeId{};
         layout_id m_clickedThisFrame{};
@@ -237,6 +188,4 @@ namespace oblo::ui::game
     void label(context& ctx, layout_id id, string_view text, const label_style& style = {});
 
     bool checkbox(context& ctx, layout_id id, bool& checked, string_view text, const checkbox_style& style = {});
-
-    bool slider(context& ctx, layout_id id, f32& value, f32 min, f32 max, const slider_style& style = {});
 }

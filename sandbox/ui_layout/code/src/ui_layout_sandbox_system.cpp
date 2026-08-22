@@ -23,9 +23,6 @@
 
 namespace oblo
 {
-    using namespace ui::game;
-    using ui::layout_direction;
-
     ui_layout_sandbox_system::ui_layout_sandbox_system() = default;
 
     ui_layout_sandbox_system::~ui_layout_sandbox_system()
@@ -66,6 +63,9 @@ namespace oblo
 
     void ui_layout_sandbox_system::update(const ecs::system_update_context& ctx)
     {
+        using namespace oblo::ui;
+        using namespace oblo::ui::game;
+
         if (!m_active)
         {
             return;
@@ -154,20 +154,6 @@ namespace oblo
                         checkbox(m_ui, {200 + i}, checked, "Item");
                     }
                 }
-
-                {
-                    auto content = begin_panel(m_ui,
-                        {5},
-                        panel_style{
-                            .direction = layout_direction::top_to_bottom,
-                            .gap = 8.f,
-                            .width = percent_size(1.f),
-                            .height = percent_size(1.f),
-                        });
-
-                    label(m_ui, {500}, "A slider:");
-                    slider(m_ui, {501}, m_sliderValue, 0.f, 1.f, slider_style{.width = 240.f});
-                }
             }
 
             {
@@ -178,7 +164,7 @@ namespace oblo
                         .direction = layout_direction::left_to_right,
                         .gap = 8.f,
                         .width = percent_size(1.f),
-                        .height = fit_size(),
+                        .height = ui::fit_size(),
                     });
 
                 button(m_ui, {600}, "Apply");
@@ -187,17 +173,17 @@ namespace oblo
 
         m_ui.end_frame();
 
-        const std::span rects = m_ui.rects();
-        m_elements.assign_default(rects.size());
+        const span elements = m_ui.get_layout_elements();
+        m_elements.assign_default(elements.size());
 
-        for (usize i = 0; i < rects.size(); ++i)
+        for (usize i = 0; i < elements.size(); ++i)
         {
-            const auto& r = rects[i];
+            const auto& e = elements[i];
 
             m_elements[i] = {
-                .rect = {r.bounds.x, r.bounds.y, r.bounds.width, r.bounds.height},
-                .color = {r.fill.r, r.fill.g, r.fill.b, r.fill.a},
-                .cornerRadius = r.cornerRadius,
+                .rect = std::bit_cast<vec4>(e.get_current_rect()),
+                .color = std::bit_cast<vec4>(e.get_current_background_color()),
+                .cornerRadius = e.get_current_corner_radius(),
             };
         }
 

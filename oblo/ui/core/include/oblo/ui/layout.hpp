@@ -84,7 +84,7 @@ namespace oblo::ui
 
     struct animated_values
     {
-        rect boundingBox;
+        rect boundingBox{};
         color backgroundColor{};
         color overlayColor{};
         vec4 cornerRadius{};
@@ -147,7 +147,7 @@ namespace oblo::ui
         f32 size;
     };
 
-    struct percentage_sizing
+    struct percent_sizing
     {
         f32 size;
     };
@@ -159,9 +159,24 @@ namespace oblo::ui
         union {
             fit_sizing fit;
             fixed_sizing fixed;
-            percentage_sizing percentage;
+            percent_sizing percentage;
         } sizing;
     };
+
+    constexpr sizing fit_size(f32 min = 0.f, f32 max = 0.f) noexcept
+    {
+        return {sizing_kind::fit, {.fit = {min, max}}};
+    }
+
+    constexpr sizing fixed_size(f32 s) noexcept
+    {
+        return {sizing_kind::fixed, {.fixed = {s}}};
+    }
+
+    constexpr sizing percent_size(f32 s) noexcept
+    {
+        return {sizing_kind::percentage, {.percentage = {s}}};
+    }
 
     struct padding
     {
@@ -179,11 +194,11 @@ namespace oblo::ui
         sizing width;
         sizing height;
 
+        color backgroundColor;
         vec4 cornerRadius;
 
         f32 childGap;
         padding padding;
-
 
         animation_config animation;
     };
@@ -198,7 +213,8 @@ namespace oblo::ui
 
         rect targetRect{};
 
-        vec4 cornerRadius;
+        color backgroundColor{};
+        vec4 cornerRadius{};
 
         // The measured content size along the (width, height) axes, before clamping and
         // before any percentage expansion. Only meaningful for fit sizing.
@@ -212,6 +228,21 @@ namespace oblo::ui
         u32 firstChild{invalid_index};
         u32 nextSibling{invalid_index};
         u32 lastChild{invalid_index};
+
+        const rect& get_current_rect() const
+        {
+            return animated ? animated->boundingBox : targetRect;
+        }
+
+        const color& get_current_background_color() const
+        {
+            return animated ? animated->backgroundColor : backgroundColor;
+        }
+
+        const vec4& get_current_corner_radius() const
+        {
+            return animated ? animated->cornerRadius : cornerRadius;
+        }
     };
 
     struct layout_state;
@@ -270,7 +301,13 @@ namespace oblo::ui
             return static_cast<container_builder&&>(*this);
         }
 
-        container_builder&& transition(const animation_config& config) &&
+        container_builder&& background_color(const color& color) &&
+        {
+            m_desc.backgroundColor = color;
+            return static_cast<container_builder&&>(*this);
+        }
+
+        container_builder&& animation(const animation_config& config) &&
         {
             m_desc.animation = config;
             return static_cast<container_builder&&>(*this);
@@ -304,53 +341,15 @@ namespace oblo::ui
             return static_cast<container_builder&&>(*this);
         }
 
-        container_builder&& width(const fixed_sizing& s) &&
+        container_builder&& width(const sizing& s) &&
         {
-            m_desc.width = {
-                .kind = sizing_kind::fixed,
-                .sizing = {.fixed = s},
-            };
-
+            m_desc.width = s;
             return static_cast<container_builder&&>(*this);
         }
 
-        container_builder&& width(const percentage_sizing& s) &&
+        container_builder&& height(const sizing& s) &&
         {
-            m_desc.width = {
-                .kind = sizing_kind::percentage,
-                .sizing = {.percentage = s},
-            };
-
-            return static_cast<container_builder&&>(*this);
-        }
-
-        container_builder&& height(const fit_sizing& s) &&
-        {
-            m_desc.height = {
-                .kind = sizing_kind::fit,
-                .sizing = {.fit = s},
-            };
-
-            return static_cast<container_builder&&>(*this);
-        }
-
-        container_builder&& height(const fixed_sizing& s) &&
-        {
-            m_desc.height = {
-                .kind = sizing_kind::fixed,
-                .sizing = {.fixed = s},
-            };
-
-            return static_cast<container_builder&&>(*this);
-        }
-
-        container_builder&& height(const percentage_sizing& s) &&
-        {
-            m_desc.height = {
-                .kind = sizing_kind::percentage,
-                .sizing = {.percentage = s},
-            };
-
+            m_desc.height = s;
             return static_cast<container_builder&&>(*this);
         }
 

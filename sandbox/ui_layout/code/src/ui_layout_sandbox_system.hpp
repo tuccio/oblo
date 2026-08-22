@@ -44,7 +44,6 @@ namespace oblo
         input_queue m_inputQueue;
 
         bool m_sidebarChecked[6]{};
-        f32 m_sliderValue{0.5f};
 
         bool m_active{};
     };
