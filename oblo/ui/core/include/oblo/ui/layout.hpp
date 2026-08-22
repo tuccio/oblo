@@ -100,27 +100,27 @@ namespace oblo::ui
     using exit_state_fn =
         function_ref<animated_values(const animated_values& initial, animation_properties properties)>;
 
-    struct transition_enter_config
+    struct animation_enter_config
     {
-        enter_state_fn setInitialState{};
+        enter_state_fn setInitialState;
         // When true the enter animation also runs if the parent appeared on the same frame.
         // The default skips the enter animation in that case, to avoid animating every
         // element of a freshly created list.
-        bool triggerOnFirstParentFrame{false};
+        bool triggerOnFirstParentFrame;
     };
 
-    struct transition_exit_config
+    struct animation_exit_config
     {
-        exit_state_fn setFinalState{};
+        exit_state_fn setFinalState;
     };
 
-    struct transition_config
+    struct animation_config
     {
         time duration;
         easing_function easing;
         animation_properties properties;
-        transition_enter_config enter{};
-        transition_exit_config exit{};
+        animation_enter_config enter;
+        animation_exit_config exit;
     };
 
     enum class layout_direction : u8
@@ -173,20 +173,19 @@ namespace oblo::ui
 
     struct container_descriptor
     {
+        layout_id elementId;
         layout_direction direction;
+
         sizing width;
         sizing height;
 
-        f32 child_gap;
-
         vec4 cornerRadius;
 
+        f32 childGap;
         padding padding;
 
-        layout_id elementId;
 
-        bool hasTransition;
-        transition_config transition;
+        animation_config animation;
     };
 
     constexpr u32 invalid_index = ~u32{};
@@ -225,7 +224,7 @@ namespace oblo::ui
     void begin_frame(layout_state& state, time dt);
     void end_frame(layout_state& state);
 
-    std::span<const layout_element> get_elements(const layout_state& state);
+    span<const layout_element> get_elements(const layout_state& state);
 
     void begin_container(layout_state& state, const container_descriptor& desc);
     void end_container(layout_state& state);
@@ -271,10 +270,9 @@ namespace oblo::ui
             return static_cast<container_builder&&>(*this);
         }
 
-        container_builder&& transition(const transition_config& config) &&
+        container_builder&& transition(const animation_config& config) &&
         {
-            m_desc.transition = config;
-            m_desc.hasTransition = true;
+            m_desc.animation = config;
             return static_cast<container_builder&&>(*this);
         }
 
@@ -286,7 +284,7 @@ namespace oblo::ui
 
         container_builder&& gap(f32 gap) &&
         {
-            m_desc.child_gap = gap;
+            m_desc.childGap = gap;
             return static_cast<container_builder&&>(*this);
         }
 

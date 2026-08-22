@@ -31,9 +31,9 @@ namespace oblo::ui
             return out;
         }
 
-        transition_config linear_config(time duration)
+        animation_config linear_config(time duration)
         {
-            transition_config config;
+            animation_config config;
             config.easing = easing_function::linear;
             config.duration = duration;
             config.properties = bounding_box_properties;
@@ -442,7 +442,7 @@ namespace oblo::ui
         destroy_state(state);
     }
 
-    TEST(ui_layout, child_gap_spaces_children)
+    TEST(ui_layout, childGap_spaces_children)
     {
         auto* const state = create_state();
         ASSERT_NE(state, nullptr);

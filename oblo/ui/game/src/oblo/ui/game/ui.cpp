@@ -24,7 +24,7 @@ namespace oblo::ui::game
         destroy_state(m_layout);
     }
 
-    void context::begin_frame(std::span<const input_event> events, time dt, vec2 layoutSize)
+    void context::begin_frame(span<const input_event> events, time dt, vec2 layoutSize)
     {
         m_rects.clear();
         m_texts.clear();
@@ -60,8 +60,8 @@ namespace oblo::ui::game
             }
         }
 
-        oblo::ui::begin_frame(*m_layout, dt);
-        oblo::ui::set_layout_size(*m_layout, layoutSize);
+        ui::begin_frame(*m_layout, dt);
+        ui::set_layout_size(*m_layout, layoutSize);
     }
 
     void context::end_frame()
@@ -71,14 +71,14 @@ namespace oblo::ui::game
         for (const auto& it : m_intents)
         {
             rect wr;
+
             if (!try_render_rect(it.id, wr))
             {
                 continue;
             }
 
-            const rect r = it.local.width < 0.f
-                ? wr
-                : rect{wr.x + it.local.x, wr.y + it.local.y, it.local.width, it.local.height};
+            const rect r =
+                it.local.width < 0.f ? wr : rect{wr.x + it.local.x, wr.y + it.local.y, it.local.width, it.local.height};
 
             if (it.hasText)
             {
@@ -92,22 +92,19 @@ namespace oblo::ui::game
 
         m_intents.clear();
 
-        m_prevElements.clear();
-        for (const auto& e : get_elements(*m_layout))
-        {
-            m_prevElements.push_back(e);
-        }
+        const std::span elements = get_elements(*m_layout);
+        m_prevElements.assign(elements.begin(), elements.end());
     }
 
-    vec2 context::measure(const char* text, f32 fontHeight) const
+    vec2 context::measure(string_view text, f32 fontHeight) const
     {
         if (m_measureText)
         {
             return m_measureText(text, fontHeight);
         }
 
-        const usize len = text ? std::strlen(text) : 0;
-        return {f32(len) * fontHeight * 0.5f, fontHeight};
+        const u32 len = text.size32();
+        return {.5f * f32(len) * fontHeight, fontHeight};
     }
 
     bool context::is_hovered(layout_id id) const
@@ -157,28 +154,27 @@ namespace oblo::ui::game
         return nullptr;
     }
 
-    void context::emit_rect(layout_id id, const color& fill, f32 cornerRadius, const rect& local)
+    void context::emit_rect(layout_id id, const color& fill, vec4 cornerRadius, const rect& local)
     {
-        draw_intent it;
-        it.id = id;
-        it.fill = fill;
-        it.cornerRadius = vec4::splat(cornerRadius);
-        it.hasText = false;
-        it.local = local;
-        m_intents.push_back(it);
+        m_intents.push_back({
+            .id = id,
+            .local = local,
+            .fill = fill,
+            .cornerRadius = cornerRadius,
+            .hasText = false,
+        });
     }
 
-    void context::emit_text(layout_id id, const char* text, const color& c, f32 fontHeight, const rect& local)
+    void context::emit_text(layout_id id, string_view text, const color& c, f32 fontHeight, const rect& local)
     {
-        draw_intent it;
-        it.id = id;
-        it.fill = {};
-        it.hasText = true;
-        it.text = text;
-        it.textColor = c;
-        it.fontHeight = fontHeight;
-        it.local = local;
-        m_intents.push_back(it);
+        m_intents.push_back({
+            .id = id,
+            .local = local,
+            .text = text,
+            .textColor = c,
+            .fontHeight = fontHeight,
+            .hasText = true,
+        });
     }
 
     bool context::try_render_rect(layout_id id, rect& out) const
@@ -208,7 +204,7 @@ namespace oblo::ui::game
         container_descriptor d = desc;
         d.elementId = id;
 
-        oblo::ui::begin_container(ctx.get_layout(), d);
+        ui::begin_container(ctx.get_layout(), d);
 
         panel_scope scope;
         scope.m_ctx = &ctx;
@@ -219,23 +215,24 @@ namespace oblo::ui::game
 
     panel_scope begin_panel(context& ctx, layout_id id, const panel_style& style)
     {
-        container_descriptor desc{};
-        desc.elementId = id;
-        desc.direction = style.direction;
-        desc.child_gap = style.gap;
-        desc.padding = style.padding;
-        desc.width = style.width;
-        desc.height = style.height;
-        desc.cornerRadius = vec4::splat(style.cornerRadius);
+        const container_descriptor desc{
+            .elementId = id,
+            .direction = style.direction,
+            .width = style.width,
+            .height = style.height,
+            .cornerRadius = vec4::splat(style.cornerRadius),
+            .childGap = style.gap,
+            .padding = style.padding,
+        };
 
         auto scope = begin_container(ctx, id, desc);
 
-        ctx.emit_rect(id, style.backgroundColor, style.cornerRadius);
+        ctx.emit_rect(id, style.backgroundColor, vec4::splat(style.cornerRadius));
 
         return scope;
     }
 
-    bool button(context& ctx, layout_id id, const char* label, const button_style& style)
+    bool button(context& ctx, layout_id id, string_view label, const button_style& style)
     {
         const vec2 textSize = ctx.measure(label, style.fontHeight);
 
@@ -247,24 +244,25 @@ namespace oblo::ui::game
 
         const color bg = active ? style.activeColor : (hovered ? style.hoverColor : style.idleColor);
 
-        container_descriptor desc{};
-        desc.elementId = id;
-        desc.direction = layout_direction::left_to_right;
-        desc.padding = style.padding;
-        desc.width = fixed_size(w);
-        desc.height = fixed_size(h);
-        desc.cornerRadius = vec4::splat(style.cornerRadius);
+        const container_descriptor desc{
+            .elementId = id,
+            .direction = layout_direction::left_to_right,
+            .width = fixed_size(w),
+            .height = fixed_size(h),
+            .cornerRadius = vec4::splat(style.cornerRadius),
+            .padding = style.padding,
+        };
 
-        oblo::ui::begin_container(ctx.get_layout(), desc);
-        oblo::ui::end_container(ctx.get_layout());
+        ui::begin_container(ctx.get_layout(), desc);
+        ui::end_container(ctx.get_layout());
 
-        ctx.emit_rect(id, bg, style.cornerRadius);
+        ctx.emit_rect(id, bg, vec4::splat(style.cornerRadius));
         ctx.emit_text(id, label, style.textColor, style.fontHeight);
 
         return ctx.was_clicked(id);
     }
 
-    void label(context& ctx, layout_id id, const char* text, const label_style& style)
+    void label(context& ctx, layout_id id, string_view text, const label_style& style)
     {
         const vec2 textSize = ctx.measure(text, style.fontHeight);
 
@@ -278,13 +276,13 @@ namespace oblo::ui::game
         desc.width = fixed_size(w);
         desc.height = fixed_size(h);
 
-        oblo::ui::begin_container(ctx.get_layout(), desc);
-        oblo::ui::end_container(ctx.get_layout());
+        ui::begin_container(ctx.get_layout(), desc);
+        ui::end_container(ctx.get_layout());
 
         ctx.emit_text(id, text, style.textColor, style.fontHeight);
     }
 
-    bool checkbox(context& ctx, layout_id id, bool& checked, const char* text, const checkbox_style& style)
+    bool checkbox(context& ctx, layout_id id, bool& checked, string_view text, const checkbox_style& style)
     {
         const vec2 textSize = ctx.measure(text, style.fontHeight);
 
@@ -303,18 +301,36 @@ namespace oblo::ui::game
         oblo::ui::begin_container(ctx.get_layout(), desc);
         oblo::ui::end_container(ctx.get_layout());
 
-        const f32 boxY = (h - style.boxSize) * 0.5f;
-        ctx.emit_rect(id, style.boxColor, style.cornerRadius, rect{style.padding.left, boxY, style.boxSize, style.boxSize});
+        const f32 boxY = (h - style.boxSize) * .5f;
+
+        ctx.emit_rect(id,
+            style.boxColor,
+            vec4::splat(style.cornerRadius),
+            rect{
+                style.padding.left,
+                boxY,
+                style.boxSize,
+                style.boxSize,
+            });
 
         if (checked)
         {
             const f32 inset = style.boxSize * 0.28f;
-            ctx.emit_rect(id, style.checkColor, style.cornerRadius * 0.5f,
-                rect{style.padding.left + inset, boxY + inset, style.boxSize - 2.f * inset, style.boxSize - 2.f * inset});
+
+            ctx.emit_rect(id,
+                style.checkColor,
+                vec4::splat(style.cornerRadius * .5f),
+                rect{
+                    style.padding.left + inset,
+                    boxY + inset,
+                    style.boxSize - 2.f * inset,
+                    style.boxSize - 2.f * inset,
+                });
         }
 
         const f32 textX = style.padding.left + style.boxSize + style.gap;
-        const f32 textY = (h - textSize.y) * 0.5f;
+        const f32 textY = (h - textSize.y) * .5f;
+
         ctx.emit_text(id, text, style.textColor, style.fontHeight, rect{textX, textY, textSize.x, textSize.y});
 
         if (ctx.was_clicked(id))
@@ -365,14 +381,16 @@ namespace oblo::ui::game
         const f32 trackH = h - style.padding.top - style.padding.bottom;
         const f32 trackY = style.padding.top;
 
-        ctx.emit_rect(id, style.trackColor, style.cornerRadius, rect{trackX, trackY, trackW, trackH});
+        const vec4 cornerRadius = vec4::splat(style.cornerRadius);
+
+        ctx.emit_rect(id, style.trackColor, cornerRadius, rect{trackX, trackY, trackW, trackH});
 
         const f32 fillW = trackW * t;
-        ctx.emit_rect(id, style.fillColor, style.cornerRadius, rect{trackX, trackY, fillW, trackH});
+        ctx.emit_rect(id, style.fillColor, cornerRadius, rect{trackX, trackY, fillW, trackH});
 
         const f32 handle = trackH;
-        const f32 handleX = trackX + trackW * t - handle * 0.5f;
-        ctx.emit_rect(id, style.handleColor, style.cornerRadius, rect{handleX, trackY, handle, trackH});
+        const f32 handleX = trackX + trackW * t - handle * .5f;
+        ctx.emit_rect(id, style.handleColor, cornerRadius, rect{handleX, trackY, handle, trackH});
 
         return value != oldValue;
     }

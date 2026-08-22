@@ -6,7 +6,7 @@
 namespace oblo::ui
 {
     struct rect;
-    struct transition_config;
+    struct animation_config;
     struct animated_values;
 
     class transition_store;

@@ -64,7 +64,7 @@ namespace oblo::ui
             layout_id parent,
             vec2 parentOrigin,
             const animated_values& target,
-            const transition_config& config);
+            const animation_config& config);
 
         // Returns the current interpolated values of an element, or nullptr if the element
         // was never declared or has already finished exiting.
@@ -116,7 +116,7 @@ namespace oblo::ui
         layout_id parent,
         vec2 parentOrigin,
         const animated_values& target,
-        const transition_config& config);
+        const animation_config& config);
 
     // Returns the current interpolated values of an element, or nullptr if the element is
     // not being animated.

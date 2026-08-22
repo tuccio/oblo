@@ -51,7 +51,7 @@ namespace oblo::ui::game
         }
     }
 
-    TEST(ui_game, emits_draw_commands)
+    TEST(ui_game, emits_draw_intents)
     {
         context ctx;
         ctx.set_measure_text(measure);

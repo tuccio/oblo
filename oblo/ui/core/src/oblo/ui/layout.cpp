@@ -57,6 +57,11 @@ namespace oblo::ui
             }
         }
 
+        bool has_animation(const animation_config& cfg)
+        {
+            return !cfg.properties.is_empty();
+        }
+
         void resolve_element(layout_state& state,
             u32 index,
             vec2 parentOrigin,
@@ -89,7 +94,7 @@ namespace oblo::ui
             element.targetRect = {pos.x, pos.y, size.x, size.y};
 
             // Feed the transition system, parents before children.
-            if (element.elementId != layout_id{} && desc.hasTransition)
+            if (element.elementId != layout_id{} && has_animation(desc.animation))
             {
                 animated_values target;
                 target.boundingBox = element.targetRect;
@@ -103,7 +108,7 @@ namespace oblo::ui
                     parentId,
                     element.targetRect.position(),
                     target,
-                    desc.transition);
+                    desc.animation);
             }
 
             // Position the children along this element's layout axis, inset by this
@@ -121,7 +126,7 @@ namespace oblo::ui
 
                 const vec2 childSize = elements[child].targetRect.size();
                 cursor +=
-                    (desc.direction == layout_direction::left_to_right ? childSize.x : childSize.y) + desc.child_gap;
+                    (desc.direction == layout_direction::left_to_right ? childSize.x : childSize.y) + desc.childGap;
             }
         }
 
@@ -328,7 +333,7 @@ namespace oblo::ui
 
         if (childCount > 1)
         {
-            main += (childCount - 1) * desc.child_gap;
+            main += (childCount - 1) * desc.childGap;
         }
 
         const f32 mainPadding = desc.direction == layout_direction::left_to_right
@@ -399,7 +404,7 @@ namespace oblo::ui
         layout_id parent,
         vec2 parentOrigin,
         const animated_values& target,
-        const transition_config& config)
+        const animation_config& config)
     {
         if (element == layout_id{})
         {
@@ -414,7 +419,7 @@ namespace oblo::ui
         return state.animations.try_get(element);
     }
 
-    std::span<const layout_element> get_elements(const layout_state& state)
+    span<const layout_element> get_elements(const layout_state& state)
     {
         return state.elements;
     }
@@ -505,7 +510,7 @@ namespace oblo::ui
         layout_id parent,
         vec2 parentOrigin,
         const animated_values& target,
-        const transition_config& config)
+        const animation_config& config)
     {
         const vec2 newRelativePosition = target.boundingBox.position() - parentOrigin;
 
@@ -702,12 +707,12 @@ namespace oblo::ui
         return record ? &record->current : nullptr;
     }
 
-    std::span<const transition_record> transition_store::records() const
+    span<const transition_record> transition_store::records() const
     {
         return m_records;
     }
 
-    std::span<transition_record> transition_store::records()
+    span<transition_record> transition_store::records()
     {
         return m_records;
     }
