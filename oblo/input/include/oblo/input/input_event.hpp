@@ -65,11 +65,15 @@ namespace oblo
     struct mouse_press
     {
         mouse_key key;
+        f32 x;
+        f32 y;
     };
 
     struct mouse_release
     {
         mouse_key key;
+        f32 x;
+        f32 y;
     };
 
     struct keyboard_press

@@ -117,7 +117,6 @@ namespace oblo::ui::game
 
         vec2 measure(string_view text, f32 fontHeight) const;
 
-        bool is_hovered(layout_id id) const;
         bool is_active(layout_id id) const;
         bool was_clicked(layout_id id) const;
 
@@ -136,13 +135,14 @@ namespace oblo::ui::game
     private:
         layout_state* m_layout{};
         vec2 m_mousePosition{};
-        bool m_mouseDown{};
-        bool m_pressedThisFrame{};
-        bool m_releasedThisFrame{};
+        vec2 m_leftClickPosition{};
+        bool m_mouseLeftDown{};
+        bool m_leftClickThisFrame{};
+        bool m_leftReleaseThisFrame{};
         measure_text_fn m_measureText{};
         dynamic_array<layout_element> m_prevElements;
         layout_id m_activeId{};
-        layout_id m_clickedThisFrame{};
+        layout_id m_leftClickedThisFrame{};
     };
 
     class panel_scope
@@ -154,33 +154,19 @@ namespace oblo::ui::game
         panel_scope& operator=(const panel_scope&) = delete;
         panel_scope& operator=(panel_scope&&) = delete;
 
-        panel_scope(panel_scope&& o) noexcept : m_ctx{o.m_ctx}, m_id{o.m_id}, m_hovered{o.m_hovered}
+        panel_scope(panel_scope&& o) noexcept : m_ctx{o.m_ctx}
         {
             o.m_ctx = nullptr;
         }
 
+        explicit panel_scope(context& ctx) noexcept : m_ctx{&ctx} {}
+
         ~panel_scope();
 
-        bool hovered() const
-        {
-            return m_hovered;
-        }
-
-        layout_id id() const
-        {
-            return m_id;
-        }
-
     private:
-        friend panel_scope begin_container(context& ctx, layout_id id, const container_descriptor& desc);
-        friend panel_scope begin_panel(context& ctx, layout_id id, const panel_style& style);
-
         context* m_ctx{};
-        layout_id m_id{};
-        bool m_hovered{};
     };
 
-    panel_scope begin_container(context& ctx, layout_id id, const container_descriptor& desc);
     panel_scope begin_panel(context& ctx, layout_id id, const panel_style& style = {});
 
     bool button(context& ctx, layout_id id, string_view label, const button_style& style = {});

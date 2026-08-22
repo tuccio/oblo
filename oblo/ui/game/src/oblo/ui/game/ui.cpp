@@ -16,9 +16,9 @@ namespace oblo::ui::game
 
     void context::begin_frame(span<const input_event> events, time dt, vec2 layoutSize)
     {
-        m_clickedThisFrame = layout_id{};
-        m_pressedThisFrame = false;
-        m_releasedThisFrame = false;
+        m_leftClickedThisFrame = layout_id{};
+        m_leftClickThisFrame = false;
+        m_leftReleaseThisFrame = false;
 
         for (const auto& e : events)
         {
@@ -30,15 +30,16 @@ namespace oblo::ui::game
             case input_event_kind::mouse_press:
                 if (e.mousePress.key == mouse_key::left)
                 {
-                    m_mouseDown = true;
-                    m_pressedThisFrame = true;
+                    m_mouseLeftDown = true;
+                    m_leftClickThisFrame = true;
+                    m_leftClickPosition = {e.mousePress.x, e.mousePress.y};
                 }
                 break;
             case input_event_kind::mouse_release:
                 if (e.mouseRelease.key == mouse_key::left)
                 {
-                    m_mouseDown = false;
-                    m_releasedThisFrame = true;
+                    m_mouseLeftDown = false;
+                    m_leftReleaseThisFrame = true;
                 }
                 break;
             default:
@@ -69,12 +70,6 @@ namespace oblo::ui::game
         return {.5f * f32(len) * fontHeight, fontHeight};
     }
 
-    bool context::is_hovered(layout_id id) const
-    {
-        const rect* const r = find_prev_rect(id);
-        return r != nullptr && r->contains(m_mousePosition);
-    }
-
     bool context::is_active(layout_id id) const
     {
         return m_activeId == id;
@@ -82,25 +77,27 @@ namespace oblo::ui::game
 
     bool context::begin_interaction(layout_id id)
     {
-        const bool hovered = is_hovered(id);
+        const rect* const r = find_prev_rect(id);
 
-        if (hovered && m_pressedThisFrame && m_activeId == layout_id{})
+        if (m_leftClickThisFrame && m_activeId == layout_id{} && r && r->contains(m_leftClickPosition))
         {
             m_activeId = id;
         }
 
-        if (m_releasedThisFrame && m_activeId == id)
+        if (m_leftReleaseThisFrame && m_activeId == id)
         {
-            m_clickedThisFrame = id;
+            m_leftClickedThisFrame = id;
             m_activeId = layout_id{};
         }
+
+        const bool hovered = r && r->contains(m_mousePosition);
 
         return hovered;
     }
 
     bool context::was_clicked(layout_id id) const
     {
-        return m_clickedThisFrame == id;
+        return m_leftClickedThisFrame == id;
     }
 
     const rect* context::find_prev_rect(layout_id id) const
@@ -138,20 +135,6 @@ namespace oblo::ui::game
         }
     }
 
-    panel_scope begin_container(context& ctx, layout_id id, const container_descriptor& desc)
-    {
-        container_descriptor d = desc;
-        d.elementId = id;
-
-        ui::begin_container(ctx.get_layout(), d);
-
-        panel_scope scope;
-        scope.m_ctx = &ctx;
-        scope.m_id = id;
-        scope.m_hovered = ctx.is_hovered(id);
-        return scope;
-    }
-
     panel_scope begin_panel(context& ctx, layout_id id, const panel_style& style)
     {
         const container_descriptor desc{
@@ -165,7 +148,9 @@ namespace oblo::ui::game
             .padding = style.padding,
         };
 
-        return begin_container(ctx, id, desc);
+        ui::begin_container(ctx.get_layout(), desc);
+
+        return panel_scope{ctx};
     }
 
     bool button(context& ctx, layout_id id, string_view label, const button_style& style)

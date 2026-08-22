@@ -565,6 +565,8 @@ namespace oblo
                         .mousePress =
                             {
                                 .key = win32_map_mouse_key(VK_LBUTTON),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;
@@ -576,6 +578,8 @@ namespace oblo
                         .mouseRelease =
                             {
                                 .key = win32_map_mouse_key(VK_LBUTTON),
+                                .x = f32(GET_X_LPARAM(msg.lParam)),
+                                .y = f32(GET_Y_LPARAM(msg.lParam)),
                             },
                     });
                     break;
