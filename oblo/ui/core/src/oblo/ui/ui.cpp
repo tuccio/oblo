@@ -1,4 +1,4 @@
-#include <oblo/ui/game/ui.hpp>
+#include <oblo/ui/ui.hpp>
 
 #include <oblo/core/algorithm/fill.hpp>
 #include <oblo/core/utility.hpp>

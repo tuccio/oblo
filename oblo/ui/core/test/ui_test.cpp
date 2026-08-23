@@ -1,4 +1,4 @@
-#include <oblo/ui/game/ui.hpp>
+#include <oblo/ui/ui.hpp>
 
 #include <oblo/input/input_event.hpp>
 

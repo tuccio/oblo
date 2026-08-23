@@ -7,7 +7,7 @@
 #include <oblo/math/vec2.hpp>
 #include <oblo/renderer/graph/frame_graph_registry.hpp>
 #include <oblo/renderer/graph/frame_graph_template.hpp>
-#include <oblo/ui/game/ui.hpp>
+#include <oblo/ui/ui.hpp>
 
 #include <ui_layout_render_node.hpp>
 

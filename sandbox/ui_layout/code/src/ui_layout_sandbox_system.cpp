@@ -17,7 +17,7 @@
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
 #include <oblo/renderer/renderer.hpp>
-#include <oblo/ui/game/ui.hpp>
+#include <oblo/ui/ui.hpp>
 
 #include <span>
 
