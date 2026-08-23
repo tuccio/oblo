@@ -353,13 +353,23 @@ namespace oblo::ui
             return nullptr;
         }
 
-        return new (memory) layout_state{};
+        layout_state* const state = new (memory) layout_state{};
+
+        if (!state->fonts.init())
+        {
+            destroy_state(state);
+            return nullptr;
+        }
+
+        return state;
     }
 
     void destroy_state(layout_state* state)
     {
         if (state)
         {
+            state->fonts.shutdown();
+
             state->~layout_state();
 
             allocator* const allocator = get_global_allocator();

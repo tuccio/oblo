@@ -32,6 +32,7 @@ namespace oblo
             m_renderer->get_frame_graph().remove(m_graph);
         }
 
+        m_ui.shutdown();
         m_app.shutdown();
     }
 
@@ -43,7 +44,7 @@ namespace oblo
         m_nodeRegistry.register_node<ui_layout_render_node>();
         m_graphTemplate = ui_layout_view::create(m_nodeRegistry);
 
-        if (!m_app.init({.title = "UI Layout Sandbox", .windowWidth = 1280, .windowHeight = 720}))
+        if (!m_app.init({.title = "UI Layout Sandbox", .windowWidth = 1280, .windowHeight = 720}) || !m_ui.init())
         {
             log::error("Failed to create the UI Layout sandbox window");
             return;

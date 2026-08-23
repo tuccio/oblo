@@ -14,8 +14,7 @@ namespace oblo::ui
     bool context::init()
     {
         m_layout = create_state();
-
-        return false;
+        return m_layout != nullptr;
     }
 
     void context::shutdown()

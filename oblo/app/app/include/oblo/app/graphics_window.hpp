@@ -97,7 +97,7 @@ namespace oblo
     private:
         void* m_impl{};
         graphics_window_context* m_graphicsContext{};
-        input_queue* m_inputQueue;
+        input_queue* m_inputQueue{};
         hit_test_fn m_hitTest{};
     };
 }
