@@ -64,7 +64,6 @@ namespace oblo
     void ui_layout_sandbox_system::update(const ecs::system_update_context& ctx)
     {
         using namespace oblo::ui;
-        using namespace oblo::ui::game;
 
         if (!m_active)
         {

@@ -6,4 +6,5 @@ target_link_libraries(
     oblo_ui_core
     PUBLIC
     oblo::core
+    oblo::input
 )

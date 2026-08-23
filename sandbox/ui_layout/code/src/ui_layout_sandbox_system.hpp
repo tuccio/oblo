@@ -40,7 +40,7 @@ namespace oblo
         h32<frame_graph_subgraph> m_graph{};
         dynamic_array<ui_layout_element_gpu> m_elements;
 
-        ui::game::context m_ui;
+        ui::context m_ui;
         input_queue m_inputQueue;
 
         bool m_sidebarChecked[6]{};

@@ -3,7 +3,7 @@
 #include <oblo/core/algorithm/fill.hpp>
 #include <oblo/core/utility.hpp>
 
-namespace oblo::ui::game
+namespace oblo::ui
 {
     context::context()
     {

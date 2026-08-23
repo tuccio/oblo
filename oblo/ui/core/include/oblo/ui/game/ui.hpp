@@ -5,13 +5,13 @@
 #include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/time/time.hpp>
-#include <oblo/input/input_event.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/ui/forward.hpp>
 #include <oblo/ui/layout.hpp>
+#include <oblo/input/input_event.hpp>
 
-namespace oblo::ui::game
+namespace oblo::ui
 {
     struct draw_rect
     {

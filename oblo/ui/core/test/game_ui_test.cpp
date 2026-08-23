@@ -1,10 +1,12 @@
 #include <oblo/ui/game/ui.hpp>
 
+#include <oblo/input/input_event.hpp>
+
 #include <gtest/gtest.h>
 
 #include <cstring>
 
-namespace oblo::ui::game
+namespace oblo::ui
 {
     namespace
     {
