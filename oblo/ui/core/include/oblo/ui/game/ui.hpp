@@ -1,18 +1,22 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
-#include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/handle_flat_pool_map.hpp>
 #include <oblo/core/span.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/time/time.hpp>
+#include <oblo/input/input_event.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/ui/forward.hpp>
 #include <oblo/ui/layout.hpp>
-#include <oblo/input/input_event.hpp>
 
 namespace oblo::ui
 {
+    struct font;
+    using font_id = h16<font>;
+
     struct draw_rect
     {
         rect bounds;
@@ -28,7 +32,6 @@ namespace oblo::ui
         string_view text;
     };
 
-    using measure_text_fn = function_ref<vec2(string_view text, f32 fontHeight)>;
     struct draw_intent
     {
         layout_id id;
@@ -48,6 +51,7 @@ namespace oblo::ui
         padding padding{8.f, 8.f, 8.f, 8.f};
         layout_direction direction{layout_direction::top_to_bottom};
         f32 gap{4.f};
+
         sizing width{fit_size()};
         sizing height{fit_size()};
     };
@@ -60,14 +64,24 @@ namespace oblo::ui
         color textColor{1.f, 1.f, 1.f, 1.f};
         f32 cornerRadius{4.f};
         padding padding{10.f, 10.f, 6.f, 6.f};
-        f32 fontHeight{16.f};
+
+        sizing width{fit_size()};
+        sizing height{fit_size()};
+
+        font_id font{};
+        f32 fontSize{};
     };
 
     struct label_style
     {
         color textColor{1.f, 1.f, 1.f, 1.f};
-        f32 fontHeight{16.f};
         padding padding{2.f, 2.f, 2.f, 2.f};
+
+        sizing width{fit_size()};
+        sizing height{fit_size()};
+
+        font_id font{};
+        f32 fontSize{};
     };
 
     struct checkbox_style
@@ -78,8 +92,10 @@ namespace oblo::ui
         f32 cornerRadius{3.f};
         f32 boxSize{18.f};
         f32 gap{8.f};
-        f32 fontHeight{16.f};
         padding padding{4.f, 4.f, 4.f, 4.f};
+
+        font_id font{};
+        u16 fontSize{};
     };
 
     struct slider_style
@@ -94,13 +110,16 @@ namespace oblo::ui
     class context
     {
     public:
-        context();
+        context() = default;
+        context(const context&) = delete;
+        context(context&&) noexcept = delete;
         ~context();
 
-        void set_measure_text(measure_text_fn fn)
-        {
-            m_measureText = fn;
-        }
+        context& operator=(const context&) = delete;
+        context& operator=(context&&) noexcept = delete;
+
+        bool init();
+        void shutdown();
 
         void begin_frame(span<const input_event> events, time dt, vec2 layoutSize);
         void end_frame();
@@ -115,7 +134,8 @@ namespace oblo::ui
             return get_elements(*m_layout);
         }
 
-        vec2 measure(string_view text, f32 fontHeight) const;
+        font_id create_font(string_view path);
+        const font* resolve_font_or_default(font_id id);
 
         bool is_active(layout_id id) const;
         bool is_hovered(layout_id id) const;
@@ -146,21 +166,35 @@ namespace oblo::ui
             return m_mouseDown.contains(key);
         }
 
+        void push_font(font_id font)
+        {
+            m_fontStack.push_back(font);
+        }
+
+        void pop_font()
+        {
+            m_fontStack.pop_back();
+        }
+
+    private:
+        struct freetype_lib;
+
     private:
         bool try_render_rect(layout_id id, rect& out) const;
 
     private:
+        freetype_lib* m_freetype{};
         layout_state* m_layout{};
         vec2 m_mousePosition{};
         vec2 m_mouseClickPosition[u32(mouse_key::enum_max)]{};
         flags<mouse_key> m_mouseDown{};
         flags<mouse_key> m_clickedThisFrame{};
         flags<mouse_key> m_releasedThisFrame{};
-        measure_text_fn m_measureText{};
         layout_id m_hoveredId{};
         layout_id m_pressedId{};
         layout_id m_activeId{};
         layout_id m_itemClickedThisFrame[u32(mouse_key::enum_max)]{};
+        dynamic_array<font_id> m_fontStack;
     };
 
     class panel_scope
@@ -187,9 +221,9 @@ namespace oblo::ui
 
     panel_scope begin_panel(context& ctx, layout_id id, const panel_style& style = {});
 
-    bool button(context& ctx, layout_id id, string_view label, const button_style& style = {});
+    bool button(context& ctx, layout_id id, hashed_string_view text, const button_style& style = {});
 
-    void label(context& ctx, layout_id id, string_view text, const label_style& style = {});
+    void label(context& ctx, layout_id id, hashed_string_view text, const label_style& style = {});
 
-    bool checkbox(context& ctx, layout_id id, bool& checked, string_view text, const checkbox_style& style = {});
+    bool checkbox(context& ctx, layout_id id, bool& checked, hashed_string_view text, const checkbox_style& style = {});
 }

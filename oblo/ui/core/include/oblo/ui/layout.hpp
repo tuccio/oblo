@@ -3,6 +3,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/span.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/time/time.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/math/vec2.hpp>
@@ -11,6 +12,8 @@
 
 namespace oblo::ui
 {
+    struct font;
+
     struct color
     {
         f32 r;
@@ -230,6 +233,17 @@ namespace oblo::ui
         animation_config animation;
     };
 
+    struct text_descriptor
+    {
+        layout_id elementId;
+
+        hashed_string_view text;
+
+        const font* font;
+
+        color color;
+    };
+
     constexpr u32 invalid_index = ~u32{};
 
     struct layout_element
@@ -294,6 +308,8 @@ namespace oblo::ui
 
     void begin_container(layout_state& state, const container_descriptor& desc);
     void end_container(layout_state& state);
+
+    void add_text(layout_state& state, const text_descriptor& desc);
 
     class container_scope
     {

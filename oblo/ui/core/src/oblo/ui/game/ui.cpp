@@ -2,17 +2,52 @@
 
 #include <oblo/core/algorithm/fill.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/ui/font.hpp>
+
+#include <freetype/freetype.h>
 
 namespace oblo::ui
 {
-    context::context()
+    namespace
     {
-        m_layout = create_state();
+        template <typename T>
+        FT_Library to_freetype(T* freetype)
+        {
+            return std::bit_cast<FT_Library>(freetype);
+        }
     }
 
     context::~context()
     {
-        destroy_state(m_layout);
+        shutdown();
+    }
+
+    bool context::init()
+    {
+        FT_Library freetype;
+
+        if (FT_Init_FreeType(&freetype))
+        {
+            return false;
+        }
+
+        m_freetype = std::bit_cast<freetype_lib*>(freetype);
+        m_layout = create_state();
+
+        return false;
+    }
+
+    void context::shutdown()
+    {
+        if (m_layout)
+        {
+            destroy_state(m_layout);
+        }
+
+        if (m_freetype)
+        {
+            FT_Done_FreeType(to_freetype(m_freetype));
+        }
     }
 
     void context::begin_frame(span<const input_event> events, time dt, vec2 layoutSize)
@@ -52,15 +87,12 @@ namespace oblo::ui
         ui::set_layout_size(*m_layout, layoutSize);
 
         // Resolve input once per frame against the previous frame's resolved geometry.
-        // hit_test returns the topmost element, so clicks can't fall through to elements
-        // drawn underneath, and each widget just compares its id (O(1) per widget).
+        // hit_test returns the topmost element, so clicks can only hit those.
         m_hoveredId = ui::hit_test(*m_layout, m_mousePosition);
         m_pressedId = mouse_clicked_this_frame(mouse_key::left)
             ? ui::hit_test(*m_layout, mouse_click_position(mouse_key::left))
             : layout_id{};
 
-        // Only the topmost element under the click can become active, preventing clicks
-        // from leaking to elements drawn underneath it.
         if (mouse_clicked_this_frame(mouse_key::left) && m_activeId == layout_id{} && m_pressedId != layout_id{})
         {
             m_activeId = m_pressedId;
@@ -78,17 +110,6 @@ namespace oblo::ui
         ui::end_frame(*m_layout);
     }
 
-    vec2 context::measure(string_view text, f32 fontHeight) const
-    {
-        if (m_measureText)
-        {
-            return m_measureText(text, fontHeight);
-        }
-
-        const u32 len = text.size32();
-        return {.5f * f32(len) * fontHeight, fontHeight};
-    }
-
     bool context::is_active(layout_id id) const
     {
         return m_activeId == id;
@@ -102,6 +123,16 @@ namespace oblo::ui
     bool context::was_clicked(layout_id id) const
     {
         return m_itemClickedThisFrame[u32(mouse_key::left)] == id;
+    }
+
+    const font* context::resolve_font_or_default(font_id id)
+    {
+        if (id)
+        {
+            return m_fonts.try_find(id);
+        }
+
+        return m_fontStack.empty() ? nullptr : resolve_font_or_default(m_fontStack.front());
     }
 
     bool context::try_render_rect(layout_id id, rect& out) const
@@ -144,13 +175,8 @@ namespace oblo::ui
         return panel_scope{ctx};
     }
 
-    bool button(context& ctx, layout_id id, string_view label, const button_style& style)
+    bool button(context& ctx, layout_id id, hashed_string_view label, const button_style& style)
     {
-        const vec2 textSize = ctx.measure(label, style.fontHeight);
-
-        const f32 w = textSize.x + style.padding.left + style.padding.right;
-        const f32 h = max(textSize.y, style.fontHeight) + style.padding.top + style.padding.bottom;
-
         const bool active = ctx.is_active(id);
 
         const bool hovered = ctx.is_hovered(id);
@@ -159,38 +185,62 @@ namespace oblo::ui
         const container_descriptor desc{
             .elementId = id,
             .direction = layout_direction::left_to_right,
-            .width = fixed_size(w),
-            .height = fixed_size(h),
+            .width = style.width,
+            .height = style.height,
             .backgroundColor = bg,
             .cornerRadius = vec4::splat(style.cornerRadius),
             .padding = style.padding,
         };
 
         ui::begin_container(ctx.get_layout(), desc);
+
+        const font* font = ctx.resolve_font_or_default(style.font);
+        OBLO_ASSERT_ONCE(font);
+
+        if (font)
+        {
+            add_text(ctx.get_layout(),
+                {
+                    .text = label,
+                    .font = font,
+                    .color = style.textColor,
+                });
+        }
+
         ui::end_container(ctx.get_layout());
 
         return ctx.was_clicked(id);
     }
 
-    void label(context& ctx, layout_id id, string_view text, const label_style& style)
+    void label(context& ctx, layout_id id, hashed_string_view text, const label_style& style)
     {
-        const vec2 textSize = ctx.measure(text, style.fontHeight);
-
-        const f32 w = textSize.x + style.padding.left + style.padding.right;
-        const f32 h = textSize.y + style.padding.top + style.padding.bottom;
-
-        container_descriptor desc{};
-        desc.elementId = id;
-        desc.direction = layout_direction::left_to_right;
-        desc.padding = style.padding;
-        desc.width = fixed_size(w);
-        desc.height = fixed_size(h);
+        const container_descriptor desc{
+            .elementId = id,
+            .direction = layout_direction::left_to_right,
+            .width = style.width,
+            .height = style.height,
+            .padding = style.padding,
+        };
 
         ui::begin_container(ctx.get_layout(), desc);
+
+        const font* font = ctx.resolve_font_or_default(style.font);
+        OBLO_ASSERT_ONCE(font);
+
+        if (font)
+        {
+            add_text(ctx.get_layout(),
+                {
+                    .text = text,
+                    .font = font,
+                    .color = style.textColor,
+                });
+        }
+
         ui::end_container(ctx.get_layout());
     }
 
-    bool checkbox(context& ctx, layout_id id, bool& checked, string_view text, const checkbox_style& style)
+    bool checkbox(context& ctx, layout_id id, bool& checked, hashed_string_view text, const checkbox_style& style)
     {
         const auto container = container_builder{}.width(fit_size()).height(fit_size()).build(ctx.get_layout());
 
@@ -213,11 +263,18 @@ namespace oblo::ui
             }
         }
 
-        // TODO: Add test instead of filler
-        const auto textFillerBox = container_builder{}
-                                       .width(fixed_size(f32(text.size32()) * .5f * style.fontHeight))
-                                       .height(fixed_size(style.fontHeight))
-                                       .build(ctx.get_layout());
+        const font* font = ctx.resolve_font_or_default(style.font);
+        OBLO_ASSERT_ONCE(font);
+
+        if (font)
+        {
+            add_text(ctx.get_layout(),
+                {
+                    .text = text,
+                    .font = font,
+                    .color = style.textColor,
+                });
+        }
 
         const bool wasClicked = ctx.was_clicked(id);
 

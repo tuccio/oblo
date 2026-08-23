@@ -10,11 +10,6 @@ namespace oblo::ui
 {
     namespace
     {
-        vec2 measure(const char* text, f32 fontHeight)
-        {
-            return {f32(std::strlen(text)) * fontHeight * 0.5f, fontHeight};
-        }
-
         const rect* rect_of(const context& ctx, layout_id id)
         {
             for (const auto& e : ctx.get_layout_elements())
@@ -56,7 +51,6 @@ namespace oblo::ui
     TEST(ui_game, button_click)
     {
         context ctx;
-        ctx.set_measure_text(measure);
 
         const vec2 layoutSize{800, 600};
 
@@ -93,7 +87,6 @@ namespace oblo::ui
     TEST(ui_game, button_ignores_release_outside)
     {
         context ctx;
-        ctx.set_measure_text(measure);
 
         const vec2 layoutSize{800, 600};
 
@@ -130,7 +123,6 @@ namespace oblo::ui
     TEST(ui_game, checkbox_toggle)
     {
         context ctx;
-        ctx.set_measure_text(measure);
 
         const vec2 layoutSize{800, 600};
 
@@ -171,7 +163,6 @@ namespace oblo::ui
     TEST(ui_game, click_within_single_frame)
     {
         context ctx;
-        ctx.set_measure_text(measure);
 
         const vec2 layoutSize{800, 600};
 

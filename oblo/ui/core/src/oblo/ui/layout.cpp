@@ -123,7 +123,8 @@ namespace oblo::ui
             // Resolve each child's final size against this element's inner size. Percentage
             // children are still 0 in targetRect at this point (they get expanded later, in
             // resolve_element), so they must be resolved here to measure and align correctly.
-            auto resolve_child_size = [&](u32 child) -> vec2 {
+            auto resolve_child_size = [&](u32 child) -> vec2
+            {
                 const auto& cd = elements[child].desc;
                 return {resolve_axis_size(cd.width, elements[child].contentSize.x, inner_size.x),
                     resolve_axis_size(cd.height, elements[child].contentSize.y, inner_size.y)};
@@ -569,7 +570,7 @@ namespace oblo::ui
         {
             const auto& e = state.previousElements[i];
 
-            if (e.elementId == layout_id{})
+            if (!e.elementId)
             {
                 continue;
             }
