@@ -3,9 +3,14 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/string/cstring_view.hpp>
+#include <oblo/core/string/hashed_string_view.hpp>
+#include <oblo/core/string/utf.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/constants.hpp>
 #include <oblo/math/float.hpp>
+#include <oblo/ui/font.hpp>
+
+#include <freetype/freetype.h>
 
 #include <cmath>
 #include <limits>
@@ -61,6 +66,59 @@ namespace oblo::ui
         bool has_animation(const animation_config& cfg)
         {
             return !cfg.properties.is_empty();
+        }
+
+        // Measures a string using the glyph cache, returning its (width, height) in pixels.
+        // Width is the sum of the glyph advances; height is the font's line height at the
+        // requested size. Similar in spirit to Clay's text measurement callback.
+        vec2 measure_text(font_cache& fonts, font_id font, u16 fontSize, const hashed_string_view& text)
+        {
+            FT_Face face = fonts.find_font(font);
+
+            if (!face)
+            {
+                return {};
+            }
+
+            f32 width = 0.f;
+            f32 height = 0.f;
+
+            bool anyGlyph = false;
+
+            for (const char *it = text.data(), *end = text.data() + text.size(); it != end;)
+            {
+                const FT_ULong codepoint = utf8_next_codepoint(&it);
+
+                const FT_UInt glyphIndex = FT_Get_Char_Index(face, codepoint);
+
+                if (glyphIndex == 0)
+                {
+                    continue;
+                }
+
+                const auto glyph = fonts.get_or_add_glyph({font, fontSize, glyphIndex}, face);
+
+                if (!glyph)
+                {
+                    continue;
+                }
+
+                if (!anyGlyph)
+                {
+                    height = f32(face->size->metrics.height >> 6);
+                    anyGlyph = true;
+                }
+
+                width += glyph->advanceX;
+            }
+
+            if (!anyGlyph)
+            {
+                FT_Set_Pixel_Sizes(face, 0, fontSize);
+                height = f32(face->size->metrics.height >> 6);
+            }
+
+            return {width, height};
         }
 
         void resolve_element(layout_state& state,
@@ -488,9 +546,52 @@ namespace oblo::ui
 
     void add_text(layout_state& state, const text_descriptor& desc)
     {
-        // TODO
-        (void) state;
-        (void) desc;
+        auto& elements = state.elements;
+
+        const u32 parentIndex =
+            state.openContainerIdxStack.empty() ? invalid_index : state.openContainerIdxStack.back();
+
+        const u32 index = u32(elements.size());
+
+        auto& element = elements.push_back_default();
+
+        // A text element is a leaf in the layout tree. It carries its own measured size
+        // and is linked into the current open container like any other child.
+        element.kind = layout_element_kind::text;
+        element.elementId = desc.elementId;
+        element.parentIndex = parentIndex;
+        element.text = desc.text;
+        element.font = desc.font;
+        element.fontSize = desc.fontSize;
+        element.textColor = desc.color;
+
+        // The descriptor is used by the solver to size/position this leaf. Text is fit by
+        // default: it sizes to the measured glyph extents along both axes.
+        element.desc.elementId = desc.elementId;
+        element.desc.direction = layout_direction::left_to_right;
+        element.desc.width = fit_size();
+        element.desc.height = fit_size();
+
+        const vec2 measured = measure_text(state.fonts, desc.font, desc.fontSize, desc.text);
+
+        element.contentSize = measured;
+        element.targetRect = {0.f, 0.f, measured.x, measured.y};
+
+        if (parentIndex != invalid_index)
+        {
+            auto& parent = elements[parentIndex];
+
+            if (parent.firstChild == invalid_index)
+            {
+                parent.firstChild = index;
+            }
+            else
+            {
+                elements[parent.lastChild].nextSibling = index;
+            }
+
+            parent.lastChild = index;
+        }
     }
 
     void set_layout_size(layout_state& state, vec2 size)

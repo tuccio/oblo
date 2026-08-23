@@ -1,11 +1,20 @@
 #include <oblo/ui/ui.hpp>
 
+#include <oblo/ui/embedded/Archivo-Regular.ttf.h>
+
 #include <oblo/core/algorithm/fill.hpp>
 #include <oblo/core/utility.hpp>
-#include <oblo/ui/font.hpp>
 
 namespace oblo::ui
 {
+    namespace
+    {
+        font_state resolve_font(const context& ctx, font_id id, u16 size)
+        {
+            return id ? font_state{id, size} : ctx.get_current_font();
+        }
+    }
+
     context::~context()
     {
         shutdown();
@@ -14,6 +23,22 @@ namespace oblo::ui
     bool context::init()
     {
         m_layout = create_state();
+
+        if (m_layout)
+        {
+            const expected<font_id> defaultFont = load_font_from_memory(*m_layout, as_bytes(span{Archivo_Regular_ttf}));
+
+            if (!defaultFont)
+            {
+                destroy_state(m_layout);
+                m_layout = nullptr;
+                return false;
+            }
+
+            constexpr u16 defaultFontSize = 14;
+            push_font(*defaultFont, defaultFontSize);
+        }
+
         return m_layout != nullptr;
     }
 
@@ -22,6 +47,7 @@ namespace oblo::ui
         if (m_layout)
         {
             destroy_state(m_layout);
+            m_layout = nullptr;
         }
     }
 
@@ -159,12 +185,14 @@ namespace oblo::ui
 
         ui::begin_container(ctx.get_layout(), desc);
 
+        const font_state currentFont = resolve_font(ctx, style.font, style.fontSize);
+
         add_text(ctx.get_layout(),
             {
                 .text = label,
                 .color = style.textColor,
-                .font = style.font,
-                .fontSize = style.fontSize,
+                .font = currentFont.font,
+                .fontSize = currentFont.fontSize,
             });
 
         ui::end_container(ctx.get_layout());
@@ -184,12 +212,14 @@ namespace oblo::ui
 
         ui::begin_container(ctx.get_layout(), desc);
 
+        const font_state currentFont = resolve_font(ctx, style.font, style.fontSize);
+
         add_text(ctx.get_layout(),
             {
                 .text = text,
                 .color = style.textColor,
-                .font = style.font,
-                .fontSize = style.fontSize,
+                .font = currentFont.font,
+                .fontSize = currentFont.fontSize,
             });
 
         ui::end_container(ctx.get_layout());
@@ -218,12 +248,14 @@ namespace oblo::ui
             }
         }
 
+        const font_state currentFont = resolve_font(ctx, style.font, style.fontSize);
+
         add_text(ctx.get_layout(),
             {
                 .text = text,
                 .color = style.textColor,
-                .font = style.font,
-                .fontSize = style.fontSize,
+                .font = currentFont.font,
+                .fontSize = currentFont.fontSize,
             });
 
         const bool wasClicked = ctx.was_clicked(id);

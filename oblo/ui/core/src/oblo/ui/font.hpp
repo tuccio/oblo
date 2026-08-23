@@ -54,6 +54,7 @@ namespace oblo::ui
     struct font
     {
         FT_Face face{};
+        u32 currentPixelSize{0};
     };
 
     struct font_cache
@@ -86,6 +87,14 @@ namespace oblo::ui
 
             if (inserted)
             {
+                font& f = fonts[ref.font.value - 1];
+
+                if (f.currentPixelSize != ref.size)
+                {
+                    FT_Set_Pixel_Sizes(face, 0, ref.size);
+                    f.currentPixelSize = ref.size;
+                }
+
                 const FT_Error error = FT_Load_Glyph(face, ref.glyphIndex, FT_LOAD_NO_BITMAP);
 
                 if (error)

@@ -342,7 +342,7 @@ namespace oblo
         constexpr T* operator->() const noexcept
         {
             OBLO_ASSERT(has_value())
-            return base::operator->();
+            return *base::operator->();
         }
 
         constexpr T& value_or(T& fallback) const noexcept

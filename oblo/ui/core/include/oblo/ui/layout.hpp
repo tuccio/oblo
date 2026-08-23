@@ -134,6 +134,12 @@ namespace oblo::ui
         top_to_bottom,
     };
 
+    enum class layout_element_kind : u8
+    {
+        container,
+        text,
+    };
+
     enum class alignment_x : u8
     {
         left,
@@ -253,6 +259,14 @@ namespace oblo::ui
     {
         container_descriptor desc{};
 
+        layout_element_kind kind{layout_element_kind::container};
+
+        // Text-only data, valid when kind == layout_element_kind::text.
+        hashed_string_view text{};
+        font_id font{};
+        u16 fontSize{};
+        color textColor{};
+
         layout_id elementId{};
 
         rect targetRect{};
@@ -296,6 +310,8 @@ namespace oblo::ui
 
     expected<font_id> load_font_from_file(layout_state& state, cstring_view path);
     expected<font_id> load_font_from_memory(layout_state& state, span<const byte> data);
+
+    expected<font_id> load_default_font(layout_state& state);
 
     void set_layout_size(layout_state& state, vec2 size);
 

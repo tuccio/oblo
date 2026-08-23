@@ -107,6 +107,12 @@ namespace oblo::ui
         padding padding{4.f, 4.f, 4.f, 4.f};
     };
 
+    struct font_state
+    {
+        font_id font;
+        u16 fontSize;
+    };
+
     class context
     {
     public:
@@ -163,14 +169,19 @@ namespace oblo::ui
             return m_mouseDown.contains(key);
         }
 
-        void push_font(font_id font)
+        void push_font(font_id font, u16 fontSize)
         {
-            m_fontStack.push_back(font);
+            m_fontStack.emplace_back(font, fontSize);
         }
 
         void pop_font()
         {
             m_fontStack.pop_back();
+        }
+
+        font_state get_current_font() const
+        {
+            return m_fontStack.empty() ? font_state{} : m_fontStack.back();
         }
 
     private:
@@ -187,7 +198,7 @@ namespace oblo::ui
         layout_id m_pressedId{};
         layout_id m_activeId{};
         layout_id m_itemClickedThisFrame[u32(mouse_key::enum_max)]{};
-        dynamic_array<font_id> m_fontStack;
+        dynamic_array<font_state> m_fontStack;
     };
 
     class panel_scope
