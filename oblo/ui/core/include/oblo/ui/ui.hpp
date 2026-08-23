@@ -69,7 +69,7 @@ namespace oblo::ui
         sizing height{fit_size()};
 
         font_id font{};
-        f32 fontSize{};
+        u16 fontSize{};
     };
 
     struct label_style
@@ -81,7 +81,7 @@ namespace oblo::ui
         sizing height{fit_size()};
 
         font_id font{};
-        f32 fontSize{};
+        u16 fontSize{};
     };
 
     struct checkbox_style
@@ -134,9 +134,6 @@ namespace oblo::ui
             return get_elements(*m_layout);
         }
 
-        font_id create_font(string_view path);
-        const font* resolve_font_or_default(font_id id);
-
         bool is_active(layout_id id) const;
         bool is_hovered(layout_id id) const;
         bool was_clicked(layout_id id) const;
@@ -177,13 +174,9 @@ namespace oblo::ui
         }
 
     private:
-        struct freetype_lib;
-
-    private:
         bool try_render_rect(layout_id id, rect& out) const;
 
     private:
-        freetype_lib* m_freetype{};
         layout_state* m_layout{};
         vec2 m_mousePosition{};
         vec2 m_mouseClickPosition[u32(mouse_key::enum_max)]{};

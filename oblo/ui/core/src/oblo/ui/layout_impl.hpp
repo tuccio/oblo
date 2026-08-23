@@ -4,6 +4,7 @@
 #include <oblo/core/hash.hpp>
 #include <oblo/core/time/time.hpp>
 #include <oblo/core/unordered_map.hpp>
+#include <oblo/ui/font.hpp>
 #include <oblo/ui/layout.hpp>
 
 namespace oblo::ui
@@ -111,6 +112,8 @@ namespace oblo::ui
 
         // Maps an element id to its index in previousElements for O(1) rect lookups.
         unordered_map<layout_id, u32> previousElementIndex;
+
+        font_cache fonts;
 
         vec2 layoutSize{};
     };

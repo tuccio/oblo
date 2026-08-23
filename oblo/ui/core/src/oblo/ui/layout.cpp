@@ -2,6 +2,7 @@
 #include <oblo/ui/layout_impl.hpp>
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/constants.hpp>
 #include <oblo/math/float.hpp>
@@ -366,6 +367,16 @@ namespace oblo::ui
         }
     }
 
+    expected<font_id> load_font_from_file(layout_state& state, cstring_view path)
+    {
+        return state.fonts.load_font_from_file(path);
+    }
+
+    expected<font_id> load_font_from_memory(layout_state& state, span<const byte> data)
+    {
+        return state.fonts.load_font_from_memory(data);
+    }
+
     void begin_container(layout_state& state, const container_descriptor& desc)
     {
         auto& elements = state.elements;
@@ -463,6 +474,13 @@ namespace oblo::ui
         // Resolve the final size for sizing kinds that don't depend on the parent.
         element.targetRect.width = resolve_axis_size(desc.width, element.contentSize.x, 0.f);
         element.targetRect.height = resolve_axis_size(desc.height, element.contentSize.y, 0.f);
+    }
+
+    void add_text(layout_state& state, const text_descriptor& desc)
+    {
+        // TODO
+        (void) state;
+        (void) desc;
     }
 
     void set_layout_size(layout_state& state, vec2 size)

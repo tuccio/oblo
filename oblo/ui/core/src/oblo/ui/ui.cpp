@@ -4,19 +4,8 @@
 #include <oblo/core/utility.hpp>
 #include <oblo/ui/font.hpp>
 
-#include <freetype/freetype.h>
-
 namespace oblo::ui
 {
-    namespace
-    {
-        template <typename T>
-        FT_Library to_freetype(T* freetype)
-        {
-            return std::bit_cast<FT_Library>(freetype);
-        }
-    }
-
     context::~context()
     {
         shutdown();
@@ -24,14 +13,6 @@ namespace oblo::ui
 
     bool context::init()
     {
-        FT_Library freetype;
-
-        if (FT_Init_FreeType(&freetype))
-        {
-            return false;
-        }
-
-        m_freetype = std::bit_cast<freetype_lib*>(freetype);
         m_layout = create_state();
 
         return false;
@@ -42,11 +23,6 @@ namespace oblo::ui
         if (m_layout)
         {
             destroy_state(m_layout);
-        }
-
-        if (m_freetype)
-        {
-            FT_Done_FreeType(to_freetype(m_freetype));
         }
     }
 
@@ -125,16 +101,6 @@ namespace oblo::ui
         return m_itemClickedThisFrame[u32(mouse_key::left)] == id;
     }
 
-    const font* context::resolve_font_or_default(font_id id)
-    {
-        if (id)
-        {
-            return m_fonts.try_find(id);
-        }
-
-        return m_fontStack.empty() ? nullptr : resolve_font_or_default(m_fontStack.front());
-    }
-
     bool context::try_render_rect(layout_id id, rect& out) const
     {
         for (const auto& e : get_elements(*m_layout))
@@ -194,18 +160,13 @@ namespace oblo::ui
 
         ui::begin_container(ctx.get_layout(), desc);
 
-        const font* font = ctx.resolve_font_or_default(style.font);
-        OBLO_ASSERT_ONCE(font);
-
-        if (font)
-        {
-            add_text(ctx.get_layout(),
-                {
-                    .text = label,
-                    .font = font,
-                    .color = style.textColor,
-                });
-        }
+        add_text(ctx.get_layout(),
+            {
+                .text = label,
+                .color = style.textColor,
+                .font = style.font,
+                .fontSize = style.fontSize,
+            });
 
         ui::end_container(ctx.get_layout());
 
@@ -224,18 +185,13 @@ namespace oblo::ui
 
         ui::begin_container(ctx.get_layout(), desc);
 
-        const font* font = ctx.resolve_font_or_default(style.font);
-        OBLO_ASSERT_ONCE(font);
-
-        if (font)
-        {
-            add_text(ctx.get_layout(),
-                {
-                    .text = text,
-                    .font = font,
-                    .color = style.textColor,
-                });
-        }
+        add_text(ctx.get_layout(),
+            {
+                .text = text,
+                .color = style.textColor,
+                .font = style.font,
+                .fontSize = style.fontSize,
+            });
 
         ui::end_container(ctx.get_layout());
     }
@@ -263,18 +219,13 @@ namespace oblo::ui
             }
         }
 
-        const font* font = ctx.resolve_font_or_default(style.font);
-        OBLO_ASSERT_ONCE(font);
-
-        if (font)
-        {
-            add_text(ctx.get_layout(),
-                {
-                    .text = text,
-                    .font = font,
-                    .color = style.textColor,
-                });
-        }
+        add_text(ctx.get_layout(),
+            {
+                .text = text,
+                .color = style.textColor,
+                .font = style.font,
+                .fontSize = style.fontSize,
+            });
 
         const bool wasClicked = ctx.was_clicked(id);
 

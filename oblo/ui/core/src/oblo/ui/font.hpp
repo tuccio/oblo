@@ -4,8 +4,9 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/math/vec2.hpp>
-#include <oblo/ui/texture.hpp>
+#include <oblo/core/reflection/fields.hpp>
+#include <oblo/core/span.hpp>
+#include <oblo/core/unordered_map.hpp>
 
 #include <freetype/freetype.h>
 
@@ -31,51 +32,77 @@ namespace oblo::ui
         u16 bearingY;
 
         u16 advanceX;
-
-        bool cached;
-
-        h32<font_texture> textureId;
-        vec2 uv;
     };
 
-    struct font_variant
+    struct font_glyph_reference
     {
         font_id font;
         u16 size;
-        dynamic_array<font_glyph> glyphs;
+
+        // This should be a result of FT_Get_Char_Index (or come from harfbuzz or something like that)
+        FT_UInt glyphIndex;
+
+        bool operator==(const font_glyph_reference&) const noexcept = default;
     };
+
+    OBLO_FORCEINLINE hash_type hash_value(const font_glyph_reference& g)
+    {
+        static_assert(!struct_has_padding<font_glyph_reference>());
+        return hash<u64>{}(std::bit_cast<u64>(g));
+    }
 
     struct font
     {
         FT_Face face{};
-        buffered_array<font_variant, 4> variants;
     };
 
     struct font_cache
     {
         FT_Library freetype{};
-        dynamic_array<font_texture> textures;
-        handle_flat_pool_dense_map<font, font, u16, 0> fonts;
+
+        dynamic_array<font> fonts;
+
+        unordered_map<font_glyph_reference, font_glyph> glyphs;
 
         expected<> init();
         void shutdown();
 
-        expected<font_id> load_font(const char* path, u16 defaultSize);
+        expected<font_id> load_font_from_file(cstring_view path);
+        expected<font_id> load_font_from_memory(span<const byte> data);
 
-        expected<font_variant&> create_or_add_variant(font_id id, u16 size);
-
-        expected<const font_glyph&> get_or_add_glyph(font_variant& variant, u32 codepoint)
+        FT_Face find_font(font_id id) const
         {
-            const font_glyph& glyph = variant.glyphs[codepoint];
-
-            if (glyph.cached) [[likely]]
+            if (!id)
             {
-                return glyph;
+                return nullptr;
             }
 
-            return load_glyph_to_cache(variant, codepoint);
+            return fonts[id.value - 1].face;
         }
 
-        expected<const font_glyph&> load_glyph_to_cache(font_variant& variant, u32 codepoint);
+        expected<const font_glyph&> get_or_add_glyph(const font_glyph_reference& ref, FT_Face face)
+        {
+            const auto [it, inserted] = glyphs.emplace(ref, font_glyph{});
+
+            if (inserted)
+            {
+                const FT_Error error = FT_Load_Glyph(face, ref.glyphIndex, FT_LOAD_NO_BITMAP);
+
+                if (error)
+                {
+                    return "FreeType failed to load glyph"_err;
+                }
+
+                const FT_Glyph_Metrics& metrics = face->glyph->metrics;
+
+                it->second.width = narrow_cast<u16>(metrics.width >> 6);
+                it->second.height = narrow_cast<u16>(metrics.height >> 6);
+                it->second.bearingX = narrow_cast<u16>(metrics.horiBearingX >> 6);
+                it->second.bearingY = narrow_cast<u16>(metrics.horiBearingY >> 6);
+                it->second.advanceX = narrow_cast<u16>(metrics.horiAdvance >> 6);
+            }
+
+            return it->second;
+        }
     };
 }

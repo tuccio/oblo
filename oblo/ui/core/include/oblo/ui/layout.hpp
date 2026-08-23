@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/span.hpp>
@@ -13,6 +14,7 @@
 namespace oblo::ui
 {
     struct font;
+    using font_id = h16<font>;
 
     struct color
     {
@@ -239,9 +241,10 @@ namespace oblo::ui
 
         hashed_string_view text;
 
-        const font* font;
-
         color color;
+
+        font_id font;
+        u16 fontSize;
     };
 
     constexpr u32 invalid_index = ~u32{};
@@ -290,6 +293,9 @@ namespace oblo::ui
 
     layout_state* create_state();
     void destroy_state(layout_state* state);
+
+    expected<font_id> load_font_from_file(layout_state& state, cstring_view path);
+    expected<font_id> load_font_from_memory(layout_state& state, span<const byte> data);
 
     void set_layout_size(layout_state& state, vec2 size);
 
