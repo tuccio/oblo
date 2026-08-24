@@ -130,13 +130,12 @@ namespace oblo::ui
         {
             auto& elements = state.elements;
             auto& element = elements[index];
-            const auto& desc = element.desc;
 
             // Percentage sizing is resolved against the parent's inner size (the parent's
             // padding has already been removed).
             const vec2 size{
-                resolve_axis_size(desc.width, element.contentSize.x, parentInnerSize.x),
-                resolve_axis_size(desc.height, element.contentSize.y, parentInnerSize.y),
+                resolve_axis_size(element.width, element.contentSize.x, parentInnerSize.x),
+                resolve_axis_size(element.height, element.contentSize.y, parentInnerSize.y),
             };
 
             vec2 pos = parentOrigin;
@@ -153,11 +152,14 @@ namespace oblo::ui
             element.targetRect = {pos.x, pos.y, size.x, size.y};
 
             // Feed the transition system, parents before children.
-            if (element.elementId != layout_id{} && has_animation(desc.animation))
+            if (element.elementId != layout_id{} && element.kind == layout_element_kind::container &&
+                has_animation(element.data.container.animation))
             {
-                animated_values target;
-                target.boundingBox = element.targetRect;
-                target.cornerRadius = element.cornerRadius;
+                const animated_values target{
+                    .boundingBox = element.targetRect,
+                    .cornerRadius =
+                        element.kind == layout_element_kind::container ? element.data.container.cornerRadius : vec4{},
+                };
 
                 const layout_id parentId =
                     element.parentIndex != invalid_index ? elements[element.parentIndex].elementId : layout_id{};
@@ -167,136 +169,148 @@ namespace oblo::ui
                     parentId,
                     element.targetRect.position(),
                     target,
-                    desc.animation);
+                    element.data.container.animation);
             }
 
-            // Position the children along this element's layout axis, inset by this
-            // element's padding. The padding offsets the children, not the element itself.
-            const vec2 inner_size = {max(size.x - desc.padding.left - desc.padding.right, 0.f),
-                max(size.y - desc.padding.top - desc.padding.bottom, 0.f)};
-
-            const vec2 childOrigin = element.targetRect.position() + vec2{desc.padding.left, desc.padding.top};
-
-            const bool isHorizontal = desc.direction == layout_direction::left_to_right;
-
-            // Resolve each child's final size against this element's inner size. Percentage
-            // children are still 0 in targetRect at this point (they get expanded later, in
-            // resolve_element), so they must be resolved here to measure and align correctly.
-            auto resolve_child_size = [&](u32 child) -> vec2
+            if (element.kind == layout_element_kind::container && element.firstChild != invalid_index)
             {
-                const auto& cd = elements[child].desc;
-                return {resolve_axis_size(cd.width, elements[child].contentSize.x, inner_size.x),
-                    resolve_axis_size(cd.height, elements[child].contentSize.y, inner_size.y)};
-            };
+                const container_layout_data& desc = element.data.container;
 
-            // Measure the children's content extent along the main axis so the group can be aligned as a whole
-            f32 contentMain = 0.f;
-            u32 childCount = 0;
+                // Position the children along this element's layout axis, inset by this
+                // element's padding. The padding offsets the children, not the element itself.
+                const vec2 innerSize = {
+                    max(size.x - desc.padding.left - desc.padding.right, 0.f),
+                    max(size.y - desc.padding.top - desc.padding.bottom, 0.f),
+                };
 
-            for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
-            {
-                const vec2 childSize = resolve_child_size(child);
-                contentMain += isHorizontal ? childSize.x : childSize.y;
-                ++childCount;
-            }
+                const vec2 childOrigin = element.targetRect.position() + vec2{desc.padding.left, desc.padding.top};
 
-            if (childCount > 1)
-            {
-                contentMain += (childCount - 1) * desc.childGap;
-            }
+                const bool isHorizontal = desc.direction == layout_direction::left_to_right;
 
-            // On-axis alignment: shift the whole child group along the main axis.
-            const f32 innerMain = isHorizontal ? inner_size.x : inner_size.y;
-            const f32 extraSpace = max(0.f, innerMain - contentMain);
-
-            f32 mainOffset = 0.f;
-
-            if (isHorizontal)
-            {
-                switch (desc.alignment.x)
+                // Resolve each child's final size against this element's inner size. Percentage
+                // children are still 0 in targetRect at this point (they get expanded later, in
+                // resolve_element), so they must be resolved here to measure and align correctly.
+                auto resolve_child_size = [&](u32 child) -> vec2
                 {
-                case alignment_x::center:
-                    mainOffset = extraSpace * 0.5f;
-                    break;
-                case alignment_x::right:
-                    mainOffset = extraSpace;
-                    break;
-                default:
-                    break;
-                }
-            }
-            else
-            {
-                switch (desc.alignment.y)
+                    OBLO_ASSERT(element.kind == layout_element_kind::container);
+
+                    const auto& cd = elements[child];
+
+                    return {
+                        resolve_axis_size(cd.width, elements[child].contentSize.x, innerSize.x),
+                        resolve_axis_size(cd.height, elements[child].contentSize.y, innerSize.y),
+                    };
+                };
+
+                // Measure the children's content extent along the main axis so the group can be aligned as a whole
+                f32 contentMain = 0.f;
+                u32 childCount = 0;
+
+                for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
                 {
-                case alignment_y::center:
-                    mainOffset = extraSpace * 0.5f;
-                    break;
-                case alignment_y::bottom:
-                    mainOffset = extraSpace;
-                    break;
-                default:
-                    break;
+                    const vec2 childSize = resolve_child_size(child);
+                    contentMain += isHorizontal ? childSize.x : childSize.y;
+                    ++childCount;
                 }
-            }
 
-            f32 cursor = mainOffset;
+                if (childCount > 1)
+                {
+                    contentMain += (childCount - 1) * desc.childGap;
+                }
 
-            for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
-            {
-                const vec2 childSize = resolve_child_size(child);
-                const f32 childMain = isHorizontal ? childSize.x : childSize.y;
-                const f32 childCross = isHorizontal ? childSize.y : childSize.x;
+                // On-axis alignment: shift the whole child group along the main axis.
+                const f32 innerMain = isHorizontal ? innerSize.x : innerSize.y;
+                const f32 extraSpace = max(0.f, innerMain - contentMain);
 
-                // Cross-axis alignment: shift each child along the cross axis independently.
-                const f32 innerCross = isHorizontal ? inner_size.y : inner_size.x;
-                const f32 whiteSpace = max(0.f, innerCross - childCross);
-
-                f32 crossOffset = 0.f;
+                f32 mainOffset = 0.f;
 
                 if (isHorizontal)
-                {
-                    switch (desc.alignment.y)
-                    {
-                    case alignment_y::center:
-                        crossOffset = whiteSpace * 0.5f;
-                        break;
-                    case alignment_y::bottom:
-                        crossOffset = whiteSpace;
-                        break;
-                    default:
-                        break;
-                    }
-                }
-                else
                 {
                     switch (desc.alignment.x)
                     {
                     case alignment_x::center:
-                        crossOffset = whiteSpace * 0.5f;
+                        mainOffset = extraSpace * 0.5f;
                         break;
                     case alignment_x::right:
-                        crossOffset = whiteSpace;
+                        mainOffset = extraSpace;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                else
+                {
+                    switch (desc.alignment.y)
+                    {
+                    case alignment_y::center:
+                        mainOffset = extraSpace * 0.5f;
+                        break;
+                    case alignment_y::bottom:
+                        mainOffset = extraSpace;
                         break;
                     default:
                         break;
                     }
                 }
 
-                vec2 childOriginForChild = childOrigin;
+                f32 cursor = mainOffset;
 
-                if (isHorizontal)
+                for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
                 {
-                    childOriginForChild.y += crossOffset;
-                }
-                else
-                {
-                    childOriginForChild.x += crossOffset;
-                }
+                    const vec2 childSize = resolve_child_size(child);
+                    const f32 childMain = isHorizontal ? childSize.x : childSize.y;
+                    const f32 childCross = isHorizontal ? childSize.y : childSize.x;
 
-                resolve_element(state, child, childOriginForChild, inner_size, cursor, desc.direction);
+                    // Cross-axis alignment: shift each child along the cross axis independently.
+                    const f32 innerCross = isHorizontal ? innerSize.y : innerSize.x;
+                    const f32 whiteSpace = max(0.f, innerCross - childCross);
 
-                cursor += childMain + desc.childGap;
+                    f32 crossOffset = 0.f;
+
+                    if (isHorizontal)
+                    {
+                        switch (desc.alignment.y)
+                        {
+                        case alignment_y::center:
+                            crossOffset = whiteSpace * 0.5f;
+                            break;
+                        case alignment_y::bottom:
+                            crossOffset = whiteSpace;
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        switch (desc.alignment.x)
+                        {
+                        case alignment_x::center:
+                            crossOffset = whiteSpace * 0.5f;
+                            break;
+                        case alignment_x::right:
+                            crossOffset = whiteSpace;
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+
+                    vec2 childOriginForChild = childOrigin;
+
+                    if (isHorizontal)
+                    {
+                        childOriginForChild.y += crossOffset;
+                    }
+                    else
+                    {
+                        childOriginForChild.x += crossOffset;
+                    }
+
+                    resolve_element(state, child, childOriginForChild, innerSize, cursor, desc.direction);
+
+                    cursor += childMain + desc.childGap;
+                }
             }
         }
 
@@ -357,6 +371,37 @@ namespace oblo::ui
                     lerpF(initial.cornerRadius.w, target.cornerRadius.w, u),
                 };
             }
+        }
+
+        void finalize_append_child(layout_state& state, u32 parentIndex, u32 index)
+        {
+            if (parentIndex != invalid_index)
+            {
+                auto& parent = state.elements[parentIndex];
+
+                if (parent.firstChild == invalid_index)
+                {
+                    parent.firstChild = index;
+                }
+                else
+                {
+                    state.elements[parent.lastChild].nextSibling = index;
+                }
+
+                parent.lastChild = index;
+            }
+        }
+
+        hashed_string_view store_text(layout_state& state, hashed_string_view text)
+        {
+#if 0 // TODO
+            char* const buf = new (state.frameAllocator.allocate(text.size())) char[text.size()];
+            std::memcpy(buf, text.data(), text.size());
+            return {buf, text.hash()};
+#endif
+
+            (void) state;
+            return text;
         }
     }
 
@@ -452,31 +497,28 @@ namespace oblo::ui
         const u32 parentIndex =
             state.openContainerIdxStack.empty() ? invalid_index : state.openContainerIdxStack.back();
 
-        const u32 index = u32(elements.size());
+        const u32 index = elements.size32();
 
         auto& element = elements.push_back_default();
 
-        element.desc = desc;
+        element.kind = layout_element_kind::container;
         element.elementId = desc.elementId;
         element.parentIndex = parentIndex;
-        element.backgroundColor = desc.backgroundColor;
-        element.cornerRadius = desc.cornerRadius;
 
-        if (parentIndex != invalid_index)
-        {
-            auto& parent = elements[parentIndex];
+        element.width = desc.width;
+        element.height = desc.height;
 
-            if (parent.firstChild == invalid_index)
-            {
-                parent.firstChild = index;
-            }
-            else
-            {
-                elements[parent.lastChild].nextSibling = index;
-            }
+        element.data.container = {
+            .direction = desc.direction,
+            .alignment = desc.alignment,
+            .backgroundColor = desc.backgroundColor,
+            .cornerRadius = desc.cornerRadius,
+            .childGap = desc.childGap,
+            .padding = desc.padding,
+            .animation = desc.animation,
+        };
 
-            parent.lastChild = index;
-        }
+        finalize_append_child(state, parentIndex, index);
 
         state.openContainerIdxStack.push_back(index);
     }
@@ -495,7 +537,8 @@ namespace oblo::ui
 
         auto& elements = state.elements;
         auto& element = elements[index];
-        const auto& desc = element.desc;
+
+        const container_layout_data& desc = element.data.container;
 
         // Post-order: the children have already been measured, so the content size can be
         // accumulated. Percentage children contribute 0 here; they are expanded against
@@ -540,8 +583,8 @@ namespace oblo::ui
         element.contentSize = desc.direction == layout_direction::left_to_right ? vec2{main, cross} : vec2{cross, main};
 
         // Resolve the final size for sizing kinds that don't depend on the parent.
-        element.targetRect.width = resolve_axis_size(desc.width, element.contentSize.x, 0.f);
-        element.targetRect.height = resolve_axis_size(desc.height, element.contentSize.y, 0.f);
+        element.targetRect.width = resolve_axis_size(element.width, element.contentSize.x, 0.f);
+        element.targetRect.height = resolve_axis_size(element.height, element.contentSize.y, 0.f);
     }
 
     void add_text(layout_state& state, const text_descriptor& desc)
@@ -551,7 +594,7 @@ namespace oblo::ui
         const u32 parentIndex =
             state.openContainerIdxStack.empty() ? invalid_index : state.openContainerIdxStack.back();
 
-        const u32 index = u32(elements.size());
+        const u32 index = elements.size32();
 
         auto& element = elements.push_back_default();
 
@@ -560,38 +603,24 @@ namespace oblo::ui
         element.kind = layout_element_kind::text;
         element.elementId = desc.elementId;
         element.parentIndex = parentIndex;
-        element.text = desc.text;
-        element.font = desc.font;
-        element.fontSize = desc.fontSize;
-        element.textColor = desc.color;
 
-        // The descriptor is used by the solver to size/position this leaf. Text is fit by
-        // default: it sizes to the measured glyph extents along both axes.
-        element.desc.elementId = desc.elementId;
-        element.desc.direction = layout_direction::left_to_right;
-        element.desc.width = fit_size();
-        element.desc.height = fit_size();
+        // Just fit for now, not sure if we need to set size externally
+        element.width = fit_size();
+        element.height = fit_size();
+
+        element.data.text = {
+            .text = store_text(state, desc.text),
+            .color = desc.color,
+            .font = desc.font,
+            .fontSize = desc.fontSize,
+        };
 
         const vec2 measured = measure_text(state.fonts, desc.font, desc.fontSize, desc.text);
 
         element.contentSize = measured;
         element.targetRect = {0.f, 0.f, measured.x, measured.y};
 
-        if (parentIndex != invalid_index)
-        {
-            auto& parent = elements[parentIndex];
-
-            if (parent.firstChild == invalid_index)
-            {
-                parent.firstChild = index;
-            }
-            else
-            {
-                elements[parent.lastChild].nextSibling = index;
-            }
-
-            parent.lastChild = index;
-        }
+        finalize_append_child(state, parentIndex, index);
     }
 
     void set_layout_size(layout_state& state, vec2 size)

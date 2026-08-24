@@ -156,8 +156,13 @@ namespace oblo::ui
 
     struct alignment
     {
-        alignment_x x{alignment_x::left};
-        alignment_y y{alignment_y::top};
+        alignment_x x;
+        alignment_y y;
+
+        static constexpr alignment top_left() noexcept
+        {
+            return {alignment_x::left, alignment_y::top};
+        }
 
         static constexpr alignment center() noexcept
         {
@@ -236,7 +241,7 @@ namespace oblo::ui
         f32 childGap;
         padding padding;
 
-        alignment alignment{};
+        alignment alignment{alignment::top_left()};
 
         animation_config animation;
     };
@@ -255,24 +260,47 @@ namespace oblo::ui
 
     constexpr u32 invalid_index = ~u32{};
 
+    struct container_layout_data
+    {
+        layout_direction direction;
+        alignment alignment;
+
+        color backgroundColor;
+        vec4 cornerRadius;
+
+        f32 childGap;
+        padding padding;
+
+        animation_config animation;
+    };
+
+    struct text_layout_data
+    {
+        hashed_string_view text;
+        std::span<const u32> glyphs;
+        color color;
+        font_id font;
+        u16 fontSize;
+    };
+
     struct layout_element
     {
-        container_descriptor desc{};
-
         layout_element_kind kind{layout_element_kind::container};
 
-        // Text-only data, valid when kind == layout_element_kind::text.
-        hashed_string_view text{};
-        font_id font{};
-        u16 fontSize{};
-        color textColor{};
+        union data {
+            container_layout_data container;
+            text_descriptor text;
+
+            data() : container{} {};
+            ~data() = default;
+        } data;
 
         layout_id elementId{};
 
-        rect targetRect{};
+        sizing width;
+        sizing height;
 
-        color backgroundColor{};
-        vec4 cornerRadius{};
+        rect targetRect{};
 
         // The measured content size along the (width, height) axes, before clamping and
         // before any percentage expansion. Only meaningful for fit sizing.
@@ -292,14 +320,28 @@ namespace oblo::ui
             return animated ? animated->boundingBox : targetRect;
         }
 
-        const color& get_current_background_color() const
+        color get_current_background_color() const
         {
-            return animated ? animated->backgroundColor : backgroundColor;
+            color result{};
+
+            if (kind == layout_element_kind::container)
+            {
+                result = animated ? animated->backgroundColor : data.container.backgroundColor;
+            }
+
+            return result;
         }
 
-        const vec4& get_current_corner_radius() const
+        vec4 get_current_corner_radius() const
         {
-            return animated ? animated->cornerRadius : cornerRadius;
+            vec4 cornerRadius{};
+
+            if (kind == layout_element_kind::container)
+            {
+                cornerRadius = animated ? animated->cornerRadius : data.container.cornerRadius;
+            }
+
+            return cornerRadius;
         }
     };
 
