@@ -19,6 +19,7 @@
     #include <uuid/uuid.h>
 
     #include <bit>
+    #include <cctype>
     #include <charconv>
     #include <cstdio>
 
@@ -34,6 +35,58 @@ namespace oblo::platform
     void debug_output(const char* str)
     {
         std::fputs(str, stderr);
+    }
+
+    expected<usize> get_ram_usage()
+    {
+        // /proc/self/statm reports resident memory (in pages) as its second field
+        buffered_array<char, 256> buf;
+
+        const auto r = filesystem::load_text_file_into_memory(buf, "/proc/self/statm");
+
+        if (!r)
+        {
+            return "Failed to read /proc/self/statm"_err;
+        }
+
+        const string_view str{r->data(), r->data() + r->size()};
+
+        usize totalPages{};
+        usize residentPages{};
+
+        const auto* it = str.data();
+        const auto* const end = str.data() + str.size();
+
+        auto parse = [&](usize& out) -> bool
+        {
+            while (it != end && std::isspace(*it))
+            {
+                ++it;
+            }
+
+            const char* begin = it;
+
+            while (it != end && std::isdigit(*it))
+            {
+                ++it;
+            }
+
+            return std::from_chars(begin, it, out).ec == std::errc{};
+        };
+
+        if (!parse(totalPages) || !parse(residentPages))
+        {
+            return "Failed to parse /proc/self/statm"_err;
+        }
+
+        const long pageSize = sysconf(_SC_PAGESIZE);
+
+        if (pageSize <= 0)
+        {
+            return "Failed to query page size"_err;
+        }
+
+        return usize(residentPages) * usize(pageSize);
     }
 
     bool is_debugger_attached()

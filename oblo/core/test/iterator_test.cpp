@@ -8,6 +8,7 @@
 #include <oblo/core/iterator/token_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 
+#include <algorithm>
 #include <array>
 #include <span>
 #include <vector>

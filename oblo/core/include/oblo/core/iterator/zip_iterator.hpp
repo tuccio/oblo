@@ -101,9 +101,9 @@ namespace oblo
                 lhs.m_iterators);
         }
 
-        OBLO_FORCEINLINE friend bool operator<(const zip_iterator& lhs, const zip_iterator& rhs)
+        OBLO_FORCEINLINE friend auto operator<=>(const zip_iterator& lhs, const zip_iterator& rhs)
         {
-            return std::get<0>(lhs.m_iterators) < std::get<0>(rhs.m_iterators);
+            return std::get<0>(lhs.m_iterators) <=> std::get<0>(rhs.m_iterators);
         }
 
         OBLO_FORCEINLINE zip_iterator& operator+=(size_type offset)

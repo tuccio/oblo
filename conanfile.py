@@ -32,7 +32,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("cxxopts/2.2.1")
         self.requires("freetype/2.14.3")
         self.requires("glslang/1.3.296.0")
-        self.requires("gtest/1.10.0")
+        self.requires("gtest/1.18.0")
         self.requires("iconfontcppheaders/cci.20240128")
         self.requires("imgui/1.92.5-docking")
         self.requires("ktx/4.4.2")

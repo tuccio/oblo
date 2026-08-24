@@ -13,6 +13,13 @@ namespace oblo
     class reverse_iterator
     {
     public:
+        using iterator_category = std::bidirectional_iterator_tag;
+        using iterator_concept = std::bidirectional_iterator_tag;
+        using value_type = std::iter_value_t<It>;
+        using difference_type = std::iter_difference_t<It>;
+        using pointer = void;
+        using reference = std::iter_reference_t<It>;
+
         reverse_iterator() = default;
 
         OBLO_FORCEINLINE constexpr explicit reverse_iterator(It itr) : m_current(std::move(itr)) {}

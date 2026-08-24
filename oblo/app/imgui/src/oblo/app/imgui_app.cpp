@@ -23,11 +23,42 @@
 #include <oblo/scene/resources/texture.hpp>
 #include <oblo/trace/profile.hpp>
 
-#include <imgui_impl_win32.h>
+#ifdef _WIN32
+    #include <imgui_impl_win32.h>
 
-#include <Windows.h>
+    #include <Windows.h>
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+    extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+    #define OBLO_IMGUI_INIT(window) ImGui_ImplWin32_Init(window)
+    #define OBLO_IMGUI_SHUTDOWN() ImGui_ImplWin32_Shutdown()
+    #define OBLO_IMGUI_NEWFRAME() ImGui_ImplWin32_NewFrame()
+
+    void imgui_dispatch_event(const void* event)
+    {
+        const MSG* msg = reinterpret_cast<const MSG*>(event);
+
+        // We only need to process the main viewport events, since the other viewports have a registered
+        // WndProcHandler
+        if (msg->hwnd == ImGui::GetMainViewport()->PlatformHandleRaw)
+        {
+            ImGui_ImplWin32_WndProcHandler(msg->hwnd, msg->message, msg->wParam, msg->lParam);
+        }
+    }
+#else
+    #include <imgui_impl_sdl2.h>
+
+    #include <SDL.h>
+
+    #define OBLO_IMGUI_INIT(window) ImGui_ImplSDL2_InitForVulkan(static_cast<SDL_Window*>(window))
+    #define OBLO_IMGUI_SHUTDOWN() ImGui_ImplSDL2_Shutdown()
+    #define OBLO_IMGUI_NEWFRAME() ImGui_ImplSDL2_NewFrame()
+
+    void imgui_dispatch_event(const void* event)
+    {
+        ImGui_ImplSDL2_ProcessEvent(static_cast<const SDL_Event*>(event));
+    }
+#endif
 
 namespace oblo
 {
@@ -61,25 +92,13 @@ namespace oblo
             }
         }
 
-        void imgui_win32_dispatch_event(const void* event)
-        {
-            const MSG* msg = reinterpret_cast<const MSG*>(event);
-
-            // We only need to process the main viewport events, since the other viewports have a registered
-            // WndProcHandler
-            if (msg->hwnd == ImGui::GetMainViewport()->PlatformHandleRaw)
-            {
-                ImGui_ImplWin32_WndProcHandler(msg->hwnd, msg->message, msg->wParam, msg->lParam);
-            }
-        }
-
-        void* get_win32_window(const graphics_window& window);
+        void* get_platform_window(const graphics_window& window);
         graphics_window_context* get_graphics_context(const graphics_window& window);
 
         template <auto Impl, auto Context>
         struct graphics_window_accessor
         {
-            friend void* get_win32_window(const graphics_window& window)
+            friend void* get_platform_window(const graphics_window& window)
             {
                 return static_cast<void*>(window.*Impl);
             }
@@ -771,9 +790,9 @@ namespace oblo
 
             io.IniFilename = cfg.configFile;
 
-            auto* const win32Window = get_win32_window(window);
+            auto* const platformWindow = get_platform_window(window);
 
-            if (!ImGui_ImplWin32_Init(win32Window))
+            if (!OBLO_IMGUI_INIT(platformWindow))
             {
                 return "Failed to initialize ImGui Windows implementation"_err;
             }
@@ -862,7 +881,7 @@ namespace oblo
             {
                 ImGui::DestroyPlatformWindows();
 
-                ImGui_ImplWin32_Shutdown();
+                OBLO_IMGUI_SHUTDOWN();
                 shutdown_renderer_backend();
 
                 ImGui::DestroyContext(context);
@@ -902,7 +921,7 @@ namespace oblo
             return e;
         }
 
-        m_eventProcessor.set_event_dispatcher({imgui_win32_dispatch_event});
+        m_eventProcessor.set_event_dispatcher({imgui_dispatch_event});
 
         m_impl = allocate_unique<impl>();
         m_impl->backend.resourceRegistry = &resourceRegistry;
@@ -921,7 +940,7 @@ namespace oblo
 
         m_impl->clear_push_subgraphs();
 
-        ImGui_ImplWin32_NewFrame();
+        OBLO_IMGUI_NEWFRAME();
         ImGui::NewFrame();
     }
 

@@ -4,6 +4,8 @@
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
 
+#include <algorithm>
+
 namespace oblo::reflection
 {
     namespace

@@ -89,7 +89,7 @@ function(oblo_init_build_configurations)
 
         if(LINUX)
             list(APPEND _oblo_cxx_compile_options
-                -stdlib=libc++
+                -stdlib=libstdc++
             )
         endif()
     endif()

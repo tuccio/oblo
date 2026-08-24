@@ -8,3 +8,6 @@ compiler.version=22
 os=Linux
 
 libxml2/*:build_type=Release
+
+[conf]
+m4/*:tools.build:cflags=["-std=gnu17"]

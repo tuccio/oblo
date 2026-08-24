@@ -25,6 +25,11 @@
     #include <unordered_map>
 #endif
 
+#ifdef __linux__
+    #include <SDL.h>
+    #include <SDL_vulkan.h>
+#endif
+
 #define OBLO_VK_LOAD_FN(name) PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 #define OBLO_VK_LOAD_FN_ASSIGN(loader, name) (loader.name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name)))
 
@@ -101,16 +106,6 @@ namespace oblo::gpu::vk
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
             .pNext = &g_rtRayQueryFeatures,
             .rayTracingPipeline = true,
-        };
-
-        constexpr const char* g_instanceExtensions[] = {
-            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-            VK_KHR_SURFACE_EXTENSION_NAME,
-
-#ifdef _WIN32
-            "VK_KHR_win32_surface",
-#endif
         };
 
         [[nodiscard]] VkResult create_surface(hptr<native_window> wh,
@@ -288,14 +283,41 @@ namespace oblo::gpu::vk
             .apiVersion = VK_API_VERSION_1_3,
         };
 
+        dynamic_array<const char*> enabledExtensions;
+        enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+
+#ifdef _WIN32
+        enabledExtensions.push_back("VK_KHR_win32_surface");
+#endif
+
+#ifdef __linux__
+        uint32_t sdlExtensionCount = 0;
+        SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlExtensionCount, nullptr);
+
+        if (sdlExtensionCount > 0)
+        {
+            dynamic_array<const char*> sdlExtensions;
+            sdlExtensions.resize(sdlExtensionCount);
+
+            SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlExtensionCount, sdlExtensions.data());
+
+            for (const char* const ext : sdlExtensions)
+            {
+                enabledExtensions.push_back(ext);
+            }
+        }
+#endif
+
         const VkInstanceCreateInfo instanceInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
             .pApplicationInfo = &appInfo,
             .enabledLayerCount = 0u,
             .ppEnabledLayerNames = nullptr,
-            .enabledExtensionCount = u32(array_size(g_instanceExtensions)),
-            .ppEnabledExtensionNames = g_instanceExtensions,
+            .enabledExtensionCount = u32(enabledExtensions.size()),
+            .ppEnabledExtensionNames = enabledExtensions.data(),
         };
 
         const VkResult instanceResult = vkCreateInstance(&instanceInfo, nullptr, &m_instance);
@@ -3202,6 +3224,31 @@ namespace oblo::gpu::vk
             };
 
             return vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, allocator, vkSurface);
+        }
+    }
+}
+#endif
+
+#ifdef __linux__
+    #include <vulkan/vulkan_core.h>
+
+namespace oblo::gpu::vk
+{
+    namespace
+    {
+        VkResult create_surface(hptr<native_window> wh,
+            VkInstance instance,
+            const VkAllocationCallbacks* allocator,
+            VkSurfaceKHR* vkSurface)
+        {
+            auto* const window = std::bit_cast<SDL_Window*>(wh);
+
+            if (!SDL_Vulkan_CreateSurface(window, instance, vkSurface))
+            {
+                return VK_ERROR_UNKNOWN;
+            }
+
+            return VK_SUCCESS;
         }
     }
 }
