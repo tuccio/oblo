@@ -1,6 +1,7 @@
 #include <oblo/ui/layout.hpp>
 #include <oblo/ui/layout_impl.hpp>
 
+#include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
@@ -68,22 +69,43 @@ namespace oblo::ui
             return !cfg.properties.is_empty();
         }
 
-        // Measures a string using the glyph cache, returning its (width, height) in pixels.
-        // Width is the sum of the glyph advances; height is the font's line height at the
-        // requested size. Similar in spirit to Clay's text measurement callback.
-        vec2 measure_text(font_cache& fonts, font_id font, u16 fontSize, const hashed_string_view& text)
+        vec2 measure_text(font_cache& fonts, font_id font, FT_Face face, u16 fontSize, std::span<const u32> glyphs)
         {
-            FT_Face face = fonts.find_font(font);
+            OBLO_ASSERT(face && face == fonts.find_font(font));
 
             if (!face)
             {
                 return {};
             }
 
+            const f32 height = f32(face->size->metrics.height >> 6);
             f32 width = 0.f;
-            f32 height = 0.f;
 
-            bool anyGlyph = false;
+            for (const u32 glyphIndex : glyphs)
+            {
+                const auto glyph = fonts.get_or_add_glyph({font, fontSize, glyphIndex}, face);
+
+                if (!glyph)
+                {
+                    continue;
+                }
+
+                width += glyph->advanceX;
+            }
+
+            return {width, height};
+        }
+
+        span<const u32> text_to_glyphs(bump_allocator& allocator, FT_Face face, string_view text)
+        {
+            if (text.empty() || !face)
+            {
+                return {};
+            }
+
+            const span glyphs = allocate_n_span<u32>(allocator, text.size());
+
+            usize actualCount = 0;
 
             for (const char *it = text.data(), *end = text.data() + text.size(); it != end;)
             {
@@ -96,29 +118,11 @@ namespace oblo::ui
                     continue;
                 }
 
-                const auto glyph = fonts.get_or_add_glyph({font, fontSize, glyphIndex}, face);
-
-                if (!glyph)
-                {
-                    continue;
-                }
-
-                if (!anyGlyph)
-                {
-                    height = f32(face->size->metrics.height >> 6);
-                    anyGlyph = true;
-                }
-
-                width += glyph->advanceX;
+                glyphs[actualCount] = glyphIndex;
+                ++actualCount;
             }
 
-            if (!anyGlyph)
-            {
-                FT_Set_Pixel_Sizes(face, 0, fontSize);
-                height = f32(face->size->metrics.height >> 6);
-            }
-
-            return {width, height};
+            return glyphs.subspan(0, actualCount);
         }
 
         void resolve_element(layout_state& state,
@@ -392,16 +396,12 @@ namespace oblo::ui
             }
         }
 
-        hashed_string_view store_text(layout_state& state, hashed_string_view text)
+        hashed_string_view store_text(bump_allocator& allocator, hashed_string_view text)
         {
-#if 0 // TODO
-            char* const buf = new (state.frameAllocator.allocate(text.size())) char[text.size()];
+            byte* const ptr = allocator.allocate(text.size(), 1u);
+            char* const buf = new (ptr) char[text.size()];
             std::memcpy(buf, text.data(), text.size());
-            return {buf, text.hash()};
-#endif
-
-            (void) state;
-            return text;
+            return {string_view{buf, text.size()}, text.hash()};
         }
     }
 
@@ -608,14 +608,21 @@ namespace oblo::ui
         element.width = fit_size();
         element.height = fit_size();
 
+        const FT_Face face = state.fonts.find_font(desc.font);
+
+        // Not sure if we really need to store the text, we may just need the glyphs
+        const hashed_string_view storedText = store_text(state.frameAllocator, desc.text);
+        const span<const u32> storedGlyphs = text_to_glyphs(state.frameAllocator, face, storedText);
+
         element.data.text = {
-            .text = store_text(state, desc.text),
+            .text = storedText,
+            .glyphs = storedGlyphs,
             .color = desc.color,
             .font = desc.font,
             .fontSize = desc.fontSize,
         };
 
-        const vec2 measured = measure_text(state.fonts, desc.font, desc.fontSize, desc.text);
+        const vec2 measured = measure_text(state.fonts, desc.font, face, desc.fontSize, storedGlyphs);
 
         element.contentSize = measured;
         element.targetRect = {0.f, 0.f, measured.x, measured.y};
@@ -634,6 +641,8 @@ namespace oblo::ui
         state.openContainerIdxStack.clear();
 
         state.animations.begin_frame(dt);
+
+        state.frameAllocator.reset();
     }
 
     void end_frame(layout_state& state)

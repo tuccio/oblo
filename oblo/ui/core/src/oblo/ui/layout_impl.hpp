@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/bump_allocator.hpp>
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/time/time.hpp>
@@ -98,6 +99,8 @@ namespace oblo::ui
 
     struct layout_state
     {
+        bump_allocator frameAllocator{1u << 20};
+
         transition_store animations{};
 
         dynamic_array<u32> openContainerIdxStack;

@@ -289,7 +289,7 @@ namespace oblo::ui
 
         union data {
             container_layout_data container;
-            text_descriptor text;
+            text_layout_data text;
 
             data() : container{} {};
             ~data() = default;
