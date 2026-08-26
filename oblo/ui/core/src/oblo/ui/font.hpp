@@ -4,14 +4,18 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/handle_flat_pool_set.hpp>
 #include <oblo/core/reflection/fields.hpp>
 #include <oblo/core/span.hpp>
 #include <oblo/core/unordered_map.hpp>
+#include <oblo/ui/texture_storage.hpp>
 
 #include <freetype/freetype.h>
 
 namespace oblo::ui
 {
+    struct texture_storage;
+
     struct font;
     using font_id = h16<font>;
 
@@ -32,6 +36,10 @@ namespace oblo::ui
         u16 bearingY;
 
         u16 advanceX;
+
+        u16 textureIndex;
+        u16 texturePosX;
+        u16 texturePosY;
     };
 
     struct font_glyph_reference
@@ -65,6 +73,10 @@ namespace oblo::ui
 
         unordered_map<font_glyph_reference, font_glyph> glyphs;
 
+        u16 textureAtlasResolution{};
+
+        texture_storage* textures{};
+
         expected<> init();
         void shutdown();
 
@@ -95,7 +107,10 @@ namespace oblo::ui
                     f.currentPixelSize = ref.size;
                 }
 
-                const FT_Error error = FT_Load_Glyph(face, ref.glyphIndex, FT_LOAD_NO_BITMAP);
+                const bool withFontTexture = textures && is_glyph_render_enabled();
+                const auto glyphLoadFlags = withFontTexture ? FT_LOAD_DEFAULT : FT_LOAD_NO_BITMAP;
+
+                const FT_Error error = FT_Load_Glyph(face, ref.glyphIndex, glyphLoadFlags);
 
                 if (error)
                 {
@@ -109,9 +124,21 @@ namespace oblo::ui
                 it->second.bearingX = narrow_cast<u16>(metrics.horiBearingX >> 6);
                 it->second.bearingY = narrow_cast<u16>(metrics.horiBearingY >> 6);
                 it->second.advanceX = narrow_cast<u16>(metrics.horiAdvance >> 6);
+
+                if (withFontTexture)
+                {
+                    add_rendered_glyph(face, it->second);
+                }
             }
 
             return it->second;
         }
+
+        bool is_glyph_render_enabled() const noexcept
+        {
+            return textureAtlasResolution > 0;
+        }
+
+        void add_rendered_glyph(FT_Face face, font_glyph& glyph);
     };
 }

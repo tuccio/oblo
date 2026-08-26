@@ -1,6 +1,7 @@
 #include <oblo/ui/ui.hpp>
 
 #include <oblo/ui/embedded/Archivo-Regular.ttf.h>
+#include <oblo/ui/texture_storage.hpp>
 
 #include <oblo/core/algorithm/fill.hpp>
 #include <oblo/core/utility.hpp>
@@ -14,6 +15,12 @@ namespace oblo::ui
             return id ? font_state{id, size} : ctx.get_current_font();
         }
     }
+
+    struct context::texture_storage_impl : texture_storage
+    {
+    };
+
+    context::context() = default;
 
     context::~context()
     {
@@ -39,6 +46,8 @@ namespace oblo::ui
             push_font(*defaultFont, defaultFontSize);
         }
 
+        m_textureStorage = allocate_unique<texture_storage_impl>();
+
         return m_layout != nullptr;
     }
 
@@ -49,6 +58,8 @@ namespace oblo::ui
             destroy_state(m_layout);
             m_layout = nullptr;
         }
+
+        m_textureStorage.reset();
     }
 
     void context::begin_frame(span<const input_event> events, time dt, vec2 layoutSize)
@@ -84,6 +95,8 @@ namespace oblo::ui
             }
         }
 
+        m_textureStorage->begin_frame();
+
         ui::begin_frame(*m_layout, dt);
         ui::set_layout_size(*m_layout, layoutSize);
 
@@ -109,6 +122,30 @@ namespace oblo::ui
     void context::end_frame()
     {
         ui::end_frame(*m_layout);
+
+        m_drawCommands.clear();
+
+        for (const auto& e : get_elements(*m_layout))
+        {
+            if (e.kind == layout_element_kind::container)
+            {
+                auto& cmd = m_drawCommands.push_back_default();
+
+                cmd = {
+                    .bounds = e.get_current_rect(),
+                    .fill = e.get_current_background_color(),
+                    .cornerRadius = e.get_current_corner_radius(),
+                };
+            }
+            else
+            {
+                for (const u32 glyph : e.data.text.glyphs)
+                {
+                    // TODO: Generate a quad per glyph
+                    (void) glyph;
+                }
+            }
+        }
     }
 
     bool context::is_active(layout_id id) const
@@ -124,6 +161,16 @@ namespace oblo::ui
     bool context::was_clicked(layout_id id) const
     {
         return m_itemClickedThisFrame[u32(mouse_key::left)] == id;
+    }
+
+    span<const texture_command> context::get_texture_commands() const
+    {
+        return m_textureStorage->commands;
+    }
+
+    span<const draw_command> context::get_draw_commands() const
+    {
+        return m_drawCommands;
     }
 
     bool context::try_render_rect(layout_id id, rect& out) const

@@ -57,4 +57,12 @@ namespace oblo::ui
         fonts.emplace_back(face);
         return font_id{narrow_cast<u16>(fonts.size())};
     }
+
+    void font_cache::add_rendered_glyph(FT_Face face, font_glyph& glyph)
+    {
+        (void) face;
+        (void) glyph;
+
+        // TODO: If a texture exists, find a spot to add the glyph. If none available create new one.
+    }
 }

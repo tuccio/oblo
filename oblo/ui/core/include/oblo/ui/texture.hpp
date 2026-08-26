@@ -1,23 +1,31 @@
 #pragma once
 
+#include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/types.hpp>
 
 namespace oblo::ui
 {
-    struct texture;
+    enum class texture_format
+    {
+        r8_unorm = 9,
+    };
+
+    struct texture
+    {
+        h32<texture> id;
+        u32 width;
+        u32 height;
+        u32 rowPitch;
+        texture_format format;
+        dynamic_array<u8> data;
+    };
 
     enum class texture_command_kind : u8
     {
         create,
         destroy,
         update,
-    };
-
-    /// @brief Texture format, values are equivalent to VkFormat.
-    enum class texture_format
-    {
-        r8_unorm = 9,
     };
 
     struct texture_command_create
@@ -38,6 +46,8 @@ namespace oblo::ui
         h32<texture> id;
         u32 x;
         u32 y;
+        u32 width;
+        u32 height;
     };
 
     struct texture_command

@@ -6,31 +6,18 @@
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/time/time.hpp>
+#include <oblo/core/unique_ptr.hpp>
 #include <oblo/input/input_event.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec4.hpp>
 #include <oblo/ui/forward.hpp>
 #include <oblo/ui/layout.hpp>
+#include <oblo/ui/texture.hpp>
 
 namespace oblo::ui
 {
     struct font;
     using font_id = h16<font>;
-
-    struct draw_rect
-    {
-        rect bounds;
-        color fill;
-        vec4 cornerRadius;
-    };
-
-    struct draw_text
-    {
-        rect bounds;
-        color color;
-        f32 fontHeight;
-        string_view text;
-    };
 
     struct draw_intent
     {
@@ -42,6 +29,17 @@ namespace oblo::ui
         color textColor;
         f32 fontHeight;
         bool hasText;
+    };
+
+    struct draw_command
+    {
+        rect bounds;
+
+        color fill;
+        vec4 cornerRadius;
+
+        h32<texture> texture;
+        vec2 uv;
     };
 
     struct panel_style
@@ -116,7 +114,7 @@ namespace oblo::ui
     class context
     {
     public:
-        context() = default;
+        context();
         context(const context&) = delete;
         context(context&&) noexcept = delete;
         ~context();
@@ -143,6 +141,12 @@ namespace oblo::ui
         bool is_active(layout_id id) const;
         bool is_hovered(layout_id id) const;
         bool was_clicked(layout_id id) const;
+
+ 
+        span<const texture_command> get_texture_commands() const;
+
+        // Draw commands generated from the layout at end_frame, in paint order.
+        span<const draw_command> get_draw_commands() const;
 
         const vec2& mouse_position() const
         {
@@ -187,8 +191,11 @@ namespace oblo::ui
     private:
         bool try_render_rect(layout_id id, rect& out) const;
 
+        struct texture_storage_impl;
+
     private:
         layout_state* m_layout{};
+        unique_ptr<texture_storage_impl> m_textureStorage;
         vec2 m_mousePosition{};
         vec2 m_mouseClickPosition[u32(mouse_key::enum_max)]{};
         flags<mouse_key> m_mouseDown{};
@@ -199,6 +206,7 @@ namespace oblo::ui
         layout_id m_activeId{};
         layout_id m_itemClickedThisFrame[u32(mouse_key::enum_max)]{};
         dynamic_array<font_state> m_fontStack;
+        dynamic_array<draw_command> m_drawCommands;
     };
 
     class panel_scope
