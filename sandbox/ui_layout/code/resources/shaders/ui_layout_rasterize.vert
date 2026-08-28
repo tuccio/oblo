@@ -2,16 +2,21 @@
 
 #include <renderer/math>
 
-struct elements_data
+struct ui_instance
 {
     vec4 rect;
     vec4 color;
     vec4 cornerRadius;
+    vec4 uvRect;
+    uint textureId;
+    uint _pad0;
+    uint _pad1;
+    uint _pad2;
 };
 
 layout(std430, binding = 0) restrict buffer readonly b_ElementsData
 {
-    elements_data g_ElementsData[];
+    ui_instance g_Instances[];
 };
 
 out gl_PerVertex
@@ -25,7 +30,10 @@ layout(location = 0) out struct
     float cornerRadius;
     vec2 position;
     vec2 halfSize;
+    vec2 uv;
 } out_Data;
+
+layout(location = 5) out uint out_TextureID;
 
 layout(push_constant) uniform PushConstants
 {
@@ -34,18 +42,21 @@ layout(push_constant) uniform PushConstants
 
 void main()
 {
-    const elements_data e = g_ElementsData[gl_InstanceIndex];
+    const ui_instance e = g_Instances[gl_InstanceIndex];
 
     const vec2 offsets[4] = vec2[](vec2(0), vec2(0, 1), vec2(1, 1), vec2(1, 0));
     const vec2 position = e.rect.xy + offsets[gl_VertexIndex] * e.rect.zw;
 
     const vec2 ndc = position / vec2(g_Resolution) * 2.0 - 1.0;
 
-    out_Data.color = e.color;
-    out_Data.cornerRadius = e.cornerRadius[gl_VertexIndex];
+    const bool isText = e.uvRect.w > 0.0;
 
+    out_Data.color = e.color;
+    out_Data.cornerRadius = isText ? 0.0 : e.cornerRadius[gl_VertexIndex];
     out_Data.position = position - (e.rect.xy + e.rect.zw * 0.5);
-    out_Data.halfSize = e.rect.zw * .5f;
+    out_Data.halfSize = e.rect.zw * 0.5;
+    out_Data.uv = isText ? (e.uvRect.xy + offsets[gl_VertexIndex] * e.uvRect.zw) : vec2(0.0);
+    out_TextureID = e.textureId;
 
     gl_Position = vec4(ndc, 0, 1);
 }

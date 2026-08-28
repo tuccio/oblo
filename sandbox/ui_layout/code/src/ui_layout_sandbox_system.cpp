@@ -32,6 +32,7 @@ namespace oblo
             m_renderer->get_frame_graph().remove(m_graph);
         }
 
+        m_atlasCache.clear();
         m_ui.shutdown();
         m_app.shutdown();
     }
@@ -173,24 +174,15 @@ namespace oblo
 
         m_ui.end_frame();
 
-        const span elements = m_ui.get_layout_elements();
-        m_elements.assign_default(elements.size());
-
-        for (usize i = 0; i < elements.size(); ++i)
-        {
-            const auto& e = elements[i];
-
-            m_elements[i] = {
-                .rect = std::bit_cast<vec4>(e.get_current_rect()),
-                .color = std::bit_cast<vec4>(e.get_current_background_color()),
-                .cornerRadius = e.get_current_corner_radius(),
-            };
-        }
+        const span drawCommands = m_ui.get_draw_commands();
+        const span textures = m_ui.get_textures();
+        const span textureCommands = m_ui.get_texture_commands();
 
         frameGraph.set_input(m_graph, ui_layout_view::InResolution, resolution).assert_value();
-
-        frameGraph.set_input(m_graph, ui_layout_view::InElements, std::span<const ui_layout_element_gpu>{m_elements})
-            .assert_value();
+        frameGraph.set_input(m_graph, ui_layout_view::InDrawCommands, drawCommands).assert_value();
+        frameGraph.set_input(m_graph, ui_layout_view::InTextures, textures).assert_value();
+        frameGraph.set_input(m_graph, ui_layout_view::InTextureCommands, textureCommands).assert_value();
+        frameGraph.set_input(m_graph, ui_layout_view::InAtlasCache, &m_atlasCache).assert_value();
 
         ++m_frameIndex;
     }

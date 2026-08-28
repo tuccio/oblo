@@ -1,6 +1,7 @@
 #include <oblo/ui/font.hpp>
 
 #include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/utility.hpp>
 
 namespace oblo::ui
 {
@@ -58,11 +59,121 @@ namespace oblo::ui
         return font_id{narrow_cast<u16>(fonts.size())};
     }
 
+    font_atlas& font_cache::create_atlas()
+    {
+        const u32 resolution = textureAtlasResolution ? textureAtlasResolution : 1024;
+
+        const auto id = textures->create_texture(resolution, resolution, texture_format::r8_unorm);
+
+        textures->commands.push_back({
+            .kind = texture_command_kind::create,
+            .create =
+                {
+                    .id = id,
+                    .width = resolution,
+                    .height = resolution,
+                    .format = texture_format::r8_unorm,
+                },
+        });
+
+        auto& atlas = m_atlases.push_back_default();
+        atlas.id = id;
+        atlas.width = resolution;
+        atlas.height = resolution;
+        atlas.init_skyline();
+
+        return atlas;
+    }
+
+    expected<rendered_glyph> font_cache::get_rendered_glyph(const font_glyph_reference& ref, FT_Face face)
+    {
+        const auto glyph = get_or_add_glyph(ref, face);
+
+        if (!glyph)
+        {
+            return glyph.error();
+        }
+
+        const auto& atlas = m_atlases[glyph->textureIndex];
+
+        rendered_glyph result{};
+        result.width = glyph->width;
+        result.height = glyph->height;
+        result.bearingX = i16(glyph->bearingX);
+        result.bearingY = i16(glyph->bearingY);
+        result.advanceX = glyph->advanceX;
+        result.atlas = atlas.id;
+        result.atlasWidth = atlas.width;
+        result.atlasHeight = atlas.height;
+        result.posX = glyph->texturePosX;
+        result.posY = glyph->texturePosY;
+
+        return result;
+    }
+
     void font_cache::add_rendered_glyph(FT_Face face, font_glyph& glyph)
     {
-        (void) face;
-        (void) glyph;
+        const u32 glyphWidth = glyph.width;
+        const u32 glyphHeight = glyph.height;
 
-        // TODO: If a texture exists, find a spot to add the glyph. If none available create new one.
+        // Nothing to rasterize (e.g. whitespace or an empty glyph).
+        if (glyphWidth == 0 || glyphHeight == 0)
+        {
+            return;
+        }
+
+        // 1px padding on each side so bilinear sampling never bleeds neighboring glyphs.
+        constexpr u32 padding = 1;
+        const u32 paddedWidth = glyphWidth + padding * 2;
+        const u32 paddedHeight = glyphHeight + padding * 2;
+
+        u32 x = 0;
+        u32 y = 0;
+        bool placed = false;
+
+        for (auto& atlas : m_atlases)
+        {
+            if (atlas.try_place(paddedWidth, paddedHeight, x, y))
+            {
+                glyph.textureIndex = u16(&atlas - m_atlases.begin());
+                placed = true;
+                break;
+            }
+        }
+
+        if (!placed)
+        {
+            auto& atlas = create_atlas();
+
+            // The freshly created atlas is empty, so this cannot fail for a glyph that fits.
+            OBLO_ASSERT(atlas.try_place(paddedWidth, paddedHeight, x, y));
+            glyph.textureIndex = u16(m_atlases.size() - 1);
+        }
+
+        auto& atlas = m_atlases[glyph.textureIndex];
+
+        const u32 atlasX = x + padding;
+        const u32 atlasY = y + padding;
+
+        glyph.texturePosX = u16(atlasX);
+        glyph.texturePosY = u16(atlasY);
+
+        // Bump the skyline: the region [x, x + paddedWidth) now reaches y + paddedHeight.
+        atlas.add_region(x, y + paddedHeight, paddedWidth);
+
+        // Blit the FreeType bitmap (8-bit coverage) into the atlas texture data.
+        texture* const atlasTexture = textures->find_texture(atlas.id);
+        const FT_Bitmap& bitmap = face->glyph->bitmap;
+
+        for (u32 row = 0; row < glyphHeight; ++row)
+        {
+            for (u32 col = 0; col < glyphWidth; ++col)
+            {
+                const u8 coverage = bitmap.buffer[row * u32(bitmap.pitch) + col];
+                atlasTexture->data[(atlasY + row) * atlasTexture->rowPitch + (atlasX + col)] = coverage;
+            }
+        }
+
+        textures->notify_upload_required(atlas.id, atlasX, atlasY, glyphWidth, glyphHeight);
     }
 }

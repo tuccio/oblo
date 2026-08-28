@@ -39,6 +39,7 @@ namespace oblo::ui
 
         if (key)
         {
+            it->id = key;
             it->width = width;
             it->height = height;
             it->format = format;

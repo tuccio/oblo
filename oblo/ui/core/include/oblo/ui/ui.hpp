@@ -38,8 +38,11 @@ namespace oblo::ui
         color fill;
         vec4 cornerRadius;
 
+        // When valid, the command draws a textured quad (e.g. a glyph) sampling the given
+        // atlas texture. The uvRect selects the sub-rectangle of the atlas in normalized
+        // coordinates. When invalid the command is a solid (rounded) rectangle.
         h32<texture> texture;
-        vec2 uv;
+        vec4 uvRect;
     };
 
     struct panel_style
@@ -142,8 +145,11 @@ namespace oblo::ui
         bool is_hovered(layout_id id) const;
         bool was_clicked(layout_id id) const;
 
- 
         span<const texture_command> get_texture_commands() const;
+
+        // Atlas textures generated from rendered glyphs, with their CPU-side pixel data.
+        // Valid for as long as the context is alive.
+        span<const texture> get_textures() const;
 
         // Draw commands generated from the layout at end_frame, in paint order.
         span<const draw_command> get_draw_commands() const;

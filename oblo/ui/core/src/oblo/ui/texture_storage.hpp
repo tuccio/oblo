@@ -1,4 +1,7 @@
+#pragma once
+
 #include <oblo/core/handle_flat_pool_map.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/ui/texture.hpp>
 
 namespace oblo::ui
@@ -16,5 +19,10 @@ namespace oblo::ui
         texture* find_texture(h32<texture> id);
 
         void notify_upload_required(h32<texture> id, u32 x, u32 y, u32 width, u32 height);
+
+        span<const texture> get_textures() const
+        {
+            return textures.values();
+        }
     };
 }

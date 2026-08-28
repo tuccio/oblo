@@ -9,6 +9,7 @@
 #include <oblo/renderer/graph/frame_graph_template.hpp>
 #include <oblo/ui/ui.hpp>
 
+#include <ui_layout_atlas_cache.hpp>
 #include <ui_layout_render_node.hpp>
 
 namespace oblo
@@ -38,10 +39,11 @@ namespace oblo
 
         graphics_app m_app;
         h32<frame_graph_subgraph> m_graph{};
-        dynamic_array<ui_layout_element_gpu> m_elements;
 
         ui::context m_ui;
         input_queue m_inputQueue;
+
+        ui_atlas_cache m_atlasCache;
 
         bool m_sidebarChecked[6]{};
 

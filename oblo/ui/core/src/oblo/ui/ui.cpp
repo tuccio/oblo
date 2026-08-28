@@ -1,6 +1,8 @@
 #include <oblo/ui/ui.hpp>
 
 #include <oblo/ui/embedded/Archivo-Regular.ttf.h>
+#include <oblo/ui/font.hpp>
+#include <oblo/ui/layout_impl.hpp>
 #include <oblo/ui/texture_storage.hpp>
 
 #include <oblo/core/algorithm/fill.hpp>
@@ -10,6 +12,8 @@ namespace oblo::ui
 {
     namespace
     {
+        constexpr u32 glyph_atlas_resolution = 2048;
+
         font_state resolve_font(const context& ctx, font_id id, u16 size)
         {
             return id ? font_state{id, size} : ctx.get_current_font();
@@ -47,6 +51,11 @@ namespace oblo::ui
         }
 
         m_textureStorage = allocate_unique<texture_storage_impl>();
+
+        // Link the font cache to our texture storage so glyphs get rasterized into atlas
+        // textures, and pick a default atlas resolution.
+        m_layout->fonts.textures = m_textureStorage.get();
+        m_layout->fonts.textureAtlasResolution = glyph_atlas_resolution;
 
         return m_layout != nullptr;
     }
@@ -139,10 +148,53 @@ namespace oblo::ui
             }
             else
             {
+                const FT_Face face = m_layout->fonts.find_font(e.data.text.font);
+
+                if (!face)
+                {
+                    continue;
+                }
+
+                const f32 ascent = f32(face->size->metrics.ascender >> 6);
+                const rect textRect = e.get_current_rect();
+
+                f32 penX = textRect.x;
+                const f32 penY = textRect.y;
+
                 for (const u32 glyph : e.data.text.glyphs)
                 {
-                    // TODO: Generate a quad per glyph
-                    (void) glyph;
+                    const expected rendered =
+                        m_layout->fonts.get_rendered_glyph({e.data.text.font, e.data.text.fontSize, glyph}, face);
+
+                    if (!rendered)
+                    {
+                        continue;
+                    }
+
+                    const f32 x = penX + rendered->bearingX;
+                    const f32 y = penY + (ascent - rendered->bearingY);
+
+                    const vec2 uvMin{
+                        rendered->posX / f32(rendered->atlasWidth),
+                        rendered->posY / f32(rendered->atlasHeight),
+                    };
+
+                    const vec2 uvSize{
+                        rendered->width / f32(rendered->atlasWidth),
+                        rendered->height / f32(rendered->atlasHeight),
+                    };
+
+                    auto& cmd = m_drawCommands.push_back_default();
+
+                    cmd = {
+                        .bounds = rect{x, y, f32(rendered->width), f32(rendered->height)},
+                        .fill = e.data.text.color,
+                        .cornerRadius = {},
+                        .texture = rendered->atlas,
+                        .uvRect = vec4{uvMin.x, uvMin.y, uvSize.x, uvSize.y},
+                    };
+
+                    penX += rendered->advanceX;
                 }
             }
         }
@@ -166,6 +218,11 @@ namespace oblo::ui
     span<const texture_command> context::get_texture_commands() const
     {
         return m_textureStorage->commands;
+    }
+
+    span<const texture> context::get_textures() const
+    {
+        return m_textureStorage->get_textures();
     }
 
     span<const draw_command> context::get_draw_commands() const

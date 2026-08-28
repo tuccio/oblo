@@ -13,7 +13,10 @@ namespace oblo::ui_layout_view
         const auto render = graph.add_node<ui_layout_render_node>();
 
         graph.make_input(render, &ui_layout_render_node::inResolution, InResolution);
-        graph.make_input(render, &ui_layout_render_node::inElements, InElements);
+        graph.make_input(render, &ui_layout_render_node::inDrawCommands, InDrawCommands);
+        graph.make_input(render, &ui_layout_render_node::inTextures, InTextures);
+        graph.make_input(render, &ui_layout_render_node::inTextureCommands, InTextureCommands);
+        graph.make_input(render, &ui_layout_render_node::inAtlasCache, InAtlasCache);
         graph.make_output(render, &ui_layout_render_node::outImage, OutLayoutImage);
 
         return graph;

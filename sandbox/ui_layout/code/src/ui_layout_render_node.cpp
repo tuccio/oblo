@@ -2,6 +2,7 @@
 
 #include <oblo/core/allocation_helpers.hpp>
 #include <oblo/core/span.hpp>
+#include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec4.hpp>
@@ -32,23 +33,27 @@ namespace oblo
 
     void ui_layout_render_node::build(const frame_graph_build_context& ctx)
     {
-        const std::span elements = ctx.access(inElements);
+        const span<const ui::draw_command> drawCommands = ctx.access(inDrawCommands);
 
-        if (elements.empty())
+        if (drawCommands.empty())
         {
             rasterizePassInstance = {};
             return;
         }
 
+        auto* const atlasCache = ctx.access(inAtlasCache);
+        OBLO_ASSERT(atlasCache);
+
         const auto resolution = ctx.access(inResolution);
         const u32 width = max(resolution.x, 1u);
         const u32 height = max(resolution.y, 1u);
 
-        const texture_init_desc rtInitializer{
-            .width = width,
-            .height = height,
-            .format = gpu::image_format::r8g8b8a8_srgb,
-        };
+        const span<const ui::texture> textures = ctx.access(inTextures);
+        const span<const ui::texture_command> textureCommands = ctx.access(inTextureCommands);
+
+        // Apply the per-frame atlas changes (creates/updates/destroys) and keep the
+        // resident GPU textures in sync with the CPU-side atlases.
+        atlasCache->sync(ctx, textures, textureCommands);
 
         rasterizePassInstance =
             ctx
@@ -56,7 +61,7 @@ namespace oblo
                     {
                         .renderTargets =
                             {
-                                .colorAttachmentFormats = make_span_initializer({rtInitializer.format}),
+                                .colorAttachmentFormats = make_span_initializer({gpu::image_format::r8g8b8a8_srgb}),
                                 .blendStates = make_span_initializer({
                                     gpu::color_blend_attachment_state{
                                         .enable = true,
@@ -85,18 +90,36 @@ namespace oblo
                         .primitiveTopology = gpu::primitive_topology::triangle_fan,
                     });
 
-        ctx.create(elementsBuffer,
-            buffer_resource_initializer{
-                .size = elements.size_bytes(),
-                .data = as_bytes(elements),
-            },
-            buffer_usage::storage_read);
+        // Build the per-draw instance data, resolving atlas ids into bindless handles.
+        dynamic_array<ui_instance> instances;
+        instances.reserve(drawCommands.size());
+
+        for (const auto& cmd : drawCommands)
+        {
+            h32<resident_texture> textureId{};
+
+            if (cmd.texture)
+            {
+                textureId = atlasCache->get_resident(ctx, cmd.texture);
+            }
+
+            auto& inst = instances.push_back_default();
+
+            inst.rect = vec4{cmd.bounds.x, cmd.bounds.y, cmd.bounds.width, cmd.bounds.height};
+            inst.color = vec4{cmd.fill.r, cmd.fill.g, cmd.fill.b, cmd.fill.a};
+            inst.cornerRadius = cmd.cornerRadius;
+            inst.uvRect = cmd.uvRect;
+            inst.textureId = textureId.value;
+        }
+
+        const auto staged = ctx.stage_upload(as_bytes(span<const ui_instance>{instances.data(), instances.size()}));
+        ctx.create(instanceBuffer, staged, buffer_usage::storage_read);
 
         ctx.create(outImage,
             texture_resource_initializer{
-                .width = rtInitializer.width,
-                .height = rtInitializer.height,
-                .format = rtInitializer.format,
+                .width = width,
+                .height = height,
+                .format = gpu::image_format::r8g8b8a8_srgb,
             },
             texture_usage::render_target_write);
     }
@@ -108,13 +131,21 @@ namespace oblo
             return;
         }
 
+        auto* const atlasCache = ctx.access(inAtlasCache);
+
+        // Upload any atlas pixels that changed this frame before rasterizing.
+        if (atlasCache)
+        {
+            atlasCache->execute(ctx);
+        }
+
         const auto resolution = ctx.access(inResolution);
-        const auto elements = ctx.access(inElements);
+        const span<const ui::draw_command> drawCommands = ctx.access(inDrawCommands);
 
         binding_table bindingTable;
 
         bindingTable.bind_buffers({
-            {"b_ElementsData"_hsv, elementsBuffer},
+            {"b_ElementsData"_hsv, instanceBuffer},
         });
 
         if (ctx.begin_pass(rasterizePassInstance,
@@ -138,12 +169,12 @@ namespace oblo
                 .resolution = resolution,
             };
 
-            ctx.push_constants(gpu::shader_stage::vertex, 0, std::as_bytes(std::span{&pushConstants, 1}));
+            ctx.push_constants(gpu::shader_stage::vertex, 0, std::as_bytes(span{&pushConstants, 1}));
 
             ctx.set_scissor(0, 0, resolution.x, resolution.y);
             ctx.set_viewport(resolution.x, resolution.y);
 
-            ctx.draw(4u, u32(elements.size()), 0u, 0u);
+            ctx.draw(4u, u32(drawCommands.size()), 0u, 0u);
 
             ctx.end_pass();
         }
