@@ -44,12 +44,6 @@ function(oblo_init_build_configurations)
             )
         endif()
 
-        # Disable optimizations if specified
-        if(OBLO_DISABLE_COMPILER_OPTIMIZATIONS)
-            _oblo_remove_cxx_flag("(\/O([a-z])?[0-9a-z])")
-            list(APPEND _oblo_cxx_compile_options /Od)
-        endif()
-
         if(_is_msvc)
             # Flags that are not supported or needed by clang-cl
             list(APPEND _oblo_cxx_compile_options
@@ -100,17 +94,13 @@ function(oblo_init_build_configurations)
         endif()
     endif()
 
-    if(OBLO_ENABLE_ASSERT)
-        list(APPEND _oblo_cxx_compile_definitions "OBLO_ENABLE_ASSERT")
+    if(OBLO_WITH_ASSERTS)
+        list(APPEND _oblo_cxx_compile_definitions "OBLO_WITH_ASSERTS")
     else()
-        list(APPEND _oblo_cxx_compile_definitions "$<$<CONFIG:Debug>:OBLO_ENABLE_ASSERT>")
+        list(APPEND _oblo_cxx_compile_definitions "$<$<CONFIG:Debug>:OBLO_WITH_ASSERTS>")
     endif()
 
-    if(OBLO_DEBUG)
-        list(APPEND _oblo_cxx_compile_definitions "OBLO_DEBUG")
-    else()
-        list(APPEND _oblo_cxx_compile_definitions "$<$<CONFIG:Debug>:OBLO_DEBUG>")
-    endif()
+    list(APPEND _oblo_cxx_compile_definitions "$<$<CONFIG:Debug>:OBLO_DEBUG>")
 
     set_property(GLOBAL PROPERTY oblo_cxx_compile_options "${_oblo_cxx_compile_options}")
     set_property(GLOBAL PROPERTY oblo_cxx_compile_definitions "${_oblo_cxx_compile_definitions}")

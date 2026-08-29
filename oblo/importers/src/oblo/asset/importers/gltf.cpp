@@ -47,32 +47,32 @@ namespace oblo::importers
 {
     namespace
     {
-        struct embedded_image
+        struct gltf_embedded_image
         {
             u32 imageIndex;
             string sourceFile;
         };
 
-        struct import_hierarchy
+        struct gltf_import_hierarchy
         {
             u32 nodeIndex;
             u32 sceneIndex;
         };
 
-        struct import_animation
+        struct gltf_import_animation
         {
             u32 nodeIndex;
             u32 animationIndex;
         };
 
-        struct import_model
+        struct gltf_import_model
         {
             u32 meshIndex;
             u32 nodeIndex;
             u32 primitiveBegin;
         };
 
-        struct import_mesh
+        struct gltf_import_mesh
         {
             u32 meshIndex;
             u32 primitiveIndex;
@@ -81,27 +81,27 @@ namespace oblo::importers
             bool wasImported;
         };
 
-        struct import_material
+        struct gltf_import_material
         {
             u32 nodeIndex;
             uuid id;
         };
 
-        struct import_image
+        struct gltf_import_image
         {
-            const embedded_image* embeddedImage{};
+            const gltf_embedded_image* embeddedImage{};
             usize subImportIndex;
             uuid id;
         };
 
-        struct import_skin
+        struct gltf_import_skin
         {
             u32 nodeIndex;
             u32 skeletonNodeIndex;
             bool skipped;
         };
 
-        struct import_skeleton
+        struct gltf_import_skeleton
         {
             u32 nodeIndex;
             i32 sceneNodeRootIndex;
@@ -302,21 +302,21 @@ namespace oblo::importers
     {
         tinygltf::Model model;
         tinygltf::TinyGLTF loader;
-        dynamic_array<import_animation> importAnimations;
-        dynamic_array<import_hierarchy> importHierarchies;
-        dynamic_array<import_model> importModels;
-        dynamic_array<import_mesh> importMeshes;
-        dynamic_array<import_material> importMaterials;
-        dynamic_array<import_image> importImages;
-        dynamic_array<import_skeleton> importSkeletons;
-        dynamic_array<import_skin> importSkins;
+        dynamic_array<gltf_import_animation> importAnimations;
+        dynamic_array<gltf_import_hierarchy> importHierarchies;
+        dynamic_array<gltf_import_model> importModels;
+        dynamic_array<gltf_import_mesh> importMeshes;
+        dynamic_array<gltf_import_material> importMaterials;
+        dynamic_array<gltf_import_image> importImages;
+        dynamic_array<gltf_import_skeleton> importSkeletons;
+        dynamic_array<gltf_import_skin> importSkins;
 
         dynamic_array<import_artifact> artifacts;
         dynamic_array<string> sourceFiles;
         string_builder sourceFileDir;
         uuid mainArtifactHint{};
 
-        deque<embedded_image> embeddedImages;
+        deque<gltf_embedded_image> embeddedImages;
 
         struct gltf_node_info
         {
@@ -379,7 +379,7 @@ namespace oblo::importers
         struct image_load_args
         {
             string_builder pathBuilder;
-            deque<embedded_image>& embeddedImages;
+            deque<gltf_embedded_image>& embeddedImages;
             cstring_view workDir;
         };
 
@@ -1423,7 +1423,7 @@ namespace oblo::importers
 
                             if (node.skin >= 0)
                             {
-                                const import_skin& importSkin = m_impl->importSkins[node.skin];
+                                const gltf_import_skin& importSkin = m_impl->importSkins[node.skin];
 
                                 if (!importSkin.skipped)
                                 {

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <oblo/smoke/framework.hpp>
 
 #include <oblo/asset/asset_meta.hpp>

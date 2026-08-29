@@ -386,7 +386,7 @@ namespace oblo
             const string_interner& m_interner;
             const gpu::image_state_tracker& m_imageStateTracker;
             const binding_tables_span& m_bindingTables;
-            const frame_graph_execute_args& m_executeArgs;
+            [[maybe_unused]] const frame_graph_execute_args& m_executeArgs;
             [[maybe_unused]] const base_pipeline& m_pipeline;
             [[maybe_unused]] h32<frame_graph_pass> m_currentPass;
         };

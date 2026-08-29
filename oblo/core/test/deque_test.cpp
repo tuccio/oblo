@@ -4,47 +4,15 @@
 #include <oblo/core/deque.hpp>
 #include <oblo/core/unordered_map.hpp>
 
+#include "checked_allocator.hpp"
+#include "common.hpp"
+
 #include <deque>
 #include <span>
 #include <vector>
 
 namespace oblo
 {
-    struct checked_allocator final : allocator
-    {
-        byte* allocate(usize size, usize alignment) noexcept override
-        {
-            auto* ptr = upstream->allocate(size, alignment);
-            allocations.emplace(ptr, allocation_info{size, alignment});
-
-            return ptr;
-        }
-
-        void deallocate(byte* ptr, usize size, usize alignment) noexcept override
-        {
-            const auto it = allocations.find(ptr);
-            ASSERT_NE(it, allocations.end());
-
-            const auto& info = it->second;
-            ASSERT_EQ(info.size, size);
-            ASSERT_EQ(info.alignment, alignment);
-
-            allocations.erase(it);
-
-            upstream->deallocate(ptr, size, alignment);
-        }
-
-        allocator* upstream{get_global_allocator()};
-
-        struct allocation_info
-        {
-            usize size;
-            usize alignment;
-        };
-
-        std::unordered_map<void*, allocation_info> allocations;
-    };
-
     TEST(deque, deque_trivial)
     {
         checked_allocator allocator;
@@ -99,24 +67,6 @@ namespace oblo
         ASSERT_EQ(allocator.allocations.size(), 0);
     }
 
-    namespace
-    {
-        class move_only_int
-        {
-        public:
-            explicit move_only_int(i32 v) : m_value{std::make_unique<i32>(v)} {}
-
-            move_only_int(move_only_int&&) noexcept = default;
-
-            bool operator==(const move_only_int& other) const
-            {
-                return *m_value == *other.m_value;
-            }
-
-        private:
-            std::unique_ptr<i32> m_value;
-        };
-    }
 
     TEST(deque, deque_move_only)
     {
@@ -179,11 +129,6 @@ namespace oblo
 
         ASSERT_EQ(allocator.allocations.size(), 0);
     }
-
-    struct aligned32_value
-    {
-        alignas(32) u32 values[16];
-    };
 
     TEST(deque, deque_alignment)
     {

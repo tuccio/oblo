@@ -28,18 +28,18 @@ namespace oblo::importers
 {
     namespace
     {
-        struct import_hierarchy
+        struct assimp_import_hierarchy
         {
             u32 nodeIndex;
         };
 
-        struct import_mesh
+        struct assimp_import_mesh
         {
             u32 meshIndex;
             u32 nodeIndex;
         };
 
-        struct import_material
+        struct assimp_import_material
         {
             u32 nodeIndex;
         };
@@ -58,9 +58,9 @@ namespace oblo::importers
 
         dynamic_array<import_artifact> artifacts;
 
-        dynamic_array<import_mesh> importMeshes;
-        dynamic_array<import_material> importMaterials;
-        import_hierarchy importHierarchy;
+        dynamic_array<assimp_import_mesh> importMeshes;
+        dynamic_array<assimp_import_material> importMaterials;
+        assimp_import_hierarchy importHierarchy;
 
         dynamic_array<string> sourceFiles;
     };

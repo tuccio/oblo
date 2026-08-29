@@ -39,7 +39,7 @@ set_target_properties(
 
 oblo_set_target_folder(Oblo.Managed-build build)
 
-if(OBLO_GENERATE_CSHARP)
+if(OBLO_CSHARP_GENERATOR_SUPPORTED)
     include_external_msproject(Oblo.Managed "${CMAKE_CURRENT_SOURCE_DIR}/Oblo.Managed.csproj")
 
     # We add the csproj for convenience, although it would fail to build since it's missing the reference to the generated code
