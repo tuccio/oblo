@@ -51,6 +51,7 @@ namespace oblo::ui
     TEST(ui_game, button_click)
     {
         context ctx;
+        ASSERT_TRUE(ctx.init());
 
         const vec2 layoutSize{800, 600};
 
@@ -87,6 +88,7 @@ namespace oblo::ui
     TEST(ui_game, button_ignores_release_outside)
     {
         context ctx;
+        ASSERT_TRUE(ctx.init());
 
         const vec2 layoutSize{800, 600};
 
@@ -123,6 +125,7 @@ namespace oblo::ui
     TEST(ui_game, checkbox_toggle)
     {
         context ctx;
+        ASSERT_TRUE(ctx.init());
 
         const vec2 layoutSize{800, 600};
 
@@ -163,6 +166,7 @@ namespace oblo::ui
     TEST(ui_game, click_within_single_frame)
     {
         context ctx;
+        ASSERT_TRUE(ctx.init());
 
         const vec2 layoutSize{800, 600};
 
