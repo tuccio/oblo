@@ -331,7 +331,14 @@ namespace oblo::ui
 
     bool checkbox(context& ctx, layout_id id, bool& checked, hashed_string_view text, const checkbox_style& style)
     {
-        const auto container = container_builder{}.width(fit_size()).height(fit_size()).build(ctx.get_layout());
+        constexpr f32 gap = 8.f;
+
+        const auto container = container_builder{}
+                                   .width(fit_size())
+                                   .height(fit_size())
+                                   .gap(gap)
+                                   .align_y(alignment_y::center)
+                                   .build(ctx.get_layout());
 
         {
             const auto box = container_builder{}
