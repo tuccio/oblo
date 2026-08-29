@@ -55,6 +55,11 @@ namespace oblo::ui
 
         sizing width{fit_size()};
         sizing height{fit_size()};
+
+        alignment alignment{alignment::top_left()};
+
+        // Optional transition/enter/exit animation for this panel.
+        animation_config animation{};
     };
 
     struct button_style
@@ -215,7 +220,7 @@ namespace oblo::ui
         dynamic_array<draw_command> m_drawCommands;
     };
 
-    class panel_scope
+    class [[nodiscard]] panel_scope
     {
     public:
         panel_scope() = default;
@@ -237,7 +242,7 @@ namespace oblo::ui
         context* m_ctx{};
     };
 
-    panel_scope begin_panel(context& ctx, layout_id id, const panel_style& style = {});
+    panel_scope panel(context& ctx, layout_id id, const panel_style& style = {});
 
     bool button(context& ctx, layout_id id, hashed_string_view text, const button_style& style = {});
 

@@ -255,7 +255,7 @@ namespace oblo::ui
         }
     }
 
-    panel_scope begin_panel(context& ctx, layout_id id, const panel_style& style)
+    panel_scope panel(context& ctx, layout_id id, const panel_style& style)
     {
         const container_descriptor desc{
             .elementId = id,
@@ -266,6 +266,8 @@ namespace oblo::ui
             .cornerRadius = vec4::splat(style.cornerRadius),
             .childGap = style.gap,
             .padding = style.padding,
+            .alignment = style.alignment,
+            .animation = style.animation,
         };
 
         ui::begin_container(ctx.get_layout(), desc);

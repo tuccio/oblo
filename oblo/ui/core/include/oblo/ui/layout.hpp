@@ -159,6 +159,11 @@ namespace oblo::ui
         alignment_x x;
         alignment_y y;
 
+        static constexpr alignment center_left() noexcept
+        {
+            return {alignment_x::left, alignment_y::center};
+        }
+
         static constexpr alignment top_left() noexcept
         {
             return {alignment_x::left, alignment_y::top};

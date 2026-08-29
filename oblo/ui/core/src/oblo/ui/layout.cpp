@@ -161,8 +161,8 @@ namespace oblo::ui
             {
                 const animated_values target{
                     .boundingBox = element.targetRect,
-                    .cornerRadius =
-                        element.kind == layout_element_kind::container ? element.data.container.cornerRadius : vec4{},
+                    .backgroundColor = element.data.container.backgroundColor,
+                    .cornerRadius = element.data.container.cornerRadius,
                 };
 
                 const layout_id parentId =

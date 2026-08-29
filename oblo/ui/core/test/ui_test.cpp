@@ -56,7 +56,7 @@ namespace oblo::ui
 
         ctx.begin_frame({}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             button(ctx, {2}, "OK");
         }
         ctx.end_frame();
@@ -70,7 +70,7 @@ namespace oblo::ui
         const input_event frame2[] = {ev_move(cx, cy), ev_press(cx, cy)};
         ctx.begin_frame({frame2, 2}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             EXPECT_FALSE(button(ctx, {2}, "OK"));
         }
         ctx.end_frame();
@@ -78,7 +78,7 @@ namespace oblo::ui
         const input_event frame3[] = {ev_move(cx, cy), ev_release(cx, cy)};
         ctx.begin_frame({frame3, 2}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             EXPECT_TRUE(button(ctx, {2}, "OK"));
         }
         ctx.end_frame();
@@ -92,7 +92,7 @@ namespace oblo::ui
 
         ctx.begin_frame({}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             button(ctx, {2}, "OK");
         }
         ctx.end_frame();
@@ -106,7 +106,7 @@ namespace oblo::ui
         const input_event frame2[] = {ev_move(cx, cy), ev_press(cx, cy)};
         ctx.begin_frame({frame2, 2}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             button(ctx, {2}, "OK");
         }
         ctx.end_frame();
@@ -114,7 +114,7 @@ namespace oblo::ui
         const input_event frame3[] = {ev_move(0.f, 0.f), ev_release(0.f, 0.f)};
         ctx.begin_frame({frame3, 2}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             EXPECT_TRUE(button(ctx, {2}, "OK"));
         }
         ctx.end_frame();
@@ -128,7 +128,7 @@ namespace oblo::ui
 
         ctx.begin_frame({}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             bool checked = false;
             checkbox(ctx, {4}, checked, "On", {});
         }
@@ -143,7 +143,7 @@ namespace oblo::ui
         const input_event frame2[] = {ev_move(cx, cy), ev_press(cx, cy)};
         ctx.begin_frame({frame2, 2}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             bool checked = false;
             checkbox(ctx, {4}, checked, "On", {});
         }
@@ -152,7 +152,7 @@ namespace oblo::ui
         const input_event frame3[] = {ev_move(cx, cy), ev_release(cx, cy)};
         ctx.begin_frame({frame3, 2}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             bool checked = false;
             EXPECT_TRUE(checkbox(ctx, {4}, checked, "On", {}));
             EXPECT_TRUE(checked);
@@ -168,7 +168,7 @@ namespace oblo::ui
 
         ctx.begin_frame({}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             button(ctx, {2}, "OK");
         }
         ctx.end_frame();
@@ -183,7 +183,7 @@ namespace oblo::ui
         const input_event frame[] = {ev_move(cx, cy), ev_press(cx, cy), ev_release(cx, cy)};
         ctx.begin_frame({frame, 3}, time{}, layoutSize);
         {
-            auto panel = begin_panel(ctx, {1});
+            auto p = panel(ctx, {1});
             EXPECT_TRUE(button(ctx, {2}, "OK"));
         }
         ctx.end_frame();

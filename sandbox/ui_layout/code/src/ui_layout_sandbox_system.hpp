@@ -47,6 +47,9 @@ namespace oblo
 
         bool m_sidebarChecked[6]{};
 
+        bool m_showAnimatedPanel{};
+        bool m_expandedAnimatedPanel{};
+
         bool m_active{};
     };
 }
