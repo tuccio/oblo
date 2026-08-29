@@ -246,9 +246,6 @@ namespace oblo::ui
 
         const vec2 layoutSize{800, 600};
 
-        i32 selected = -1;
-        const hashed_string_view items[] = {"Apple"_hsv, "Banana"_hsv, "Cherry"_hsv};
-
         // Establish the open state on frame 1 (the popup-open flag lives on the layout element and
         // is carried across frames), then read it back on frame 2.
         ctx.begin_frame({}, time{}, layoutSize);
@@ -262,7 +259,11 @@ namespace oblo::ui
         ctx.begin_frame({}, time{}, layoutSize);
         {
             auto p = panel(ctx, {100});
-            combo_box(ctx, {1}, selected, items, {});
+
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            combo.add_item({101}, "Apple");
+            combo.add_item({102}, "Banana");
+            combo.add_item({103}, "Cherry");
         }
         ctx.end_frame();
 
@@ -275,10 +276,10 @@ namespace oblo::ui
         {
             const layout_id id = els[i].elementId;
 
-            if (id == layout_id{2})
-                idxHeader = i; // headerId = id + 1
+            if (id == layout_id{1})
+                idxHeader = i; // the combo's own id is its header
             else if (id == layout_id{101})
-                idxItem0 = i; // id + 100
+                idxItem0 = i;
             else if (id == layout_id{102})
                 idxItem1 = i;
             else if (id == layout_id{103})
@@ -295,7 +296,8 @@ namespace oblo::ui
         ASSERT_NE(idxItem1, -1);
         ASSERT_NE(idxItem2, -1);
 
-        // Entries (items) must be drawn after the header (which is part of the combo panel).
+        // The popup (and its items) are floating, so they are emitted after the non-floating
+        // header in paint order.
         EXPECT_GT(idxItem0, idxHeader);
         EXPECT_GT(idxItem1, idxHeader);
         EXPECT_GT(idxItem2, idxHeader);
@@ -305,6 +307,71 @@ namespace oblo::ui
         // The popup, its three entry buttons, and the three entry labels should all be lifted above
         // the normal flow.
         EXPECT_EQ(countFloating, 7);
+    }
+
+    TEST(ui_game, combo_item_click)
+    {
+        context ctx;
+        ASSERT_TRUE(ctx.init());
+
+        const vec2 layoutSize{800, 600};
+
+        i32 selected = -1;
+
+        // Open the popup.
+        ctx.begin_frame({}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            container_builder{}.id({1}).direction(layout_direction::top_to_bottom).build(ctx.get_layout());
+            ctx.set_popup_open({1}, true);
+        }
+        ctx.end_frame();
+
+        // Render the popup so item geometry is resolved.
+        ctx.begin_frame({}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            combo.add_item({101}, "Apple");
+            combo.add_item({102}, "Banana");
+        }
+        ctx.end_frame();
+
+        const rect* const itemRect = rect_of(ctx, {101});
+        ASSERT_NE(itemRect, nullptr);
+
+        const f32 cx = itemRect->x + itemRect->width * 0.5f;
+        const f32 cy = itemRect->y + itemRect->height * 0.5f;
+
+        // Press on the item.
+        const input_event pressFrame[] = {ev_move(cx, cy), ev_press(cx, cy)};
+        ctx.begin_frame({pressFrame, 2}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            combo.add_item({101}, "Apple");
+            combo.add_item({102}, "Banana");
+        }
+        ctx.end_frame();
+
+        // Release on the item -> should be detected as a click.
+        const input_event releaseFrame[] = {ev_move(cx, cy), ev_release(cx, cy)};
+        bool itemClicked = false;
+        ctx.begin_frame({releaseFrame, 2}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            itemClicked = combo.add_item({101}, "Apple");
+
+            if (itemClicked)
+                selected = 0;
+
+            combo.add_item({102}, "Banana");
+        }
+        ctx.end_frame();
+
+        EXPECT_TRUE(itemClicked);
+        EXPECT_EQ(selected, 0);
     }
 
     TEST(ui_game, floating_ancestor_does_not_cover_popup)

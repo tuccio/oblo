@@ -307,10 +307,52 @@ namespace oblo::ui
     bool radio_button(
         context& ctx, layout_id id, bool& selected, hashed_string_view text, const radio_style& style = {});
 
-    // Returns true when the selection changed. `items` must stay alive for the frame.
-    bool combo_box(
-        context& ctx, layout_id id, i32& selected, span<const hashed_string_view> items, const combo_style& style = {});
+    // Builds a radio group by adding options one at a time, each with its own explicit layout id.
+    // The group's selection is tracked by the chosen option's id (an empty id means none selected).
+    class radio_group_builder
+    {
+    public:
+        radio_group_builder(context& ctx, layout_id& selected, const radio_style& style = {});
 
-    // Returns true when `value` changed. Drag the track (or click to jump) to set it.
+        radio_group_builder(const radio_group_builder&) = delete;
+        radio_group_builder& operator=(const radio_group_builder&) = delete;
+        radio_group_builder(radio_group_builder&&) noexcept = default;
+        radio_group_builder& operator=(radio_group_builder&&) noexcept = default;
+
+        ~radio_group_builder() = default;
+
+        // Adds an option with the given id. Returns true if this option was just selected.
+        bool add_option(layout_id optionId, hashed_string_view text);
+
+    private:
+        context* m_ctx{};
+        layout_id* m_selected{};
+        radio_style m_style{};
+    };
+
+    class combo_box_builder
+    {
+    public:
+        combo_box_builder(context& ctx, layout_id id, hashed_string_view headerText, const combo_style& style = {});
+
+        combo_box_builder(const combo_box_builder&) = delete;
+        combo_box_builder(combo_box_builder&&) noexcept = delete;
+
+        combo_box_builder& operator=(const combo_box_builder&) = delete;
+        combo_box_builder& operator=(combo_box_builder&&) noexcept = delete;
+
+        ~combo_box_builder();
+
+        bool add_item(layout_id itemId, hashed_string_view text);
+
+    private:
+        context* m_ctx{};
+        layout_id m_id{};
+        combo_style m_style{};
+        bool m_open{};
+        bool m_popupOpen{};
+        bool m_anyItemClicked{};
+    };
+
     bool slider(context& ctx, layout_id id, f32& value, const slider_style& style = {}, f32 min = 0.f, f32 max = 1.f);
 }

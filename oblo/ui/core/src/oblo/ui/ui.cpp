@@ -436,104 +436,137 @@ namespace oblo::ui
         return false;
     }
 
-    bool combo_box(
-        context& ctx, layout_id id, i32& selected, span<const hashed_string_view> items, const combo_style& style)
+    radio_group_builder::radio_group_builder(context& ctx, layout_id& selected, const radio_style& style) :
+        m_ctx{&ctx}, m_selected{&selected}, m_style{style}
     {
-        bool open = ctx.is_popup_open(id);
+    }
 
-        const hashed_string_view headerText =
-            (selected >= 0 && selected < i32(items.size())) ? items[selected] : "Select..."_hsv;
+    bool radio_group_builder::add_option(layout_id optionId, hashed_string_view text)
+    {
+        bool selected = *m_selected == optionId;
 
-        const auto container = container_builder{}
-                                   .id(id)
-                                   .width(style.width)
-                                   .height(style.height)
-                                   .direction(layout_direction::top_to_bottom)
-                                   .gap(0.f)
-                                   .build(ctx.get_layout());
-
-        const button_style headerButtonStyle{
-            .idleColor = style.idleColor,
-            .hoverColor = style.hoverColor,
-            .activeColor = style.activeColor,
-            .textColor = style.textColor,
-            .cornerRadius = style.cornerRadius,
-            .padding = style.padding,
-            .width = style.width,
-            .height = style.height,
-            .font = style.font,
-            .fontSize = style.fontSize,
-        };
-
-        const layout_id headerId{id.value + 1u};
-
-        if (button(ctx, headerId, headerText, headerButtonStyle))
+        if (radio_button(*m_ctx, optionId, selected, text, m_style))
         {
-            open = !open;
-            ctx.set_popup_open(id, open);
+            *m_selected = optionId;
+            return true;
         }
 
-        bool changed = false;
+        return false;
+    }
 
-        if (open)
+    combo_box_builder::combo_box_builder(
+        context& ctx, layout_id id, hashed_string_view headerText, const combo_style& style) :
+        m_ctx{&ctx}, m_id{id}, m_style{style}, m_open{ctx.is_popup_open(id)}
+    {
+        const bool headerActive = ctx.is_active(id);
+        const bool headerHovered = ctx.is_hovered(id);
+        const color hdrBg = headerActive ? style.activeColor : (headerHovered ? style.hoverColor : style.idleColor);
+
+        const container_descriptor desc{
+            .elementId = id,
+            .direction = layout_direction::top_to_bottom,
+            .width = style.width,
+            .height = style.height,
+            .backgroundColor = hdrBg,
+            .cornerRadius = vec4::splat(style.cornerRadius),
+            .childGap = 0.f,
+            .padding = style.padding,
+        };
+
+        ui::begin_container(ctx.get_layout(), desc);
+
+        const font_state currentFont = resolve_font(ctx, style.font, style.fontSize);
+
+        add_text(ctx.get_layout(),
+            {
+                .text = headerText,
+                .color = style.textColor,
+                .font = currentFont.font,
+                .fontSize = currentFont.fontSize,
+            });
+
+        if (ctx.was_clicked(id))
         {
-            const auto popup =
-                container_builder{}
-                    .width(style.width)
-                    .height(fit_size())
-                    .direction(layout_direction::top_to_bottom)
-                    .gap(style.itemGap)
-                    .padding({style.popupPadding, style.popupPadding, style.popupPadding, style.popupPadding})
-                    .background_color(style.popupColor)
-                    .corner_radius(style.cornerRadius)
-                    .floating(floating_config{
-                        .anchorId = headerId,
+            m_open = !m_open;
+        }
+
+        m_popupOpen = m_open;
+
+        if (m_popupOpen)
+        {
+            const container_descriptor popupDesc{
+                .direction = layout_direction::top_to_bottom,
+                .width = style.width,
+                .height = fit_size(),
+                .backgroundColor = style.popupColor,
+                .cornerRadius = vec4::splat(style.cornerRadius),
+                .childGap = style.itemGap,
+                .padding = {style.popupPadding, style.popupPadding, style.popupPadding, style.popupPadding},
+                .floating =
+                    floating_config{
+                        .anchorId = id,
                         .anchorPoint = alignment::bottom_left(),
                         .selfPoint = alignment::top_left(),
                         .offset = {0.f, 4.f},
                         .zIndex = 100.f,
-                    })
-                    .build(ctx.get_layout());
-
-            const button_style itemButtonStyle{
-                .idleColor = style.popupColor,
-                .hoverColor = style.popupHoverColor,
-                .activeColor = style.popupHoverColor,
-                .textColor = style.popupTextColor,
-                .cornerRadius = style.cornerRadius,
-                .padding = style.padding,
-                .width = percent_size(1.f),
-                .font = style.font,
-                .fontSize = style.fontSize,
+                    },
+                .isFloating = true,
             };
 
-            bool anyItemClicked = false;
+            ui::begin_container(ctx.get_layout(), popupDesc);
+        }
+    }
 
-            for (i32 i = 0; i < i32(items.size()); ++i)
+    bool combo_box_builder::add_item(layout_id itemId, hashed_string_view text)
+    {
+        bool clicked = false;
+
+        if (m_popupOpen)
+        {
+            const button_style itemButtonStyle{
+                .idleColor = m_style.popupColor,
+                .hoverColor = m_style.popupHoverColor,
+                .activeColor = m_style.popupHoverColor,
+                .textColor = m_style.popupTextColor,
+                .cornerRadius = m_style.cornerRadius,
+                .padding = m_style.padding,
+                .width = percent_size(1.f),
+                .font = m_style.font,
+                .fontSize = m_style.fontSize,
+            };
+
+            if (button(*m_ctx, itemId, text, itemButtonStyle))
             {
-                const layout_id itemId{id.value + 100u + u32(i)};
-
-                if (button(ctx, itemId, items[i], itemButtonStyle))
-                {
-                    selected = i;
-                    open = false;
-                    changed = true;
-                    anyItemClicked = true;
-                }
-            }
-
-            // Dismiss when this frame's click did not land on the header nor on a list item.
-            if (!anyItemClicked && ctx.mouse_clicked_this_frame(mouse_key::left) && !ctx.was_clicked(headerId))
-            {
-                open = false;
+                m_anyItemClicked = true;
+                m_open = false;
+                clicked = true;
             }
         }
 
-        // Persist the final open state for next frame. Must run every frame (not just on the
-        // header click) so selecting an item or dismissing the popup actually closes it.
-        ctx.set_popup_open(id, open);
+        return clicked;
+    }
 
-        return changed;
+    combo_box_builder::~combo_box_builder()
+    {
+        if (!m_ctx)
+        {
+            return;
+        }
+
+        if (m_popupOpen)
+        {
+            end_container(m_ctx->get_layout());
+        }
+
+        if (m_open && !m_anyItemClicked && m_ctx->mouse_released_this_frame(mouse_key::left) &&
+            !m_ctx->was_clicked(m_id))
+        {
+            m_open = false;
+        }
+
+        m_ctx->set_popup_open(m_id, m_open);
+
+        end_container(m_ctx->get_layout());
     }
 
     bool slider(context& ctx, layout_id id, f32& value, const slider_style& style, f32 min, f32 max)
