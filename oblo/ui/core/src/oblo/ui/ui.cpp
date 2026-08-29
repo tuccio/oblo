@@ -94,9 +94,9 @@ namespace oblo::ui
                 break;
 
             case input_event_kind::mouse_release:
-                m_mouseDown.unset(e.mousePress.key);
+                m_mouseDown.unset(e.mouseRelease.key);
                 m_releasedThisFrame.set(e.mouseRelease.key);
-                m_mousePosition = {e.mousePress.x, e.mousePress.y};
+                m_mousePosition = {e.mouseRelease.x, e.mouseRelease.y};
                 break;
 
             default:
@@ -339,6 +339,7 @@ namespace oblo::ui
         constexpr f32 gap = 8.f;
 
         const auto container = container_builder{}
+                                   .id(id)
                                    .width(fit_size())
                                    .height(fit_size())
                                    .gap(gap)
@@ -347,7 +348,6 @@ namespace oblo::ui
 
         {
             const auto box = container_builder{}
-                                 .id(id)
                                  .width(fixed_size(style.boxSize))
                                  .height(fixed_size(style.boxSize))
                                  .background_color(style.boxColor)

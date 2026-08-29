@@ -358,8 +358,6 @@ namespace oblo::ui
     expected<font_id> load_font_from_file(layout_state& state, cstring_view path);
     expected<font_id> load_font_from_memory(layout_state& state, span<const byte> data);
 
-    expected<font_id> load_default_font(layout_state& state);
-
     void set_layout_size(layout_state& state, vec2 size);
 
     void begin_frame(layout_state& state, time dt);

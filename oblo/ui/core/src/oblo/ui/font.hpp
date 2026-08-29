@@ -32,9 +32,10 @@ namespace oblo::ui
         u16 width;
         u16 height;
 
-        // Bounding box offsets relative to the text origin (pen position)
-        u16 bearingX;
-        u16 bearingY;
+        // Bounding box offsets relative to the text origin (pen position). These can be
+        // negative (e.g. italics), so they must be signed.
+        i16 bearingX;
+        i16 bearingY;
 
         u16 advanceX;
 
@@ -336,8 +337,8 @@ namespace oblo::ui
 
                 it->second.width = narrow_cast<u16>(metrics.width >> 6);
                 it->second.height = narrow_cast<u16>(metrics.height >> 6);
-                it->second.bearingX = narrow_cast<u16>(metrics.horiBearingX >> 6);
-                it->second.bearingY = narrow_cast<u16>(metrics.horiBearingY >> 6);
+                it->second.bearingX = narrow_cast<i16>(metrics.horiBearingX >> 6);
+                it->second.bearingY = narrow_cast<i16>(metrics.horiBearingY >> 6);
                 it->second.advanceX = narrow_cast<u16>(metrics.horiAdvance >> 6);
 
                 if (withFontTexture)
