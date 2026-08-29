@@ -45,7 +45,8 @@ namespace oblo::ui
             it->format = format;
             it->rowPitch = rowPitch;
 
-            it->data.resize_default(rowPitch * height);
+            // Zero-initialize is on purpose, to initialize textures to black
+            it->data.resize(rowPitch * height);
         }
 
         return key;

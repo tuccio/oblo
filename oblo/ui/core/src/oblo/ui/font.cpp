@@ -5,6 +5,8 @@
 
 namespace oblo::ui
 {
+    constexpr u32 glyph_atlas_padding = 1;
+
     expected<> font_cache::init()
     {
         if (FT_Init_FreeType(&freetype))
@@ -82,6 +84,9 @@ namespace oblo::ui
         atlas.height = resolution;
         atlas.init_skyline();
 
+        // Mark the wole texture as dirty to ensure we initialize the texture
+        atlas.add_dirty(0, 0, resolution, resolution);
+
         return atlas;
     }
 
@@ -122,10 +127,8 @@ namespace oblo::ui
             return;
         }
 
-        // 1px padding on each side so bilinear sampling never bleeds neighboring glyphs.
-        constexpr u32 padding = 1;
-        const u32 paddedWidth = glyphWidth + padding * 2;
-        const u32 paddedHeight = glyphHeight + padding * 2;
+        const u32 paddedWidth = glyphWidth + glyph_atlas_padding * 2;
+        const u32 paddedHeight = glyphHeight + glyph_atlas_padding * 2;
 
         u32 x = 0;
         u32 y = 0;
@@ -144,19 +147,18 @@ namespace oblo::ui
         if (!placed)
         {
             auto& atlas = create_atlas();
-
-            // The freshly created atlas is empty, so this cannot fail for a glyph that fits.
             OBLO_ASSERT(atlas.try_place(paddedWidth, paddedHeight, x, y));
-            glyph.textureIndex = u16(m_atlases.size() - 1);
+
+            glyph.textureIndex = narrow_cast<u16>(m_atlases.size() - 1);
         }
 
         auto& atlas = m_atlases[glyph.textureIndex];
 
-        const u32 atlasX = x + padding;
-        const u32 atlasY = y + padding;
+        const u32 atlasX = x + glyph_atlas_padding;
+        const u32 atlasY = y + glyph_atlas_padding;
 
-        glyph.texturePosX = u16(atlasX);
-        glyph.texturePosY = u16(atlasY);
+        glyph.texturePosX = narrow_cast<u16>(atlasX);
+        glyph.texturePosY = narrow_cast<u16>(atlasY);
 
         // Bump the skyline: the region [x, x + paddedWidth) now reaches y + paddedHeight.
         atlas.add_region(x, y + paddedHeight, paddedWidth);
@@ -174,7 +176,7 @@ namespace oblo::ui
             }
         }
 
-           atlas.add_dirty(atlasX, atlasY, glyphWidth, glyphHeight);
+        atlas.add_dirty(atlasX, atlasY, glyphWidth, glyphHeight);
     }
 
     void font_cache::flush_atlas_uploads()
