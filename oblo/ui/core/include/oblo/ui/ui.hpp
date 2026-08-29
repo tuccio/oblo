@@ -110,7 +110,46 @@ namespace oblo::ui
         color fillColor{0.40f, 0.50f, 0.90f, 1.f};
         color handleColor{1.f, 1.f, 1.f, 1.f};
         f32 cornerRadius{10.f};
+        f32 handleSize{16.f};
+        f32 trackHeight{22.f};
         padding padding{4.f, 4.f, 4.f, 4.f};
+
+        sizing width{fixed_size(200.f)};
+        sizing height{fit_size()};
+    };
+
+    struct radio_style
+    {
+        color boxColor{0.25f, 0.25f, 0.30f, 1.f};
+        color checkColor{0.40f, 0.50f, 0.90f, 1.f};
+        color textColor{1.f, 1.f, 1.f, 1.f};
+        f32 boxSize{18.f};
+        f32 gap{8.f};
+        padding padding{4.f, 4.f, 4.f, 4.f};
+
+        font_id font{};
+        u16 fontSize{};
+    };
+
+    struct combo_style
+    {
+        color idleColor{0.25f, 0.25f, 0.30f, 1.f};
+        color hoverColor{0.35f, 0.35f, 0.42f, 1.f};
+        color activeColor{0.45f, 0.45f, 0.55f, 1.f};
+        color textColor{1.f, 1.f, 1.f, 1.f};
+        color popupColor{0.18f, 0.18f, 0.22f, 1.f};
+        color popupHoverColor{0.30f, 0.30f, 0.38f, 1.f};
+        color popupTextColor{1.f, 1.f, 1.f, 1.f};
+        f32 cornerRadius{4.f};
+        f32 itemGap{2.f};
+        f32 popupPadding{4.f};
+        padding padding{10.f, 10.f, 6.f, 6.f};
+
+        sizing width{fit_size()};
+        sizing height{fit_size()};
+
+        font_id font{};
+        u16 fontSize{};
     };
 
     struct font_state
@@ -149,6 +188,21 @@ namespace oblo::ui
         bool is_active(layout_id id) const;
         bool is_hovered(layout_id id) const;
         bool was_clicked(layout_id id) const;
+
+        bool get_last_frame_rect(layout_id id, rect& out) const
+        {
+            return try_render_rect(id, out);
+        }
+
+        bool is_popup_open(layout_id id) const
+        {
+            return ui::is_popup_open(*m_layout, id);
+        }
+
+        void set_popup_open(layout_id id, bool state)
+        {
+            ui::set_popup_open(*m_layout, id, state);
+        }
 
         span<const texture_command> get_texture_commands() const;
 
@@ -249,4 +303,14 @@ namespace oblo::ui
     void label(context& ctx, layout_id id, hashed_string_view text, const label_style& style = {});
 
     bool checkbox(context& ctx, layout_id id, bool& checked, hashed_string_view text, const checkbox_style& style = {});
+
+    bool radio_button(
+        context& ctx, layout_id id, bool& selected, hashed_string_view text, const radio_style& style = {});
+
+    // Returns true when the selection changed. `items` must stay alive for the frame.
+    bool combo_box(
+        context& ctx, layout_id id, i32& selected, span<const hashed_string_view> items, const combo_style& style = {});
+
+    // Returns true when `value` changed. Drag the track (or click to jump) to set it.
+    bool slider(context& ctx, layout_id id, f32& value, const slider_style& style = {}, f32 min = 0.f, f32 max = 1.f);
 }

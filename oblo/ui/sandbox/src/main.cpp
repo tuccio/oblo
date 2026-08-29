@@ -52,11 +52,56 @@ namespace oblo::ui
         constexpr u32 closeId = 601;
         constexpr u32 statusId = 900;
 
-        ui::animation_config make_fade_scale_animation(time duration)
+        constexpr u32 comboEasingId = 3000;
+        constexpr u32 radioDirectionId = 3200;
+        constexpr u32 sliderCornerId = 3300;
+
+        // A vertical radio group: only the option matching `selected` is drawn as checked, and
+        // picking another option flips `selected` and returns true.
+        bool radio_group(ui::context& ctx,
+            layout_id groupId,
+            i32& selected,
+            span<const hashed_string_view> options,
+            const ui::radio_style& style = {})
+        {
+            bool changed = false;
+
+            for (i32 i = 0; i < i32(options.size()); ++i)
+            {
+                bool sel = selected == i;
+
+                if (ui::radio_button(ctx, layout_id{groupId.value + u32(i)}, sel, options[i], style))
+                {
+                    selected = i;
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        // Names kept as module-level arrays so the combo/radio can take a stable span.
+        constexpr hashed_string_view easing_names[] = {
+            "Linear"_hsv,
+            "Ease In"_hsv,
+            "Ease Out"_hsv,
+            "Ease In-Out"_hsv,
+            "Ease In Back"_hsv,
+            "Ease Out Back"_hsv,
+            "Ease Out Elastic"_hsv,
+            "Ease Out Bounce"_hsv,
+        };
+
+        constexpr hashed_string_view direction_names[] = {
+            "Vertical"_hsv,
+            "Horizontal"_hsv,
+        };
+
+        ui::animation_config make_fade_scale_animation(time duration, easing_function easing = easing_function::ease_out)
         {
             return {
                 .duration = duration,
-                .easing = easing_function::ease_out,
+                .easing = easing,
                 .properties = bounding_box_properties | animation_property::background_color,
                 .enter =
                     {
@@ -226,7 +271,7 @@ namespace oblo::ui
                 {middleId},
                 panel_style{
                     .padding = {8.f, 8.f, 8.f, 8.f},
-                    .direction = layout_direction::left_to_right,
+                    .direction = layout_direction(m_middleDirection),
                     .gap = 16.f,
                     .width = percent_size(1.f),
                     .height = percent_size(0.65f),
@@ -249,6 +294,17 @@ namespace oblo::ui
                     name.clear().format("Item #{}", i);
                     checkbox(m_ui, {firstSidebarItemId + i}, m_sidebarChecked[i], name.as<hashed_string_view>());
                 }
+
+                combo_box(m_ui,
+                    {comboEasingId},
+                    m_animatedEasing,
+                    easing_names,
+                    ui::combo_style{.width = fixed_size(200.f)});
+
+                radio_group(m_ui, {radioDirectionId}, m_middleDirection, direction_names);
+
+                label(m_ui, {sliderCornerId - 1}, "Corner radius"_hsv);
+                slider(m_ui, {sliderCornerId}, m_panelCornerRadius, ui::slider_style{}, 0.f, 40.f);
             }
 
             if (m_showAnimatedPanel)
@@ -260,13 +316,13 @@ namespace oblo::ui
                     {animatedPanelId},
                     panel_style{
                         .backgroundColor = {0.08f, 0.08f, 0.10f, 1.f},
-                        .cornerRadius = 12.f,
+                        .cornerRadius = m_panelCornerRadius,
                         .padding = {16.f, 16.f, 16.f, 16.f},
                         .direction = layout_direction::top_to_bottom,
                         .gap = 8.f,
                         .width = panelWidth,
                         .height = panelHeight,
-                        .animation = make_fade_scale_animation(time::from_seconds(0.5f)),
+                        .animation = make_fade_scale_animation(time::from_seconds(0.5f), easing_function(m_animatedEasing)),
                     });
 
                 label(m_ui, {animatedLabelId}, m_expandedAnimatedPanel ? "Expanded panel"_hsv : "Animated panel"_hsv);
@@ -324,6 +380,10 @@ namespace oblo::ui
 
         bool m_showAnimatedPanel{};
         bool m_expandedAnimatedPanel{};
+
+        i32 m_animatedEasing{i32(easing_function::ease_out)};
+        i32 m_middleDirection{i32(layout_direction::top_to_bottom)};
+        f32 m_panelCornerRadius{12.f};
 
         f32 m_avgFrameTime{1.f / 60.f};
         string_builder m_statusBuilder;

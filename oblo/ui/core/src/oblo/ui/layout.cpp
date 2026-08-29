@@ -15,6 +15,7 @@
 
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace oblo::ui
 {
@@ -210,8 +211,17 @@ namespace oblo::ui
                 f32 contentMain = 0.f;
                 u32 childCount = 0;
 
+                dynamic_array<u32> floatingChildren;
+
                 for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
                 {
+                    // Floating children are placed at an absolute position after the flow pass.
+                    if (elements[child].isFloating)
+                    {
+                        floatingChildren.push_back(child);
+                        continue;
+                    }
+
                     const vec2 childSize = resolve_child_size(child);
                     contentMain += isHorizontal ? childSize.x : childSize.y;
                     ++childCount;
@@ -261,6 +271,11 @@ namespace oblo::ui
 
                 for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
                 {
+                    if (elements[child].isFloating)
+                    {
+                        continue;
+                    }
+
                     const vec2 childSize = resolve_child_size(child);
                     const f32 childMain = isHorizontal ? childSize.x : childSize.y;
                     const f32 childCross = isHorizontal ? childSize.y : childSize.x;
@@ -314,6 +329,61 @@ namespace oblo::ui
                     resolve_element(state, child, childOriginForChild, innerSize, cursor, desc.direction);
 
                     cursor += childMain + desc.childGap;
+                }
+
+                // Floating children: lay them out normally for sizing, then relocate the whole
+                // subtree to an absolute position anchored to another element. They don't affect
+                // this element's flow because they were skipped above.
+                for (const u32 child : floatingChildren)
+                {
+                    auto& floatingEl = elements[child];
+
+                    // Only containers carry a floating_config; text leaves fall back to the
+                    // defaults (anchor to parent, top-left alignment).
+                    floating_config fc{};
+                    layout_direction childDirection = layout_direction::left_to_right;
+
+                    if (floatingEl.kind == layout_element_kind::container)
+                    {
+                        fc = floatingEl.data.container.floating;
+                        childDirection = floatingEl.data.container.direction;
+                    }
+
+                    const layout_element* anchor = nullptr;
+
+                    if (fc.anchorId != layout_id{})
+                    {
+                        anchor = find_element(state, fc.anchorId);
+                    }
+
+                    if (!anchor)
+                    {
+                        anchor = &element;
+                    }
+
+                    const auto attach_x = [](alignment_x ax, f32 size) OBLO_FORCEINLINE_LAMBDA
+                    {
+                        return ax == alignment_x::center ? size * 0.5f : (ax == alignment_x::right ? size : 0.f);
+                    };
+
+                    const auto attach_y = [](alignment_y ay, f32 size) OBLO_FORCEINLINE_LAMBDA
+                    {
+                        return ay == alignment_y::center ? size * 0.5f : (ay == alignment_y::bottom ? size : 0.f);
+                    };
+
+                    const rect anchorRect = anchor->targetRect;
+
+                    const f32 ax = anchorRect.x + attach_x(fc.anchorPoint.x, anchorRect.width);
+                    const f32 ay = anchorRect.y + attach_y(fc.anchorPoint.y, anchorRect.height);
+
+                    const vec2 selfSize = resolve_child_size(child);
+
+                    const f32 sx = attach_x(fc.selfPoint.x, selfSize.x);
+                    const f32 sy = attach_y(fc.selfPoint.y, selfSize.y);
+
+                    const vec2 origin{ax - sx + fc.offset.x, ay - sy + fc.offset.y};
+
+                    resolve_element(state, child, origin, innerSize, 0.f, childDirection);
                 }
             }
         }
@@ -516,7 +586,33 @@ namespace oblo::ui
             .childGap = desc.childGap,
             .padding = desc.padding,
             .animation = desc.animation,
+            .floating = desc.floating,
+            .isFloating = desc.isFloating,
         };
+
+        // A floating element is positioned absolutely (its parent skips it from the flow) and
+        // draws on top. Its in-flow descendants stay within its layer (they inherit the parent's
+        // accumulated zIndex) so the whole subtree renders above the normal flow.
+        //
+        // Crucially, a floating element opens a new layer strictly *above* its parent: it adds its
+        // own zIndex on top of the parent's accumulated zIndex. This prevents a non-floating
+        // descendant of a floating ancestor (e.g. a combo box living inside a floating tool window)
+        // from inheriting a zIndex larger than its own floating child and wrongly covering it.
+        element.isFloating = desc.isFloating;
+
+        const f32 parentZ = parentIndex != invalid_index ? elements[parentIndex].zIndex : 0.f;
+
+        if (desc.isFloating)
+        {
+            // Floating elements always draw above the flow; guarantee a positive contribution even
+            // when the caller leaves zIndex at its default.
+            const f32 localZ = desc.floating.zIndex > 1.f ? desc.floating.zIndex : 1.f;
+            element.zIndex = parentZ + localZ;
+        }
+        else
+        {
+            element.zIndex = parentZ;
+        }
 
         finalize_append_child(state, parentIndex, index);
 
@@ -549,6 +645,12 @@ namespace oblo::ui
 
         for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
         {
+            // Floating children don't take up space in their parent's flow.
+            if (elements[child].isFloating)
+            {
+                continue;
+            }
+
             const vec2 childSize = elements[child].targetRect.size();
 
             if (desc.direction == layout_direction::left_to_right)
@@ -604,6 +706,15 @@ namespace oblo::ui
         element.elementId = desc.elementId;
         element.parentIndex = parentIndex;
 
+        // Text never anchors itself, but inherits the parent's draw order so it renders on top
+        // when nested inside a floating element. The parent may not be floating itself yet still
+        // carry a positive zIndex inherited from a floating ancestor, so always take the parent's
+        // accumulated zIndex (not just when the parent is floating).
+        if (parentIndex != invalid_index)
+        {
+            element.zIndex = elements[parentIndex].zIndex;
+        }
+
         // Just fit for now, not sure if we need to set size externally
         element.width = fit_size();
         element.height = fit_size();
@@ -657,11 +768,10 @@ namespace oblo::ui
             }
         }
 
-        // Snapshot the resolved elements for next frame's input hit-testing. Bake the
-        // rendered (possibly animated) rect and drop the animated pointer so the copy is
-        // self-contained.
+        // Snapshot the resolved elements for next frame's input hit-testing and for rendering.
+        // Bake the interpolated state so the copy is fully resolved and self-contained, then drop
+        // the dangling animated pointer.
         state.previousElements.clear();
-        state.previousElementIndex.clear();
 
         for (u32 i = 0; i < state.elements.size(); ++i)
         {
@@ -672,16 +782,78 @@ namespace oblo::ui
             if (snapshot.animated)
             {
                 snapshot.targetRect = snapshot.animated->boundingBox;
+
+                if (snapshot.kind == layout_element_kind::container)
+                {
+                    snapshot.data.container.backgroundColor = snapshot.animated->backgroundColor;
+                    snapshot.data.container.cornerRadius = snapshot.animated->cornerRadius;
+                }
             }
 
             snapshot.animated = nullptr;
 
-            if (e.elementId != layout_id{})
+            state.previousElements.push_back(snapshot);
+        }
+
+        // Draw (and hit-test) floating elements on top of the normal flow. A non-floating
+        // descendant of a floating element inherits a positive zIndex, so group by zIndex > 0
+        // (not by isFloating) to lift the whole floating subtree above the normal flow, then
+        // order the lifted elements by zIndex, keeping a stable relative order otherwise.
+        {
+            dynamic_array<layout_element> reordered;
+            reordered.reserve(state.previousElements.size());
+
+            for (const auto& e : state.previousElements)
             {
-                state.previousElementIndex.emplace(e.elementId, i);
+                if (e.zIndex <= 0.f)
+                {
+                    reordered.push_back(e);
+                }
             }
 
-            state.previousElements.push_back(snapshot);
+            dynamic_array<layout_element> floating;
+            floating.reserve(state.previousElements.size());
+
+            for (const auto& e : state.previousElements)
+            {
+                if (e.zIndex > 0.f)
+                {
+                    floating.push_back(e);
+                }
+            }
+
+            // Stable insertion sort by zIndex.
+            for (usize i = 1; i < floating.size(); ++i)
+            {
+                layout_element value = floating[i];
+
+                usize j = i;
+
+                while (j > 0 && floating[j - 1].zIndex > value.zIndex)
+                {
+                    floating[j] = floating[j - 1];
+                    --j;
+                }
+
+                floating[j] = value;
+            }
+
+            for (const auto& e : floating)
+            {
+                reordered.push_back(e);
+            }
+
+            state.previousElements = std::move(reordered);
+        }
+
+        state.previousElementIndex.clear();
+
+        for (u32 i = 0; i < state.previousElements.size(); ++i)
+        {
+            if (state.previousElements[i].elementId != layout_id{})
+            {
+                state.previousElementIndex.emplace(state.previousElements[i].elementId, i);
+            }
         }
 
         state.animations.end_frame();
@@ -703,6 +875,53 @@ namespace oblo::ui
         }
 
         return nullptr;
+    }
+
+    layout_element* find_element(layout_state& state, layout_id element)
+    {
+        if (element == layout_id{})
+        {
+            return nullptr;
+        }
+
+        for (auto& e : state.elements)
+        {
+            if (e.elementId == element)
+            {
+                return &e;
+            }
+        }
+
+        return nullptr;
+    }
+
+    bool is_popup_open(const layout_state& state, layout_id id)
+    {
+        // Read from last frame's snapshot (keyed by the existing previousElementIndex). This is
+        // available before this frame's element is even declared, so it works regardless of call
+        // order. No separate per-widget map is needed, and entries for removed widgets disappear
+        // automatically when they stop being declared.
+        const auto it = state.previousElementIndex.find(id);
+
+        if (it != state.previousElementIndex.end())
+        {
+            return state.previousElements[it->second].popupOpen;
+        }
+
+        return false;
+    }
+
+    void set_popup_open(layout_state& state, layout_id id, bool open)
+    {
+        // Write into this frame's element; it is snapshotted at end_frame and read back next frame
+        // by is_popup_open. A no-op when called before the element is declared (the open state can
+        // only take effect once the widget exists).
+        auto* const e = find_element(state, id);
+
+        if (e)
+        {
+            e->popupOpen = open;
+        }
     }
 
     const animated_values* update_element(layout_state& state,
@@ -727,7 +946,9 @@ namespace oblo::ui
 
     span<const layout_element> get_elements(const layout_state& state)
     {
-        return state.elements;
+        // The snapshot is already resolved, animation-baked and z-ordered (floating on top),
+        // so it is the correct source for both rendering and hit-testing.
+        return state.previousElements;
     }
 
     layout_id hit_test(const layout_state& state, vec2 point)

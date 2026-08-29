@@ -383,4 +383,213 @@ namespace oblo::ui
 
         return wasClicked;
     }
+
+    bool radio_button(context& ctx, layout_id id, bool& selected, hashed_string_view text, const radio_style& style)
+    {
+        const auto container = container_builder{}
+                                   .id(id)
+                                   .width(fit_size())
+                                   .height(fit_size())
+                                   .direction(layout_direction::left_to_right)
+                                   .gap(style.gap)
+                                   .align_y(alignment_y::center)
+                                   .build(ctx.get_layout());
+
+        {
+            const auto box = container_builder{}
+                                 .width(fixed_size(style.boxSize))
+                                 .height(fixed_size(style.boxSize))
+                                 .background_color(selected ? style.checkColor : style.boxColor)
+                                 .corner_radius(style.boxSize * 0.5f)
+                                 .align(alignment::center())
+                                 .build(ctx.get_layout());
+
+            if (selected)
+            {
+                const auto dot = container_builder{}
+                                     .width(percent_size(0.45f))
+                                     .height(percent_size(0.45f))
+                                     .background_color(style.boxColor)
+                                     .corner_radius(style.boxSize * 0.25f)
+                                     .build(ctx.get_layout());
+            }
+        }
+
+        const font_state currentFont = resolve_font(ctx, style.font, style.fontSize);
+
+        add_text(ctx.get_layout(),
+            {
+                .text = text,
+                .color = style.textColor,
+                .font = currentFont.font,
+                .fontSize = currentFont.fontSize,
+            });
+
+        const bool wasClicked = ctx.was_clicked(id);
+
+        if (wasClicked && !selected)
+        {
+            selected = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool combo_box(
+        context& ctx, layout_id id, i32& selected, span<const hashed_string_view> items, const combo_style& style)
+    {
+        bool open = ctx.is_popup_open(id);
+
+        const hashed_string_view headerText =
+            (selected >= 0 && selected < i32(items.size())) ? items[selected] : "Select..."_hsv;
+
+        const auto container = container_builder{}
+                                   .id(id)
+                                   .width(style.width)
+                                   .height(style.height)
+                                   .direction(layout_direction::top_to_bottom)
+                                   .gap(0.f)
+                                   .build(ctx.get_layout());
+
+        const button_style headerButtonStyle{
+            .idleColor = style.idleColor,
+            .hoverColor = style.hoverColor,
+            .activeColor = style.activeColor,
+            .textColor = style.textColor,
+            .cornerRadius = style.cornerRadius,
+            .padding = style.padding,
+            .width = style.width,
+            .height = style.height,
+            .font = style.font,
+            .fontSize = style.fontSize,
+        };
+
+        const layout_id headerId{id.value + 1u};
+
+        if (button(ctx, headerId, headerText, headerButtonStyle))
+        {
+            open = !open;
+            ctx.set_popup_open(id, open);
+        }
+
+        bool changed = false;
+
+        if (open)
+        {
+            const auto popup =
+                container_builder{}
+                    .width(style.width)
+                    .height(fit_size())
+                    .direction(layout_direction::top_to_bottom)
+                    .gap(style.itemGap)
+                    .padding({style.popupPadding, style.popupPadding, style.popupPadding, style.popupPadding})
+                    .background_color(style.popupColor)
+                    .corner_radius(style.cornerRadius)
+                    .floating(floating_config{
+                        .anchorId = headerId,
+                        .anchorPoint = alignment::bottom_left(),
+                        .selfPoint = alignment::top_left(),
+                        .offset = {0.f, 4.f},
+                        .zIndex = 100.f,
+                    })
+                    .build(ctx.get_layout());
+
+            const button_style itemButtonStyle{
+                .idleColor = style.popupColor,
+                .hoverColor = style.popupHoverColor,
+                .activeColor = style.popupHoverColor,
+                .textColor = style.popupTextColor,
+                .cornerRadius = style.cornerRadius,
+                .padding = style.padding,
+                .width = percent_size(1.f),
+                .font = style.font,
+                .fontSize = style.fontSize,
+            };
+
+            bool anyItemClicked = false;
+
+            for (i32 i = 0; i < i32(items.size()); ++i)
+            {
+                const layout_id itemId{id.value + 100u + u32(i)};
+
+                if (button(ctx, itemId, items[i], itemButtonStyle))
+                {
+                    selected = i;
+                    open = false;
+                    changed = true;
+                    anyItemClicked = true;
+                }
+            }
+
+            // Dismiss when this frame's click did not land on the header nor on a list item.
+            if (!anyItemClicked && ctx.mouse_clicked_this_frame(mouse_key::left) && !ctx.was_clicked(headerId))
+            {
+                open = false;
+            }
+        }
+
+        // Persist the final open state for next frame. Must run every frame (not just on the
+        // header click) so selecting an item or dismissing the popup actually closes it.
+        ctx.set_popup_open(id, open);
+
+        return changed;
+    }
+
+    bool slider(context& ctx, layout_id id, f32& value, const slider_style& style, f32 min, f32 max)
+    {
+        const f32 range = max - min;
+        const f32 t = range > 0.f ? (value - min) / range : 0.f;
+        const f32 clampedT = t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
+
+        const auto track = container_builder{}
+                               .id(id)
+                               .width(style.width)
+                               .height(fixed_size(style.trackHeight))
+                               .direction(layout_direction::left_to_right)
+                               .background_color(style.trackColor)
+                               .corner_radius(style.cornerRadius)
+                               .build(ctx.get_layout());
+
+        {
+            const auto fill = container_builder{}
+                                  .width(percent_size(clampedT))
+                                  .height(percent_size(1.f))
+                                  .background_color(style.fillColor)
+                                  .direction(layout_direction::left_to_right)
+                                  .align_x(alignment_x::right)
+                                  .align_y(alignment_y::center)
+                                  .build(ctx.get_layout());
+
+            const auto handle = container_builder{}
+                                    .width(fixed_size(style.handleSize))
+                                    .height(fixed_size(style.handleSize))
+                                    .background_color(style.handleColor)
+                                    .corner_radius(style.handleSize * 0.5f)
+                                    .build(ctx.get_layout());
+        }
+
+        bool changed = false;
+
+        if (ctx.is_active(id))
+        {
+            rect trackRect{};
+
+            if (ctx.get_last_frame_rect(id, trackRect))
+            {
+                const f32 localX = ctx.mouse_position().x - trackRect.x;
+                const f32 newT = localX / (trackRect.width > 1e-3f ? trackRect.width : 1e-3f);
+                const f32 newClampedT = newT < 0.f ? 0.f : (newT > 1.f ? 1.f : newT);
+                const f32 newValue = min + newClampedT * range;
+
+                if (newValue != value)
+                {
+                    value = newValue;
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
+    }
 }
