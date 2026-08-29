@@ -293,7 +293,7 @@ namespace oblo
         iterator begin()
         {
             usize i = 0;
-            while (i < m_capacity && m_ctrl[i] == ctrl_empty)
+            while (i < m_capacity && !is_occupied(i))
             {
                 ++i;
             }
@@ -309,7 +309,7 @@ namespace oblo
         const_iterator begin() const
         {
             usize i = 0;
-            while (i < m_capacity && m_ctrl[i] == ctrl_empty)
+            while (i < m_capacity && !is_occupied(i))
             {
                 ++i;
             }
@@ -597,7 +597,7 @@ namespace oblo
             do
             {
                 ++m_index;
-            } while (m_index < m_map->m_capacity && m_map->m_ctrl[m_index] == flat_hash_map::ctrl_empty);
+            } while (m_index < m_map->m_capacity && !m_map->is_occupied(m_index));
 
             refresh();
 
@@ -665,17 +665,17 @@ namespace oblo
     class flat_hash_map<Key, Value, Hash, KeyEqual>::const_iterator
     {
     public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = flat_hash_map::value_type;
-        using difference_type = ptrdiff;
-        using reference = const value_type&;
-        using pointer = const value_type*;
-
         struct deref_proxy
         {
             const Key& first;
             const Value& second;
         };
+
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = flat_hash_map::value_type;
+        using difference_type = ptrdiff;
+        using reference = const deref_proxy&;
+        using pointer = const deref_proxy*;
 
         const_iterator(const flat_hash_map* map, usize index) :
             m_map{map}, m_index{index}, m_deref{index < map->m_capacity ? map->m_keys[index] : s_dummyKey,
@@ -688,7 +688,7 @@ namespace oblo
             do
             {
                 ++m_index;
-            } while (m_index < m_map->m_capacity && m_map->m_ctrl[m_index] == flat_hash_map::ctrl_empty);
+            } while (m_index < m_map->m_capacity && !m_map->is_occupied(m_index));
 
             refresh();
 
