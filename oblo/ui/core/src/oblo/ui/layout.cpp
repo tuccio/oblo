@@ -324,7 +324,7 @@ namespace oblo::ui
             animation_properties active,
             animated_values& out)
         {
-            const auto lerpF = [](f32 a, f32 b, f32 u) { return a + (b - a) * u; };
+            const auto lerpF = [](f32 a, f32 b, f32 u) OBLO_FORCEINLINE_LAMBDA { return a + (b - a) * u; };
 
             if (active.contains(animation_property::x))
             {
