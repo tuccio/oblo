@@ -39,10 +39,10 @@ if(OBLO_WITH_DOTNET)
     oblo_symlink_to_data_folder(oblo oblo::dotnet::runtime::data "$<TARGET_FILE_DIR:oblo>/dotnet")
 endif()
 
-if(OBLO_ENABLE_HOTRELOADING)
+if(OBLO_WITH_HOTRELOAD)
     target_compile_definitions(oblo
         PRIVATE
-        OBLO_ENABLE_HOTRELOADING
+        OBLO_WITH_HOTRELOAD
     )
 endif()
 

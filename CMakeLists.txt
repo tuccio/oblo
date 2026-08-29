@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 4.0 FATAL_ERROR)
 
 set(_languages C CXX)
 
-if(OBLO_GENERATE_CSHARP)
+if(CMAKE_CSharp_COMPILER)
     list(APPEND _languages CSharp)
 endif()
 

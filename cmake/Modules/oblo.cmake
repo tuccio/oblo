@@ -13,12 +13,18 @@ include(conan_provider)
 include(build_configurations)
 include(module_loaders)
 
-option(OBLO_ENABLE_ASSERT "Enables internal asserts" OFF)
-option(OBLO_ENABLE_HOTRELOADING "Enables hot-reloading of dynamic libraries" OFF)
-option(OBLO_DISABLE_COMPILER_OPTIMIZATIONS "Disables compiler optimizations" OFF)
-option(OBLO_DEBUG "Activates code useful for debugging" OFF)
-option(OBLO_GENERATE_CSHARP "Enables C# projects" OFF)
+# Features and libraries
+option(OBLO_WITH_ASSERTS "Enables internal asserts" OFF)
+option(OBLO_WITH_HOTRELOAD "Enables hot-reloading of dynamic libraries" OFF)
 option(OBLO_WITH_DOTNET "Enables .NET modules" ON)
+
+# Check if C# is supported by the generator
+if(OBLO_WITH_DOTNET)
+    include(CheckLanguage)
+    check_language(CSharp)
+endif()
+
+# Build options
 option(OBLO_CONAN_FORCE_INSTALL "Always runs conan install, regardless of conanfile being modified" OFF)
 set(OBLO_EXTRA_MODULE_DIRS "" CACHE STRING "A list of directories for extra modules to include in the project")
 
@@ -320,7 +326,7 @@ function(oblo_add_library name)
                 target_compile_definitions(${_target} PRIVATE "${_api_define}=")
             endif()
 
-            if(OBLO_ENABLE_HOTRELOADING AND OBLO_LIB_HOTRELOAD)
+            if(OBLO_WITH_HOTRELOAD AND OBLO_LIB_HOTRELOAD)
                 _oblo_setup_hotreloading(${_target})
             endif()
         else()

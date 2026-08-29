@@ -104,7 +104,7 @@ namespace oblo
 
         static thread_local constinit worker_thread_context s_tlsWorkerCtx{};
 
-        bool is_worker_thread()
+        [[maybe_unused]] bool is_worker_thread()
         {
             return s_tlsWorkerCtx.queue != nullptr;
         }

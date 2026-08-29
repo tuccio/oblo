@@ -111,7 +111,7 @@ namespace oblo
         void assert_value([[maybe_unused]] const char* message = "Unexpected failure",
             [[maybe_unused]] const std::source_location& src = std::source_location::current()) const
         {
-#ifdef OBLO_ENABLE_ASSERT
+#ifdef OBLO_WITH_ASSERTS
             if (!has_value()) [[unlikely]]
             {
                 debug_assert_report(src.file_name(), src.line(), message);
@@ -286,7 +286,7 @@ namespace oblo
         void assert_value([[maybe_unused]] const char* message = "Unexpected failure",
             [[maybe_unused]] const std::source_location& src = std::source_location::current()) const
         {
-#ifdef OBLO_ENABLE_ASSERT
+#ifdef OBLO_WITH_ASSERTS
             if (!has_value()) [[unlikely]]
             {
                 debug_assert_report(src.file_name(), src.line(), message);

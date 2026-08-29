@@ -6,35 +6,10 @@
 #include <oblo/ecs/utility/deferred.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 
+#include "mock_components.hpp"
+
 namespace oblo::ecs
 {
-    namespace
-    {
-        struct tag_a
-        {
-        };
-
-        struct tag_b
-        {
-        };
-
-        struct tag_c
-        {
-        };
-
-        struct alignas(16) aligned_uvec4
-        {
-            u32 data[4];
-
-            bool operator==(const aligned_uvec4&) const = default;
-        };
-
-        struct component_with_reference
-        {
-            entity ref;
-        };
-    }
-
     TEST(deferred, basic)
     {
         type_registry types;

@@ -111,7 +111,7 @@ namespace oblo::reflection
 
         if constexpr (assert_enabled)
         {
-            for (const auto& field : classData.fields)
+            for ([[maybe_unused]] const auto& field : classData.fields)
             {
                 OBLO_ASSERT(field.name != name);
             }

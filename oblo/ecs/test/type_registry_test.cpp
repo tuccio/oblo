@@ -5,38 +5,10 @@
 #include <oblo/ecs/type_set.hpp>
 #include <oblo/ecs/utility/registration.hpp>
 
+#include "mock_components.hpp"
+
 namespace oblo::ecs
 {
-    namespace
-    {
-        struct tag_a
-        {
-        };
-
-        struct tag_b
-        {
-        };
-
-        struct tag_c
-        {
-        };
-
-        struct u8_component
-        {
-            u8 foo;
-        };
-
-        struct i32_component
-        {
-            i32 foo;
-        };
-
-        struct f64_component
-        {
-            f64 foo;
-        };
-    }
-
     TEST(type_registry, registration)
     {
         type_registry typeRegistry;

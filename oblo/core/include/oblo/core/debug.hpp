@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef OBLO_ENABLE_ASSERT
+#ifdef OBLO_WITH_ASSERTS
 
 namespace oblo::detail
 {
@@ -54,7 +54,7 @@ namespace oblo
         }
     };
 
-#ifdef OBLO_ENABLE_ASSERT
+#ifdef OBLO_WITH_ASSERTS
     constexpr bool assert_enabled = true;
 #else
     constexpr bool assert_enabled = false;

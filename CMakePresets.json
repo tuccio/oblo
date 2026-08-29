@@ -13,7 +13,8 @@
             "binaryDir": "${sourceDir}/.build/${presetName}",
             "installDir": "${sourceDir}/.install/${presetName}",
             "cacheVariables": {
-                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/oblo.cmake"
+                "CMAKE_PROJECT_TOP_LEVEL_INCLUDES": "${sourceDir}/cmake/Modules/oblo.cmake",
+                "CMAKE_UNITY_BUILD": "true"
             }
         },
         {
@@ -53,10 +54,7 @@
             "description": "Settings for Visual Studio configurations",
             "generator": "Visual Studio 18 2026",
             "inherits": "conf-windows-common",
-            "toolset": "ClangCL",
-            "cacheVariables": {
-                "OBLO_GENERATE_CSHARP": true
-            }
+            "toolset": "ClangCL"
         },
         {
             "name": "conf-ninja",

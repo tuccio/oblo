@@ -8,36 +8,12 @@
 #include <oblo/ecs/utility/registration.hpp>
 #include <oblo/math/vec2.hpp>
 
+#include "mock_components.hpp"
+
 #include <array>
 
 namespace oblo::ecs
 {
-    namespace
-    {
-        struct mock_sprite_component
-        {
-            u32 resourceId;
-        };
-
-        struct mock_audio_source_component
-        {
-            u32 resourceId;
-        };
-
-        struct mock_name_component
-        {
-            char name;
-        };
-
-        struct mock_selected_tag
-        {
-        };
-
-        struct mock_disabled_tag
-        {
-        };
-    }
-
     TEST(components_tags_test, multiple_archetypes)
     {
         type_registry typeRegistry;

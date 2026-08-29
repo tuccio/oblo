@@ -256,8 +256,7 @@ namespace oblo
 
         void upload(pin::texture h, const staging_buffer_span& data) const;
 
-        void upload(
-            pin::texture h, const staging_buffer_span& data, u32 x, u32 y, u32 width, u32 height) const;
+        void upload(pin::texture h, const staging_buffer_span& data, u32 x, u32 y, u32 width, u32 height) const;
 
         async_download download(pin::buffer h) const;
 
