@@ -10,20 +10,20 @@
 
 namespace oblo::ui
 {
-    enum class transition_state : u8
+    enum class animation_state : u8
     {
         idle,
         entering,
-        transitioning,
+        animationing,
         exiting,
     };
 
     // Persistent per-element record kept across frames. Elements need a stable id for the
     // store to be able to compare the current target with the previous one.
-    struct transition_record
+    struct animation_record
     {
         layout_id elementId{};
-        transition_state state{transition_state::idle};
+        animation_state state{animation_state::idle};
 
         animated_values initial{};
         animated_values current{};
@@ -43,19 +43,19 @@ namespace oblo::ui
         bool appearedThisFrame{};
         bool reparented{};
         bool declaredThisFrame{};
-        bool transitionOut{};
+        bool animationOut{};
     };
 
     f32 ease(easing_function fn, f32 t);
 
-    class transition_store
+    class animation_store
     {
     public:
-        transition_store() = default;
-        transition_store(const transition_store&) = delete;
-        transition_store(transition_store&&) noexcept = delete;
-        transition_store& operator=(const transition_store&) = delete;
-        transition_store& operator=(transition_store&&) noexcept = delete;
+        animation_store() = default;
+        animation_store(const animation_store&) = delete;
+        animation_store(animation_store&&) noexcept = delete;
+        animation_store& operator=(const animation_store&) = delete;
+        animation_store& operator=(animation_store&&) noexcept = delete;
 
         void begin_frame(time dt);
         void end_frame();
@@ -76,8 +76,8 @@ namespace oblo::ui
         animated_values* try_get(layout_id element);
 
         // All active records, including elements that are currently exiting.
-        span<const transition_record> records() const;
-        span<transition_record> records();
+        span<const animation_record> records() const;
+        span<animation_record> records();
 
         bool empty() const noexcept;
         usize size() const noexcept;
@@ -85,15 +85,15 @@ namespace oblo::ui
         void clear() noexcept;
 
     private:
-        transition_record* find_record(layout_id element) noexcept;
-        const transition_record* find_record(layout_id element) const noexcept;
+        animation_record* find_record(layout_id element) noexcept;
+        const animation_record* find_record(layout_id element) const noexcept;
 
-        void advance(transition_record& record, time dt);
-        void snap_to_target(transition_record& record);
-        void start_exit(transition_record& record);
+        void advance(animation_record& record, time dt);
+        void snap_to_target(animation_record& record);
+        void start_exit(animation_record& record);
 
     private:
-        dynamic_array<transition_record> m_records;
+        dynamic_array<animation_record> m_records;
         time m_dt{};
     };
 
@@ -101,7 +101,7 @@ namespace oblo::ui
     {
         bump_allocator frameAllocator{1u << 20};
 
-        transition_store animations{};
+        animation_store animations{};
 
         dynamic_array<u32> openContainerIdxStack;
 
@@ -110,7 +110,7 @@ namespace oblo::ui
         // Resolved elements from the previous frame, used for input hit-testing so that
         // clicks are tested against the geometry the user actually saw last frame. The
         // animated rects are baked in and the animated pointers are cleared to avoid
-        // dangling references into the transition store.
+        // dangling references into the animation store.
         dynamic_array<layout_element> previousElements;
 
         // Maps an element id to its index in previousElements for O(1) rect lookups.

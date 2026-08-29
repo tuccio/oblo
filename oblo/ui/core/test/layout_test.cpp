@@ -72,23 +72,23 @@ namespace oblo::ui
         EXPECT_GE(ease(easing_function::ease_out, 0.5f), 0.5f);
     }
 
-    TEST(ui_transition, new_element_snaps_without_enter_config)
+    TEST(ui_animation, new_element_snaps_without_enter_config)
     {
-        transition_store store;
+        animation_store store;
         store.begin_frame(time::from_seconds(.5f));
 
         const auto* result = store.update({1}, {}, {}, make_values(10, 20, 100, 50), linear_config({}));
 
         ASSERT_NE(result, nullptr);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 10.f);
-        EXPECT_EQ(store.records()[0].state, transition_state::idle);
+        EXPECT_EQ(store.records()[0].state, animation_state::idle);
 
         store.end_frame();
     }
 
-    TEST(ui_transition, animates_position_change)
+    TEST(ui_animation, animates_position_change)
     {
-        transition_store store;
+        animation_store store;
 
         // Frame 1: element settles at x = 10
         store.begin_frame(time::from_seconds(.5f));
@@ -97,33 +97,33 @@ namespace oblo::ui
         EXPECT_FLOAT_EQ(result->boundingBox.x, 10.f);
         store.end_frame();
 
-        // Frame 2: target moves to x = 30; first frame of the transition still renders the old value
+        // Frame 2: target moves to x = 30; first frame of the animation still renders the old value
         store.begin_frame(time::from_seconds(.5f));
         result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
-        EXPECT_EQ(store.records()[0].state, transition_state::transitioning);
+        EXPECT_EQ(store.records()[0].state, animation_state::animationing);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 10.f);
         store.end_frame();
 
-        // Frame 3: halfway through the transition
+        // Frame 3: halfway through the animation
         store.begin_frame(time::from_seconds(.5f));
         result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 20.f);
         store.end_frame();
 
-        // Frame 4: transition completes
+        // Frame 4: animation completes
         store.begin_frame(time::from_seconds(.5f));
         result = store.update({1}, {}, {}, make_values(30, 20, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 30.f);
-        EXPECT_EQ(store.records()[0].state, transition_state::idle);
+        EXPECT_EQ(store.records()[0].state, animation_state::idle);
         store.end_frame();
     }
 
-    TEST(ui_transition, animates_background_color)
+    TEST(ui_animation, animates_background_color)
     {
-        transition_store store;
+        animation_store store;
 
         const auto red = color{1.f, 0.f, 0.f, 1.f};
         const auto blue = color{0.f, 0.f, 1.f, 1.f};
@@ -151,9 +151,9 @@ namespace oblo::ui
         store.end_frame();
     }
 
-    TEST(ui_transition, no_animation_when_only_parent_moves)
+    TEST(ui_animation, no_animation_when_only_parent_moves)
     {
-        transition_store store;
+        animation_store store;
 
         // Frame 1: element at absolute x = 10, parent at x = 0 (relative 10)
         store.begin_frame(time::from_seconds(.5f));
@@ -164,7 +164,7 @@ namespace oblo::ui
         store.begin_frame(time::from_seconds(.5f));
         const auto* result = store.update({1}, {2}, {10, 0}, make_values(20, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
-        EXPECT_EQ(store.records()[0].state, transition_state::idle);
+        EXPECT_EQ(store.records()[0].state, animation_state::idle);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 20.f);
         store.end_frame();
 
@@ -172,14 +172,14 @@ namespace oblo::ui
         store.begin_frame(time::from_seconds(.5f));
         result = store.update({1}, {2}, {10, 0}, make_values(25, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
-        EXPECT_EQ(store.records()[0].state, transition_state::transitioning);
+        EXPECT_EQ(store.records()[0].state, animation_state::animationing);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 20.f);
         store.end_frame();
     }
 
-    TEST(ui_transition, reparenting_animates_position)
+    TEST(ui_animation, reparenting_animates_position)
     {
-        transition_store store;
+        animation_store store;
 
         store.begin_frame(time::from_seconds(.5f));
         store.update({1}, {2}, {}, make_values(10, 0, 100, 50), linear_config(time::from_seconds(1.f)));
@@ -190,14 +190,14 @@ namespace oblo::ui
         store.begin_frame(time::from_seconds(.5f));
         const auto* result = store.update({1}, {3}, {5, 0}, make_values(15, 0, 100, 50), linear_config(time::from_seconds(1.f)));
         ASSERT_NE(result, nullptr);
-        EXPECT_EQ(store.records()[0].state, transition_state::transitioning);
+        EXPECT_EQ(store.records()[0].state, animation_state::animationing);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 10.f);
         store.end_frame();
     }
 
-    TEST(ui_transition, enter_animation)
+    TEST(ui_animation, enter_animation)
     {
-        transition_store store;
+        animation_store store;
 
         auto config = linear_config({});
         config.properties = bounding_box_properties | animation_property::background_color;
@@ -209,7 +209,7 @@ namespace oblo::ui
         values.backgroundColor = {1.f, 1.f, 1.f, 1.f};
         const auto* result = store.update({1}, {}, {}, values, config);
         ASSERT_NE(result, nullptr);
-        EXPECT_EQ(store.records()[0].state, transition_state::entering);
+        EXPECT_EQ(store.records()[0].state, animation_state::entering);
         EXPECT_FLOAT_EQ(result->boundingBox.width, 0.f);
         EXPECT_FLOAT_EQ(result->backgroundColor.a, 0.f);
         store.end_frame();
@@ -234,14 +234,14 @@ namespace oblo::ui
         store.begin_frame(time::from_seconds(.5f));
         result = store.update({1}, {}, {}, values, config);
         ASSERT_NE(result, nullptr);
-        EXPECT_EQ(store.records()[0].state, transition_state::idle);
+        EXPECT_EQ(store.records()[0].state, animation_state::idle);
         EXPECT_FLOAT_EQ(result->boundingBox.width, 100.f);
         store.end_frame();
     }
 
-    TEST(ui_transition, exit_animation)
+    TEST(ui_animation, exit_animation)
     {
-        transition_store store;
+        animation_store store;
 
         auto config = linear_config({});
         config.properties = bounding_box_properties | animation_property::background_color;
@@ -258,7 +258,7 @@ namespace oblo::ui
         // Element disappears; exit starts from the last rendered state
         store.begin_frame(time::from_seconds(.5f));
         store.end_frame();
-        ASSERT_EQ(store.records()[0].state, transition_state::exiting);
+        ASSERT_EQ(store.records()[0].state, animation_state::exiting);
         ASSERT_NE(store.try_get({1}), nullptr);
         EXPECT_FLOAT_EQ(store.try_get({1})->backgroundColor.a, 1.f);
 
@@ -279,9 +279,9 @@ namespace oblo::ui
         EXPECT_TRUE(store.empty());
     }
 
-    TEST(ui_transition, element_without_exit_config_is_removed)
+    TEST(ui_animation, element_without_exit_config_is_removed)
     {
-        transition_store store;
+        animation_store store;
 
         store.begin_frame(time::from_seconds(.5f));
         store.update({1}, {}, {}, make_values(10, 10, 100, 50), linear_config({}));
@@ -293,9 +293,9 @@ namespace oblo::ui
         EXPECT_TRUE(store.empty());
     }
 
-    TEST(ui_transition, zero_duration_snaps)
+    TEST(ui_animation, zero_duration_snaps)
     {
-        transition_store store;
+        animation_store store;
 
         store.begin_frame(time::from_seconds(.5f));
         store.update({1}, {}, {}, make_values(10, 0, 100, 50), linear_config({}));
@@ -305,7 +305,7 @@ namespace oblo::ui
         const auto* result = store.update({1}, {}, {}, make_values(30, 0, 100, 50), linear_config({}));
         ASSERT_NE(result, nullptr);
         EXPECT_FLOAT_EQ(result->boundingBox.x, 30.f);
-        EXPECT_EQ(store.records()[0].state, transition_state::idle);
+        EXPECT_EQ(store.records()[0].state, animation_state::idle);
         store.end_frame();
     }
 
@@ -649,7 +649,7 @@ namespace oblo::ui
         destroy_state(state);
     }
 
-    TEST(ui_layout, layout_feeds_transitions_on_layout_change)
+    TEST(ui_layout, layout_feeds_animations_on_layout_change)
     {
         auto* const state = create_state();
         ASSERT_NE(state, nullptr);
@@ -684,12 +684,12 @@ namespace oblo::ui
         }
         end_frame(*state);
 
-        EXPECT_EQ(state->animations.records()[0].state, transition_state::transitioning);
+        EXPECT_EQ(state->animations.records()[0].state, animation_state::animationing);
         EXPECT_FLOAT_EQ(get_animated(*state, {1})->boundingBox.width, 100.f);
         // The tree exposes the target, the store the interpolated values.
         EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 200.f);
 
-        // Frame 3: halfway through the transition.
+        // Frame 3: halfway through the animation.
         begin_frame(*state, time::from_seconds(.5f));
         {
             const auto root = container_builder{}
@@ -706,7 +706,7 @@ namespace oblo::ui
         destroy_state(state);
     }
 
-    TEST(ui_layout, id_without_transition_uses_target_rect)
+    TEST(ui_layout, id_without_animation_uses_target_rect)
     {
         auto* const state = create_state();
         ASSERT_NE(state, nullptr);
@@ -744,7 +744,7 @@ namespace oblo::ui
         }
         end_frame(*state);
 
-        EXPECT_EQ(state->animations.records()[0].state, transition_state::entering);
+        EXPECT_EQ(state->animations.records()[0].state, animation_state::entering);
         EXPECT_FLOAT_EQ(get_animated(*state, {1})->boundingBox.width, 0.f);
 
         destroy_state(state);
@@ -775,7 +775,7 @@ namespace oblo::ui
         end_frame(*state);
 
         EXPECT_TRUE(state->elements.empty());
-        EXPECT_EQ(state->animations.records()[0].state, transition_state::exiting);
+        EXPECT_EQ(state->animations.records()[0].state, animation_state::exiting);
         ASSERT_NE(get_animated(*state, {1}), nullptr);
         EXPECT_FLOAT_EQ(get_animated(*state, {1})->boundingBox.width, 100.f);
         EXPECT_EQ(find_element(*state, {1}), nullptr);

@@ -58,7 +58,7 @@ namespace oblo::ui
 
         alignment alignment{alignment::top_left()};
 
-        // Optional transition/enter/exit animation for this panel.
+        // Optional animation/enter/exit animation for this panel.
         animation_config animation{};
     };
 

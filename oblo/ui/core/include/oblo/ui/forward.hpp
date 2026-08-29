@@ -9,7 +9,7 @@ namespace oblo::ui
     struct animation_config;
     struct animated_values;
 
-    class transition_store;
+    class animation_store;
 
     struct layout_element;
     struct layout_state;

@@ -155,7 +155,7 @@ namespace oblo::ui
 
             element.targetRect = {pos.x, pos.y, size.x, size.y};
 
-            // Feed the transition system, parents before children.
+            // Feed the animation system, parents before children.
             if (element.elementId != layout_id{} && element.kind == layout_element_kind::container &&
                 has_animation(element.data.container.animation))
             {
@@ -768,7 +768,7 @@ namespace oblo::ui
         return &state.previousElements[it->second].targetRect;
     }
 
-    transition_record* transition_store::find_record(layout_id element) noexcept
+    animation_record* animation_store::find_record(layout_id element) noexcept
     {
         for (auto& record : m_records)
         {
@@ -781,7 +781,7 @@ namespace oblo::ui
         return nullptr;
     }
 
-    const transition_record* transition_store::find_record(layout_id element) const noexcept
+    const animation_record* animation_store::find_record(layout_id element) const noexcept
     {
         for (const auto& record : m_records)
         {
@@ -794,7 +794,7 @@ namespace oblo::ui
         return nullptr;
     }
 
-    void transition_store::begin_frame(time dt)
+    void animation_store::begin_frame(time dt)
     {
         m_dt = dt;
 
@@ -804,16 +804,16 @@ namespace oblo::ui
         }
     }
 
-    void transition_store::snap_to_target(transition_record& record)
+    void animation_store::snap_to_target(animation_record& record)
     {
-        record.state = transition_state::idle;
+        record.state = animation_state::idle;
         record.elapsedTime = time{};
         record.activeProperties = {};
         record.initial = record.target;
         record.current = record.target;
     }
 
-    void transition_store::advance(transition_record& record, time dt)
+    void animation_store::advance(animation_record& record, time dt)
     {
         if (record.duration <= time{})
         {
@@ -822,7 +822,7 @@ namespace oblo::ui
         }
 
         // The elapsed time is used *before* adding this frame's dt, so the first frame of a
-        // transition renders the initial state.
+        // animation renders the initial state.
         const f32 t = min(to_f32_seconds(record.elapsedTime) / to_f32_seconds(record.duration), 1.f);
         const f32 u = ease(record.easing, t);
 
@@ -832,25 +832,25 @@ namespace oblo::ui
 
         if (t >= 1.f)
         {
-            record.state = transition_state::idle;
+            record.state = animation_state::idle;
             record.elapsedTime = time{};
             record.activeProperties = {};
             record.current = record.target;
         }
     }
 
-    void transition_store::start_exit(transition_record& record)
+    void animation_store::start_exit(animation_record& record)
     {
         OBLO_ASSERT(record.exitFinal);
 
-        record.state = transition_state::exiting;
+        record.state = animation_state::exiting;
         record.initial = record.current;
         record.target = record.exitFinal(record.initial, record.properties);
         record.elapsedTime = time{};
         record.activeProperties = record.properties;
     }
 
-    const animated_values* transition_store::update(layout_id element,
+    const animated_values* animation_store::update(layout_id element,
         layout_id parent,
         vec2 parentOrigin,
         const animated_values& target,
@@ -873,7 +873,7 @@ namespace oblo::ui
             r.easing = config.easing;
             r.duration = config.duration;
             r.exitFinal = config.exit.setFinalState;
-            r.transitionOut = r.exitFinal != nullptr;
+            r.animationOut = r.exitFinal != nullptr;
             r.target = target;
 
             const auto* const parentRecord = parent ? find_record(parent) : nullptr;
@@ -883,7 +883,7 @@ namespace oblo::ui
 
             if (animateEnter && r.duration > time::from_seconds(0.f))
             {
-                r.state = transition_state::entering;
+                r.state = animation_state::entering;
                 r.initial = config.enter.setInitialState(target, config.properties);
                 r.current = r.initial;
                 r.activeProperties = config.properties;
@@ -896,11 +896,11 @@ namespace oblo::ui
 
         record->declaredThisFrame = true;
 
-        if (record->state == transition_state::exiting)
+        if (record->state == animation_state::exiting)
         {
             // The element reappeared while it was animating out; snap to the new target and
             // let the change detection below animate towards it.
-            record->state = transition_state::idle;
+            record->state = animation_state::idle;
             record->current = record->target;
             record->activeProperties = {};
         }
@@ -958,7 +958,7 @@ namespace oblo::ui
         record->oldRelativePosition = newRelativePosition;
         record->target = target;
 
-        if (record->state == transition_state::idle)
+        if (record->state == animation_state::idle)
         {
             if (newActive.is_empty())
             {
@@ -968,8 +968,8 @@ namespace oblo::ui
                 return &record->current;
             }
 
-            // Start a transition from the last rendered state.
-            record->state = transition_state::transitioning;
+            // Start a animation from the last rendered state.
+            record->state = animation_state::animationing;
             record->initial = record->current;
             record->activeProperties = newActive;
             record->elapsedTime = {};
@@ -990,7 +990,7 @@ namespace oblo::ui
         return &record->current;
     }
 
-    void transition_store::end_frame()
+    void animation_store::end_frame()
     {
         for (usize i = 0; i < m_records.size();)
         {
@@ -1003,7 +1003,7 @@ namespace oblo::ui
                 continue;
             }
 
-            if (record.state == transition_state::exiting)
+            if (record.state == animation_state::exiting)
             {
                 if (record.duration <= time{})
                 {
@@ -1028,7 +1028,7 @@ namespace oblo::ui
                 continue;
             }
 
-            if (record.transitionOut)
+            if (record.animationOut)
             {
                 start_exit(record);
                 ++i;
@@ -1039,39 +1039,39 @@ namespace oblo::ui
         }
     }
 
-    const animated_values* transition_store::try_get(layout_id element) const
+    const animated_values* animation_store::try_get(layout_id element) const
     {
         const auto* const record = find_record(element);
         return record ? &record->current : nullptr;
     }
 
-    animated_values* transition_store::try_get(layout_id element)
+    animated_values* animation_store::try_get(layout_id element)
     {
         auto* const record = find_record(element);
         return record ? &record->current : nullptr;
     }
 
-    span<const transition_record> transition_store::records() const
+    span<const animation_record> animation_store::records() const
     {
         return m_records;
     }
 
-    span<transition_record> transition_store::records()
+    span<animation_record> animation_store::records()
     {
         return m_records;
     }
 
-    bool transition_store::empty() const noexcept
+    bool animation_store::empty() const noexcept
     {
         return m_records.empty();
     }
 
-    usize transition_store::size() const noexcept
+    usize animation_store::size() const noexcept
     {
         return m_records.size();
     }
 
-    void transition_store::clear() noexcept
+    void animation_store::clear() noexcept
     {
         m_records.clear();
     }

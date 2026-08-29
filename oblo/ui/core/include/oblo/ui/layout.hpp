@@ -312,7 +312,7 @@ namespace oblo::ui
         vec2 contentSize{};
 
         // Interpolated values to render this frame, or nullptr when the element has no id
-        // or no transition configured. When nullptr, target_rect is the final box.
+        // or no animation configured. When nullptr, target_rect is the final box.
         const animated_values* animated{};
 
         u32 parentIndex{invalid_index};
