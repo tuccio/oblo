@@ -90,15 +90,54 @@ namespace oblo::ui
         // Invariant: the first node is at x == 0 and the last at x == width.
         dynamic_array<skyline_node> skyline;
 
+        u32 dirtyMinX{~0u};
+        u32 dirtyMinY{~0u};
+        u32 dirtyMaxX{0};
+        u32 dirtyMaxY{0};
+        bool isDirty{false};
+
         void init_skyline()
         {
             skyline.clear();
             skyline.push_back({0, 0});
             skyline.push_back({width, 0});
+
+            clear_dirty();
         }
 
-        // Tries to place a rect of the given size, returning the top-left position in the
-        // atlas (in pixels) or false if it does not fit.
+        // Expands the dirty rectangle to also cover [x, x + w) x [y, y + h).
+        void add_dirty(u32 x, u32 y, u32 w, u32 h)
+        {
+            dirtyMinX = min(dirtyMinX, x);
+            dirtyMinY = min(dirtyMinY, y);
+            dirtyMaxX = max(dirtyMaxX, x + w);
+            dirtyMaxY = max(dirtyMaxY, y + h);
+            isDirty = true;
+        }
+
+        bool get_dirty_rect(u32& outX, u32& outY, u32& outW, u32& outH) const
+        {
+            if (!isDirty)
+            {
+                return false;
+            }
+
+            outX = dirtyMinX;
+            outY = dirtyMinY;
+            outW = dirtyMaxX - dirtyMinX;
+            outH = dirtyMaxY - dirtyMinY;
+            return true;
+        }
+
+        void clear_dirty()
+        {
+            dirtyMinX = ~0u;
+            dirtyMinY = ~0u;
+            dirtyMaxX = 0;
+            dirtyMaxY = 0;
+            isDirty = false;
+        }
+
         bool try_place(u32 w, u32 h, u32& outX, u32& outY) const
         {
             u32 bestX = ~0u;
@@ -316,5 +355,7 @@ namespace oblo::ui
         }
 
         void add_rendered_glyph(FT_Face face, font_glyph& glyph);
+
+        void flush_atlas_uploads();
     };
 }

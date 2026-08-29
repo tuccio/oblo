@@ -1072,6 +1072,47 @@ namespace oblo
         }
     }
 
+    void frame_graph_execute_context::upload(
+        pin::texture h, const staging_buffer_span& data, u32 x, u32 y, u32 width, u32 height) const
+    {
+        auto& stagingBuffer = m_args.stagingBuffer;
+        const frame_graph_texture_impl& t = access_storage_resource(m_frameGraph, h);
+
+        gpu::buffer_image_copy_descriptor copy[2]{};
+
+        u32 copies = 0;
+
+        for (const auto& segment : data.segments)
+        {
+            if (segment.begin != segment.end)
+            {
+                constexpr u32 levelIndex = 0;
+
+                copy[copies] = {
+                    .bufferOffset = segment.begin,
+                    .bufferRowLength = 0, // tightly packed: row length equals the copy width
+                    .bufferImageHeight = 0,
+                    .imageSubresource =
+                        {
+                            .mipLevel = levelIndex,
+                            .baseArrayLayer = 0,
+                            .layerCount = 1,
+                        },
+                    .imageOffset = {i32(x), i32(y), 0},
+                    .imageExtent = {width, height, t.descriptor.depth},
+                };
+
+                ++copies;
+            }
+        }
+
+        if (copies > 0)
+        {
+            // NOTE: This is also not thread safe, it changes some internal state in the staging buffer
+            stagingBuffer.upload(m_state.commandBuffer, t.handle, {copy, copies});
+        }
+    }
+
     async_download frame_graph_execute_context::download(pin::buffer h) const
     {
         OBLO_ASSERT(h);
@@ -1179,7 +1220,8 @@ namespace oblo
         pm.trace_rays(m_state.rtCtx, x, y, z);
     }
 
-    void frame_graph_execute_context::draw(u32 vertexCount, u32 instanceCount, u32 vertexOffset, u32 firstInstance) const
+    void frame_graph_execute_context::draw(
+        u32 vertexCount, u32 instanceCount, u32 vertexOffset, u32 firstInstance) const
     {
         m_state.gpu->cmd_draw(m_state.commandBuffer, vertexCount, instanceCount, vertexOffset, firstInstance);
     }

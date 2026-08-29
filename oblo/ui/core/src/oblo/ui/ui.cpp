@@ -198,6 +198,9 @@ namespace oblo::ui
                 }
             }
         }
+
+        // Batch every glyph written this frame into one upload command per atlas.
+        m_layout->fonts.flush_atlas_uploads();
     }
 
     bool context::is_active(layout_id id) const

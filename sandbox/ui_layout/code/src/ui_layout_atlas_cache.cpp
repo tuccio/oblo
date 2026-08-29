@@ -8,6 +8,8 @@
 #include <oblo/renderer/graph/frame_graph_context.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 
+#include <cstring>
+
 namespace oblo
 {
     namespace
@@ -79,6 +81,11 @@ namespace oblo
                     break;
                 }
 
+                const u32 x = cmd.update.x;
+                const u32 y = cmd.update.y;
+                const u32 w = cmd.update.width;
+                const u32 h = cmd.update.height;
+
                 if (!m_transferPass)
                 {
                     m_transferPass = ctx.transfer_pass();
@@ -88,9 +95,21 @@ namespace oblo
 
                 ctx.acquire(resource, texture_usage::transfer_destination);
 
-                const auto staged = ctx.stage_upload_image(as_bytes(span{texturePtr->data}), 1);
+                const u32 rowPitch = texturePtr->rowPitch;
+                const auto* const src = texturePtr->data.data();
 
-                m_uploads.push_back({resource, staged});
+                dynamic_array<u8> subRect;
+                subRect.resize_default(w * h);
+
+                for (u32 row = 0; row < h; ++row)
+                {
+                    const u8* const srcRow = &src[(y + row) * rowPitch + x];
+                    std::memcpy(&subRect[row * w], srcRow, w);
+                }
+
+                const auto staged = ctx.stage_upload_image(as_bytes(span{subRect}), 1);
+
+                m_uploads.push_back({resource, staged, x, y, w, h});
             }
             break;
 
@@ -150,7 +169,7 @@ namespace oblo
         {
             for (const auto& upload : m_uploads)
             {
-                ctx.upload(upload.resource, upload.staged);
+                ctx.upload(upload.resource, upload.staged, upload.x, upload.y, upload.width, upload.height);
             }
 
             ctx.end_pass();

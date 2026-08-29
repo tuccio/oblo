@@ -174,6 +174,20 @@ namespace oblo::ui
             }
         }
 
-        textures->notify_upload_required(atlas.id, atlasX, atlasY, glyphWidth, glyphHeight);
+           atlas.add_dirty(atlasX, atlasY, glyphWidth, glyphHeight);
+    }
+
+    void font_cache::flush_atlas_uploads()
+    {
+        for (auto& atlas : m_atlases)
+        {
+            u32 x, y, w, h;
+
+            if (atlas.get_dirty_rect(x, y, w, h))
+            {
+                textures->notify_upload_required(atlas.id, x, y, w, h);
+                atlas.clear_dirty();
+            }
+        }
     }
 }

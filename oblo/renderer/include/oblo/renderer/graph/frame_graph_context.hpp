@@ -256,6 +256,9 @@ namespace oblo
 
         void upload(pin::texture h, const staging_buffer_span& data) const;
 
+        void upload(
+            pin::texture h, const staging_buffer_span& data, u32 x, u32 y, u32 width, u32 height) const;
+
         async_download download(pin::buffer h) const;
 
         h64<gpu::device_address> get_device_address(pin::buffer buffer) const;
