@@ -30,6 +30,7 @@ class ObloConanRecipe(ConanFile):
         self.requires("assimp/5.4.3")
         self.requires("concurrentqueue/1.0.4")
         self.requires("cxxopts/2.2.1")
+        self.requires("freetype/2.14.3")
         self.requires("glslang/1.3.296.0")
         self.requires("gtest/1.10.0")
         self.requires("iconfontcppheaders/cci.20240128")
@@ -73,6 +74,14 @@ class ObloConanRecipe(ConanFile):
         glslang.spv_remapper = False
         glslang.hlsl = False
         glslang.build_executables = False
+
+        freetype = self.options["freetype/*"]
+        freetype.shared = False
+        freetype.with_png = False
+        freetype.with_zlib = False
+        freetype.with_bzip2 = False
+        freetype.with_brotli = False
+        freetype.subpixel = False
 
         if self.options.with_tracy:
             tracy = self.options["tracy/*"]

@@ -752,6 +752,7 @@ namespace oblo
             context = ImGui::CreateContext();
 
             auto& io = ImGui::GetIO();
+            io.ConfigWindowsMoveFromTitleBarOnly = true;
 
             if (cfg.useDocking)
             {

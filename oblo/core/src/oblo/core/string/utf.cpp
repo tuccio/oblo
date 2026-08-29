@@ -1,3 +1,4 @@
+#include <utf8cpp/utf8/checked.h>
 #include <utf8cpp/utf8/unchecked.h>
 
 #include <oblo/core/dynamic_array.hpp>
@@ -16,8 +17,8 @@ namespace oblo
 
         while (it1 != end1 && it2 != end2)
         {
-            const uint32_t cp1 = utf8::unchecked::next(it1);
-            const uint32_t cp2 = utf8::unchecked::next(it2);
+            const u32 cp1 = utf8::unchecked::next(it1);
+            const u32 cp2 = utf8::unchecked::next(it2);
 
             if (cp1 < cp2)
             {
@@ -63,5 +64,10 @@ namespace oblo
             static_assert(!platform::is_linux() || sizeof(wchar_t) == 4);
             utf8::unchecked::utf8to32(src.begin(), src.end(), std::back_inserter(dst));
         }
+    }
+
+    u32 utf8_next_codepoint(const char** it)
+    {
+        return utf8::unchecked::next(*it);
     }
 }

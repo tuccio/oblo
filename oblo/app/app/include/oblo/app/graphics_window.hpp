@@ -11,6 +11,7 @@ namespace oblo
 {
     class graphics_app;
     class graphics_window_context;
+    class input_queue;
     class window_event_processor;
 
     using native_window_handle = void*;
@@ -86,6 +87,9 @@ namespace oblo
 
         void set_icon(u32 w, u32 h, std::span<const byte> data);
 
+        void set_input_queue(input_queue* inputQueue);
+        input_queue* get_input_queue() const;
+
     private:
         friend class graphics_app;
         friend class window_event_processor;
@@ -93,6 +97,7 @@ namespace oblo
     private:
         void* m_impl{};
         graphics_window_context* m_graphicsContext{};
+        input_queue* m_inputQueue{};
         hit_test_fn m_hitTest{};
     };
 }

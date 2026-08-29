@@ -88,6 +88,9 @@ function(oblo_init_build_configurations)
 
             # Disable -Wmissing-field-initializers, which warns if initializers are missing fields, because unfortunately it triggers with designated initializers too
             -Wno-missing-field-initializers
+
+            # Output full debug information, to avoid missing symbols across module boundaries
+            $<$<CONFIG:Debug>:-fstandalone-debug>
         )
 
         if(LINUX)

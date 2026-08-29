@@ -57,7 +57,7 @@ namespace oblo
 
     void graphics_app::set_input_queue(input_queue* inputQueue)
     {
-        m_eventProcessor.set_input_queue(inputQueue);
+        m_mainWindow.set_input_queue(inputQueue);
     }
 
     void graphics_app::set_output(h32<frame_graph_subgraph> sg, string_view output)

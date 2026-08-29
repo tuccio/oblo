@@ -256,6 +256,9 @@ namespace oblo
 
         void upload(pin::texture h, const staging_buffer_span& data) const;
 
+        void upload(
+            pin::texture h, const staging_buffer_span& data, u32 x, u32 y, u32 width, u32 height) const;
+
         async_download download(pin::buffer h) const;
 
         h64<gpu::device_address> get_device_address(pin::buffer buffer) const;
@@ -275,6 +278,7 @@ namespace oblo
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
         void trace_rays(u32 x, u32 y, u32 z) const;
 
+        void draw(u32 vertexCount, u32 instanceCount, u32 vertexOffset, u32 firstInstance) const;
         void draw_indexed(u32 indexCount, u32 instanceCount, u32 firstIndex, u32 vertexOffset, u32 firstInstance) const;
 
         void draw_mesh_tasks_indirect_count(pin::buffer drawCallBuffer,

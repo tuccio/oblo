@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/forward.hpp>
 #include <oblo/core/types.hpp>
 
 #include <compare>
@@ -59,4 +60,13 @@ namespace oblo
 
     template <typename Tag>
     using hptr = handle<Tag, uintptr>;
+
+    template <typename Tag, typename Value>
+    struct hash<handle<Tag, Value>>
+    {
+        constexpr auto operator()(handle<Tag, Value> h) const noexcept
+        {
+            return hash<Value>{}(h.value);
+        }
+    };
 }

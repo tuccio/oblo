@@ -1,0 +1,18 @@
+#pragma once
+
+#include <oblo/core/handle.hpp>
+#include <oblo/core/types.hpp>
+
+namespace oblo::ui
+{
+    struct rect;
+    struct animation_config;
+    struct animated_values;
+
+    class animation_store;
+
+    struct layout_element;
+    struct layout_state;
+
+    using layout_id = h32<layout_element>;
+}
