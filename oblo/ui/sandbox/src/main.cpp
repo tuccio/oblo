@@ -30,7 +30,29 @@ namespace oblo::ui
 {
     namespace
     {
-        [[maybe_unused]] ui::animation_config make_fade_scale_animation(time duration)
+        // Stable layout ids. Grouping them here avoids magic numbers and accidental
+        // collisions between sibling elements (ids must be unique per frame).
+        constexpr u32 rootId = 1;
+        constexpr u32 headerId = 2;
+        constexpr u32 middleId = 3;
+        constexpr u32 footerId = 6;
+
+        constexpr u32 firstButtonId = 100;
+        constexpr u32 numHeaderButtons = 4;
+
+        constexpr u32 showPanelId = 700;
+        constexpr u32 expandPanelId = 701;
+
+        constexpr u32 firstSidebarItemId = 200;
+
+        constexpr u32 animatedPanelId = 800;
+        constexpr u32 animatedLabelId = 801;
+
+        constexpr u32 applyId = 600;
+        constexpr u32 closeId = 601;
+        constexpr u32 statusId = 900;
+
+        ui::animation_config make_fade_scale_animation(time duration)
         {
             return {
                 .duration = duration,
@@ -95,21 +117,16 @@ namespace oblo::ui
         {
             time lastTime = clock::now();
 
-            for (;;)
+            while (m_app.process_events())
             {
-                if (!m_app.process_events())
-                {
-                    break;
-                }
+                const time now = clock::now();
+                const time dt = now - lastTime;
+                lastTime = now;
 
                 if (!m_app.acquire_images())
                 {
                     continue;
                 }
-
-                const time now = clock::now();
-                const time dt = now - lastTime;
-                lastTime = now;
 
                 build_frame(to_f32_seconds(dt));
 
@@ -135,18 +152,19 @@ namespace oblo::ui
     private:
         void build_frame(f32 dt)
         {
+            update_frame_stats(dt);
+
             const auto windowSize = m_app.get_main_window().get_size();
             const vec2u resolution{max(windowSize.x, 1u), max(windowSize.y, 1u)};
 
-            const auto& events = m_inputQueue.get_events();
-
             const vec2 size{f32(resolution.x), f32(resolution.y)};
+            const auto& events = m_inputQueue.get_events();
 
             m_ui.begin_frame({events.data(), events.size()}, time::from_seconds(dt), size);
 
             {
                 auto root = panel(m_ui,
-                    {1},
+                    {rootId},
                     panel_style{
                         .backgroundColor = {0.12f, 0.12f, 0.16f, 1.f},
                         .cornerRadius = 6.f,
@@ -157,103 +175,9 @@ namespace oblo::ui
                         .height = percent_size(1.f),
                     });
 
-                {
-                    auto header = panel(m_ui,
-                        {2},
-                        panel_style{
-                            .padding = {8.f, 8.f, 8.f, 8.f},
-                            .direction = layout_direction::left_to_right,
-                            .gap = 8.f,
-                            .width = percent_size(1.f),
-                            .height = fit_size(),
-                            .alignment = alignment::center_left(),
-                        });
-
-                    string_builder nameBuilder;
-
-                    for (u32 i = 0; i < 4; ++i)
-                    {
-                        nameBuilder.clear().format("Button #{}", i);
-                        button(m_ui, {100 + i}, nameBuilder.as<hashed_string_view>());
-                    }
-
-                    checkbox(m_ui, {700}, m_showAnimatedPanel, "Show panel"_hsv);
-                    checkbox(m_ui, {701}, m_expandedAnimatedPanel, "Expand"_hsv);
-                }
-
-                {
-                    auto middle = panel(m_ui,
-                        {3},
-                        panel_style{
-                            .padding = {8.f, 8.f, 8.f, 8.f},
-                            .direction = layout_direction::left_to_right,
-                            .gap = 16.f,
-                            .width = percent_size(1.f),
-                            .height = percent_size(0.65f),
-                        });
-
-                    {
-                        auto sidebar = panel(m_ui,
-                            {4},
-                            panel_style{
-                                .direction = layout_direction::top_to_bottom,
-                                .gap = 8.f,
-                                .width = percent_size(0.25f),
-                                .height = percent_size(1.f),
-                            });
-
-                        string_builder nameBuilder;
-
-                        for (u32 i = 0; i < array_size(m_sidebarChecked); ++i)
-                        {
-                            nameBuilder.clear().format("Item #{}", i);
-                            bool& checked = m_sidebarChecked[i];
-                            checkbox(m_ui, {200 + i}, checked, nameBuilder.as<hashed_string_view>());
-                        }
-                    }
-
-                    if (m_showAnimatedPanel)
-                    {
-                        const sizing panelWidth = m_expandedAnimatedPanel ? percent_size(0.6f) : percent_size(0.3f);
-                        const sizing panelHeight = m_expandedAnimatedPanel ? percent_size(0.9f) : percent_size(0.5f);
-
-                        auto animatedPanel = panel(m_ui,
-                            {800},
-                            panel_style{
-                                .backgroundColor = {0.08f, 0.08f, 0.10f, 1.f},
-                                .cornerRadius = 12.f,
-                                .padding = {16.f, 16.f, 16.f, 16.f},
-                                .direction = layout_direction::top_to_bottom,
-                                .gap = 8.f,
-                                .width = panelWidth,
-                                .height = panelHeight,
-                                .animation = make_fade_scale_animation(time::from_seconds(0.5f)),
-                            });
-
-                        label(m_ui, {801}, m_expandedAnimatedPanel ? "Expanded panel"_hsv : "Animated panel"_hsv);
-                    }
-                }
-
-                {
-                    auto footer = panel(m_ui,
-                        {6},
-                        panel_style{
-                            .padding = {8.f, 8.f, 8.f, 8.f},
-                            .direction = layout_direction::left_to_right,
-                            .gap = 8.f,
-                            .width = percent_size(1.f),
-                            .height = ui::fit_size(),
-                        });
-
-                    button(m_ui, {600}, "Apply"_hsv);
-
-                    const bool close = button(m_ui, {601}, "Close"_hsv);
-
-                    if (close)
-                    {
-                        m_app.get_main_window().destroy();
-                    }
-                }
+                build_header();
+                build_middle();
+                build_footer();
             }
 
             m_ui.end_frame();
@@ -269,6 +193,117 @@ namespace oblo::ui
             frameGraph.set_input(m_graph, ui_layout_view::InTextures, textures).assert_value();
             frameGraph.set_input(m_graph, ui_layout_view::InTextureCommands, textureCommands).assert_value();
             frameGraph.set_input(m_graph, ui_layout_view::InAtlasCache, &m_atlasCache).assert_value();
+        }
+
+        void build_header()
+        {
+            auto header = panel(m_ui,
+                {headerId},
+                panel_style{
+                    .padding = {8.f, 8.f, 8.f, 8.f},
+                    .direction = layout_direction::left_to_right,
+                    .gap = 8.f,
+                    .width = percent_size(1.f),
+                    .height = fit_size(),
+                    .alignment = alignment::center_left(),
+                });
+
+            string_builder name;
+
+            for (u32 i = 0; i < numHeaderButtons; ++i)
+            {
+                name.clear().format("Button #{}", i);
+                button(m_ui, {firstButtonId + i}, name.as<hashed_string_view>());
+            }
+
+            checkbox(m_ui, {showPanelId}, m_showAnimatedPanel, "Show panel"_hsv);
+            checkbox(m_ui, {expandPanelId}, m_expandedAnimatedPanel, "Expand"_hsv);
+        }
+
+        void build_middle()
+        {
+            auto middle = panel(m_ui,
+                {middleId},
+                panel_style{
+                    .padding = {8.f, 8.f, 8.f, 8.f},
+                    .direction = layout_direction::left_to_right,
+                    .gap = 16.f,
+                    .width = percent_size(1.f),
+                    .height = percent_size(0.65f),
+                });
+
+            {
+                auto sidebar = panel(m_ui,
+                    {firstSidebarItemId - 1},
+                    panel_style{
+                        .direction = layout_direction::top_to_bottom,
+                        .gap = 8.f,
+                        .width = percent_size(0.25f),
+                        .height = percent_size(1.f),
+                    });
+
+                string_builder name;
+
+                for (u32 i = 0; i < array_size(m_sidebarChecked); ++i)
+                {
+                    name.clear().format("Item #{}", i);
+                    checkbox(m_ui, {firstSidebarItemId + i}, m_sidebarChecked[i], name.as<hashed_string_view>());
+                }
+            }
+
+            if (m_showAnimatedPanel)
+            {
+                const sizing panelWidth = m_expandedAnimatedPanel ? percent_size(0.6f) : percent_size(0.3f);
+                const sizing panelHeight = m_expandedAnimatedPanel ? percent_size(0.9f) : percent_size(0.5f);
+
+                auto animatedPanel = panel(m_ui,
+                    {animatedPanelId},
+                    panel_style{
+                        .backgroundColor = {0.08f, 0.08f, 0.10f, 1.f},
+                        .cornerRadius = 12.f,
+                        .padding = {16.f, 16.f, 16.f, 16.f},
+                        .direction = layout_direction::top_to_bottom,
+                        .gap = 8.f,
+                        .width = panelWidth,
+                        .height = panelHeight,
+                        .animation = make_fade_scale_animation(time::from_seconds(0.5f)),
+                    });
+
+                label(m_ui, {animatedLabelId}, m_expandedAnimatedPanel ? "Expanded panel"_hsv : "Animated panel"_hsv);
+            }
+        }
+
+        void build_footer()
+        {
+            auto footer = panel(m_ui,
+                {footerId},
+                panel_style{
+                    .padding = {8.f, 8.f, 8.f, 8.f},
+                    .direction = layout_direction::left_to_right,
+                    .gap = 8.f,
+                    .width = percent_size(1.f),
+                    .height = fit_size(),
+                });
+
+            button(m_ui, {applyId}, "Apply"_hsv);
+
+            const bool close = button(m_ui, {closeId}, "Close"_hsv);
+
+            if (close)
+            {
+                m_app.get_main_window().destroy();
+            }
+
+            const f32 fps = m_avgFrameTime > 0.f ? 1.f / m_avgFrameTime : 0.f;
+            m_statusBuilder.clear().format("{} fps | {:.1f} ms", u32(fps + 0.5f), m_avgFrameTime * 1000.f);
+            label(m_ui, {statusId}, m_statusBuilder.as<hashed_string_view>());
+        }
+
+        void update_frame_stats(f32 dt)
+        {
+            // Exponential moving average keeps the readout stable instead of jittering
+            // frame-to-frame.
+            m_avgFrameTime += (dt - m_avgFrameTime) * 0.1f;
         }
 
     private:
@@ -289,6 +324,9 @@ namespace oblo::ui
 
         bool m_showAnimatedPanel{};
         bool m_expandedAnimatedPanel{};
+
+        f32 m_avgFrameTime{1.f / 60.f};
+        string_builder m_statusBuilder;
 
         u32 m_frameIndex{};
     };
