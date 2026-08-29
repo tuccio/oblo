@@ -207,7 +207,7 @@ namespace oblo
 
                     if (m_tombstones > m_size)
                     {
-                        rehash(m_capacity);
+                        compact();
                     }
 
                     return 1;
@@ -556,6 +556,77 @@ namespace oblo
             m_tombstones = 0;
         }
 
+        void compact()
+        {
+            // In order to remove tombstones in-place, the 7-bit hash is dropped from ctrl temporarily
+            // We use ctrl to keep track of the state of each element we relocate
+            constexpr u8 c_live = 0x80;  // live element, not yet relocated
+            constexpr u8 c_final = 0x81; // live element, finalized at this slot
+            constexpr u8 c_free = 0x7F;  // slot vacated by a relocated element
+
+            const usize mask = m_capacity - 1;
+
+            for (usize i = 0; i < m_capacity; ++i)
+            {
+                if (is_occupied(i))
+                {
+                    m_ctrl[i] = c_live;
+                }
+            }
+
+            for (usize start = 0; start < m_capacity; ++start)
+            {
+                if (m_ctrl[start] != c_live)
+                {
+                    continue;
+                }
+
+                const hash_type h = Hash{}(m_keys[start]);
+                usize idx = h & mask;
+
+                while (m_ctrl[idx] == c_live || m_ctrl[idx] == c_final)
+                {
+                    idx = (idx + 1) & mask;
+                }
+
+                if (idx != start)
+                {
+                    // The destination may hold an uninitialized (empty), destroyed
+                    // (deleted) or moved-from (freed) object; only destroy if live.
+                    if (m_ctrl[idx] == c_free)
+                    {
+                        m_keys[idx].~Key();
+                        m_values[idx].~Value();
+                    }
+
+                    new (&m_keys[idx]) Key{std::move(m_keys[start])};
+                    new (&m_values[idx]) Value{std::move(m_values[start])};
+
+                    m_keys[start].~Key();
+                    m_values[start].~Value();
+
+                    m_ctrl[start] = c_free;
+                }
+
+                m_ctrl[idx] = c_final;
+            }
+
+            // Rebuild the real control bytes (restore the 7-bit hash) and clear the rest.
+            for (usize i = 0; i < m_capacity; ++i)
+            {
+                if (m_ctrl[i] == c_final)
+                {
+                    m_ctrl[i] = ctrl_of(Hash{}(m_keys[i]));
+                }
+                else
+                {
+                    m_ctrl[i] = ctrl_empty;
+                }
+            }
+
+            m_tombstones = 0;
+        }
+
     private:
         allocator* m_allocator{};
         byte* m_storage{};
@@ -574,17 +645,17 @@ namespace oblo
     class flat_hash_map<Key, Value, Hash, KeyEqual>::iterator
     {
     public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = flat_hash_map::value_type;
-        using difference_type = ptrdiff;
-        using reference = value_type&;
-        using pointer = value_type*;
-
         struct deref_proxy
         {
             const Key& first;
             Value& second;
         };
+
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = flat_hash_map::value_type;
+        using difference_type = ptrdiff;
+        using reference = deref_proxy&;
+        using pointer = deref_proxy*;
 
         iterator(flat_hash_map* map, usize index) :
             m_map{map}, m_index{index}, m_deref{index < map->m_capacity ? map->m_keys[index] : s_dummyKey,
