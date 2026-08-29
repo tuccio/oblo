@@ -3,6 +3,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/finally.hpp>
 #include <oblo/core/platform/core.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/time/clock.hpp>
 #include <oblo/core/time/time.hpp>
@@ -25,16 +26,12 @@
 #include <ui_layout_graph.hpp>
 #include <ui_layout_render_node.hpp>
 
-#include <span>
-
-namespace oblo
+namespace oblo::ui
 {
     namespace
     {
         [[maybe_unused]] ui::animation_config make_fade_scale_animation(time duration)
         {
-            using namespace oblo::ui;
-
             return {
                 .duration = duration,
                 .easing = easing_function::ease_out,
@@ -78,8 +75,7 @@ namespace oblo
             m_nodeRegistry.register_node<ui_layout_render_node>();
             m_graphTemplate = ui_layout_view::create(m_nodeRegistry);
 
-            if (!m_app.init({.title = "UI Layout Sandbox", .windowWidth = 1280, .windowHeight = 720}) ||
-                !m_ui.init())
+            if (!m_app.init({.title = "UI Layout Sandbox", .windowWidth = 1280, .windowHeight = 720}) || !m_ui.init())
             {
                 log::error("Failed to create the UI Layout sandbox window");
                 return false;
@@ -139,8 +135,6 @@ namespace oblo
     private:
         void build_frame(f32 dt)
         {
-            using namespace oblo::ui;
-
             const auto windowSize = m_app.get_main_window().get_size();
             const vec2u resolution{max(windowSize.x, 1u), max(windowSize.y, 1u)};
 
@@ -327,7 +321,7 @@ int main()
         return 1;
     }
 
-    oblo::ui_layout_sandbox sandbox;
+    oblo::ui::ui_layout_sandbox sandbox;
 
     if (!sandbox.init(*vkEngine))
     {
