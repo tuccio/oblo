@@ -199,7 +199,7 @@ namespace oblo::ui
     {
         animation_store store;
 
-        auto config = linear_config({});
+        auto config = linear_config(time::from_seconds(1.f));
         config.properties = bounding_box_properties | animation_property::background_color;
         config.enter.setInitialState = enter_initial;
 
@@ -243,7 +243,7 @@ namespace oblo::ui
     {
         animation_store store;
 
-        auto config = linear_config({});
+        auto config = linear_config(time::from_seconds(1.f));
         config.properties = bounding_box_properties | animation_property::background_color;
         config.exit.setFinalState = exit_final;
 
