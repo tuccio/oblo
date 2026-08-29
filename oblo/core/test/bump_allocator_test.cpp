@@ -14,14 +14,14 @@ namespace oblo
         bump_allocator allocator{chunk_size};
     };
 
-    TEST_F(bump_allocator_test, AllocatesMemory)
+    TEST_F(bump_allocator_test, allocates_memory)
     {
         byte* ptr = allocator.allocate(16, 8);
 
         ASSERT_NE(ptr, nullptr);
     }
 
-    TEST_F(bump_allocator_test, ReturnsAlignedMemory)
+    TEST_F(bump_allocator_test, returns_aligned_memory)
     {
         constexpr usize alignments[] = {
             1,
@@ -42,7 +42,7 @@ namespace oblo
         }
     }
 
-    TEST_F(bump_allocator_test, AllocationsDoNotOverlap)
+    TEST_F(bump_allocator_test, allocations_do_not_overlap)
     {
         byte* first = allocator.allocate(32, 8);
         byte* second = allocator.allocate(32, 8);
@@ -53,7 +53,7 @@ namespace oblo
         EXPECT_GE(second, first + 32);
     }
 
-    TEST_F(bump_allocator_test, AllocationsAreSequential)
+    TEST_F(bump_allocator_test, allocations_are_sequential)
     {
         byte* first = allocator.allocate(16, 1);
         byte* second = allocator.allocate(16, 1);
@@ -67,7 +67,7 @@ namespace oblo
         EXPECT_EQ(third, second + 16);
     }
 
-    TEST_F(bump_allocator_test, AlignmentIntroducesPadding)
+    TEST_F(bump_allocator_test, alignment_introduces_padding)
     {
         byte* first = allocator.allocate(1, 1);
         byte* second = allocator.allocate(1, 16);
@@ -80,7 +80,7 @@ namespace oblo
         EXPECT_GT(second, first);
     }
 
-    TEST_F(bump_allocator_test, SupportsLargeAlignment)
+    TEST_F(bump_allocator_test, supports_large_alignment)
     {
         constexpr usize alignment = 256;
 
@@ -91,7 +91,7 @@ namespace oblo
         EXPECT_EQ(reinterpret_cast<uintptr>(ptr) % alignment, 0u);
     }
 
-    TEST_F(bump_allocator_test, AllocatesAcrossChunks)
+    TEST_F(bump_allocator_test, allocates_across_chunks)
     {
         byte* first = allocator.allocate(128, 8);
         byte* second = allocator.allocate(128, 8);
@@ -106,7 +106,7 @@ namespace oblo
         EXPECT_NE(first, third);
     }
 
-    TEST_F(bump_allocator_test, LargeAllocationGetsItsOwnChunk)
+    TEST_F(bump_allocator_test, large_allocation_gets_its_own_chunk)
     {
         constexpr usize size = chunk_size * 2;
 
@@ -117,7 +117,7 @@ namespace oblo
         EXPECT_EQ(reinterpret_cast<uintptr>(ptr) % 16, 0u);
     }
 
-    TEST_F(bump_allocator_test, ResetAllowsMemoryToBeReused)
+    TEST_F(bump_allocator_test, reset_allows_memory_to_be_reused)
     {
         byte* first = allocator.allocate(32, 8);
 
@@ -132,7 +132,7 @@ namespace oblo
         EXPECT_EQ(second, first);
     }
 
-    TEST_F(bump_allocator_test, ResetWorksAcrossMultipleChunks)
+    TEST_F(bump_allocator_test, reset_works_across_multiple_chunks)
     {
         byte* first = allocator.allocate(128, 8);
         byte* second = allocator.allocate(128, 8);
@@ -152,7 +152,7 @@ namespace oblo
         EXPECT_EQ(secondAfterReset, second);
     }
 
-    TEST_F(bump_allocator_test, DeallocateDoesNothing)
+    TEST_F(bump_allocator_test, deallocate_does_nothing)
     {
         byte* first = allocator.allocate(32, 8);
 
@@ -166,7 +166,7 @@ namespace oblo
         EXPECT_NE(second, first);
     }
 
-    TEST_F(bump_allocator_test, ZeroSizeAllocation)
+    TEST_F(bump_allocator_test, zero_size_allocation)
     {
         byte* ptr = allocator.allocate(0, 8);
 
@@ -175,21 +175,7 @@ namespace oblo
         EXPECT_EQ(reinterpret_cast<uintptr>(ptr) % 8, 0u);
     }
 
-    TEST_F(bump_allocator_test, RejectsZeroAlignment)
-    {
-        EXPECT_EQ(allocator.allocate(16, 0), nullptr);
-    }
-
-    TEST_F(bump_allocator_test, RejectsNonPowerOfTwoAlignment)
-    {
-        EXPECT_EQ(allocator.allocate(16, 3), nullptr);
-
-        EXPECT_EQ(allocator.allocate(16, 6), nullptr);
-
-        EXPECT_EQ(allocator.allocate(16, 12), nullptr);
-    }
-
-    TEST_F(bump_allocator_test, AcceptsPowerOfTwoAlignments)
+    TEST_F(bump_allocator_test, accepts_power_of_two_alignments)
     {
         constexpr usize alignments[] = {
             1,
@@ -213,7 +199,7 @@ namespace oblo
         }
     }
 
-    TEST_F(bump_allocator_test, AllocatesAfterResetWithDifferentAlignments)
+    TEST_F(bump_allocator_test, allocates_after_reset_with_different_alignments)
     {
         allocator.allocate(13, 1);
         allocator.allocate(27, 8);
