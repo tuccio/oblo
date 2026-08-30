@@ -16,3 +16,13 @@ target_link_libraries(
     Vulkan::Loader
     GPUOpen::VulkanMemoryAllocator
 )
+
+if(LINUX)
+    find_package(SDL2 REQUIRED)
+
+    target_link_libraries(
+        oblo_gpu_vulkan
+        PRIVATE
+        SDL2::SDL2
+    )
+endif()

@@ -25,6 +25,11 @@
     #include <unordered_map>
 #endif
 
+#ifdef __linux__
+    #include <SDL.h>
+    #include <SDL_vulkan.h>
+#endif
+
 #define OBLO_VK_LOAD_FN(name) PFN_##name(vkGetInstanceProcAddr(m_instance, #name))
 #define OBLO_VK_LOAD_FN_ASSIGN(loader, name) (loader.name = PFN_##name(vkGetInstanceProcAddr(m_instance, #name)))
 
@@ -103,16 +108,6 @@ namespace oblo::gpu::vk
             .rayTracingPipeline = true,
         };
 
-        constexpr const char* g_instanceExtensions[] = {
-            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-            VK_KHR_SURFACE_EXTENSION_NAME,
-
-#ifdef _WIN32
-            "VK_KHR_win32_surface",
-#endif
-        };
-
         [[nodiscard]] VkResult create_surface(hptr<native_window> wh,
             VkInstance instance,
             const VkAllocationCallbacks* allocator,
@@ -129,6 +124,13 @@ namespace oblo::gpu::vk
         {
             return std::bit_cast<V>(h);
         }
+
+        // If any of these is not present, we assume the device does not support ray-tracing
+        constexpr const char* required_ray_tracing_extensions[] = {
+            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            VK_KHR_RAY_QUERY_EXTENSION_NAME,
+            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+        };
     }
 
     template <typename T>
@@ -288,14 +290,43 @@ namespace oblo::gpu::vk
             .apiVersion = VK_API_VERSION_1_3,
         };
 
+        dynamic_array<const char*> enabledExtensions;
+        enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        enabledExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+
+#ifdef _WIN32
+        enabledExtensions.push_back("VK_KHR_win32_surface");
+#endif
+
+#ifdef __linux__
+        enabledExtensions.push_back("VK_KHR_xlib_surface");
+
+        u32 sdlExtensionCount = 0;
+        SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlExtensionCount, nullptr);
+
+        if (sdlExtensionCount > 0)
+        {
+            dynamic_array<const char*> sdlExtensions;
+            sdlExtensions.resize_default(sdlExtensionCount);
+
+            SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlExtensionCount, sdlExtensions.data());
+
+            for (const char* const ext : sdlExtensions)
+            {
+                enabledExtensions.push_back(ext);
+            }
+        }
+#endif
+
         const VkInstanceCreateInfo instanceInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
             .pApplicationInfo = &appInfo,
             .enabledLayerCount = 0u,
             .ppEnabledLayerNames = nullptr,
-            .enabledExtensionCount = u32(array_size(g_instanceExtensions)),
-            .ppEnabledExtensionNames = g_instanceExtensions,
+            .enabledExtensionCount = u32(enabledExtensions.size()),
+            .ppEnabledExtensionNames = enabledExtensions.data(),
         };
 
         const VkResult instanceResult = vkCreateInstance(&instanceInfo, nullptr, &m_instance);
@@ -393,6 +424,53 @@ namespace oblo::gpu::vk
 
         // TODO: It should actually search for the best GPU and check for API version, but we pick the first
         m_physicalDevice = devices[0];
+
+        // Check ray tracing extension availability and fall back gracefully if unsupported
+        m_isRaytracingEnabled = deviceDescriptor.requireHardwareRaytracing;
+
+        if (m_isRaytracingEnabled)
+        {
+            u32 extensionCount{0u};
+
+            if (const VkResult r =
+                    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extensionCount, nullptr);
+                r != VK_SUCCESS)
+            {
+                return translate_error(r);
+            }
+
+            dynamic_array<VkExtensionProperties> availableExtensions;
+            availableExtensions.resize(extensionCount);
+
+            if (const VkResult r = vkEnumerateDeviceExtensionProperties(m_physicalDevice,
+                    nullptr,
+                    &extensionCount,
+                    availableExtensions.data());
+                r != VK_SUCCESS)
+            {
+                return translate_error(r);
+            }
+
+            for (const string_view required : required_ray_tracing_extensions)
+            {
+                bool found = false;
+
+                for (const auto& ext : availableExtensions)
+                {
+                    if (required == ext.extensionName)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    m_isRaytracingEnabled = false;
+                    break;
+                }
+            }
+        }
 
         // Cache the properties so users can query them on demand
         m_accelerationStructureProperties = {
@@ -502,20 +580,15 @@ namespace oblo::gpu::vk
 
         };
 
-        // Ray-tracing extensions, we might want to disable them
-        constexpr const char* rayTracingExtensions[] = {
-            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-        };
-
-        constexpr auto totalExtensions = array_size(requiredDeviceExtensions) + array_size(rayTracingExtensions);
+        constexpr usize totalExtensions =
+            array_size(requiredDeviceExtensions) + array_size(required_ray_tracing_extensions);
         buffered_array<const char*, totalExtensions> deviceExtensions;
         deviceExtensions.append(std::begin(requiredDeviceExtensions), std::end(requiredDeviceExtensions));
 
         if (deviceDescriptor.requireHardwareRaytracing)
         {
-            deviceExtensions.append(std::begin(rayTracingExtensions), std::end(rayTracingExtensions));
+            deviceExtensions.append(std::begin(required_ray_tracing_extensions),
+                std::end(required_ray_tracing_extensions));
             g_physicalDeviceFeatures2.pNext = &g_rtPipelineFeatures;
         }
         else
@@ -596,6 +669,11 @@ namespace oblo::gpu::vk
     h32<queue> vulkan_instance::get_universal_queue()
     {
         return universal_queue_id;
+    }
+
+    bool vulkan_instance::is_raytracing_enabled() const
+    {
+        return m_isRaytracingEnabled;
     }
 
     device_info vulkan_instance::get_device_info()
@@ -3202,6 +3280,31 @@ namespace oblo::gpu::vk
             };
 
             return vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, allocator, vkSurface);
+        }
+    }
+}
+#endif
+
+#ifdef __linux__
+    #include <vulkan/vulkan_core.h>
+
+namespace oblo::gpu::vk
+{
+    namespace
+    {
+        VkResult create_surface(hptr<native_window> wh,
+            VkInstance instance,
+            const VkAllocationCallbacks* allocator,
+            VkSurfaceKHR* vkSurface)
+        {
+            auto* const window = std::bit_cast<SDL_Window*>(wh);
+
+            if (!SDL_Vulkan_CreateSurface(window, instance, vkSurface))
+            {
+                return VK_ERROR_UNKNOWN;
+            }
+
+            return VK_SUCCESS;
         }
     }
 }

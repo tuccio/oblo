@@ -30,6 +30,7 @@
 #include <oblo/log/log.hpp>
 #include <oblo/log/log_module.hpp>
 #include <oblo/log/sinks/file_sink.hpp>
+#include <oblo/log/sinks/linux_debug_sink.hpp>
 #include <oblo/log/sinks/win32_debug_sink.hpp>
 #include <oblo/modules/module_initializer.hpp>
 #include <oblo/modules/module_manager.hpp>
@@ -93,12 +94,19 @@ namespace oblo::editor
                 logModule->add_sink(std::move(fileSink));
             }
 
-            if constexpr (platform::is_windows())
+#ifdef _WIN32
             {
                 auto win32Sink = allocate_unique<log::win32_debug_sink>();
                 win32Sink->set_base_time(bootTime);
                 logModule->add_sink(std::move(win32Sink));
             }
+#elif defined(__linux__)
+            {
+                auto linuxSink = allocate_unique<log::linux_debug_sink>();
+                linuxSink->set_base_time(bootTime);
+                logModule->add_sink(std::move(linuxSink));
+            }
+#endif
 
             auto logSink = allocate_unique<editor_log_sink>();
             logSink->set_base_time(bootTime);

@@ -2,6 +2,7 @@
 
 #include <oblo/core/platform/compiler.hpp>
 
+#include <memory>
 #include <type_traits>
 #include <utility>
 

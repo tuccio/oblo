@@ -36,6 +36,8 @@ namespace oblo::gpu
 
         virtual result<> finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface) = 0;
 
+        virtual bool is_raytracing_enabled() const = 0;
+
         virtual device_info get_device_info() = 0;
 
         virtual bool is_profiler_attached() const = 0;

@@ -195,7 +195,7 @@ namespace oblo
         {
         }
 
-        deque_iterator(T* const* chunks, usize elementsPerChunk, usize index) :
+        deque_iterator(T* const* chunks, usize elementsPerChunk, difference_type index) :
             m_chunks{chunks}, m_elementsPerChunk{elementsPerChunk}, m_index{index}
         {
         }
@@ -225,14 +225,14 @@ namespace oblo
             return tmp;
         }
 
-        OBLO_FORCEINLINE constexpr deque_iterator operator+(size_type offset) const
+        OBLO_FORCEINLINE constexpr deque_iterator operator+(difference_type offset) const
         {
             auto tmp = *this;
             tmp.m_index += offset;
             return tmp;
         }
 
-        OBLO_FORCEINLINE constexpr deque_iterator operator-(size_type offset) const
+        OBLO_FORCEINLINE constexpr deque_iterator operator-(difference_type offset) const
         {
             OBLO_ASSERT(m_index >= offset);
 
@@ -278,9 +278,19 @@ namespace oblo
             return m_index != other.m_index;
         }
 
-        OBLO_FORCEINLINE deque_iterator& operator+=(size_type offset) noexcept
+        OBLO_FORCEINLINE deque_iterator& operator+=(difference_type offset) noexcept
         {
             return *this = (*this + offset);
+        }
+
+        OBLO_FORCEINLINE deque_iterator& operator-=(difference_type offset) noexcept
+        {
+            return *this = (*this - offset);
+        }
+
+        OBLO_FORCEINLINE reference operator[](difference_type offset) noexcept
+        {
+            return *(*this + offset);
         }
 
     private:
@@ -303,7 +313,7 @@ namespace oblo
     private:
         T* const* m_chunks{};
         usize m_elementsPerChunk{};
-        usize m_index{};
+        difference_type m_index{};
     };
 
     template <typename T>
@@ -535,37 +545,37 @@ namespace oblo
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::cbegin() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, difference_type(m_start)};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::cend() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start + m_size};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, difference_type(m_start + m_size)};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::begin() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, difference_type(m_start)};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::const_iterator deque<T>::end() const
     {
-        return const_iterator{m_chunks.data(), m_elementsPerChunk, m_start + m_size};
+        return const_iterator{m_chunks.data(), m_elementsPerChunk, difference_type(m_start + m_size)};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::iterator deque<T>::begin()
     {
-        return iterator{m_chunks.data(), m_elementsPerChunk, m_start};
+        return iterator{m_chunks.data(), m_elementsPerChunk, difference_type(m_start)};
     }
 
     template <typename T>
     OBLO_FORCEINLINE deque<T>::iterator deque<T>::end()
     {
-        return iterator{m_chunks.data(), m_elementsPerChunk, m_start + m_size};
+        return iterator{m_chunks.data(), m_elementsPerChunk, difference_type(m_start + m_size)};
     }
 
     template <typename T>

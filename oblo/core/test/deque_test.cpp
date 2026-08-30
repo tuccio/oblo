@@ -7,6 +7,7 @@
 #include "checked_allocator.hpp"
 #include "common.hpp"
 
+#include <algorithm>
 #include <deque>
 #include <span>
 #include <vector>

@@ -530,8 +530,6 @@ namespace oblo
                      global_transform_component,
                      skin_component>())
             {
-                const auto skinInfoIt = m_skinInfo.find(skin.skin.id);
-
                 u32 jointIndex = 0;
 
                 for (const ecs::entity child : jointChunk.chunks)

@@ -8,3 +8,13 @@ target_link_libraries(
     oblo::input
     oblo::modules
 )
+
+if(LINUX)
+    find_package(SDL2 REQUIRED)
+
+    target_link_libraries(
+        oblo_app
+        PRIVATE
+        SDL2::SDL2
+    )
+endif()

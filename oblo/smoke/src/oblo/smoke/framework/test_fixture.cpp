@@ -1,5 +1,7 @@
 #include <oblo/smoke/framework/test_fixture.hpp>
 
+#include <thread>
+
 #include <oblo/app/graphics_app.hpp>
 #include <oblo/app/window_event_processor.hpp>
 #include <oblo/asset/asset_registry.hpp>
