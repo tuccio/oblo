@@ -27,7 +27,7 @@ out gl_PerVertex
 layout(location = 0) out struct
 {
     vec4 color;
-    float cornerRadius;
+    vec4 cornerRadius;
     vec2 position;
     vec2 halfSize;
     vec2 uv;
@@ -49,13 +49,11 @@ void main()
 
     const vec2 ndc = position / vec2(g_Resolution) * 2.0 - 1.0;
 
-    const bool isText = e.uvRect.w > 0.0;
-
     out_Data.color = e.color;
-    out_Data.cornerRadius = isText ? 0.0 : e.cornerRadius[gl_VertexIndex];
+    out_Data.cornerRadius = e.cornerRadius;
     out_Data.position = position - (e.rect.xy + e.rect.zw * 0.5);
     out_Data.halfSize = e.rect.zw * 0.5;
-    out_Data.uv = isText ? (e.uvRect.xy + offsets[gl_VertexIndex] * e.uvRect.zw) : vec2(0.0);
+    out_Data.uv = e.uvRect.xy + offsets[gl_VertexIndex] * e.uvRect.zw;
     out_TextureID = e.textureId;
 
     gl_Position = vec4(ndc, 0, 1);

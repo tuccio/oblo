@@ -575,7 +575,7 @@ namespace oblo::ui
         const f32 t = range > 0.f ? (value - min) / range : 0.f;
         const f32 clampedT = t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
 
-        constexpr f32 thinBarHeight = 3.f;
+        constexpr f32 thinBarHeight = 7.f;
         constexpr f32 thinBarRadius = thinBarHeight * 0.5f;
 
         const auto track = container_builder{}
