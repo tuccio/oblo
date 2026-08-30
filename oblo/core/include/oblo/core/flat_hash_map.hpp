@@ -7,6 +7,7 @@
 #include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
+#include <oblo/math/power_of_two.hpp>
 
 #include <iterator>
 #include <new>
@@ -122,11 +123,12 @@ namespace oblo
 
             const hash_type h = Hash{}(key);
             const u8 want = ctrl_of(h);
-            const usize mask = m_capacity - 1;
+
+            const probe probe = probe::from_capacity(m_capacity);
+            usize index = probe.index_from_hash(h);
 
             constexpr usize sentinel = ~usize{};
 
-            usize index = h & mask;
             usize firstDeleted = sentinel;
 
             while (true)
@@ -150,7 +152,7 @@ namespace oblo
                     return {iterator{this, index}, false};
                 }
 
-                index = (index + 1) & mask;
+                index = probe.next_index(index);
             }
 
             const usize insertIndex = firstDeleted != sentinel ? firstDeleted : index;
@@ -190,9 +192,9 @@ namespace oblo
 
             const hash_type h = Hash{}(key);
             const u8 want = ctrl_of(h);
-            const usize mask = m_capacity - 1;
 
-            usize index = h & mask;
+            const probe probe = probe::from_capacity(m_capacity);
+            usize index = probe.index_from_hash(h);
 
             while (m_ctrl[index] != ctrl_empty)
             {
@@ -213,7 +215,7 @@ namespace oblo
                     return 1;
                 }
 
-                index = (index + 1) & mask;
+                index = probe.next_index(index);
             }
 
             return 0;
@@ -341,6 +343,26 @@ namespace oblo
         }
 
     private:
+        struct probe
+        {
+            static OBLO_FORCEINLINE probe from_capacity(usize capacity)
+            {
+                return {.mask = capacity - 1};
+            }
+
+            OBLO_FORCEINLINE usize index_from_hash(usize h) const
+            {
+                return h & mask;
+            }
+
+            OBLO_FORCEINLINE usize next_index(usize idx) const
+            {
+                return (idx + 1) & mask;
+            }
+
+            usize mask;
+        };
+
         iterator find_impl(const Key& key)
         {
             if (m_capacity == 0)
@@ -350,9 +372,10 @@ namespace oblo
 
             const hash_type h = Hash{}(key);
             const u8 want = ctrl_of(h);
-            const usize mask = m_capacity - 1;
 
-            usize index = h & mask;
+            const probe probe = probe::from_capacity(m_capacity);
+
+            usize index = probe.index_from_hash(h);
 
             while (m_ctrl[index] != ctrl_empty)
             {
@@ -363,7 +386,7 @@ namespace oblo
                     return iterator{this, index};
                 }
 
-                index = (index + 1) & mask;
+                index = probe.next_index(index);
             }
 
             return iterator{this, m_capacity};
@@ -378,9 +401,9 @@ namespace oblo
 
             const hash_type h = Hash{}(key);
             const u8 want = ctrl_of(h);
-            const usize mask = m_capacity - 1;
 
-            usize index = h & mask;
+            const probe probe = probe::from_capacity(m_capacity);
+            usize index = probe.index_from_hash(h);
 
             while (m_ctrl[index] != ctrl_empty)
             {
@@ -391,7 +414,7 @@ namespace oblo
                     return const_iterator{this, index};
                 }
 
-                index = (index + 1) & mask;
+                index = probe.next_index(index);
             }
 
             return const_iterator{this, m_capacity};
@@ -421,18 +444,7 @@ namespace oblo
 
         static usize round_up_capacity(usize n)
         {
-            usize cap = min_capacity;
-            while (cap < n)
-            {
-                cap *= 2;
-            }
-
-            return cap;
-        }
-
-        static usize align_up(usize v, usize alignment)
-        {
-            return (v + alignment - 1) & ~(alignment - 1);
+            return max(min_capacity, round_up_power_of_two(n));
         }
 
         constexpr usize storage_alignment() const
@@ -443,7 +455,7 @@ namespace oblo
         usize storage_size(usize capacity) const
         {
             const usize keySize = capacity * sizeof(Key);
-            const usize valOff = align_up(keySize, alignof(Value));
+            const usize valOff = round_up_multiple(keySize, alignof(Value));
             const usize valSize = capacity * sizeof(Value);
             const usize ctrlOff = valOff + valSize;
 
@@ -460,7 +472,7 @@ namespace oblo
 
             Key* const k = reinterpret_cast<Key*>(mem);
             const usize keySize = capacity * sizeof(Key);
-            const usize valOff = align_up(keySize, alignof(Value));
+            const usize valOff = round_up_multiple(keySize, alignof(Value));
             Value* const v = reinterpret_cast<Value*>(mem + valOff);
             const usize ctrlOff = valOff + capacity * sizeof(Value);
             ctrl_type* const c = reinterpret_cast<ctrl_type*>(mem + ctrlOff);
@@ -524,7 +536,7 @@ namespace oblo
 
             allocate_storage(newCapacity, newStorage, newKeys, newValues, newCtrl);
 
-            const usize mask = newCapacity - 1;
+            const probe probe = probe::from_capacity(newCapacity);
 
             for (usize i = 0; i < m_capacity; ++i)
             {
@@ -534,11 +546,11 @@ namespace oblo
                 }
 
                 const hash_type h = Hash{}(m_keys[i]);
-                usize idx = h & mask;
+                usize idx = probe.index_from_hash(h);
 
                 while (newCtrl[idx] != ctrl_empty)
                 {
-                    idx = (idx + 1) & mask;
+                    idx = probe.next_index(idx);
                 }
 
                 new (newKeys.data() + idx) Key{std::move(m_keys[i])};
@@ -564,7 +576,7 @@ namespace oblo
             constexpr u8 c_final = 0x81; // live element, finalized at this slot
             constexpr u8 c_free = 0x7F;  // slot vacated by a relocated element
 
-            const usize mask = m_capacity - 1;
+            const probe probe = probe::from_capacity(m_capacity);
 
             for (usize i = 0; i < m_capacity; ++i)
             {
@@ -582,11 +594,11 @@ namespace oblo
                 }
 
                 const hash_type h = Hash{}(m_keys[start]);
-                usize idx = h & mask;
+                usize idx = probe.index_from_hash(h);
 
                 while (m_ctrl[idx] == c_live || m_ctrl[idx] == c_final)
                 {
-                    idx = (idx + 1) & mask;
+                    idx = probe.next_index(idx);
                 }
 
                 if (idx != start)
