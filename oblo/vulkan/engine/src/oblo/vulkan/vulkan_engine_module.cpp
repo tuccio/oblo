@@ -121,6 +121,7 @@ namespace oblo::vk
                 if (!surface)
                 {
                     shutdown(ctx);
+                    return false;
                 }
 
                 width = w;

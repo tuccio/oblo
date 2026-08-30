@@ -293,13 +293,15 @@ namespace oblo::gpu::vk
 #endif
 
 #ifdef __linux__
-        uint32_t sdlExtensionCount = 0;
+        enabledExtensions.push_back("VK_KHR_xlib_surface");
+
+        u32 sdlExtensionCount = 0;
         SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlExtensionCount, nullptr);
 
         if (sdlExtensionCount > 0)
         {
             dynamic_array<const char*> sdlExtensions;
-            sdlExtensions.resize(sdlExtensionCount);
+            sdlExtensions.resize_default(sdlExtensionCount);
 
             SDL_Vulkan_GetInstanceExtensions(nullptr, &sdlExtensionCount, sdlExtensions.data());
 
