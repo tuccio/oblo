@@ -1,3 +1,5 @@
+option(OBLO_WITH_TRACY "Use tracy for profiling" ON)
+
 oblo_add_library(core)
 
 find_package(utf8cpp REQUIRED)
@@ -23,10 +25,12 @@ if(LINUX)
     )
 endif()
 
-find_package(Tracy)
+if(OBLO_WITH_TRACY)
+    find_package(Tracy)
 
-if(Tracy_FOUND)
-    target_link_libraries(oblo_core PUBLIC Tracy::TracyClient)
+    if(Tracy_FOUND)
+        target_link_libraries(oblo_core PUBLIC Tracy::TracyClient)
+    endif()
 endif()
 
 find_package(Eigen3 REQUIRED)
