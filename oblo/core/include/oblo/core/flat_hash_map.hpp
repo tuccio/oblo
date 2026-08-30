@@ -596,21 +596,13 @@ namespace oblo
                 const hash_type h = Hash{}(m_keys[start]);
                 usize idx = probe.index_from_hash(h);
 
-                while (m_ctrl[idx] == c_live || m_ctrl[idx] == c_final)
+                while (idx != start && (m_ctrl[idx] == c_live || m_ctrl[idx] == c_final))
                 {
                     idx = probe.next_index(idx);
                 }
 
                 if (idx != start)
                 {
-                    // The destination may hold an uninitialized (empty), destroyed
-                    // (deleted) or moved-from (freed) object; only destroy if live.
-                    if (m_ctrl[idx] == c_free)
-                    {
-                        m_keys[idx].~Key();
-                        m_values[idx].~Value();
-                    }
-
                     new (&m_keys[idx]) Key{std::move(m_keys[start])};
                     new (&m_values[idx]) Value{std::move(m_values[start])};
 
