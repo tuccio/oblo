@@ -70,6 +70,10 @@ function(oblo_init_build_configurations)
                 -march=core-avx2
             )
         endif()
+
+        list(APPEND _oblo_cxx_compile_options
+            $<$<CONFIG:Debug>:-g>
+        )
     else()
         message(FATAL_ERROR "Not supported yet")
     endif()
