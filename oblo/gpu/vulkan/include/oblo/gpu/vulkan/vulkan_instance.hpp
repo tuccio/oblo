@@ -33,6 +33,8 @@ namespace oblo::gpu::vk
 
         result<> finalize_init(const device_descriptor& deviceDescriptor, hptr<surface> presentSurface) override;
 
+        bool is_raytracing_enabled() const override;
+
         h32<queue> get_universal_queue() override;
 
         device_info get_device_info() override;
@@ -320,6 +322,8 @@ namespace oblo::gpu::vk
         dynamic_array<queue_impl> m_queues;
 
         unique_ptr<profiling_impl> m_profiling;
+
+        bool m_isRaytracingEnabled{};
 
         h32<sampler> m_dummySampler{};
 

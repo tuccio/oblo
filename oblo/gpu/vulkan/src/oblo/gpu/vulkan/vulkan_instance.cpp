@@ -416,6 +416,63 @@ namespace oblo::gpu::vk
         // TODO: It should actually search for the best GPU and check for API version, but we pick the first
         m_physicalDevice = devices[0];
 
+        // Check ray tracing extension availability and fall back gracefully if unsupported
+        m_isRaytracingEnabled = false;
+
+        if (deviceDescriptor.requireHardwareRaytracing)
+        {
+            u32 extensionCount{0u};
+
+            if (const VkResult r =
+                    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extensionCount, nullptr);
+                r != VK_SUCCESS)
+            {
+                return translate_error(r);
+            }
+
+            dynamic_array<VkExtensionProperties> availableExtensions;
+            availableExtensions.resize(extensionCount);
+
+            if (const VkResult r = vkEnumerateDeviceExtensionProperties(m_physicalDevice,
+                    nullptr,
+                    &extensionCount,
+                    availableExtensions.data());
+                r != VK_SUCCESS)
+            {
+                return translate_error(r);
+            }
+
+            constexpr const string_view requiredRtExtensions[] = {
+                VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+                VK_KHR_RAY_QUERY_EXTENSION_NAME,
+                VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+            };
+
+            bool allRtSupported = true;
+
+            for (const string_view required : requiredRtExtensions)
+            {
+                bool found = false;
+
+                for (const auto& ext : availableExtensions)
+                {
+                    if (required == ext.extensionName)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    allRtSupported = false;
+                    break;
+                }
+            }
+
+            m_isRaytracingEnabled = !allRtSupported;
+        }
+
         // Cache the properties so users can query them on demand
         m_accelerationStructureProperties = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
@@ -618,6 +675,11 @@ namespace oblo::gpu::vk
     h32<queue> vulkan_instance::get_universal_queue()
     {
         return universal_queue_id;
+    }
+
+    bool vulkan_instance::is_raytracing_enabled() const
+    {
+        return m_isRaytracingEnabled;
     }
 
     device_info vulkan_instance::get_device_info()

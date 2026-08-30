@@ -382,7 +382,7 @@ namespace oblo::vk
         const bool requireHardwareRaytracing = options.requireHardwareRaytracing.read(optionsManager);
 
         const gpu::device_descriptor deviceDescriptor{
-            .requireHardwareRaytracing = options.requireHardwareRaytracing.read(optionsManager),
+            .requireHardwareRaytracing = requireHardwareRaytracing,
         };
 
         if (!ctx.finalize_init(deviceDescriptor, hiddenWindowSurface))
@@ -401,7 +401,7 @@ namespace oblo::vk
 
         if (!renderer.init({
                 .gpu = ctx,
-                .isRayTracingEnabled = requireHardwareRaytracing,
+                .isRayTracingEnabled = ctx.is_raytracing_enabled(),
             }))
         {
             return false;
