@@ -329,7 +329,9 @@ namespace oblo::vk
             m_impl->shutdown();
             m_impl.reset();
 
+#ifdef __linux__
             SDL_Quit();
+#endif
         }
     }
 
