@@ -124,6 +124,13 @@ namespace oblo::gpu::vk
         {
             return std::bit_cast<V>(h);
         }
+
+        // If any of these is not present, we assume the device does not support ray-tracing
+        constexpr const char* required_ray_tracing_extensions[] = {
+            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+            VK_KHR_RAY_QUERY_EXTENSION_NAME,
+            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+        };
     }
 
     template <typename T>
@@ -419,9 +426,9 @@ namespace oblo::gpu::vk
         m_physicalDevice = devices[0];
 
         // Check ray tracing extension availability and fall back gracefully if unsupported
-        m_isRaytracingEnabled = false;
+        m_isRaytracingEnabled = deviceDescriptor.requireHardwareRaytracing;
 
-        if (deviceDescriptor.requireHardwareRaytracing)
+        if (m_isRaytracingEnabled)
         {
             u32 extensionCount{0u};
 
@@ -444,15 +451,7 @@ namespace oblo::gpu::vk
                 return translate_error(r);
             }
 
-            constexpr const string_view requiredRtExtensions[] = {
-                VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-                VK_KHR_RAY_QUERY_EXTENSION_NAME,
-                VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-            };
-
-            bool allRtSupported = true;
-
-            for (const string_view required : requiredRtExtensions)
+            for (const string_view required : required_ray_tracing_extensions)
             {
                 bool found = false;
 
@@ -467,12 +466,10 @@ namespace oblo::gpu::vk
 
                 if (!found)
                 {
-                    allRtSupported = false;
+                    m_isRaytracingEnabled = false;
                     break;
                 }
             }
-
-            m_isRaytracingEnabled = !allRtSupported;
         }
 
         // Cache the properties so users can query them on demand
@@ -583,20 +580,15 @@ namespace oblo::gpu::vk
 
         };
 
-        // Ray-tracing extensions, we might want to disable them
-        constexpr const char* rayTracingExtensions[] = {
-            VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-        };
-
-        constexpr auto totalExtensions = array_size(requiredDeviceExtensions) + array_size(rayTracingExtensions);
+        constexpr usize totalExtensions =
+            array_size(requiredDeviceExtensions) + array_size(required_ray_tracing_extensions);
         buffered_array<const char*, totalExtensions> deviceExtensions;
         deviceExtensions.append(std::begin(requiredDeviceExtensions), std::end(requiredDeviceExtensions));
 
         if (deviceDescriptor.requireHardwareRaytracing)
         {
-            deviceExtensions.append(std::begin(rayTracingExtensions), std::end(rayTracingExtensions));
+            deviceExtensions.append(std::begin(required_ray_tracing_extensions),
+                std::end(required_ray_tracing_extensions));
             g_physicalDeviceFeatures2.pNext = &g_rtPipelineFeatures;
         }
         else
