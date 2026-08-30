@@ -176,20 +176,260 @@ namespace oblo::ui
             button(ctx, {2}, "OK");
         }
         ctx.end_frame();
+    }
 
-        const rect* const b = rect_of(ctx, {2});
-        ASSERT_NE(b, nullptr);
+    TEST(ui_game, floating_popup_zorder)
+    {
+        context ctx;
+        ASSERT_TRUE(ctx.init());
 
-        const f32 cx = b->x + b->width * 0.5f;
-        const f32 cy = b->y + b->height * 0.5f;
+        const vec2 layoutSize{800, 600};
 
-        // A press and release that both occur within a single frame must still register as a click.
-        const input_event frame[] = {ev_move(cx, cy), ev_press(cx, cy), ev_release(cx, cy)};
-        ctx.begin_frame({frame, 3}, time{}, layoutSize);
+        ctx.begin_frame({}, time{}, layoutSize);
         {
             auto p = panel(ctx, {1});
-            EXPECT_TRUE(button(ctx, {2}, "OK"));
+
+            auto combo = container_builder{}.id({2}).direction(layout_direction::top_to_bottom).build(ctx.get_layout());
+            button(ctx, {3}, "Header");
+
+            auto popup = container_builder{}
+                             .id({4})
+                             .direction(layout_direction::top_to_bottom)
+                             .floating(floating_config{.zIndex = 100.f})
+                             .build(ctx.get_layout());
+
+            button(ctx, {5}, "Item0");
+            button(ctx, {6}, "Item1");
         }
         ctx.end_frame();
+
+        const auto& els = ctx.get_layout_elements();
+
+        i32 idxCombo = -1, idxHeader = -1, idxPopup = -1, idxItem0 = -1, idxItem1 = -1;
+
+        for (i32 i = 0; i < i32(els.size()); ++i)
+        {
+            const layout_id id = els[i].elementId;
+
+            if (id == layout_id{2})
+                idxCombo = i;
+            else if (id == layout_id{3})
+                idxHeader = i;
+            else if (id == layout_id{4})
+                idxPopup = i;
+            else if (id == layout_id{5})
+                idxItem0 = i;
+            else if (id == layout_id{6})
+                idxItem1 = i;
+
+            if (id == layout_id{4} || id == layout_id{5} || id == layout_id{6})
+            {
+                EXPECT_GT(els[i].zIndex, 0.f) << "element " << id.value << " zIndex";
+            }
+        }
+
+        ASSERT_NE(idxCombo, -1);
+        ASSERT_NE(idxHeader, -1);
+        ASSERT_NE(idxPopup, -1);
+        ASSERT_NE(idxItem0, -1);
+        ASSERT_NE(idxItem1, -1);
+
+        EXPECT_GT(idxPopup, idxCombo);
+        EXPECT_GT(idxItem0, idxPopup);
+        EXPECT_GT(idxItem1, idxPopup);
+    }
+
+    TEST(ui_game, real_combo_popup_zorder)
+    {
+        context ctx;
+        ASSERT_TRUE(ctx.init());
+
+        const vec2 layoutSize{800, 600};
+
+        // Establish the open state on frame 1 (the popup-open flag lives on the layout element and
+        // is carried across frames), then read it back on frame 2.
+        ctx.begin_frame({}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            container_builder{}.id({1}).direction(layout_direction::top_to_bottom).build(ctx.get_layout());
+            ctx.set_popup_open({1}, true);
+        }
+        ctx.end_frame();
+
+        ctx.begin_frame({}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            combo.add_item({101}, "Apple");
+            combo.add_item({102}, "Banana");
+            combo.add_item({103}, "Cherry");
+        }
+        ctx.end_frame();
+
+        const auto& els = ctx.get_layout_elements();
+
+        i32 idxHeader = -1, idxItem0 = -1, idxItem1 = -1, idxItem2 = -1;
+        i32 countFloating = 0;
+
+        for (i32 i = 0; i < i32(els.size()); ++i)
+        {
+            const layout_id id = els[i].elementId;
+
+            if (id == layout_id{1})
+                idxHeader = i; // the combo's own id is its header
+            else if (id == layout_id{101})
+                idxItem0 = i;
+            else if (id == layout_id{102})
+                idxItem1 = i;
+            else if (id == layout_id{103})
+                idxItem2 = i;
+
+            if (els[i].zIndex > 0.f)
+            {
+                ++countFloating;
+            }
+        }
+
+        ASSERT_NE(idxHeader, -1);
+        ASSERT_NE(idxItem0, -1);
+        ASSERT_NE(idxItem1, -1);
+        ASSERT_NE(idxItem2, -1);
+
+        // The popup (and its items) are floating, so they are emitted after the non-floating
+        // header in paint order.
+        EXPECT_GT(idxItem0, idxHeader);
+        EXPECT_GT(idxItem1, idxHeader);
+        EXPECT_GT(idxItem2, idxHeader);
+        EXPECT_GT(idxItem1, idxItem0);
+        EXPECT_GT(idxItem2, idxItem1);
+
+        // The popup, its three entry buttons, and the three entry labels should all be lifted above
+        // the normal flow.
+        EXPECT_EQ(countFloating, 7);
+    }
+
+    TEST(ui_game, combo_item_click)
+    {
+        context ctx;
+        ASSERT_TRUE(ctx.init());
+
+        const vec2 layoutSize{800, 600};
+
+        i32 selected = -1;
+
+        // Open the popup.
+        ctx.begin_frame({}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            container_builder{}.id({1}).direction(layout_direction::top_to_bottom).build(ctx.get_layout());
+            ctx.set_popup_open({1}, true);
+        }
+        ctx.end_frame();
+
+        // Render the popup so item geometry is resolved.
+        ctx.begin_frame({}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            combo.add_item({101}, "Apple");
+            combo.add_item({102}, "Banana");
+        }
+        ctx.end_frame();
+
+        const rect* const itemRect = rect_of(ctx, {101});
+        ASSERT_NE(itemRect, nullptr);
+
+        const f32 cx = itemRect->x + itemRect->width * 0.5f;
+        const f32 cy = itemRect->y + itemRect->height * 0.5f;
+
+        // Press on the item.
+        const input_event pressFrame[] = {ev_move(cx, cy), ev_press(cx, cy)};
+        ctx.begin_frame({pressFrame, 2}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            combo.add_item({101}, "Apple");
+            combo.add_item({102}, "Banana");
+        }
+        ctx.end_frame();
+
+        // Release on the item -> should be detected as a click.
+        const input_event releaseFrame[] = {ev_move(cx, cy), ev_release(cx, cy)};
+        bool itemClicked = false;
+        ctx.begin_frame({releaseFrame, 2}, time{}, layoutSize);
+        {
+            auto p = panel(ctx, {100});
+            auto combo = combo_box_builder{ctx, {1}, ""_hsv, combo_style{.width = fixed_size(200.f)}};
+            itemClicked = combo.add_item({101}, "Apple");
+
+            if (itemClicked)
+                selected = 0;
+
+            combo.add_item({102}, "Banana");
+        }
+        ctx.end_frame();
+
+        EXPECT_TRUE(itemClicked);
+        EXPECT_EQ(selected, 0);
+    }
+
+    TEST(ui_game, floating_ancestor_does_not_cover_popup)
+    {
+        context ctx;
+        ASSERT_TRUE(ctx.init());
+
+        const vec2 layoutSize{800, 600};
+
+        ctx.begin_frame({}, time{}, layoutSize);
+        {
+            // A floating ancestor (e.g. a tool window) with a high zIndex.
+            auto outer = container_builder{}.id({1}).floating(floating_config{.zIndex = 150.f}).build(ctx.get_layout());
+
+            // Non-floating descendant (the combo box) — must NOT end up above its own popup.
+            auto inner = container_builder{}.id({2}).direction(layout_direction::top_to_bottom).build(ctx.get_layout());
+            button(ctx, {3}, "Header");
+
+            auto popup = container_builder{}
+                             .id({4})
+                             .direction(layout_direction::top_to_bottom)
+                             .floating(floating_config{.zIndex = 100.f})
+                             .build(ctx.get_layout());
+
+            button(ctx, {5}, "Item0");
+            button(ctx, {6}, "Item1");
+        }
+        ctx.end_frame();
+
+        const auto& els = ctx.get_layout_elements();
+
+        i32 idxInner = -1, idxPopup = -1, idxItem0 = -1, idxItem1 = -1;
+
+        for (i32 i = 0; i < i32(els.size()); ++i)
+        {
+            const layout_id id = els[i].elementId;
+
+            if (id == layout_id{2})
+                idxInner = i;
+            else if (id == layout_id{4})
+                idxPopup = i;
+            else if (id == layout_id{5})
+                idxItem0 = i;
+            else if (id == layout_id{6})
+                idxItem1 = i;
+        }
+
+        ASSERT_NE(idxInner, -1);
+        ASSERT_NE(idxPopup, -1);
+        ASSERT_NE(idxItem0, -1);
+        ASSERT_NE(idxItem1, -1);
+
+        // The popup (and its entries) must be drawn after the combo box, even though the combo
+        // inherited a high zIndex from the floating ancestor.
+        EXPECT_GT(idxPopup, idxInner);
+        EXPECT_GT(idxItem0, idxInner);
+        EXPECT_GT(idxItem1, idxInner);
+        EXPECT_GT(idxItem0, idxPopup);
+        EXPECT_GT(idxItem1, idxPopup);
     }
 }

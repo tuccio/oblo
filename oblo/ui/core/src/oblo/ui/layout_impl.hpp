@@ -2,9 +2,9 @@
 
 #include <oblo/core/bump_allocator.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/flat_hash_map.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/time/time.hpp>
-#include <oblo/core/unordered_map.hpp>
 #include <oblo/ui/font.hpp>
 #include <oblo/ui/layout.hpp>
 
@@ -114,7 +114,7 @@ namespace oblo::ui
         dynamic_array<layout_element> previousElements;
 
         // Maps an element id to its index in previousElements for O(1) rect lookups.
-        unordered_map<layout_id, u32> previousElementIndex;
+        flat_hash_map<layout_id, u32> previousElementIndex;
 
         font_cache fonts;
 
@@ -125,6 +125,7 @@ namespace oblo::ui
     // Exiting elements are not declared and are not returned here; use get_animated()
     // for those.
     const layout_element* find_element(const layout_state& state, layout_id element);
+    layout_element* find_element(layout_state& state, layout_id element);
 
     // Feeds the resolved target state of an element to the animation system. Used by the
     // layout solver during end_frame; also available for manual use.

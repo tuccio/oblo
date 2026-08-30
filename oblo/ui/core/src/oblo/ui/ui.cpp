@@ -383,4 +383,278 @@ namespace oblo::ui
 
         return wasClicked;
     }
+
+    bool radio_button(context& ctx, layout_id id, bool& selected, hashed_string_view text, const radio_style& style)
+    {
+        const auto container = container_builder{}
+                                   .id(id)
+                                   .width(fit_size())
+                                   .height(fit_size())
+                                   .direction(layout_direction::left_to_right)
+                                   .gap(style.gap)
+                                   .align_y(alignment_y::center)
+                                   .build(ctx.get_layout());
+
+        {
+            const auto box = container_builder{}
+                                 .width(fixed_size(style.boxSize))
+                                 .height(fixed_size(style.boxSize))
+                                 .background_color(selected ? style.checkColor : style.boxColor)
+                                 .corner_radius(style.boxSize * 0.5f)
+                                 .align(alignment::center())
+                                 .build(ctx.get_layout());
+
+            if (selected)
+            {
+                const auto dot = container_builder{}
+                                     .width(percent_size(0.45f))
+                                     .height(percent_size(0.45f))
+                                     .background_color(style.boxColor)
+                                     .corner_radius(style.boxSize * 0.25f)
+                                     .build(ctx.get_layout());
+            }
+        }
+
+        const font_state currentFont = resolve_font(ctx, style.font, style.fontSize);
+
+        add_text(ctx.get_layout(),
+            {
+                .text = text,
+                .color = style.textColor,
+                .font = currentFont.font,
+                .fontSize = currentFont.fontSize,
+            });
+
+        const bool wasClicked = ctx.was_clicked(id);
+
+        if (wasClicked && !selected)
+        {
+            selected = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    radio_group_builder::radio_group_builder(context& ctx, layout_id& selected, const radio_style& style) :
+        m_ctx{&ctx}, m_selected{&selected}, m_style{style}
+    {
+    }
+
+    bool radio_group_builder::add_option(layout_id optionId, hashed_string_view text)
+    {
+        bool selected = *m_selected == optionId;
+
+        if (radio_button(*m_ctx, optionId, selected, text, m_style))
+        {
+            *m_selected = optionId;
+            return true;
+        }
+
+        return false;
+    }
+
+    combo_box_builder::combo_box_builder(
+        context& ctx, layout_id id, hashed_string_view headerText, const combo_style& style) :
+        m_ctx{&ctx}, m_id{id}, m_style{style}, m_open{ctx.is_popup_open(id)}
+    {
+        const bool headerActive = ctx.is_active(id);
+        const bool headerHovered = ctx.is_hovered(id);
+        const color hdrBg = headerActive ? style.activeColor : (headerHovered ? style.hoverColor : style.idleColor);
+
+        const container_descriptor desc{
+            .elementId = id,
+            .direction = layout_direction::top_to_bottom,
+            .width = style.width,
+            .height = style.height,
+            .backgroundColor = hdrBg,
+            .cornerRadius = vec4::splat(style.cornerRadius),
+            .childGap = 0.f,
+            .padding = style.padding,
+        };
+
+        ui::begin_container(ctx.get_layout(), desc);
+
+        const font_state currentFont = resolve_font(ctx, style.font, style.fontSize);
+
+        add_text(ctx.get_layout(),
+            {
+                .text = headerText,
+                .color = style.textColor,
+                .font = currentFont.font,
+                .fontSize = currentFont.fontSize,
+            });
+
+        if (ctx.was_clicked(id))
+        {
+            m_open = !m_open;
+        }
+
+        m_popupOpen = m_open;
+
+        if (m_popupOpen)
+        {
+            const container_descriptor popupDesc{
+                .direction = layout_direction::top_to_bottom,
+                .width = style.width,
+                .height = fit_size(),
+                .backgroundColor = style.popupColor,
+                .cornerRadius = vec4::splat(style.cornerRadius),
+                .childGap = style.itemGap,
+                .padding = {style.popupPadding, style.popupPadding, style.popupPadding, style.popupPadding},
+                .floating =
+                    floating_config{
+                        .anchorId = id,
+                        .anchorPoint = alignment::bottom_left(),
+                        .selfPoint = alignment::top_left(),
+                        .offset = {0.f, 4.f},
+                        .zIndex = 100.f,
+                    },
+                .isFloating = true,
+            };
+
+            ui::begin_container(ctx.get_layout(), popupDesc);
+        }
+    }
+
+    bool combo_box_builder::add_item(layout_id itemId, hashed_string_view text)
+    {
+        bool clicked = false;
+
+        if (m_popupOpen)
+        {
+            const button_style itemButtonStyle{
+                .idleColor = m_style.popupColor,
+                .hoverColor = m_style.popupHoverColor,
+                .activeColor = m_style.popupHoverColor,
+                .textColor = m_style.popupTextColor,
+                .cornerRadius = m_style.cornerRadius,
+                .padding = m_style.padding,
+                .width = percent_size(1.f),
+                .font = m_style.font,
+                .fontSize = m_style.fontSize,
+            };
+
+            if (button(*m_ctx, itemId, text, itemButtonStyle))
+            {
+                m_anyItemClicked = true;
+                m_open = false;
+                clicked = true;
+            }
+        }
+
+        return clicked;
+    }
+
+    combo_box_builder::~combo_box_builder()
+    {
+        if (!m_ctx)
+        {
+            return;
+        }
+
+        if (m_popupOpen)
+        {
+            end_container(m_ctx->get_layout());
+        }
+
+        if (m_open && !m_anyItemClicked && m_ctx->mouse_released_this_frame(mouse_key::left) &&
+            !m_ctx->was_clicked(m_id))
+        {
+            m_open = false;
+        }
+
+        m_ctx->set_popup_open(m_id, m_open);
+
+        end_container(m_ctx->get_layout());
+    }
+
+    bool slider(context& ctx, layout_id id, f32& value, const slider_style& style, f32 min, f32 max)
+    {
+        const f32 range = max - min;
+        const f32 t = range > 0.f ? (value - min) / range : 0.f;
+        const f32 clampedT = t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
+
+        constexpr f32 thinBarHeight = 7.f;
+        constexpr f32 thinBarRadius = thinBarHeight * 0.5f;
+
+        const auto track = container_builder{}
+                               .id(id)
+                               .width(style.width)
+                               .height(fixed_size(style.trackHeight))
+                               .direction(layout_direction::left_to_right)
+                               .align_y(alignment_y::center)
+                               .build(ctx.get_layout());
+
+        {
+            const auto trackBg = container_builder{}
+                                     .width(percent_size(1.f))
+                                     .height(fixed_size(thinBarHeight))
+                                     .background_color(style.trackColor)
+                                     .corner_radius(thinBarRadius)
+                                     .build(ctx.get_layout());
+        }
+
+        {
+            const auto fillBar = container_builder{}
+                                     .width(percent_size(clampedT))
+                                     .height(fixed_size(thinBarHeight))
+                                     .background_color(style.fillColor)
+                                     .corner_radius(thinBarRadius)
+                                     .floating(floating_config{
+                                         .anchorPoint = alignment::center_left(),
+                                         .selfPoint = alignment::center_left(),
+                                         .offset = {},
+                                         .zIndex = 1.f,
+                                     })
+                                     .build(ctx.get_layout());
+        }
+
+        {
+            const auto handleWrapper = container_builder{}
+                                           .width(percent_size(clampedT))
+                                           .height(percent_size(1.f))
+                                           .floating({
+                                               .anchorPoint = alignment::center_left(),
+                                               .selfPoint = alignment::center_left(),
+                                               .offset = {},
+                                               // Z needs to be on top of the track
+                                               .zIndex = 2.f, 
+                                           })
+                                           .direction(layout_direction::left_to_right)
+                                           .align_x(alignment_x::right)
+                                           .align_y(alignment_y::center)
+                                           .build(ctx.get_layout());
+
+            const auto handle = container_builder{}
+                                    .width(fixed_size(style.handleSize))
+                                    .height(fixed_size(style.handleSize))
+                                    .background_color(style.handleColor)
+                                    .corner_radius(style.handleSize * 0.5f)
+                                    .build(ctx.get_layout());
+        }
+
+        bool changed = false;
+
+        if (ctx.is_active(id))
+        {
+            rect trackRect{};
+
+            if (ctx.get_last_frame_rect(id, trackRect))
+            {
+                const f32 localX = ctx.mouse_position().x - trackRect.x;
+                const f32 newT = localX / (trackRect.width > 1e-3f ? trackRect.width : 1e-3f);
+                const f32 newClampedT = newT < 0.f ? 0.f : (newT > 1.f ? 1.f : newT);
+                const f32 newValue = min + newClampedT * range;
+
+                if (newValue != value)
+                {
+                    value = newValue;
+                    changed = true;
+                }
+            }
+        }
+
+        return changed;
+    }
 }

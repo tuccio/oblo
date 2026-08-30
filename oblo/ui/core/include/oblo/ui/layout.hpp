@@ -173,6 +173,46 @@ namespace oblo::ui
         {
             return {alignment_x::center, alignment_y::center};
         }
+
+        static constexpr alignment top_right() noexcept
+        {
+            return {alignment_x::right, alignment_y::top};
+        }
+
+        static constexpr alignment bottom_left() noexcept
+        {
+            return {alignment_x::left, alignment_y::bottom};
+        }
+
+        static constexpr alignment bottom_right() noexcept
+        {
+            return {alignment_x::right, alignment_y::bottom};
+        }
+    };
+
+    // Describes how a "floating" element is positioned. A floating element is laid out like a
+    // normal child for sizing, but it does not occupy space in its parent's flow and is instead
+    // placed at an absolute position derived from an anchor. It (and its whole subtree) is drawn
+    // and hit-tested on top of non-floating elements according to its zIndex.
+    struct floating_config
+    {
+        // Element to anchor against. Empty means the floating element's own parent.
+        layout_id anchorId{};
+
+        // Which corner of the anchor this element attaches to.
+        alignment anchorPoint{alignment::top_left()};
+
+        // Which corner of this element aligns with the anchor point.
+        alignment selfPoint{alignment::top_left()};
+
+        // Extra pixel offset applied after anchoring.
+        vec2 offset{};
+
+        // Higher values draw on top; floating elements are always drawn after non-floating ones.
+        f32 zIndex{0.f};
+
+        // Clamp the floating element to stay within its anchor's bounds.
+        bool clipToAnchor{false};
     };
 
     enum class sizing_kind : u8
@@ -249,6 +289,9 @@ namespace oblo::ui
         alignment alignment{alignment::top_left()};
 
         animation_config animation;
+
+        floating_config floating{};
+        bool isFloating{};
     };
 
     struct text_descriptor
@@ -277,6 +320,9 @@ namespace oblo::ui
         padding padding;
 
         animation_config animation;
+
+        floating_config floating;
+        bool isFloating{};
     };
 
     struct text_layout_data
@@ -314,6 +360,15 @@ namespace oblo::ui
         // Interpolated values to render this frame, or nullptr when the element has no id
         // or no animation configured. When nullptr, target_rect is the final box.
         const animated_values* animated{};
+
+        // True when this element (or one of its ancestors) was declared floating. Floating
+        // elements are drawn on top of the normal flow and excluded from parent sizing.
+        bool isFloating{};
+
+        bool popupOpen{};
+
+        // Resolved draw order for floating elements; higher draws on top.
+        f32 zIndex{};
 
         u32 parentIndex{invalid_index};
         u32 firstChild{invalid_index};
@@ -373,6 +428,9 @@ namespace oblo::ui
     // Returns the previous-frame rect of the element with the given id, or nullptr.
     const rect* get_rect(const layout_state& state, layout_id id);
 
+    bool is_popup_open(const layout_state& state, layout_id id);
+    void set_popup_open(layout_state& state, layout_id id, bool open);
+
     void begin_container(layout_state& state, const container_descriptor& desc);
     void end_container(layout_state& state);
 
@@ -428,6 +486,13 @@ namespace oblo::ui
         container_builder&& animation(const animation_config& config) &&
         {
             m_desc.animation = config;
+            return static_cast<container_builder&&>(*this);
+        }
+
+        container_builder&& floating(const floating_config& config) &&
+        {
+            m_desc.floating = config;
+            m_desc.isFloating = true;
             return static_cast<container_builder&&>(*this);
         }
 

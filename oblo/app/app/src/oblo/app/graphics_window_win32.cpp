@@ -12,6 +12,10 @@
 #include <Windows.h>
 #include <Windowsx.h>
 
+#include <dwmapi.h>
+
+#pragma comment(lib, "dwmapi.lib")
+
 namespace oblo
 {
     namespace
@@ -38,9 +42,36 @@ namespace oblo
 
         template struct private_accessor<&graphics_window::m_graphicsContext, &graphics_window::m_hitTest>;
 
-        bool is_app_style_borderless(DWORD style)
+        // DWMWA_USE_IMMERSIVE_DARK_MODE, available since Windows 10 20H1 (build 18985)
+        constexpr DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
+        // Applies the immersive dark mode to the non-client area (title bar, caption buttons, menus) of the window,
+        // matching the system color setting. Without this a top-level window always gets a white title bar on
+        // Windows 11.
+        void apply_dark_title_bar(HWND hWnd)
         {
-            // Check whether we have window_style::app borderless (i.e. WS_CAPTION should not be set, but
+            DWORD lightTheme = 1;
+            DWORD size = sizeof(lightTheme);
+
+            // SystemUsesLightTheme (0 = dark) controls the title bar appearance on Windows 11.
+            if (RegGetValueA(HKEY_CURRENT_USER,
+                    "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                    "SystemUsesLightTheme",
+                    RRF_RT_REG_DWORD,
+                    nullptr,
+                    &lightTheme,
+                    &size) != ERROR_SUCCESS)
+            {
+                return;
+            }
+
+            const BOOL useDarkMode = lightTheme == 0 ? TRUE : FALSE;
+
+            DwmSetWindowAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDarkMode, sizeof(useDarkMode));
+        }
+
+        bool is_app_style_borderless(DWORD style)
+        { // Check whether we have window_style::app borderless (i.e. WS_CAPTION should not be set, but
             // WS_POPUP | WS_THICKFRAME should be)
             constexpr auto expected = WS_POPUP | WS_THICKFRAME;
             constexpr auto check = expected | WS_CAPTION;
@@ -162,6 +193,13 @@ namespace oblo
                     window->destroy();
                 }
                 return 0;
+
+            case WM_DWMCOLORIZATIONCOLORCHANGED:
+                if (window)
+                {
+                    apply_dark_title_bar(hWnd);
+                }
+                break;
 
             case WM_NCCALCSIZE: {
 
@@ -462,6 +500,8 @@ namespace oblo
         SetWindowLongPtrA(hWnd, GWLP_USERDATA, std::bit_cast<LONG_PTR>(this));
 
         m_impl = hWnd;
+
+        apply_dark_title_bar(hWnd);
 
         set_hidden(initializer.isHidden);
 
