@@ -18,3 +18,13 @@ target_link_libraries(
     oblo::renderer
     Vulkan::Headers
 )
+
+if(LINUX)
+    find_package(SDL2 REQUIRED)
+
+    target_link_libraries(
+        oblo_vulkan_engine
+        PRIVATE
+        SDL2::SDL2
+    )
+endif()

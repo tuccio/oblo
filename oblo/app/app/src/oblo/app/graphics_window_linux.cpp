@@ -122,11 +122,6 @@ namespace oblo
     {
         OBLO_ASSERT(!m_impl);
 
-        if (SDL_Init(SDL_INIT_VIDEO) != 0)
-        {
-            return false;
-        }
-
         const u32 w = initializer.windowWidth ? initializer.windowWidth : 1280;
         const u32 h = initializer.windowHeight ? initializer.windowHeight : 720;
 

@@ -92,7 +92,7 @@ class ObloConanRecipe(ConanFile):
         if self.settings.os == "Linux":
             sdl = self.options["sdl/*"]
 
-            sdl.shared = False
+            sdl.shared = True
             sdl.fPIC = True
 
             sdl.x11 = True

@@ -24,6 +24,10 @@
 #include <oblo/renderer/templates/graph_templates.hpp>
 #include <oblo/trace/profile.hpp>
 
+#ifdef __linux__
+    #include <SDL.h>
+#endif
+
 namespace oblo
 {
     template <>
@@ -299,6 +303,13 @@ namespace oblo::vk
 
     bool vulkan_engine_module::startup(const module_initializer& initializer)
     {
+#ifdef __linux__
+        if (SDL_Init(SDL_INIT_VIDEO) != 0)
+        {
+            return false;
+        }
+#endif
+
         m_impl = allocate_unique<impl>();
 
         initializer.services->add<impl>().as<graphics_engine>().externally_owned(m_impl.get());
@@ -316,6 +327,8 @@ namespace oblo::vk
         {
             m_impl->shutdown();
             m_impl.reset();
+
+            SDL_Quit();
         }
     }
 
