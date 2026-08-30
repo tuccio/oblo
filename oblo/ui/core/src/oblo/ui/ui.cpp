@@ -575,24 +575,56 @@ namespace oblo::ui
         const f32 t = range > 0.f ? (value - min) / range : 0.f;
         const f32 clampedT = t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
 
+        constexpr f32 thinBarHeight = 3.f;
+        constexpr f32 thinBarRadius = thinBarHeight * 0.5f;
+
         const auto track = container_builder{}
                                .id(id)
                                .width(style.width)
                                .height(fixed_size(style.trackHeight))
                                .direction(layout_direction::left_to_right)
-                               .background_color(style.trackColor)
-                               .corner_radius(style.cornerRadius)
+                               .align_y(alignment_y::center)
                                .build(ctx.get_layout());
 
         {
-            const auto fill = container_builder{}
-                                  .width(percent_size(clampedT))
-                                  .height(percent_size(1.f))
-                                  .background_color(style.fillColor)
-                                  .direction(layout_direction::left_to_right)
-                                  .align_x(alignment_x::right)
-                                  .align_y(alignment_y::center)
-                                  .build(ctx.get_layout());
+            const auto trackBg = container_builder{}
+                                     .width(percent_size(1.f))
+                                     .height(fixed_size(thinBarHeight))
+                                     .background_color(style.trackColor)
+                                     .corner_radius(thinBarRadius)
+                                     .build(ctx.get_layout());
+        }
+
+        {
+            const auto fillBar = container_builder{}
+                                     .width(percent_size(clampedT))
+                                     .height(fixed_size(thinBarHeight))
+                                     .background_color(style.fillColor)
+                                     .corner_radius(thinBarRadius)
+                                     .floating(floating_config{
+                                         .anchorPoint = alignment::center_left(),
+                                         .selfPoint = alignment::center_left(),
+                                         .offset = {},
+                                         .zIndex = 1.f,
+                                     })
+                                     .build(ctx.get_layout());
+        }
+
+        {
+            const auto handleWrapper = container_builder{}
+                                           .width(percent_size(clampedT))
+                                           .height(percent_size(1.f))
+                                           .floating({
+                                               .anchorPoint = alignment::center_left(),
+                                               .selfPoint = alignment::center_left(),
+                                               .offset = {},
+                                               // Z needs to be on top of the track
+                                               .zIndex = 2.f, 
+                                           })
+                                           .direction(layout_direction::left_to_right)
+                                           .align_x(alignment_x::right)
+                                           .align_y(alignment_y::center)
+                                           .build(ctx.get_layout());
 
             const auto handle = container_builder{}
                                     .width(fixed_size(style.handleSize))
