@@ -184,10 +184,7 @@ namespace oblo::ui
         bool is_hovered(layout_id id) const;
         bool was_clicked(layout_id id) const;
 
-        bool get_last_frame_rect(layout_id id, rect& out) const
-        {
-            return try_render_rect(id, out);
-        }
+        bool get_last_frame_rect(layout_id id, rect& out) const;
 
         bool is_popup_open(layout_id id) const
         {
@@ -249,8 +246,6 @@ namespace oblo::ui
         }
 
     private:
-        bool try_render_rect(layout_id id, rect& out) const;
-
         struct texture_storage_impl;
 
     private:

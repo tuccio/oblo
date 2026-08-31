@@ -233,7 +233,7 @@ namespace oblo::ui
         return m_drawCommands;
     }
 
-    bool context::try_render_rect(layout_id id, rect& out) const
+    bool context::get_last_frame_rect(layout_id id, rect& out) const
     {
         for (const layout_element& e : m_layout->previousElements)
         {
