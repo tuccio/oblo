@@ -362,14 +362,10 @@ namespace oblo::ui
                     }
 
                     const auto attach_x = [](alignment_x ax, f32 size) OBLO_FORCEINLINE_LAMBDA
-                    {
-                        return ax == alignment_x::center ? size * 0.5f : (ax == alignment_x::right ? size : 0.f);
-                    };
+                    { return ax == alignment_x::center ? size * 0.5f : (ax == alignment_x::right ? size : 0.f); };
 
                     const auto attach_y = [](alignment_y ay, f32 size) OBLO_FORCEINLINE_LAMBDA
-                    {
-                        return ay == alignment_y::center ? size * 0.5f : (ay == alignment_y::bottom ? size : 0.f);
-                    };
+                    { return ay == alignment_y::center ? size * 0.5f : (ay == alignment_y::bottom ? size : 0.f); };
 
                     const rect anchorRect = anchor->targetRect;
 
@@ -942,13 +938,6 @@ namespace oblo::ui
     const animated_values* get_animated(const layout_state& state, layout_id element)
     {
         return state.animations.try_get(element);
-    }
-
-    span<const layout_element> get_elements(const layout_state& state)
-    {
-        // The snapshot is already resolved, animation-baked and z-ordered (floating on top),
-        // so it is the correct source for both rendering and hit-testing.
-        return state.previousElements;
     }
 
     layout_id hit_test(const layout_state& state, vec2 point)

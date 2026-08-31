@@ -334,77 +334,7 @@ namespace oblo::ui
         u16 fontSize;
     };
 
-    struct layout_element
-    {
-        layout_element_kind kind{layout_element_kind::container};
-
-        union data {
-            container_layout_data container;
-            text_layout_data text;
-
-            data() : container{} {};
-            ~data() = default;
-        } data;
-
-        layout_id elementId{};
-
-        sizing width;
-        sizing height;
-
-        rect targetRect{};
-
-        // The measured content size along the (width, height) axes, before clamping and
-        // before any percentage expansion. Only meaningful for fit sizing.
-        vec2 contentSize{};
-
-        // Interpolated values to render this frame, or nullptr when the element has no id
-        // or no animation configured. When nullptr, target_rect is the final box.
-        const animated_values* animated{};
-
-        // True when this element (or one of its ancestors) was declared floating. Floating
-        // elements are drawn on top of the normal flow and excluded from parent sizing.
-        bool isFloating{};
-
-        bool popupOpen{};
-
-        // Resolved draw order for floating elements; higher draws on top.
-        f32 zIndex{};
-
-        u32 parentIndex{invalid_index};
-        u32 firstChild{invalid_index};
-        u32 nextSibling{invalid_index};
-        u32 lastChild{invalid_index};
-
-        const rect& get_current_rect() const
-        {
-            return animated ? animated->boundingBox : targetRect;
-        }
-
-        color get_current_background_color() const
-        {
-            color result{};
-
-            if (kind == layout_element_kind::container)
-            {
-                result = animated ? animated->backgroundColor : data.container.backgroundColor;
-            }
-
-            return result;
-        }
-
-        vec4 get_current_corner_radius() const
-        {
-            vec4 cornerRadius{};
-
-            if (kind == layout_element_kind::container)
-            {
-                cornerRadius = animated ? animated->cornerRadius : data.container.cornerRadius;
-            }
-
-            return cornerRadius;
-        }
-    };
-
+    struct layout_element;
     struct layout_state;
 
     layout_state* create_state();
@@ -417,8 +347,6 @@ namespace oblo::ui
 
     void begin_frame(layout_state& state, time dt);
     void end_frame(layout_state& state);
-
-    span<const layout_element> get_elements(const layout_state& state);
 
     // Returns the id of the topmost previous-frame element containing the point, or an
     // empty id if none. Elements without an id are ignored, so non-interactive geometry
@@ -435,6 +363,9 @@ namespace oblo::ui
     void end_container(layout_state& state);
 
     void add_text(layout_state& state, const text_descriptor& desc);
+
+    // Measures the width of a text string in pixels for the given font.
+    f32 measure_text_width(layout_state& state, const char* text, font_id font, u16 fontSize);
 
     class container_scope
     {

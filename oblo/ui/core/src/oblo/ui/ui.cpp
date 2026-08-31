@@ -134,7 +134,7 @@ namespace oblo::ui
 
         m_drawCommands.clear();
 
-        for (const auto& e : get_elements(*m_layout))
+        for (const layout_element& e : m_layout->previousElements)
         {
             if (e.kind == layout_element_kind::container)
             {
@@ -235,7 +235,7 @@ namespace oblo::ui
 
     bool context::try_render_rect(layout_id id, rect& out) const
     {
-        for (const auto& e : get_elements(*m_layout))
+        for (const layout_element& e : m_layout->previousElements)
         {
             if (e.elementId == id)
             {
@@ -619,7 +619,7 @@ namespace oblo::ui
                                                .selfPoint = alignment::center_left(),
                                                .offset = {},
                                                // Z needs to be on top of the track
-                                               .zIndex = 2.f, 
+                                               .zIndex = 2.f,
                                            })
                                            .direction(layout_direction::left_to_right)
                                            .align_x(alignment_x::right)

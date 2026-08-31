@@ -180,11 +180,6 @@ namespace oblo::ui
             return *m_layout;
         }
 
-        OBLO_FORCEINLINE span<const layout_element> get_layout_elements() const
-        {
-            return get_elements(*m_layout);
-        }
-
         bool is_active(layout_id id) const;
         bool is_hovered(layout_id id) const;
         bool was_clicked(layout_id id) const;
