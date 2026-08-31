@@ -843,8 +843,9 @@ namespace oblo::ui
         }
 
         state.previousElementIndex.clear();
+        state.previousElementIndex.reserve(state.previousElements.size());
 
-        for (u32 i = 0; i < state.previousElements.size(); ++i)
+        for (usize i = 0; i < state.previousElements.size(); ++i)
         {
             if (state.previousElements[i].elementId != layout_id{})
             {

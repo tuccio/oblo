@@ -170,6 +170,7 @@ namespace oblo::ui
     };
 
     static_assert(std::is_trivially_copyable_v<layout_element>);
+    static_assert(std::is_trivially_destructible_v<layout_element>);
 
     struct layout_state
     {
