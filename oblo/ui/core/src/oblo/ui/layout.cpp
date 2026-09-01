@@ -575,6 +575,7 @@ namespace oblo::ui
         element.height = desc.height;
 
         element.data.container = {
+            .isFloating = desc.isFloating,
             .direction = desc.direction,
             .alignment = desc.alignment,
             .backgroundColor = desc.backgroundColor,
@@ -583,7 +584,6 @@ namespace oblo::ui
             .padding = desc.padding,
             .animation = desc.animation,
             .floating = desc.floating,
-            .isFloating = desc.isFloating,
         };
 
         // A floating element is positioned absolutely (its parent skips it from the flow) and

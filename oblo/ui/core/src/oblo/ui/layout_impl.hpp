@@ -97,6 +97,32 @@ namespace oblo::ui
         time m_dt{};
     };
 
+    struct container_layout_data
+    {
+        bool isFloating;
+        layout_direction direction;
+        alignment alignment;
+
+        color backgroundColor;
+        vec4 cornerRadius;
+
+        f32 childGap;
+        padding padding;
+
+        animation_config animation;
+
+        floating_config floating;
+    };
+
+    struct text_layout_data
+    {
+        hashed_string_view text;
+        span<const u32> glyphs;
+        color color;
+        font_id font;
+        u16 fontSize;
+    };
+
     struct layout_element
     {
         layout_element_kind kind{layout_element_kind::container};

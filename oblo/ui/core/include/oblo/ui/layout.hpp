@@ -308,32 +308,6 @@ namespace oblo::ui
 
     constexpr u32 invalid_index = ~u32{};
 
-    struct container_layout_data
-    {
-        layout_direction direction;
-        alignment alignment;
-
-        color backgroundColor;
-        vec4 cornerRadius;
-
-        f32 childGap;
-        padding padding;
-
-        animation_config animation;
-
-        floating_config floating;
-        bool isFloating{};
-    };
-
-    struct text_layout_data
-    {
-        hashed_string_view text;
-        std::span<const u32> glyphs;
-        color color;
-        font_id font;
-        u16 fontSize;
-    };
-
     struct layout_element;
     struct layout_state;
 
