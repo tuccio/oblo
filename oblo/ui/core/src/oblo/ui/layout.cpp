@@ -362,14 +362,10 @@ namespace oblo::ui
                     }
 
                     const auto attach_x = [](alignment_x ax, f32 size) OBLO_FORCEINLINE_LAMBDA
-                    {
-                        return ax == alignment_x::center ? size * 0.5f : (ax == alignment_x::right ? size : 0.f);
-                    };
+                    { return ax == alignment_x::center ? size * 0.5f : (ax == alignment_x::right ? size : 0.f); };
 
                     const auto attach_y = [](alignment_y ay, f32 size) OBLO_FORCEINLINE_LAMBDA
-                    {
-                        return ay == alignment_y::center ? size * 0.5f : (ay == alignment_y::bottom ? size : 0.f);
-                    };
+                    { return ay == alignment_y::center ? size * 0.5f : (ay == alignment_y::bottom ? size : 0.f); };
 
                     const rect anchorRect = anchor->targetRect;
 
@@ -579,6 +575,7 @@ namespace oblo::ui
         element.height = desc.height;
 
         element.data.container = {
+            .isFloating = desc.isFloating,
             .direction = desc.direction,
             .alignment = desc.alignment,
             .backgroundColor = desc.backgroundColor,
@@ -587,7 +584,6 @@ namespace oblo::ui
             .padding = desc.padding,
             .animation = desc.animation,
             .floating = desc.floating,
-            .isFloating = desc.isFloating,
         };
 
         // A floating element is positioned absolutely (its parent skips it from the flow) and
@@ -847,8 +843,9 @@ namespace oblo::ui
         }
 
         state.previousElementIndex.clear();
+        state.previousElementIndex.reserve(state.previousElements.size());
 
-        for (u32 i = 0; i < state.previousElements.size(); ++i)
+        for (usize i = 0; i < state.previousElements.size(); ++i)
         {
             if (state.previousElements[i].elementId != layout_id{})
             {
@@ -942,13 +939,6 @@ namespace oblo::ui
     const animated_values* get_animated(const layout_state& state, layout_id element)
     {
         return state.animations.try_get(element);
-    }
-
-    span<const layout_element> get_elements(const layout_state& state)
-    {
-        // The snapshot is already resolved, animation-baked and z-ordered (floating on top),
-        // so it is the correct source for both rendering and hit-testing.
-        return state.previousElements;
     }
 
     layout_id hit_test(const layout_state& state, vec2 point)

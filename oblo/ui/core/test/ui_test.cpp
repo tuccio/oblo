@@ -10,9 +10,9 @@ namespace oblo::ui
 {
     namespace
     {
-        const rect* rect_of(const context& ctx, layout_id id)
+        const rect* rect_of(context& ctx, layout_id id)
         {
-            for (const auto& e : ctx.get_layout_elements())
+            for (const auto& e : ctx.get_layout().previousElements)
             {
                 if (e.elementId == id)
                 {
@@ -203,7 +203,7 @@ namespace oblo::ui
         }
         ctx.end_frame();
 
-        const auto& els = ctx.get_layout_elements();
+        const auto& els = ctx.get_layout().previousElements;
 
         i32 idxCombo = -1, idxHeader = -1, idxPopup = -1, idxItem0 = -1, idxItem1 = -1;
 
@@ -267,7 +267,7 @@ namespace oblo::ui
         }
         ctx.end_frame();
 
-        const auto& els = ctx.get_layout_elements();
+        const auto& els = ctx.get_layout().previousElements;
 
         i32 idxHeader = -1, idxItem0 = -1, idxItem1 = -1, idxItem2 = -1;
         i32 countFloating = 0;
@@ -401,7 +401,7 @@ namespace oblo::ui
         }
         ctx.end_frame();
 
-        const auto& els = ctx.get_layout_elements();
+        const auto& els = ctx.get_layout().previousElements;
 
         i32 idxInner = -1, idxPopup = -1, idxItem0 = -1, idxItem1 = -1;
 
@@ -410,13 +410,21 @@ namespace oblo::ui
             const layout_id id = els[i].elementId;
 
             if (id == layout_id{2})
+            {
                 idxInner = i;
+            }
             else if (id == layout_id{4})
+            {
                 idxPopup = i;
+            }
             else if (id == layout_id{5})
+            {
                 idxItem0 = i;
+            }
             else if (id == layout_id{6})
+            {
                 idxItem1 = i;
+            }
         }
 
         ASSERT_NE(idxInner, -1);

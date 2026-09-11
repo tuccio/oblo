@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/algorithm/fill.hpp>
 #include <oblo/core/allocator.hpp>
 #include <oblo/core/debug.hpp>
 #include <oblo/core/hash.hpp>
@@ -10,7 +11,6 @@
 #include <oblo/math/power_of_two.hpp>
 
 #include <iterator>
-#include <new>
 #include <utility>
 
 namespace oblo
@@ -254,13 +254,7 @@ namespace oblo
         {
             destroy_occupied();
 
-            if (m_capacity != 0)
-            {
-                for (usize i = 0; i < m_capacity; ++i)
-                {
-                    m_ctrl[i] = ctrl_empty;
-                }
-            }
+            oblo::fill(m_ctrl.begin(), m_ctrl.end(), ctrl_empty);
 
             m_size = 0;
             m_tombstones = 0;
@@ -507,11 +501,14 @@ namespace oblo
                 return;
             }
 
-            for (usize i = 0; i < m_capacity; ++i)
+            if constexpr (!std::is_trivially_destructible_v<Key> || !std::is_trivially_destructible_v<Value>)
             {
-                if (is_occupied(i))
+                for (usize i = 0; i < m_capacity; ++i)
                 {
-                    destroy_at(i);
+                    if (is_occupied(i))
+                    {
+                        destroy_at(i);
+                    }
                 }
             }
         }
