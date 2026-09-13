@@ -16,7 +16,7 @@ namespace oblo::ui
             {
                 if (e.elementId == id)
                 {
-                    return &e.targetRect;
+                    return &e.effectiveRect;
                 }
             }
 

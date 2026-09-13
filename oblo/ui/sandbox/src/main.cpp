@@ -240,15 +240,16 @@ namespace oblo::ui
 
         void build_middle()
         {
+            const bool horizontal = m_middleDirection == dirHorizontalId;
+
             auto middle = panel(m_ui,
                 {middleId},
                 panel_style{
                     .padding = {8.f, 8.f, 8.f, 8.f},
-                    .direction = m_middleDirection == dirHorizontalId ? layout_direction::left_to_right
-                                                                      : layout_direction::top_to_bottom,
+                    .direction = horizontal ? layout_direction::left_to_right : layout_direction::top_to_bottom,
                     .gap = 16.f,
                     .width = percent_size(1.f),
-                    .height = percent_size(0.65f),
+                    .height = horizontal ? percent_size(0.65f) : fit_size(),
                 });
 
             {
@@ -257,8 +258,8 @@ namespace oblo::ui
                     panel_style{
                         .direction = layout_direction::top_to_bottom,
                         .gap = 8.f,
-                        .width = percent_size(0.25f),
-                        .height = percent_size(1.f),
+                        .width = horizontal ? percent_size(0.25f) : percent_size(1.f),
+                        .height = horizontal ? percent_size(1.f) : fit_size(),
                     });
 
                 string_builder name;
@@ -297,8 +298,12 @@ namespace oblo::ui
 
             if (m_showAnimatedPanel)
             {
-                const sizing panelWidth = m_expandedAnimatedPanel ? percent_size(0.6f) : percent_size(0.3f);
-                const sizing panelHeight = m_expandedAnimatedPanel ? percent_size(0.9f) : percent_size(0.5f);
+                const sizing panelWidth = horizontal
+                    ? (m_expandedAnimatedPanel ? percent_size(0.6f) : percent_size(0.3f))
+                    : percent_size(1.f);
+                const sizing panelHeight = horizontal
+                    ? (m_expandedAnimatedPanel ? percent_size(0.9f) : percent_size(0.5f))
+                    : fixed_size(m_expandedAnimatedPanel ? 220.f : 120.f);
 
                 auto animatedPanel = panel(m_ui,
                     {animatedPanelId},

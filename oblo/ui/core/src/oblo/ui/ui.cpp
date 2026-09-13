@@ -239,7 +239,7 @@ namespace oblo::ui
         {
             if (e.elementId == id)
             {
-                out = e.animated ? e.animated->boundingBox : e.targetRect;
+                out = e.effectiveRect;
                 return true;
             }
         }
