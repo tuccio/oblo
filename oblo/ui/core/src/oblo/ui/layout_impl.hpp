@@ -75,6 +75,10 @@ namespace oblo::ui
         const animated_values* try_get(layout_id element) const;
         animated_values* try_get(layout_id element);
 
+        // Returns the set of properties currently being interpolated for the element.
+        // Empty when the element has no record, is idle, or has already snapped to target.
+        animation_properties get_active_properties(layout_id element) const noexcept;
+
         // All active records, including elements that are currently exiting.
         span<const animation_record> records() const;
         span<animation_record> records();
@@ -141,14 +145,20 @@ namespace oblo::ui
         sizing width;
         sizing height;
 
-        rect targetRect{};
+        // The box to render this frame. After pass 1 it holds the true target;
+        // after pass 2 (when geometry is animating) it holds the effective
+        // (interpolated where active, target otherwise) box. The true target
+        // always lives in the animation store record.
+        rect effectiveRect{};
 
         // The measured content size along the (width, height) axes, before clamping and
         // before any percentage expansion. Only meaningful for fit sizing.
         vec2 contentSize{};
 
         // Interpolated values to render this frame, or nullptr when the element has no id
-        // or no animation configured. When nullptr, target_rect is the final box.
+        // or no animation configured. For geometry axes the effectiveRect already
+        // matches the interpolated box; this is still needed to feed the store
+        // during layout and for the animated color properties.
         const animated_values* animated{};
 
         // True when this element (or one of its ancestors) was declared floating. Floating
@@ -167,7 +177,7 @@ namespace oblo::ui
 
         const rect& get_current_rect() const
         {
-            return animated ? animated->boundingBox : targetRect;
+            return effectiveRect;
         }
 
         color get_current_background_color() const

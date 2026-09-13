@@ -70,6 +70,162 @@ namespace oblo::ui
             return !cfg.properties.is_empty();
         }
 
+        vec2 apply_size_override(const layout_element& el, animation_properties active, vec2 resolved)
+        {
+            vec2 out = resolved;
+
+            if (el.animated)
+            {
+                if (active.contains(animation_property::width))
+                {
+                    out.x = el.animated->boundingBox.width;
+                }
+
+                if (active.contains(animation_property::height))
+                {
+                    out.y = el.animated->boundingBox.height;
+                }
+            }
+
+            return out;
+        }
+
+        rect effective_rect_of(const layout_element& el, animation_properties active)
+        {
+            if (!el.animated)
+            {
+                return el.effectiveRect;
+            }
+
+            rect r = el.effectiveRect;
+
+            if (active.contains(animation_property::x))
+            {
+                r.x = el.animated->boundingBox.x;
+            }
+
+            if (active.contains(animation_property::y))
+            {
+                r.y = el.animated->boundingBox.y;
+            }
+
+            if (active.contains(animation_property::width))
+            {
+                r.width = el.animated->boundingBox.width;
+            }
+
+            if (active.contains(animation_property::height))
+            {
+                r.height = el.animated->boundingBox.height;
+            }
+
+            return r;
+        }
+
+        void remeasure_contents(layout_state& state)
+        {
+            auto& elements = state.elements;
+
+            // Reverse declaration order is post-order (parents are always declared
+            // before their children), so children are remeasured before parents.
+            for (u32 i = elements.size32(); i-- > 0;)
+            {
+                auto& element = elements[i];
+
+                if (element.kind != layout_element_kind::container || element.firstChild == invalid_index)
+                {
+                    continue;
+                }
+
+                const container_layout_data& desc = element.data.container;
+
+                // Recompute content from the effective child sizes (animated where
+                // width/height are actively interpolating, target otherwise).
+                // Percentage axes contribute 0, matching end_container where they
+                // are still 0 at declare time and must not drive fit parents.
+                f32 main = 0.f;
+                f32 cross = 0.f;
+                u32 childCount = 0;
+
+                const bool isHorizontal = desc.direction == layout_direction::left_to_right;
+
+                for (u32 child = element.firstChild; child != invalid_index; child = elements[child].nextSibling)
+                {
+                    const auto& childEl = elements[child];
+
+                    if (childEl.isFloating)
+                    {
+                        continue;
+                    }
+
+                    // The child's contentSize was already remeasured bottom-up
+                    // (reverse declaration order), so fit children report their
+                    // effective size here. Fixed sizes resolve to their declared
+                    // size, percentage axes resolve to 0 and must not drive fit
+                    // parents.
+                    f32 effW = resolve_axis_size(childEl.width, childEl.contentSize.x, 0.f);
+                    f32 effH = resolve_axis_size(childEl.height, childEl.contentSize.y, 0.f);
+
+                    if (childEl.animated)
+                    {
+                        const animation_properties active = state.animations.get_active_properties(childEl.elementId);
+
+                        if (active.contains(animation_property::width))
+                        {
+                            effW = childEl.animated->boundingBox.width;
+                        }
+
+                        if (active.contains(animation_property::height))
+                        {
+                            effH = childEl.animated->boundingBox.height;
+                        }
+                    }
+
+                    if (isHorizontal)
+                    {
+                        if (childEl.width.kind != sizing_kind::percentage)
+                        {
+                            main += effW;
+                        }
+
+                        if (childEl.height.kind != sizing_kind::percentage)
+                        {
+                            cross = max(cross, effH);
+                        }
+                    }
+                    else
+                    {
+                        if (childEl.height.kind != sizing_kind::percentage)
+                        {
+                            main += effH;
+                        }
+
+                        if (childEl.width.kind != sizing_kind::percentage)
+                        {
+                            cross = max(cross, effW);
+                        }
+                    }
+
+                    ++childCount;
+                }
+
+                if (childCount > 1)
+                {
+                    main += (childCount - 1) * desc.childGap;
+                }
+
+                const f32 mainPadding =
+                    isHorizontal ? desc.padding.left + desc.padding.right : desc.padding.top + desc.padding.bottom;
+                const f32 crossPadding =
+                    isHorizontal ? desc.padding.top + desc.padding.bottom : desc.padding.left + desc.padding.right;
+
+                main += mainPadding;
+                cross += crossPadding;
+
+                element.contentSize = isHorizontal ? vec2{main, cross} : vec2{cross, main};
+            }
+        }
+
         vec2 measure_text(font_cache& fonts, font_id font, FT_Face face, u16 fontSize, std::span<const u32> glyphs)
         {
             OBLO_ASSERT(face && face == fonts.find_font(font));
@@ -131,37 +287,61 @@ namespace oblo::ui
             vec2 parentOrigin,
             vec2 parentInnerSize,
             f32 mainCursor,
-            layout_direction parentDirection)
+            layout_direction parentDirection,
+            bool feedAnimations,
+            bool applyAnimated)
         {
             auto& elements = state.elements;
             auto& element = elements[index];
 
             // Percentage sizing is resolved against the parent's inner size (the parent's
             // padding has already been removed).
-            const vec2 size{
+            const vec2 resolved{
                 resolve_axis_size(element.width, element.contentSize.x, parentInnerSize.x),
                 resolve_axis_size(element.height, element.contentSize.y, parentInnerSize.y),
             };
 
-            vec2 pos = parentOrigin;
+            vec2 flowPos = parentOrigin;
 
             if (parentDirection == layout_direction::left_to_right)
             {
-                pos.x += mainCursor;
+                flowPos.x += mainCursor;
             }
             else
             {
-                pos.y += mainCursor;
+                flowPos.y += mainCursor;
             }
 
-            element.targetRect = {pos.x, pos.y, size.x, size.y};
+            vec2 size = resolved;
+            vec2 pos = flowPos;
 
-            // Feed the animation system, parents before children.
-            if (element.elementId != layout_id{} && element.kind == layout_element_kind::container &&
+            if (applyAnimated && element.animated)
+            {
+                const animation_properties active = state.animations.get_active_properties(element.elementId);
+
+                size = apply_size_override(element, active, resolved);
+
+                if (active.contains(animation_property::x))
+                {
+                    pos.x = element.animated->boundingBox.x;
+                }
+
+                if (active.contains(animation_property::y))
+                {
+                    pos.y = element.animated->boundingBox.y;
+                }
+            }
+
+            element.effectiveRect = {pos.x, pos.y, size.x, size.y};
+
+            // Feed the animation system, parents before children. The parent origin
+            // must be the parent's absolute position so relative movement can be
+            // distinguished from parent movement.
+            if (feedAnimations && element.elementId != layout_id{} && element.kind == layout_element_kind::container &&
                 has_animation(element.data.container.animation))
             {
                 const animated_values target{
-                    .boundingBox = element.targetRect,
+                    .boundingBox = element.effectiveRect,
                     .backgroundColor = element.data.container.backgroundColor,
                     .cornerRadius = element.data.container.cornerRadius,
                 };
@@ -169,10 +349,14 @@ namespace oblo::ui
                 const layout_id parentId =
                     element.parentIndex != invalid_index ? elements[element.parentIndex].elementId : layout_id{};
 
+                const vec2 parentPos = element.parentIndex != invalid_index
+                    ? elements[element.parentIndex].effectiveRect.position()
+                    : vec2{};
+
                 element.animated = update_element(state,
                     element.elementId,
                     parentId,
-                    element.targetRect.position(),
+                    parentPos,
                     target,
                     element.data.container.animation);
             }
@@ -188,23 +372,34 @@ namespace oblo::ui
                     max(size.y - desc.padding.top - desc.padding.bottom, 0.f),
                 };
 
-                const vec2 childOrigin = element.targetRect.position() + vec2{desc.padding.left, desc.padding.top};
+                const vec2 childOrigin = element.effectiveRect.position() + vec2{desc.padding.left, desc.padding.top};
 
                 const bool isHorizontal = desc.direction == layout_direction::left_to_right;
 
                 // Resolve each child's final size against this element's inner size. Percentage
-                // children are still 0 in targetRect at this point (they get expanded later, in
+                // children are still 0 in effectiveRect at this point (they get expanded later, in
                 // resolve_element), so they must be resolved here to measure and align correctly.
+                // In the animated pass the resolved size is overridden with the current
+                // interpolated size for actively animating axes, so siblings and
+                // alignment follow what is actually rendered.
                 auto resolve_child_size = [&](u32 child) -> vec2
                 {
                     OBLO_ASSERT(element.kind == layout_element_kind::container);
 
                     const auto& cd = elements[child];
 
-                    return {
+                    vec2 resolved{
                         resolve_axis_size(cd.width, elements[child].contentSize.x, innerSize.x),
                         resolve_axis_size(cd.height, elements[child].contentSize.y, innerSize.y),
                     };
+
+                    if (applyAnimated && cd.animated)
+                    {
+                        const animation_properties active = state.animations.get_active_properties(cd.elementId);
+                        resolved = apply_size_override(cd, active, resolved);
+                    }
+
+                    return resolved;
                 };
 
                 // Measure the children's content extent along the main axis so the group can be aligned as a whole
@@ -326,7 +521,14 @@ namespace oblo::ui
                         childOriginForChild.x += crossOffset;
                     }
 
-                    resolve_element(state, child, childOriginForChild, innerSize, cursor, desc.direction);
+                    resolve_element(state,
+                        child,
+                        childOriginForChild,
+                        innerSize,
+                        cursor,
+                        desc.direction,
+                        feedAnimations,
+                        applyAnimated);
 
                     cursor += childMain + desc.childGap;
                 }
@@ -367,7 +569,8 @@ namespace oblo::ui
                     const auto attach_y = [](alignment_y ay, f32 size) OBLO_FORCEINLINE_LAMBDA
                     { return ay == alignment_y::center ? size * 0.5f : (ay == alignment_y::bottom ? size : 0.f); };
 
-                    const rect anchorRect = anchor->targetRect;
+                    const animation_properties active = state.animations.get_active_properties(anchor->elementId);
+                    const rect anchorRect = applyAnimated ? effective_rect_of(*anchor, active) : anchor->effectiveRect;
 
                     const f32 ax = anchorRect.x + attach_x(fc.anchorPoint.x, anchorRect.width);
                     const f32 ay = anchorRect.y + attach_y(fc.anchorPoint.y, anchorRect.height);
@@ -379,7 +582,14 @@ namespace oblo::ui
 
                     const vec2 origin{ax - sx + fc.offset.x, ay - sy + fc.offset.y};
 
-                    resolve_element(state, child, origin, innerSize, 0.f, childDirection);
+                    resolve_element(state,
+                        child,
+                        origin,
+                        innerSize,
+                        0.f,
+                        childDirection,
+                        feedAnimations,
+                        applyAnimated);
                 }
             }
         }
@@ -647,7 +857,7 @@ namespace oblo::ui
                 continue;
             }
 
-            const vec2 childSize = elements[child].targetRect.size();
+            const vec2 childSize = elements[child].effectiveRect.size();
 
             if (desc.direction == layout_direction::left_to_right)
             {
@@ -681,8 +891,8 @@ namespace oblo::ui
         element.contentSize = desc.direction == layout_direction::left_to_right ? vec2{main, cross} : vec2{cross, main};
 
         // Resolve the final size for sizing kinds that don't depend on the parent.
-        element.targetRect.width = resolve_axis_size(element.width, element.contentSize.x, 0.f);
-        element.targetRect.height = resolve_axis_size(element.height, element.contentSize.y, 0.f);
+        element.effectiveRect.width = resolve_axis_size(element.width, element.contentSize.x, 0.f);
+        element.effectiveRect.height = resolve_axis_size(element.height, element.contentSize.y, 0.f);
     }
 
     void add_text(layout_state& state, const text_descriptor& desc)
@@ -732,7 +942,7 @@ namespace oblo::ui
         const vec2 measured = measure_text(state.fonts, desc.font, face, desc.fontSize, storedGlyphs);
 
         element.contentSize = measured;
-        element.targetRect = {0.f, 0.f, measured.x, measured.y};
+        element.effectiveRect = {0.f, 0.f, measured.x, measured.y};
 
         finalize_append_child(state, parentIndex, index);
     }
@@ -754,19 +964,56 @@ namespace oblo::ui
 
     void end_frame(layout_state& state)
     {
-        // Resolve every root. The root's parent is the layout itself: its size is the
-        // available layout area and its origin is the layout origin.
+        // Pass 1: resolve true targets top-down into effectiveRect and feed the
+        // animation store. Parents are resolved before children so animation
+        // targets are stable.
         for (u32 i = 0; i < state.elements.size(); ++i)
         {
             if (state.elements[i].parentIndex == invalid_index)
             {
-                resolve_element(state, i, {}, state.layoutSize, 0.f, layout_direction::left_to_right);
+                resolve_element(state, i, {}, state.layoutSize, 0.f, layout_direction::left_to_right, true, false);
+            }
+        }
+
+        // Pass 2 (only when something is interpolating geometry): fit parents
+        // measured bottom-up from the effective (animated where active, target
+        // otherwise) child sizes, so they grow/shrink with what is actually
+        // rendered. Then re-resolve positions top-down from those effective
+        // sizes without touching the animation store again.
+        bool needsAnimatedPass = false;
+
+        for (const auto& record : state.animations.records())
+        {
+            if (!record.activeProperties.is_empty() &&
+                (record.activeProperties.contains(animation_property::x) ||
+                    record.activeProperties.contains(animation_property::y) ||
+                    record.activeProperties.contains(animation_property::width) ||
+                    record.activeProperties.contains(animation_property::height)))
+            {
+                needsAnimatedPass = true;
+                break;
+            }
+        }
+
+        if (needsAnimatedPass)
+        {
+            remeasure_contents(state);
+
+            // Resolve every root. The root's parent is the layout itself: its size is the
+            // available layout area and its origin is the layout origin.
+            for (u32 i = 0; i < state.elements.size(); ++i)
+            {
+                if (state.elements[i].parentIndex == invalid_index)
+                {
+                    resolve_element(state, i, {}, state.layoutSize, 0.f, layout_direction::left_to_right, false, true);
+                }
             }
         }
 
         // Snapshot the resolved elements for next frame's input hit-testing and for rendering.
-        // Bake the interpolated state so the copy is fully resolved and self-contained, then drop
-        // the dangling animated pointer.
+        // Bake the animated color state so the copy is fully resolved and self-contained,
+        // then drop the dangling animated pointer. Geometry needs no baking:
+        // effectiveRect already holds the rendered box.
         state.previousElements.clear();
 
         for (u32 i = 0; i < state.elements.size(); ++i)
@@ -777,7 +1024,7 @@ namespace oblo::ui
 
             if (snapshot.animated)
             {
-                snapshot.targetRect = snapshot.animated->boundingBox;
+                snapshot.effectiveRect = snapshot.animated->boundingBox;
 
                 if (snapshot.kind == layout_element_kind::container)
                 {
@@ -976,7 +1223,7 @@ namespace oblo::ui
             return nullptr;
         }
 
-        return &state.previousElements[it->second].targetRect;
+        return &state.previousElements[it->second].effectiveRect;
     }
 
     animation_record* animation_store::find_record(layout_id element) noexcept
@@ -1248,6 +1495,18 @@ namespace oblo::ui
 
             m_records.erase_unordered(m_records.begin() + i);
         }
+    }
+
+    animation_properties animation_store::get_active_properties(layout_id element) const noexcept
+    {
+        const auto* const record = find_record(element);
+
+        if (!record || record->state == animation_state::idle)
+        {
+            return {};
+        }
+
+        return record->activeProperties;
     }
 
     const animated_values* animation_store::try_get(layout_id element) const

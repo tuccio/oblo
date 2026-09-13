@@ -43,7 +43,7 @@ namespace oblo::ui
         const rect* rect_of(layout_state& state, layout_id element)
         {
             const auto* const found = find_element(state, element);
-            return found ? &found->targetRect : nullptr;
+            return found ? &found->effectiveRect : nullptr;
         }
     }
 
@@ -331,12 +331,12 @@ namespace oblo::ui
 
         const auto& elements = state->elements;
         ASSERT_EQ(elements.size(), 3);
-        EXPECT_FLOAT_EQ(elements[0].targetRect.x, 0.f);
-        EXPECT_FLOAT_EQ(elements[0].targetRect.width, 800.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 0.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 300.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.x, 300.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.width, 500.f);
+        EXPECT_FLOAT_EQ(elements[0].effectiveRect.x, 0.f);
+        EXPECT_FLOAT_EQ(elements[0].effectiveRect.width, 800.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 0.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 300.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.x, 300.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.width, 500.f);
 
         // Tree structure: root owns both children, in order.
         EXPECT_EQ(elements[0].firstChild, 1);
@@ -372,10 +372,10 @@ namespace oblo::ui
         end_frame(*state);
 
         const auto& elements = state->elements;
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 0.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.height, 200.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.y, 200.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.height, 100.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 0.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.height, 200.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.y, 200.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.height, 100.f);
 
         destroy_state(state);
     }
@@ -407,10 +407,10 @@ namespace oblo::ui
         ASSERT_EQ(elements.size(), 4);
 
         // The fit panel hugs its content: width = sum of children, height = max child.
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 0.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 0.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 300.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.height, 50.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 0.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 0.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 300.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.height, 50.f);
 
         destroy_state(state);
     }
@@ -437,7 +437,7 @@ namespace oblo::ui
 
         const std::span elements = state->elements;
         // Content is 100 wide, but the fit minimum is 400.
-        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 400.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 400.f);
 
         destroy_state(state);
     }
@@ -464,8 +464,8 @@ namespace oblo::ui
         end_frame(*state);
 
         const std::span elements = state->elements;
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 0.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.x, 110.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 0.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.x, 110.f);
 
         destroy_state(state);
     }
@@ -492,8 +492,8 @@ namespace oblo::ui
         end_frame(*state);
 
         const std::span elements = state->elements;
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 10.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 20.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 10.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 20.f);
 
         destroy_state(state);
     }
@@ -517,8 +517,8 @@ namespace oblo::ui
         end_frame(*state);
 
         const std::span elements = state->elements;
-        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 400.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.height, 150.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 400.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.height, 150.f);
 
         destroy_state(state);
     }
@@ -546,8 +546,8 @@ namespace oblo::ui
 
         const std::span elements = state->elements;
         // 50% of the 780 px inner width, positioned after the left padding.
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 10.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 390.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 10.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 390.f);
 
         destroy_state(state);
     }
@@ -567,10 +567,10 @@ namespace oblo::ui
         end_frame(*state);
 
         const std::span elements = state->elements;
-        EXPECT_FLOAT_EQ(elements[0].targetRect.x, 0.f);
-        EXPECT_FLOAT_EQ(elements[0].targetRect.y, 0.f);
-        EXPECT_FLOAT_EQ(elements[0].targetRect.width, 400.f);
-        EXPECT_FLOAT_EQ(elements[0].targetRect.height, 300.f);
+        EXPECT_FLOAT_EQ(elements[0].effectiveRect.x, 0.f);
+        EXPECT_FLOAT_EQ(elements[0].effectiveRect.y, 0.f);
+        EXPECT_FLOAT_EQ(elements[0].effectiveRect.width, 400.f);
+        EXPECT_FLOAT_EQ(elements[0].effectiveRect.height, 300.f);
 
         destroy_state(state);
     }
@@ -605,12 +605,12 @@ namespace oblo::ui
 
         const std::span elements = state->elements;
         // inner starts after root padding; its children are relative to inner.
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 10.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 20.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.x, 10.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.y, 20.f);
-        EXPECT_FLOAT_EQ(elements[3].targetRect.x, 115.f);
-        EXPECT_FLOAT_EQ(elements[3].targetRect.y, 20.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 10.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 20.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.x, 10.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.y, 20.f);
+        EXPECT_FLOAT_EQ(elements[3].effectiveRect.x, 115.f);
+        EXPECT_FLOAT_EQ(elements[3].effectiveRect.y, 20.f);
 
         destroy_state(state);
     }
@@ -641,10 +641,10 @@ namespace oblo::ui
         end_frame(*state);
 
         const std::span elements = state->elements;
-        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 100.f);
-        EXPECT_FLOAT_EQ(elements[2].targetRect.width, 100.f);
-        EXPECT_FLOAT_EQ(elements[3].targetRect.width, 50.f);
-        EXPECT_FLOAT_EQ(elements[3].targetRect.x, 100.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 100.f);
+        EXPECT_FLOAT_EQ(elements[2].effectiveRect.width, 100.f);
+        EXPECT_FLOAT_EQ(elements[3].effectiveRect.width, 50.f);
+        EXPECT_FLOAT_EQ(elements[3].effectiveRect.x, 100.f);
 
         destroy_state(state);
     }
@@ -686,8 +686,10 @@ namespace oblo::ui
 
         EXPECT_EQ(state->animations.records()[0].state, animation_state::animationing);
         EXPECT_FLOAT_EQ(get_animated(*state, {1})->boundingBox.width, 100.f);
-        // The tree exposes the target, the store the interpolated values.
-        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 200.f);
+        // The tree exposes the effective (currently rendered) rect so parents and
+        // siblings follow the animation; the true target lives in the store.
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 100.f);
+        EXPECT_FLOAT_EQ(state->animations.records()[0].target.boundingBox.width, 200.f);
 
         // Frame 3: halfway through the animation.
         begin_frame(*state, time::from_seconds(.5f));
@@ -706,7 +708,280 @@ namespace oblo::ui
         destroy_state(state);
     }
 
-    TEST(ui_layout, id_without_animation_uses_target_rect)
+    TEST(ui_layout, fit_parent_follows_animated_child)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        const auto config = linear_config(time::from_seconds(1.f));
+
+        set_layout_size(*state, {800, 600});
+
+        auto build = [&](f32 childWidth)
+        {
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
+            {
+                const auto panel =
+                    container_builder{}.id({1}).animation(config).build(*state);
+                {
+                    const auto child =
+                        container_builder{}.id({2}).animation(config).width(fixed_size(childWidth)).height(
+                            fixed_size(50)).build(*state);
+                }
+            }
+        };
+
+        begin_frame(*state, time::from_seconds(0.f));
+        build(100.f);
+        end_frame(*state);
+
+        ASSERT_EQ(state->elements.size(), 3);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 100.f);
+
+        // Target jumps to 200, first animation frame still renders 100.
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(get_animated(*state, {2})->boundingBox.width, 100.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {2})->width, 100.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 100.f);
+
+        // Halfway: child and fit parent both at 150.
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(get_animated(*state, {2})->boundingBox.width, 150.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {2})->width, 150.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 150.f);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, fit_parent_follows_animated_child_top_to_bottom)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        const auto config = linear_config(time::from_seconds(1.f));
+
+        set_layout_size(*state, {800, 600});
+
+        // Mirrors the sandbox vertical stack: a fit-height parent holding a fixed
+        // block and an animated fixed-height panel. The parent must grow smoothly
+        // and push the footer down instead of overflowing it.
+        auto build = [&](f32 panelHeight)
+        {
+            const auto root = container_builder{}
+                                  .direction(layout_direction::top_to_bottom)
+                                  .width(fixed_size(800))
+                                  .height(fixed_size(600))
+                                  .build(*state);
+            {
+                const auto middle = container_builder{}
+                                        .id({1})
+                                        .direction(layout_direction::top_to_bottom)
+                                        .build(*state);
+                {
+                    const auto sidebar = container_builder{}
+                                             .width(fixed_size(200))
+                                             .height(fixed_size(100))
+                                             .build(*state);
+                }
+                {
+                    const auto panel = container_builder{}
+                                           .id({2})
+                                           .animation(config)
+                                           .width(fixed_size(200))
+                                           .height(fixed_size(panelHeight))
+                                           .build(*state);
+                }
+            }
+            {
+                const auto footer = container_builder{}
+                                        .width(fixed_size(800))
+                                        .height(fixed_size(40))
+                                        .build(*state);
+            }
+        };
+
+        begin_frame(*state, time::from_seconds(0.f));
+        build(120.f);
+        end_frame(*state);
+
+        ASSERT_EQ(state->elements.size(), 5);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->height, 220.f);
+        const f32 footerY0 = rect_of(*state, {1})->y + 220.f;
+
+        // Target jumps to 200, first animation frame still renders 120.
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(rect_of(*state, {2})->height, 120.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->height, 220.f);
+        EXPECT_FLOAT_EQ(state->elements[4].effectiveRect.y, footerY0);
+
+        // Halfway: panel at 160, parent at 260, footer pushed by 40.
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(rect_of(*state, {2})->height, 160.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->height, 260.f);
+        EXPECT_FLOAT_EQ(state->elements[4].effectiveRect.y, footerY0 + 40.f);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, fit_grandparent_follows_animated_leaf)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        const auto config = linear_config(time::from_seconds(1.f));
+
+        set_layout_size(*state, {800, 600});
+
+        // Nested fit chain: neither the outer nor the inner parent is animated
+        // themselves, so both must pick up the leaf's effective size bottom-up.
+        auto build = [&](f32 leafWidth)
+        {
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
+            {
+                const auto outer = container_builder{}.id({1}).build(*state);
+                {
+                    const auto inner = container_builder{}.build(*state);
+                    {
+                        const auto leaf = container_builder{}.id({2}).animation(config).width(fixed_size(leafWidth)).height(
+                            fixed_size(50)).build(*state);
+                    }
+                }
+            }
+        };
+
+        begin_frame(*state, time::from_seconds(0.f));
+        build(100.f);
+        end_frame(*state);
+
+        ASSERT_EQ(state->elements.size(), 4);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 100.f);
+
+        // Target jumps to 200, first animation frame still renders 100.
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(get_animated(*state, {2})->boundingBox.width, 100.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {2})->width, 100.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 100.f);
+
+        // Halfway: leaf, inner and outer all at 150.
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(get_animated(*state, {2})->boundingBox.width, 150.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {2})->width, 150.f);
+        EXPECT_FLOAT_EQ(rect_of(*state, {1})->width, 150.f);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, sibling_follows_animated_sibling)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        const auto config = linear_config(time::from_seconds(1.f));
+
+        set_layout_size(*state, {800, 600});
+
+        auto build = [&](f32 firstWidth)
+        {
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
+            {
+                const auto a = container_builder{}.id({1}).animation(config).width(fixed_size(firstWidth)).height(
+                    fixed_size(50)).build(*state);
+            }
+            {
+                const auto b =
+                    container_builder{}.width(fixed_size(100)).height(fixed_size(50)).build(*state);
+            }
+        };
+
+        begin_frame(*state, time::from_seconds(0.f));
+        build(100.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(state->elements[2].effectiveRect.x, 100.f);
+
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        // First child still renders 100, sibling stays at 100.
+        EXPECT_FLOAT_EQ(state->elements[1].effectiveRect.width, 100.f);
+        EXPECT_FLOAT_EQ(state->elements[2].effectiveRect.x, 100.f);
+
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        // Halfway: sibling pushed to 150.
+        EXPECT_FLOAT_EQ(state->elements[1].effectiveRect.width, 150.f);
+        EXPECT_FLOAT_EQ(state->elements[2].effectiveRect.x, 150.f);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, child_uses_animated_parent_inner_size)
+    {
+        auto* const state = create_state();
+        ASSERT_NE(state, nullptr);
+
+        const auto config = linear_config(time::from_seconds(1.f));
+
+        set_layout_size(*state, {800, 600});
+
+        auto build = [&](f32 parentWidth)
+        {
+            const auto root = container_builder{}.width(fixed_size(800)).height(fixed_size(600)).build(*state);
+            {
+                const auto parent = container_builder{}.id({1}).animation(config).width(fixed_size(parentWidth)).height(
+                    fixed_size(100)).build(*state);
+                {
+                    const auto child = container_builder{}.width(percent_size(1.f)).height(fixed_size(50)).build(*state);
+                }
+            }
+        };
+
+        begin_frame(*state, time::from_seconds(0.f));
+        build(100.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(state->elements[2].effectiveRect.width, 100.f);
+
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        // Parent still renders 100, percentage child follows the animated inner size.
+        EXPECT_FLOAT_EQ(state->elements[1].effectiveRect.width, 100.f);
+        EXPECT_FLOAT_EQ(state->elements[2].effectiveRect.width, 100.f);
+
+        begin_frame(*state, time::from_seconds(.5f));
+        build(200.f);
+        end_frame(*state);
+
+        EXPECT_FLOAT_EQ(state->elements[1].effectiveRect.width, 150.f);
+        EXPECT_FLOAT_EQ(state->elements[2].effectiveRect.width, 150.f);
+
+        destroy_state(state);
+    }
+
+    TEST(ui_layout, id_without_animation_uses_effective_rect)
     {
         auto* const state = create_state();
         ASSERT_NE(state, nullptr);
@@ -720,7 +995,7 @@ namespace oblo::ui
         const auto* const found = find_element(*state, {1});
         ASSERT_NE(found, nullptr);
         EXPECT_EQ(found->animated, nullptr);
-        EXPECT_FLOAT_EQ(found->targetRect.width, 100.f);
+        EXPECT_FLOAT_EQ(found->effectiveRect.width, 100.f);
 
         destroy_state(state);
     }
@@ -807,8 +1082,8 @@ namespace oblo::ui
         const std::span elements = state->elements;
         // Single child centered along the main (x) axis of a left-to-right layout.
         // With alignment::center() both axes are centered.
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 300.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 250.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 300.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 250.f);
 
         destroy_state(state);
     }
@@ -838,8 +1113,8 @@ namespace oblo::ui
         const std::span elements = state->elements;
         // Single child centered along the main (y) axis of a top-to-bottom layout.
         // With alignment::center() both axes are centered.
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 300.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 250.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 300.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 250.f);
 
         destroy_state(state);
     }
@@ -869,10 +1144,10 @@ namespace oblo::ui
         end_frame(*state);
 
         const std::span elements = state->elements;
-        EXPECT_FLOAT_EQ(elements[1].targetRect.x, 25.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.y, 25.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.width, 50.f);
-        EXPECT_FLOAT_EQ(elements[1].targetRect.height, 50.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 25.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 25.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 50.f);
+        EXPECT_FLOAT_EQ(elements[1].effectiveRect.height, 50.f);
 
         destroy_state(state);
     }
