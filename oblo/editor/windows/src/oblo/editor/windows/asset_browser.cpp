@@ -52,6 +52,7 @@ namespace oblo::editor
             deque<artifact_meta> artifacts;
             string_builder assetPath;
             string_builder name;
+            u32 assetColorIdx{};
         };
 
         struct directory_tree_entry
@@ -504,6 +505,8 @@ namespace oblo::editor
                         }
                     }
                 }
+
+                registry->find_compatible_importer();
             }
         }
 
@@ -896,9 +899,7 @@ namespace oblo::editor
 
                     builder.clear().format("##{}", entry.assetPath);
 
-                    const auto assetColorId =
-                        hash_all<hash>(meta.nativeAssetType, meta.typeHint) % array_size(g_Colors);
-                    const auto assetColor = g_Colors[assetColorId];
+                    const auto assetColor = g_Colors[entry.assetColorIdx];
 
                     bool isSelected = is_selected(&entry);
 
@@ -948,7 +949,7 @@ namespace oblo::editor
                             expandedAsset = expandedAsset == meta.assetId ? uuid{} : meta.assetId;
                         }
                     }
-                    else if (!meta.mainArtifactHint.is_nil() && ImGui::BeginDragDropSource())
+                    else if (ImGui::BeginDragDropSource())
                     {
                         const auto payload = payloads::pack_artifact(meta.assetId);
                         ImGui::SetDragDropPayload(payloads::Asset, &payload, sizeof(drag_and_drop_payload));

@@ -390,7 +390,6 @@ namespace oblo::importers
         return {
             .artifacts = {&m_result, count},
             .sourceFiles = {&m_source, count},
-            .mainArtifactHint = m_result.id,
         };
     }
 }

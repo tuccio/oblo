@@ -18,7 +18,6 @@ namespace oblo
     {
         std::span<const import_artifact> artifacts;
         std::span<const string> sourceFiles;
-        uuid mainArtifactHint;
     };
 
     class file_importer
