@@ -3,6 +3,7 @@
 #include <oblo/app/imgui_texture.hpp>
 #include <oblo/asset/asset_meta.hpp>
 #include <oblo/asset/asset_registry.hpp>
+#include <oblo/core/algorithm/find.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/utility.hpp>
@@ -303,15 +304,51 @@ namespace oblo::editor
                     {
                         const uuid id = payloads::unpack_asset(assetPayload->Data);
 
-                        asset_meta assetMeta;
                         artifact_meta artifactMeta;
 
                         if (auto* assets = ctx.services.find<asset_registry>())
                         {
-                            if (assets->find_asset_by_id(id, assetMeta) &&
-                                assets->find_artifact_by_id(assetMeta.mainArtifactHint, artifactMeta))
+                            dynamic_array<uuid> artifacts;
+
+                            uuid bestArtifactId{};
+
+                            if (assets->find_asset_artifacts(id, artifacts))
                             {
-                                spawn_artifact(ctx, artifactMeta.artifactId);
+                                artifact_meta artifactMeta;
+
+                                constexpr uuid spawnableArtifacts[] = {
+                                    uuid{},
+                                    resource_type<oblo::texture>,
+                                    resource_type<oblo::model>,
+                                    resource_type<oblo::entity_hierarchy>,
+                                };
+
+                                const auto begin = std::begin(spawnableArtifacts);
+                                const auto end = std::end(spawnableArtifacts);
+
+                                ptrdiff currentIndex = 0;
+
+                                for (const uuid& id : artifacts)
+                                {
+                                    if (assets->find_artifact_by_id(id, artifactMeta))
+                                    {
+                                        const auto it = find(begin, end, artifactMeta.type);
+
+                                        if (it != end)
+                                        {
+                                            if (const ptrdiff d = it - begin; d > currentIndex)
+                                            {
+                                                currentIndex = d;
+                                                bestArtifactId = id;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!bestArtifactId.is_nil())
+                            {
+                                spawn_artifact(ctx, bestArtifactId);
                             }
                         }
                     }

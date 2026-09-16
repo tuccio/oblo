@@ -16,8 +16,6 @@ namespace oblo
     struct asset_meta
     {
         uuid assetId;
-        uuid mainArtifactHint;
-        uuid typeHint;
         uuid nativeAssetType;
     };
 }

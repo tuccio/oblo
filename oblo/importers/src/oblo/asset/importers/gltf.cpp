@@ -314,7 +314,6 @@ namespace oblo::importers
         dynamic_array<import_artifact> artifacts;
         dynamic_array<string> sourceFiles;
         string_builder sourceFileDir;
-        uuid mainArtifactHint{};
 
         deque<gltf_embedded_image> embeddedImages;
 
@@ -1324,11 +1323,6 @@ namespace oblo::importers
                 .name = importNodes[model.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
-
-            if (m_impl->importModels.size() == 1)
-            {
-                m_impl->mainArtifactHint = modelNodeConfig.id;
-            }
         }
 
         for (const auto& hierarchy : m_impl->importHierarchies)
@@ -1462,11 +1456,6 @@ namespace oblo::importers
                 .name = importNodes[hierarchy.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
-
-            if (m_impl->importHierarchies.size() == 1)
-            {
-                m_impl->mainArtifactHint = hierarchyNodeConfig.id;
-            }
         }
 
         string_builder bufferPathBuilder;
@@ -1499,7 +1488,6 @@ namespace oblo::importers
         return {
             .artifacts = m_impl->artifacts,
             .sourceFiles = m_impl->sourceFiles,
-            .mainArtifactHint = m_impl->mainArtifactHint,
         };
     }
 }

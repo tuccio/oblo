@@ -62,6 +62,7 @@ namespace oblo
         void clear()
         {
             artifacts.clear();
+            processId = {};
         }
     };
 
@@ -100,8 +101,6 @@ namespace oblo
             const auto root = doc.get_root();
 
             meta.assetId = doc.read_uuid(doc.find_child(root, "assetId"_hsv)).value_or(uuid{});
-            meta.mainArtifactHint = doc.read_uuid(doc.find_child(root, "mainArtifactHint"_hsv)).value_or(uuid{});
-            meta.typeHint = doc.read_uuid(doc.find_child(root, "typeHint"_hsv)).value_or(uuid{});
             meta.nativeAssetType = doc.read_uuid(doc.find_child(root, "nativeAssetType"_hsv)).value_or(uuid{});
 
             return !meta.assetId.is_nil();
@@ -120,8 +119,6 @@ namespace oblo
             const auto root = doc.get_root();
 
             doc.child_value(root, "assetId"_hsv, property_value_wrapper{meta.assetId});
-            doc.child_value(root, "mainArtifactHint"_hsv, property_value_wrapper{meta.mainArtifactHint});
-            doc.child_value(root, "typeHint"_hsv, property_value_wrapper{meta.typeHint});
 
             if (!meta.nativeAssetType.is_nil())
             {

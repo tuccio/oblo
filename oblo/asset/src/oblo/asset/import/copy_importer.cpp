@@ -51,7 +51,6 @@ namespace oblo
         file_import_results r;
         r.artifacts = {&m_artifact, 1};
         r.sourceFiles = {&m_source, 1};
-        r.mainArtifactHint = m_artifact.id;
         return r;
     }
 }

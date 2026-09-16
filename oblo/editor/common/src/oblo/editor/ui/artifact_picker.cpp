@@ -161,15 +161,22 @@ namespace oblo::editor::ui
             {
                 const uuid id = payloads::unpack_asset(assetPayload->Data);
 
-                asset_meta assetMeta;
-                artifact_meta artifactMeta;
+                // Iterate all artifacts for this asset, we just take the first that matches the type
+                dynamic_array<uuid> artifacts;
 
-                if (m_assetRegistry->find_asset_by_id(id, assetMeta) &&
-                    m_assetRegistry->find_artifact_by_id(assetMeta.mainArtifactHint, artifactMeta) &&
-                    artifactMeta.type == type)
+                if (m_assetRegistry->find_asset_artifacts(id, artifacts))
                 {
-                    m_currentRef = artifactMeta.artifactId;
-                    selectionChanged = true;
+                    artifact_meta artifactMeta;
+
+                    for (const uuid& artifactId : artifacts)
+                    {
+                        if (m_assetRegistry->find_artifact_by_id(artifactId, artifactMeta) && artifactMeta.type == type)
+                        {
+                            m_currentRef = artifactMeta.artifactId;
+                            selectionChanged = true;
+                            break;
+                        }
+                    }
                 }
             }
 

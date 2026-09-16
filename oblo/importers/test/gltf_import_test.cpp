@@ -201,10 +201,21 @@ namespace oblo::importers
 
             ASSERT_TRUE(registry.find_asset_by_path(assetPath, meshId, assetMeta));
 
-            ASSERT_NE(assetMeta.mainArtifactHint, uuid{});
-            ASSERT_EQ(assetMeta.typeHint, resource_type<entity_hierarchy>);
+            dynamic_array<uuid> artifacts;
+            ASSERT_TRUE(registry.find_asset_artifacts(meshId, artifacts));
 
-            const auto hierarchyResource = resources.get_resource(assetMeta.mainArtifactHint).as<entity_hierarchy>();
+            resource_ptr<entity_hierarchy> hierarchyResource{};
+
+            for (const uuid& id : artifacts)
+            {
+                hierarchyResource = resources.get_resource(id).as<entity_hierarchy>();
+
+                if (hierarchyResource)
+                {
+                    break;
+                }
+            }
+
             ASSERT_TRUE(hierarchyResource);
 
             const auto modelResource = find_first_resource_from_asset<model>(resources, registry, meshId);

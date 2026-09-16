@@ -54,8 +54,6 @@ namespace oblo::importers
         // The scene, owned by the importer
         const aiScene* scene{};
 
-        uuid mainArtifactHint{};
-
         dynamic_array<import_artifact> artifacts;
 
         dynamic_array<assimp_import_mesh> importMeshes;
@@ -524,8 +522,6 @@ namespace oblo::importers
                 .name = importNodes[m_impl->importHierarchy.nodeIndex].name,
                 .path = outputPath.as<string>(),
             });
-
-            m_impl->mainArtifactHint = hierarchyNodeConfig.id;
         }
 
         return true;
@@ -536,7 +532,6 @@ namespace oblo::importers
         return {
             .artifacts = m_impl->artifacts,
             .sourceFiles = m_impl->sourceFiles,
-            .mainArtifactHint = m_impl->mainArtifactHint,
         };
     }
 }

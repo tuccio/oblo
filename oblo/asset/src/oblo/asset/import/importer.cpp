@@ -312,12 +312,6 @@ namespace oblo
                 }
 
                 importedArtifacts.emplace_back(artifact.id);
-
-                if (&fid == &m_fileImports.front() && artifact.id == results.mainArtifactHint)
-                {
-                    assetMeta.mainArtifactHint = artifact.id;
-                    assetMeta.typeHint = meta.type;
-                }
             }
         }
 

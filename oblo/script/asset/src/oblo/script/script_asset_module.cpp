@@ -232,8 +232,6 @@ namespace oblo
                 }
 
                 {
-                    m_mainArtifactHint = {};
-
                     const auto& scriptPathsNode = configs[u32(importer_artifact::script_paths)];
 
                     if (scriptPathsNode.enabled)
@@ -250,8 +248,6 @@ namespace oblo
                         artifact.name = artifact_script_paths;
                         artifact.path = destination.as<string>();
                         artifact.type = resource_type<compiled_script>;
-
-                        m_mainArtifactHint = scriptPathsNode.id;
                     }
                 }
 
@@ -265,7 +261,6 @@ namespace oblo
                 file_import_results r;
                 r.artifacts = m_artifacts;
                 r.sourceFiles = m_sourceFiles;
-                r.mainArtifactHint = m_mainArtifactHint;
                 return r;
             }
 
@@ -383,7 +378,6 @@ namespace oblo
             buffered_array<import_artifact, u32(importer_artifact::enum_max)> m_artifacts;
             string m_source;
             dynamic_array<string> m_sourceFiles;
-            uuid m_mainArtifactHint{};
             compiler_options m_compilerOptions{};
         };
 
