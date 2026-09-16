@@ -130,6 +130,5 @@ namespace oblo
         unique_ptr<asset_registry_impl> m_impl;
     };
 
-
     inline const cstring_view AssetMetaExtension{".oasset"};
 }

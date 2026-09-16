@@ -462,6 +462,8 @@ namespace oblo::editor
         string_builder resolvedDirectory;
         registry->resolve_asset_path(resolvedDirectory, assetDir.view());
 
+        string_builder assetSourcePath;
+
         for (auto&& fsEntry : std::filesystem::directory_iterator{resolvedDirectory.as<std::string>(), ec})
         {
             const auto& p = fsEntry.path();
@@ -506,7 +508,13 @@ namespace oblo::editor
                     }
                 }
 
-                registry->find_compatible_importer();
+                registry->get_source_path(e.meta.assetId, assetSourcePath.clear());
+
+                if (!assetSourcePath.empty())
+                {
+                    const string_view ext = filesystem::extension(assetSourcePath.view());
+                    e.assetColorIdx = hash<string_view>{}(ext) % array_size(g_Colors);
+                }
             }
         }
 

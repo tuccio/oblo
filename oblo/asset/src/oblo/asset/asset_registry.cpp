@@ -62,6 +62,7 @@ namespace oblo
         void clear()
         {
             artifacts.clear();
+            processId = {};
         }
     };
 
