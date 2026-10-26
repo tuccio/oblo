@@ -35,7 +35,7 @@ namespace oblo
         {
             draw_registry_metrics data{};
 
-            const std::span batches = m_drawRegistry->get_draw_calls();
+            const span batches = m_drawRegistry->get_draw_calls();
 
             for (const auto& b : batches)
             {

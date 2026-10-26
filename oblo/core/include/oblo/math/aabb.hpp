@@ -1,10 +1,10 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/vec3.hpp>
 
 #include <limits>
-#include <span>
 
 namespace oblo
 {
@@ -39,8 +39,8 @@ namespace oblo
 
     constexpr bool overlap(const aabb& lhs, const aabb& rhs)
     {
-        return lhs.min.x < rhs.max.x && rhs.min.x < lhs.max.x && lhs.min.y < rhs.max.y &&
-            rhs.min.y < lhs.max.y && lhs.min.z < rhs.max.z && rhs.min.z < lhs.max.z;
+        return lhs.min.x < rhs.max.x && rhs.min.x < lhs.max.x && lhs.min.y < rhs.max.y && rhs.min.y < lhs.max.y &&
+            lhs.min.z < rhs.max.z && rhs.min.z < lhs.max.z;
     }
 
     constexpr u8 max_extent(const aabb& aabb)
@@ -61,7 +61,7 @@ namespace oblo
         }
     }
 
-    constexpr aabb compute_aabb(std::span<const aabb> aabbs)
+    constexpr aabb compute_aabb(span<const aabb> aabbs)
     {
         aabb current = aabb::make_invalid();
 
@@ -73,7 +73,7 @@ namespace oblo
         return current;
     }
 
-    constexpr aabb compute_aabb(std::span<const vec3> points)
+    constexpr aabb compute_aabb(span<const vec3> points)
     {
         aabb current = aabb::make_invalid();
 

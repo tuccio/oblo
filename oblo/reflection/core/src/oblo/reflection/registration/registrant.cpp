@@ -179,7 +179,7 @@ namespace oblo::reflection
     }
 
     void reflection_registry::registrant::add_enumerator(
-        u32 entityIndex, cstring_view name, std::span<const byte> value)
+        u32 entityIndex, cstring_view name, span<const byte> value)
     {
         const ecs::entity e{entityIndex};
 
@@ -194,7 +194,7 @@ namespace oblo::reflection
         void* f,
         invoker_fn invoker,
         const type_id& returnType,
-        std::span<const type_id> parameterTypes)
+        span<const type_id> parameterTypes)
     {
         const auto [it, inserted] =
             m_impl.functionsMap.emplace(fullyQualifiedName.as<hashed_string_view>(), ecs::entity{});
@@ -219,7 +219,7 @@ namespace oblo::reflection
         return e.value;
     }
 
-    void reflection_registry::registrant::make_array_type(u32 entityIndex, std::span<const usize> extents)
+    void reflection_registry::registrant::make_array_type(u32 entityIndex, span<const usize> extents)
     {
         const ecs::entity e{entityIndex};
         auto& arrayData = m_impl.registry.get<array_data>(e);

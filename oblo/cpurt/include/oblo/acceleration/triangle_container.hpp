@@ -1,9 +1,9 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 
-#include <span>
 #include <vector>
 
 namespace oblo
@@ -34,7 +34,7 @@ namespace oblo
 
         void clear();
 
-        void add(std::span<const triangle> triangles);
+        void add(span<const triangle> triangles);
         void reserve(std::size_t numTriangles);
 
         aabb primitives_bounds(u32 begin, u32 end) const;
@@ -44,10 +44,10 @@ namespace oblo
 
         bool intersect(const ray& ray, u32 beginIndex, u16 numPrimitives, f32& distance, hit_result& result) const;
 
-        std::span<const triangle> get_triangles() const;
-        std::span<const aabb> get_aabbs() const;
-        std::span<const vec3> get_centroids() const;
-        std::span<const vec3> get_normals() const;
+        span<const triangle> get_triangles() const;
+        span<const aabb> get_aabbs() const;
+        span<const vec3> get_centroids() const;
+        span<const vec3> get_normals() const;
 
     private:
         std::vector<triangle> m_triangles;

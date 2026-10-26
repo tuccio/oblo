@@ -2,6 +2,7 @@
 
 #include <oblo/core/compressed_pointer_with_flags.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/trace/profile.hpp>
 
 #include <moodycamel/concurrentqueue.h>
@@ -10,7 +11,6 @@
 #include <format>
 #include <memory_resource>
 #include <semaphore>
-#include <span>
 #include <thread>
 
 #define as_job_impl(Job) static_cast<job_impl*>(Job)
@@ -212,7 +212,7 @@ namespace oblo
 
         void worker_thread_run(job_manager* jm,
             u32 id,
-            std::span<job_queue* const> queues,
+            span<job_queue* const> queues,
             const std::atomic<worker_state>* state,
             semaphore& workReady)
         {
@@ -393,7 +393,7 @@ namespace oblo
 
     void job_manager::shutdown()
     {
-        const auto workers = std::span{m_impl->threads}.subspan(1);
+        const span workers = span{m_impl->threads}.subspan(1);
 
         for (auto& worker : workers)
         {

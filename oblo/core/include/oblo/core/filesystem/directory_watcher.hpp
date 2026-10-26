@@ -3,10 +3,9 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/unique_ptr.hpp>
-
-#include <span>
 
 namespace oblo::filesystem
 {

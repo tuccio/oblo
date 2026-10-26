@@ -175,7 +175,7 @@ namespace oblo::gpu
         return stage_allocate_internal(size);
     }
 
-    expected<staging_buffer_span> staging_buffer::stage(std::span<const byte> source)
+    expected<staging_buffer_span> staging_buffer::stage(span<const byte> source)
     {
         const usize srcSize = source.size();
 
@@ -202,7 +202,7 @@ namespace oblo::gpu
         return segmentedSpan;
     }
 
-    expected<staging_buffer_span> staging_buffer::stage_image(std::span<const byte> source, u32 texelSize)
+    expected<staging_buffer_span> staging_buffer::stage_image(span<const byte> source, u32 texelSize)
     {
         auto* const srcPtr = source.data();
         const usize srcSize = source.size();
@@ -225,7 +225,7 @@ namespace oblo::gpu
         return result;
     }
 
-    void staging_buffer::copy_to(staging_buffer_span destination, u64 offset, std::span<const byte> source)
+    void staging_buffer::copy_to(staging_buffer_span destination, u64 offset, span<const byte> source)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(destination, offset);
@@ -252,7 +252,7 @@ namespace oblo::gpu
         OBLO_ASSERT(remaining == 0);
     }
 
-    void staging_buffer::copy_from(std::span<byte> dst, staging_buffer_span source, u64 offset)
+    void staging_buffer::copy_from(span<byte> dst, staging_buffer_span source, u64 offset)
     {
         // Create a subspan out of the destination
         const staging_buffer_span subspan = make_subspan(source, offset);
@@ -310,7 +310,7 @@ namespace oblo::gpu
 
     void staging_buffer::upload(hptr<command_buffer> commandBuffer,
         h32<image> image,
-        std::span<const buffer_image_copy_descriptor> copies) const
+        span<const buffer_image_copy_descriptor> copies) const
     {
         m_impl.gpu->cmd_copy_buffer_to_image(commandBuffer, m_impl.buffer, image, copies);
     }

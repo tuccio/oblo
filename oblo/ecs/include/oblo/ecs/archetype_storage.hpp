@@ -1,10 +1,9 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/ecs/handles.hpp>
-
-#include <span>
 
 namespace oblo::ecs
 {
@@ -20,8 +19,8 @@ namespace oblo::ecs
 
     component_and_tag_sets get_component_and_tag_sets(const archetype_storage& storage);
 
-    std::span<const component_type> get_component_types(const archetype_storage& storage);
-    std::span<const tag_type> get_tag_types(const archetype_storage& storage);
+    span<const component_type> get_component_types(const archetype_storage& storage);
+    span<const tag_type> get_tag_types(const archetype_storage& storage);
 
     u32 get_used_chunks_count(const archetype_storage& storage);
 
@@ -32,19 +31,19 @@ namespace oblo::ecs
     u64* access_chunk_modification_id(const archetype_storage& storage, u32 chunkIndex);
 
     void fetch_component_offsets(
-        const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets);
+        const archetype_storage& storage, span<const component_type> componentTypes, span<u32> offsets);
 
     u32 fetch_chunk_data(const archetype_storage& storage,
         u32 chunkIndex,
-        std::span<const u32> offsets,
+        span<const u32> offsets,
         const entity** entities,
-        std::span<std::byte*> componentData);
+        span<std::byte*> componentData);
 
     template <typename F>
     void for_each_chunk(const archetype_storage& storage,
-        std::span<const component_type> componentTypes,
-        std::span<u32> componentOffsets,
-        std::span<std::byte*> componentArrays,
+        span<const component_type> componentTypes,
+        span<u32> componentOffsets,
+        span<std::byte*> componentArrays,
         F&& f)
     {
         OBLO_ASSERT(componentTypes.size() == componentOffsets.size());

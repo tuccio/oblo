@@ -52,7 +52,7 @@ namespace oblo::math_nodes
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
             if (inputs.size() != 1)

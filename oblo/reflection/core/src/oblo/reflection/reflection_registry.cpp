@@ -114,13 +114,13 @@ namespace oblo::reflection
         return e && m_impl->registry.try_get<enum_data>(e) != nullptr ? enum_handle{e.value} : enum_handle{};
     }
 
-    std::span<const field_data> reflection_registry::get_fields(class_handle classId) const
+    span<const field_data> reflection_registry::get_fields(class_handle classId) const
     {
         const auto e = ecs::entity{classId.value};
         return m_impl->registry.get<class_data>(e).fields;
     }
 
-    std::span<const function_handle> reflection_registry::get_functions(class_handle classId) const
+    span<const function_handle> reflection_registry::get_functions(class_handle classId) const
     {
         const auto e = ecs::entity{classId.value};
         return m_impl->registry.get<class_data>(e).functions;
@@ -132,13 +132,13 @@ namespace oblo::reflection
         return m_impl->registry.get<function_data>(e);
     }
 
-    std::span<const cstring_view> reflection_registry::get_enumerator_names(enum_handle enumId) const
+    span<const cstring_view> reflection_registry::get_enumerator_names(enum_handle enumId) const
     {
         const auto e = ecs::entity{enumId.value};
         return m_impl->registry.get<enum_data>(e).names;
     }
 
-    std::span<const byte> reflection_registry::get_enumerator_values(enum_handle enumId) const
+    span<const byte> reflection_registry::get_enumerator_values(enum_handle enumId) const
     {
         const auto e = ecs::entity{enumId.value};
         return m_impl->registry.get<enum_data>(e).values;

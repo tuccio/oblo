@@ -17,7 +17,7 @@ namespace oblo::vk
 
         virtual void get_source_files(deque<string_view>& sourceFiles) = 0;
 
-        virtual std::span<const u32> get_spirv() = 0;
+        virtual span<const u32> get_spirv() = 0;
     };
 
     inline shader_compiler::result_core* get_shader_compiler_result_core(shader_compiler::result& r);

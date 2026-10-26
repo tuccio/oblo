@@ -1,10 +1,9 @@
 #pragma once
 
 #include <oblo/core/buffered_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -25,6 +24,6 @@ namespace oblo
     struct raytracing_pipeline_initializer
     {
         u32 maxPipelineRayRecursionDepth{1};
-        std::span<const hashed_string_view> defines;
+        span<const hashed_string_view> defines;
     };
 }

@@ -1,11 +1,11 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/vulkan/utility/debug_utils.hpp>
-#include <vulkan/vulkan_core.h>
 
-#include <span>
+#include <vulkan/vulkan_core.h>
 
 VK_DEFINE_HANDLE(VmaAllocator)
 VK_DEFINE_HANDLE(VmaAllocation)
@@ -63,7 +63,7 @@ namespace oblo::gpu::vk
 
         VkDevice get_device() const;
 
-        VkResult invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations);
+        VkResult invalidate_mapped_memory_ranges(span<const VmaAllocation> allocations);
 
         const VkAllocationCallbacks* get_allocation_callbacks() const;
 

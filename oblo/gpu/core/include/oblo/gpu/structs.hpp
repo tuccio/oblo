@@ -2,6 +2,7 @@
 
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/variant.hpp>
 #include <oblo/gpu/enums.hpp>
@@ -14,7 +15,6 @@
 
 #include <optional>
 #include <source_location>
-#include <span>
 
 namespace oblo::gpu
 {
@@ -135,18 +135,18 @@ namespace oblo::gpu
 
     struct present_descriptor
     {
-        std::span<const h32<swapchain>> swapchains;
-        std::span<const h32<semaphore>> waitSemaphores;
-        std::span<result<>> outResults;
+        span<const h32<swapchain>> swapchains;
+        span<const h32<semaphore>> waitSemaphores;
+        span<result<>> outResults;
     };
 
     struct queue_submit_descriptor
     {
-        std::span<const hptr<command_buffer>> commandBuffers;
-        std::span<const h32<semaphore>> waitSemaphores;
+        span<const hptr<command_buffer>> commandBuffers;
+        span<const h32<semaphore>> waitSemaphores;
         h32<fence> signalFence;
-        std::span<const h32<semaphore>> signalSemaphores;
-        std::span<const u64> signalSemaphoreValues;
+        span<const h32<semaphore>> signalSemaphores;
+        span<const u64> signalSemaphoreValues;
         /// @brief Serves as an optimization. When set to false a new submit will be started after the current, which
         /// might require synchronization with the GPU.
         bool isLastOfFrame;
@@ -174,10 +174,10 @@ namespace oblo::gpu
 
     struct graphics_pass_targets
     {
-        std::span<const image_format> colorAttachmentFormats;
+        span<const image_format> colorAttachmentFormats;
         image_format depthFormat{image_format::undefined};
         image_format stencilFormat{image_format::undefined};
-        std::span<const color_blend_attachment_state> blendStates;
+        span<const color_blend_attachment_state> blendStates;
     };
 
     struct stencil_op_state
@@ -222,11 +222,11 @@ namespace oblo::gpu
 
     struct graphics_pipeline_descriptor
     {
-        std::span<const graphics_pipeline_stage> stages;
-        std::span<const vertex_input_binding_descriptor> vertexInputBindings;
-        std::span<const vertex_input_attribute_descriptor> vertexInputAttributes;
-        std::span<const push_constant_range> pushConstants;
-        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        span<const graphics_pipeline_stage> stages;
+        span<const vertex_input_binding_descriptor> vertexInputBindings;
+        span<const vertex_input_attribute_descriptor> vertexInputAttributes;
+        span<const push_constant_range> pushConstants;
+        span<const h32<bind_group_layout>> bindGroupLayouts;
         graphics_pass_targets renderTargets;
         depth_stencil_state depthStencilState;
         rasterization_state rasterizationState;
@@ -243,24 +243,24 @@ namespace oblo::gpu
     struct raytracing_hit_group_descriptor
     {
         raytracing_hit_type type;
-        std::span<const raytracing_hit_shader> shaders;
+        span<const raytracing_hit_shader> shaders;
     };
 
     struct compute_pipeline_descriptor
     {
         h32<shader_module> computeShader;
-        std::span<const push_constant_range> pushConstants;
-        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        span<const push_constant_range> pushConstants;
+        span<const h32<bind_group_layout>> bindGroupLayouts;
         debug_label debugLabel = std::source_location::current();
     };
 
     struct raytracing_pipeline_descriptor
     {
         h32<shader_module> rayGenerationShader;
-        std::span<const h32<shader_module>> missShaders;
-        std::span<const raytracing_hit_group_descriptor> hitGroups;
-        std::span<const push_constant_range> pushConstants;
-        std::span<const h32<bind_group_layout>> bindGroupLayouts;
+        span<const h32<shader_module>> missShaders;
+        span<const raytracing_hit_group_descriptor> hitGroups;
+        span<const push_constant_range> pushConstants;
+        span<const h32<bind_group_layout>> bindGroupLayouts;
         u32 maxPipelineRayRecursionDepth;
         debug_label debugLabel = std::source_location::current();
     };
@@ -295,7 +295,7 @@ namespace oblo::gpu
         vec2i renderOffset;
         vec2u renderResolution;
 
-        std::span<const graphics_attachment> colorAttachments;
+        span<const graphics_attachment> colorAttachments;
         std::optional<graphics_attachment> depthAttachment;
         std::optional<graphics_attachment> stencilAttachment;
     };
@@ -310,7 +310,7 @@ namespace oblo::gpu
     struct shader_module_descriptor
     {
         shader_module_format format;
-        std::span<const byte> data;
+        span<const byte> data;
     };
 
     struct swapchain_descriptor
@@ -370,9 +370,9 @@ namespace oblo::gpu
 
     struct memory_barrier_descriptor
     {
-        std::span<const buffer_memory_barrier> buffers;
-        std::span<const image_state_transition> images;
-        std::span<const global_memory_barrier> memory;
+        span<const buffer_memory_barrier> buffers;
+        span<const image_state_transition> images;
+        span<const global_memory_barrier> memory;
     };
 
     struct vertex_input_binding_descriptor
@@ -399,12 +399,12 @@ namespace oblo::gpu
         flags<shader_stage> shaderStages;
 
         /// @brief Only used if the bindingKind is resource_binding_kind::sampler
-        std::span<const h32<sampler>> immutableSamplers;
+        span<const h32<sampler>> immutableSamplers;
     };
 
     struct bind_group_layout_descriptor
     {
-        std::span<const bind_group_binding> bindings;
+        span<const bind_group_binding> bindings;
         debug_label debugLabel = std::source_location::current();
     };
 

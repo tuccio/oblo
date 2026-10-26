@@ -169,7 +169,7 @@ namespace oblo
                 .resolution = resolution,
             };
 
-            ctx.push_constants(gpu::shader_stage::vertex, 0, std::as_bytes(span{&pushConstants, 1}));
+            ctx.push_constants(gpu::shader_stage::vertex, 0, as_bytes(span{&pushConstants, 1}));
 
             ctx.set_scissor(0, 0, resolution.x, resolution.y);
             ctx.set_viewport(resolution.x, resolution.y);

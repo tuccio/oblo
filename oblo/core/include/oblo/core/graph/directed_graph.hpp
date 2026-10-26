@@ -277,24 +277,24 @@ namespace oblo
             return m_edges.try_find(edge)->to;
         }
 
-        std::span<const vertex_handle> get_vertices() const
+        span<const vertex_handle> get_vertices() const
         {
             return m_vertices.keys();
         }
 
-        std::span<const edge_handle> get_edges() const
+        span<const edge_handle> get_edges() const
         {
             return m_edges.keys();
         }
 
-        std::span<const edge_reference> get_in_edges(vertex_handle vertex) const
+        span<const edge_reference> get_in_edges(vertex_handle vertex) const
         {
             auto* const storage = m_vertices.try_find(vertex);
             OBLO_ASSERT(storage);
             return storage->inEdges;
         }
 
-        std::span<const edge_reference> get_out_edges(vertex_handle vertex) const
+        span<const edge_reference> get_out_edges(vertex_handle vertex) const
         {
             auto* const storage = m_vertices.try_find(vertex);
             OBLO_ASSERT(storage);

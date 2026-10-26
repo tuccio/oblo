@@ -2,12 +2,12 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/unordered_map.hpp>
 
 #include "checked_allocator.hpp"
 #include "common.hpp"
 
-#include <span>
 #include <vector>
 
 namespace oblo

@@ -4,7 +4,7 @@
 #include <oblo/ecs/handles.hpp>
 #include <oblo/math/vec2.hpp>
 
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {
@@ -46,7 +46,7 @@ namespace oblo::editor
 
         bool handle(const resource_registry& resources,
             ecs::entity_registry& reg,
-            std::span<const ecs::entity> entities,
+            span<const ecs::entity> entities,
             vec2 origin,
             vec2 size,
             ecs::entity cameraEntity,

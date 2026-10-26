@@ -7,10 +7,10 @@
 #include <oblo/core/iterator/reverse_range.hpp>
 #include <oblo/core/iterator/token_range.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/span.hpp>
 
 #include <algorithm>
 #include <array>
-#include <span>
 #include <vector>
 
 namespace oblo
@@ -64,9 +64,9 @@ namespace oblo
     {
         auto data = array_test_data::setup();
 
-        std::span<const int> cs1{data.a1};
-        std::span<int> s2{data.a2};
-        std::span<const int> cs2{data.a2};
+        span<const int> cs1{data.a1};
+        span<int> s2{data.a2};
+        span<const int> cs2{data.a2};
 
         array_test_data::init_a2(zip_range(cs1, s2));
         array_test_data::check_result(zip_range(cs1, cs2));
@@ -112,7 +112,7 @@ namespace oblo
 
         int n = 0;
 
-        for (auto&& [i, c] : zip_range(std::span{a}, std::span{b}))
+        for (auto&& [i, c] : zip_range(span{a}, span{b}))
         {
             ASSERT_EQ(i, n + 1);
             ASSERT_EQ(c, char(n + 'a'));
@@ -444,8 +444,8 @@ namespace oblo
         std::array a = {1, 2, 3};
         std::array b = {4, 5};
 
-        std::span s1{a};
-        std::span s2{b};
+        span s1{a};
+        span s2{b};
 
         const auto result = collect_ints(concat_range(s1, s2));
 

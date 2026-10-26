@@ -1,13 +1,13 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/fixed_span.hpp>
 #include <oblo/core/hash.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
 #include <bit>
 #include <compare>
-#include <span>
 
 namespace oblo
 {
@@ -28,12 +28,12 @@ namespace oblo
             buffer_too_small,
         };
 
-        constexpr string_view format_to(std::span<char, 36> buffer) const;
+        constexpr string_view format_to(fixed_span<char, 36> buffer) const;
 
-        static constexpr auto parse(std::span<const char, 36> buffer);
+        static constexpr auto parse(fixed_span<const char, 36> buffer);
         static constexpr auto parse(string_view buffer);
 
-        constexpr bool parse_from(std::span<const char, 36> buffer);
+        constexpr bool parse_from(fixed_span<const char, 36> buffer);
         constexpr bool parse_from(string_view buffer);
     };
 
@@ -52,7 +52,7 @@ namespace oblo
         };
     }
 
-    constexpr string_view uuid::format_to(std::span<char, 36> buffer) const
+    constexpr string_view uuid::format_to(fixed_span<char, 36> buffer) const
     {
         using detail::uuid_detail::push_chars;
 
@@ -89,7 +89,7 @@ namespace oblo
         return string_view{buffer.data(), buffer.size()};
     }
 
-    constexpr auto uuid::parse(std::span<const char, 36> buffer)
+    constexpr auto uuid::parse(fixed_span<const char, 36> buffer)
     {
         using result_type = expected<uuid, uuid::format_error>;
 
@@ -192,10 +192,10 @@ namespace oblo
             return result_type{format_error::buffer_too_small};
         }
 
-        return uuid::parse(std::span<const char, 36>{buffer.data(), 36});
+        return uuid::parse(fixed_span<const char, 36>{buffer.data(), 36});
     }
 
-    constexpr bool uuid::parse_from(std::span<const char, 36> buffer)
+    constexpr bool uuid::parse_from(fixed_span<const char, 36> buffer)
     {
         const auto result = uuid::parse(buffer);
 

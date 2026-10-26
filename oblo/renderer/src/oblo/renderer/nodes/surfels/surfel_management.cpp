@@ -93,7 +93,7 @@ namespace oblo
             u32 id;
         };
 
-        vec3 calculate_centroid(std::span<const camera_buffer> cameras)
+        vec3 calculate_centroid(span<const camera_buffer> cameras)
         {
             if (cameras.empty())
             {
@@ -243,7 +243,7 @@ namespace oblo
             ctx.create(outSurfelsMetrics,
                 buffer_resource_initializer{
                     .size = sizeof(surfel_metrics),
-                    .data = as_bytes(std::span{&initMetrics, 1}),
+                    .data = as_bytes(span{&initMetrics, 1}),
                 },
                 buffer_usage::storage_write);
 
@@ -288,7 +288,7 @@ namespace oblo
         const u32 maxSurfels = ctx.access(inMaxSurfels);
         const auto groups = round_up_div(maxSurfels, subgroupSize);
 
-        ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&maxSurfels, 1)));
+        ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span(&maxSurfels, 1)));
 
         ctx.dispatch_compute(groups, 1, 1);
 
@@ -386,7 +386,7 @@ namespace oblo
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&randomSeed, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span{&randomSeed, 1}));
 
             ctx.dispatch_compute(tilesX, tilesY, 1);
 
@@ -484,7 +484,7 @@ namespace oblo
                 .currentTimestamp = ctx.get_current_frames_count(),
             };
 
-            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span{&constants, 1}));
 
             const u32 groups = round_up_div(tileCoverage.elements, subgroupSize);
 
@@ -692,7 +692,7 @@ namespace oblo
 
             const vec3u groups = calculate_group_size_1d(gpuInfo, surfelsHashMapEntries);
 
-            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span(&constants, 1)));
             ctx.dispatch_compute(groups.x, groups.y, groups.z);
 
             ctx.end_pass();
@@ -715,7 +715,7 @@ namespace oblo
                 .currentTimestamp = ctx.get_current_frames_count(),
             };
 
-            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span(&constants, 1)));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span(&constants, 1)));
 
             const vec3u groups = calculate_group_size_1d(gpuInfo, maxSurfels);
             ctx.dispatch_compute(groups.x, groups.y, groups.z);
@@ -778,7 +778,7 @@ namespace oblo
 
         for (u32 i = 0; i < reductionPassesCount; ++i)
         {
-            const auto defines = i > 0 ? std::span<const hashed_string_view>{} : std::span{firstReductionDefines};
+            const auto defines = i > 0 ? span<const hashed_string_view>{} : span{firstReductionDefines};
 
             const auto subpassId = ctx.compute_pass(reducePass, {.defines = defines});
 
@@ -838,7 +838,7 @@ namespace oblo
                 .inElements = subpass.inputSurfels,
             };
 
-            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span{&constants, 1}));
 
             const u32 groups = round_up_div(constants.inElements, reductionGroupSize);
 
@@ -871,7 +871,7 @@ namespace oblo
                     .inElements = subpass.inputSurfels,
                 };
 
-                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&constants, 1}));
+                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span{&constants, 1}));
 
                 const u32 groups = round_up_div(constants.inElements, reductionGroupSize);
 
@@ -993,7 +993,7 @@ namespace oblo
             };
 
             ctx.bind_descriptor_sets(bindingTable);
-            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(span{&constants, 1}));
 
             ctx.trace_rays(maxSurfels, 1, 1);
 

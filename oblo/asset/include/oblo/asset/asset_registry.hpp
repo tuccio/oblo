@@ -2,12 +2,11 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -53,7 +52,7 @@ namespace oblo
         asset_registry& operator=(asset_registry&&) noexcept = delete;
         ~asset_registry();
 
-        [[nodiscard]] bool initialize(std::span<const asset_repository_descriptor> assetRepositories,
+        [[nodiscard]] bool initialize(span<const asset_repository_descriptor> assetRepositories,
             cstring_view artifactsDir);
 
         void shutdown();

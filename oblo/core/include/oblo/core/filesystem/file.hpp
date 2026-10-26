@@ -4,6 +4,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/filesystem/file_ptr.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
@@ -11,7 +12,6 @@
 #include <oblo/core/unique_ptr.hpp>
 
 #include <cstdio>
-#include <span>
 
 namespace oblo
 {
@@ -23,17 +23,16 @@ namespace oblo::filesystem
     expected<unique_ptr<byte[]>> load_binary_file_into_memory(
         allocator* allocator, cstring_view path, usize alignment = 1);
 
-    expected<std::span<byte>> load_binary_file_into_memory(
+    expected<span<byte>> load_binary_file_into_memory(
         frame_allocator& allocator, cstring_view path, usize alignment = 1);
 
-    expected<std::span<char>> load_text_file_into_memory(
-        frame_allocator& allocator, cstring_view path, usize alignment = 1);
+    expected<span<char>> load_text_file_into_memory(frame_allocator& allocator, cstring_view path, usize alignment = 1);
 
-    expected<std::span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path);
+    expected<span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path);
 
-    expected<std::span<char>> load_text_file_into_memory(dynamic_array<char>& out, cstring_view path);
+    expected<span<char>> load_text_file_into_memory(dynamic_array<char>& out, cstring_view path);
 
-    expected<std::span<char>> load_text_file_into_memory(string_builder& out, cstring_view path);
+    expected<span<char>> load_text_file_into_memory(string_builder& out, cstring_view path);
 
     FILE* open_file(cstring_view path, const char* mode);
 
@@ -44,5 +43,5 @@ namespace oblo::filesystem
         enum_max,
     };
 
-    expected<> write_file(cstring_view destination, std::span<const byte> bytes, flags<write_mode> mode);
+    expected<> write_file(cstring_view destination, span<const byte> bytes, flags<write_mode> mode);
 }

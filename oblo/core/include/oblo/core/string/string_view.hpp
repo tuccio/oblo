@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstring>
 #include <bit>
+#include <cstring>
 
 #include <oblo/core/concepts/contiguous_container.hpp>
 #include <oblo/core/debug.hpp>
@@ -116,7 +116,7 @@ namespace oblo
         constexpr string_view substr(size_type pos, size_type count = npos) const noexcept
         {
             OBLO_ASSERT(pos <= m_size);
-            return {m_begin + pos, clamp_offset(pos, count)};
+            return {m_begin + pos, clamp_offset(m_size, pos, count)};
         }
 
         constexpr void remove_prefix(usize n)
@@ -150,7 +150,7 @@ namespace oblo
         {
             OBLO_ASSERT(pos <= m_size);
 
-            const auto rcount = clamp_offset(pos, count);
+            const auto rcount = clamp_offset(m_size, pos, count);
 
             for (const_pointer b = m_begin, e = m_begin + rcount; b != e; ++b)
             {
@@ -313,25 +313,6 @@ namespace oblo
         T as() const noexcept
         {
             return T{m_begin, m_size};
-        }
-
-    private:
-        constexpr size_type clamp_offset(size_type offset, size_type count) const
-        {
-            const auto r = m_size - offset;
-            return r < count ? r : count;
-        }
-
-        static constexpr usize cstring_length(const char* ptr)
-        {
-            usize i = 0;
-
-            while (ptr[i] != '\0')
-            {
-                ++i;
-            }
-
-            return i;
         }
 
     private:

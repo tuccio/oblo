@@ -64,9 +64,9 @@ namespace oblo
         // Update all the roots
         for (auto&& chunk : reg.range<global_transform_component>().notified(target))
         {
-            std::span positions = chunk.try_get<const position_component>();
-            std::span rotations = chunk.try_get<const rotation_component>();
-            std::span scales = chunk.try_get<const scale_component>();
+            span positions = chunk.try_get<const position_component>();
+            span rotations = chunk.try_get<const rotation_component>();
+            span scales = chunk.try_get<const scale_component>();
 
             bool anyChange = false;
 

@@ -466,14 +466,14 @@ namespace oblo
                 .meshletCount = range.meshletCount,
             };
 
-            defer_upload(std::as_bytes(std::span{&drawRange, 1}),
+            defer_upload(as_bytes(span{&drawRange, 1}),
                 meshDataBuffers[u32(mesh_data_buffers::mesh_draw_range)]);
         }
 
         {
             const auto aabb = meshPtr->get_aabb();
             const gpu_aabb gpuAabb{.min = aabb.min, .max = aabb.max};
-            defer_upload(std::as_bytes(std::span{&gpuAabb, 1}), meshDataBuffers[u32(mesh_data_buffers::aabb)]);
+            defer_upload(as_bytes(span{&gpuAabb, 1}), meshDataBuffers[u32(mesh_data_buffers::aabb)]);
         }
 
         const h32<draw_mesh> globalMeshId{make_mesh_id(meshHandle)};
@@ -539,7 +539,7 @@ namespace oblo
         deferred.apply(*m_entities);
     }
 
-    void draw_registry::defer_upload(const std::span<const byte> data, const gpu::buffer_range& b)
+    void draw_registry::defer_upload(const span<const byte> data, const gpu::buffer_range& b)
     {
         OBLO_ASSERT(b.size == data.size());
 
@@ -613,7 +613,7 @@ namespace oblo
     {
         create_instances();
 
-        const std::span archetypes = m_entities->get_archetypes();
+        const span archetypes = m_entities->get_archetypes();
 
         if (archetypes.empty())
         {
@@ -646,7 +646,7 @@ namespace oblo
                 continue;
             }
 
-            const std::span componentTypes = ecs::get_component_types(archetype);
+            const span componentTypes = ecs::get_component_types(archetype);
 
             ++currentDrawBatch;
 
@@ -700,7 +700,7 @@ namespace oblo
                 componentTypes,
                 dataOffsets,
                 componentData,
-                [&](const ecs::entity*, std::span<std::byte*> componentArrays, u32 numEntitiesInChunk)
+                [&](const ecs::entity*, span<std::byte*> componentArrays, u32 numEntitiesInChunk)
                 {
                     for (usize i = 0, j = 0; i < allComponentsCount; ++i)
                     {
@@ -761,9 +761,9 @@ namespace oblo
 
         struct blas_build_info
         {
-            std::span<VkAccelerationStructureGeometryKHR> geometry;
-            std::span<VkAccelerationStructureBuildRangeInfoKHR> ranges;
-            std::span<u32> maxPrimitives;
+            span<VkAccelerationStructureGeometryKHR> geometry;
+            span<VkAccelerationStructureBuildRangeInfoKHR> ranges;
+            span<u32> maxPrimitives;
             VkAccelerationStructureKHR accelerationStructure{};
             VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
             h32<gpu::buffer> blasBuffer{};
@@ -1013,7 +1013,7 @@ namespace oblo
                             .indexType = u32(meshIndexType),
                         }};
 
-                        defer_upload(as_bytes(std::span(fullIndexBufferData)), meshBuffers[0]);
+                        defer_upload(as_bytes(span(fullIndexBufferData)), meshBuffers[0]);
                     }
                 }
 
@@ -1048,7 +1048,7 @@ namespace oblo
             {
                 const usize n = m_pendingMeshUploads.size() - firstBlasUpload;
                 // Add barriers for the index buffer upload to build the BLAS
-                const std::span barriers = allocate_n_span<VkBufferMemoryBarrier2>(allocator, n);
+                const span barriers = allocate_n_span<VkBufferMemoryBarrier2>(allocator, n);
 
                 for (usize i = 0; i < n; ++i)
                 {
@@ -1329,12 +1329,12 @@ namespace oblo
         }
     }
 
-    std::span<const batch_draw_data> draw_registry::get_draw_calls() const
+    span<const batch_draw_data> draw_registry::get_draw_calls() const
     {
         return {m_drawData, m_drawDataCount};
     }
 
-    std::span<const std::byte> draw_registry::get_mesh_database_data() const
+    span<const std::byte> draw_registry::get_mesh_database_data() const
     {
         return m_meshDatabaseData;
     }

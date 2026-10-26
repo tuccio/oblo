@@ -374,7 +374,7 @@ namespace oblo::editor
                 ptr.load_sync();
 
                 const auto& desc = ptr->get_description();
-                std::span<const byte> data = ptr->get_data(0, 0, 0);
+                span<const byte> data = ptr->get_data(0, 0, 0);
 
                 OBLO_ASSERT(desc.vkFormat == texture_format::r8g8b8a8_unorm);
 

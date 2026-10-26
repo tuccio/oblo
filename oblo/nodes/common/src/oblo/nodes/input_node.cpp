@@ -34,7 +34,7 @@ namespace oblo
     bool input_node::generate([[maybe_unused]] const node_graph_context& g,
         [[maybe_unused]] abstract_syntax_tree& ast,
         [[maybe_unused]] h32<ast_node> parent,
-        [[maybe_unused]] const std::span<const h32<ast_node>> inputs,
+        [[maybe_unused]] const span<const h32<ast_node>> inputs,
         [[maybe_unused]] dynamic_array<h32<ast_node>>& outputs) const
     {
         return false;

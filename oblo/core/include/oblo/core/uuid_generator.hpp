@@ -2,10 +2,9 @@
 
 #include <oblo/core/hash.hpp>
 #include <oblo/core/random_generator.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -51,7 +50,7 @@ namespace oblo
         uuid_namespace_generator(const uuid_namespace_generator&) = default;
         uuid_namespace_generator& operator=(const uuid_namespace_generator&) = default;
 
-        uuid generate(std::span<const byte> data) const
+        uuid generate(span<const byte> data) const
         {
             return generate(string_view{reinterpret_cast<const char*>(data.data()), data.size()});
         }

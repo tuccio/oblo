@@ -16,8 +16,8 @@ namespace oblo::ecs
 
     namespace
     {
-        template <typename T, usize N>
-        std::span<T> make_type_span(std::span<T, N> inOut, type_set current)
+        template <typename T>
+        span<T> make_type_span(span<T> inOut, type_set current)
         {
             u32 count{0};
 
@@ -55,8 +55,8 @@ namespace oblo::ecs
         component_type componentTypeHandlesArray[MaxComponentTypes];
         tag_type tagTypeHandlesArray[MaxTagTypes];
 
-        const std::span components = make_type_span(std::span{componentTypeHandlesArray}, types.components);
-        const std::span tags = make_type_span(std::span{tagTypeHandlesArray}, types.tags);
+        const span components = make_type_span(span{componentTypeHandlesArray}, types.components);
+        const span tags = make_type_span(span{tagTypeHandlesArray}, types.tags);
 
         OBLO_ASSERT(std::is_sorted(components.begin(), components.end()));
         const u8 numComponents = u8(components.size());
@@ -248,12 +248,12 @@ namespace oblo::ecs
         return storage.archetype->types;
     }
 
-    std::span<const component_type> get_component_types(const archetype_storage& storage)
+    span<const component_type> get_component_types(const archetype_storage& storage)
     {
         return {storage.archetype->components, storage.archetype->numComponents};
     }
 
-    std::span<const tag_type> get_tag_types(const archetype_storage& storage)
+    span<const tag_type> get_tag_types(const archetype_storage& storage)
     {
         return {storage.archetype->tags, storage.archetype->numTags};
     }
@@ -284,7 +284,7 @@ namespace oblo::ecs
     }
 
     void fetch_component_offsets(
-        const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets)
+        const archetype_storage& storage, span<const component_type> componentTypes, span<u32> offsets)
     {
         OBLO_ASSERT(offsets.size() == componentTypes.size());
 
@@ -319,9 +319,9 @@ namespace oblo::ecs
 
     u32 fetch_chunk_data(const archetype_storage& storage,
         u32 chunkIndex,
-        std::span<const u32> offsets,
+        span<const u32> offsets,
         const entity** entities,
-        std::span<std::byte*> componentData)
+        span<std::byte*> componentData)
     {
         const auto& archetype = *storage.archetype;
         chunk* const chunk = archetype.chunks[chunkIndex];

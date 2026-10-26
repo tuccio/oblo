@@ -5,7 +5,7 @@
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/ecs/forward.hpp>
 
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo::reflection
 {
@@ -25,7 +25,7 @@ namespace oblo
         const ecs::type_registry* typeRegistry;
         const property_registry* propertyRegistry;
         const resource_registry* resourceRegistry;
-        std::span<ecs::world_builder* const> worldBuilders;
+        span<ecs::world_builder* const> worldBuilders;
         const ecs::system_graph_usages* usages;
         usize frameAllocatorMaxSize{1u << 28};
     };

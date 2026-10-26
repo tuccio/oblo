@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
 namespace oblo
 {
     class allocator;
@@ -19,6 +20,9 @@ namespace oblo
     template <typename T>
     struct hash;
 
+    template <typename T, usize N>
+    class fixed_span;
+
     template <typename>
     class function_ref;
 
@@ -27,6 +31,12 @@ namespace oblo
 
     template <typename>
     class promise;
+
+    template <typename It>
+    class reverse_iterator;
+
+    template <typename T>
+    class span;
 
     template <typename T, typename D>
     class unique_ptr;

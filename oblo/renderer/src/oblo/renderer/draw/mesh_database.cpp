@@ -39,9 +39,9 @@ namespace oblo
             return {tableId, mesh_table_entry_id{meshId}};
         }
 
-        std::span<const buffer_table_column_description> attributes_to_buffer_columns(u32 meshAttributesMask,
-            std::span<const buffer_table_column_description> attributeDescs,
-            std::span<buffer_table_column_description> columns)
+        span<const buffer_table_column_description> attributes_to_buffer_columns(u32 meshAttributesMask,
+            span<const buffer_table_column_description> attributeDescs,
+            span<buffer_table_column_description> columns)
         {
             u32 n = 0;
 
@@ -59,9 +59,9 @@ namespace oblo
             return columns.subspan(0, n);
         }
 
-        std::span<const h32<buffer_table_name>> attributes_to_names(std::span<const u32> attributeIds,
-            std::span<const buffer_table_column_description> attributeDescs,
-            std::span<h32<buffer_table_name>> columns)
+        span<const h32<buffer_table_name>> attributes_to_names(span<const u32> attributeIds,
+            span<const buffer_table_column_description> attributeDescs,
+            span<h32<buffer_table_name>> columns)
         {
             usize n = 0;
 
@@ -138,10 +138,10 @@ namespace oblo
 
         m_attributes = {};
 
-        const std::span meshDataColumns{start_lifetime_as<buffer_table_column_description>(initializer.meshData.data()),
+        const span meshDataColumns{start_lifetime_as<buffer_table_column_description>(initializer.meshData.data()),
             initializer.meshData.size()};
 
-        const std::span attributesColumns{
+        const span attributesColumns{
             start_lifetime_as<buffer_table_column_description>(initializer.attributes.data()),
             initializer.attributes.size()};
 
@@ -190,7 +190,7 @@ namespace oblo
             newTable.meshes = std::make_unique<mesh_table>();
 
             std::array<buffer_table_column_description, MaxAttributes> columnsBuffer;
-            const std::span columns = attributes_to_buffer_columns(meshAttributesMask, m_attributes, columnsBuffer);
+            const span columns = attributes_to_buffer_columns(meshAttributesMask, m_attributes, columnsBuffer);
 
             u32 indexByteSize{};
             gpu::buffer_range indexBuffer{};
@@ -249,17 +249,17 @@ namespace oblo
     }
 
     bool mesh_database::fetch_buffers(mesh_handle mesh,
-        std::span<const u32> vertexAttributes,
-        std::span<gpu::buffer_range> vertexBuffers,
+        span<const u32> vertexAttributes,
+        span<gpu::buffer_range> vertexBuffers,
         gpu::buffer_range* indexBuffer,
-        std::span<const h32<buffer_table_name>> meshBufferNames,
-        std::span<gpu::buffer_range> meshBuffers,
+        span<const h32<buffer_table_name>> meshBufferNames,
+        span<gpu::buffer_range> meshBuffers,
         gpu::buffer_range* meshletsBuffer) const
     {
         const auto [tableId, meshId] = parse_mesh_handle(mesh);
 
         std::array<h32<buffer_table_name>, MaxAttributes> namesBuffer;
-        const std::span vertexAttributeNames = attributes_to_names(vertexAttributes, m_attributes, namesBuffer);
+        const span vertexAttributeNames = attributes_to_names(vertexAttributes, m_attributes, namesBuffer);
 
         return m_tables[tableId].meshes->fetch_buffers(mesh_table_entry_id{meshId},
             vertexAttributeNames,
@@ -315,7 +315,7 @@ namespace oblo
         };
     }
 
-    std::span<const std::byte> mesh_database::create_mesh_table_lookup(frame_allocator& allocator) const
+    span<const std::byte> mesh_database::create_mesh_table_lookup(frame_allocator& allocator) const
     {
         if (m_tables.empty())
         {
@@ -336,7 +336,7 @@ namespace oblo
 
         static_assert(sizeof(mesh_table_gpu) % 16 == 0);
 
-        const std::span gpuTables = allocate_n_span<mesh_table_gpu>(allocator, m_tables.size());
+        const span gpuTables = allocate_n_span<mesh_table_gpu>(allocator, m_tables.size());
 
         for (usize i = 0; i < m_tables.size(); ++i)
         {
@@ -388,7 +388,7 @@ namespace oblo
             }
         }
 
-        return std::as_bytes(gpuTables);
+        return as_bytes(gpuTables);
     }
 
     u64 mesh_database::calculate_mesh_tables_size() const

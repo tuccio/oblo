@@ -403,7 +403,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         ASSERT_EQ(elements.size(), 4);
 
         // The fit panel hugs its content: width = sum of children, height = max child.
@@ -435,7 +435,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         // Content is 100 wide, but the fit minimum is 400.
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 400.f);
 
@@ -463,7 +463,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 0.f);
         EXPECT_FLOAT_EQ(elements[2].effectiveRect.x, 110.f);
 
@@ -491,7 +491,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 10.f);
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 20.f);
 
@@ -516,7 +516,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 400.f);
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.height, 150.f);
 
@@ -544,7 +544,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         // 50% of the 780 px inner width, positioned after the left padding.
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 10.f);
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 390.f);
@@ -566,7 +566,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         EXPECT_FLOAT_EQ(elements[0].effectiveRect.x, 0.f);
         EXPECT_FLOAT_EQ(elements[0].effectiveRect.y, 0.f);
         EXPECT_FLOAT_EQ(elements[0].effectiveRect.width, 400.f);
@@ -603,7 +603,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         // inner starts after root padding; its children are relative to inner.
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 10.f);
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 20.f);
@@ -640,7 +640,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 100.f);
         EXPECT_FLOAT_EQ(elements[2].effectiveRect.width, 100.f);
         EXPECT_FLOAT_EQ(elements[3].effectiveRect.width, 50.f);
@@ -1079,7 +1079,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         // Single child centered along the main (x) axis of a left-to-right layout.
         // With alignment::center() both axes are centered.
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 300.f);
@@ -1110,7 +1110,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         // Single child centered along the main (y) axis of a top-to-bottom layout.
         // With alignment::center() both axes are centered.
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 300.f);
@@ -1143,7 +1143,7 @@ namespace oblo::ui
 
         end_frame(*state);
 
-        const std::span elements = state->elements;
+        const span elements = state->elements;
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.x, 25.f);
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.y, 25.f);
         EXPECT_FLOAT_EQ(elements[1].effectiveRect.width, 50.f);

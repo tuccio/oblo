@@ -1,13 +1,12 @@
 #include <oblo/ecs/systems/system_graph.hpp>
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/type_id.hpp>
+#include <oblo/core/unordered_map.hpp>
 #include <oblo/ecs/forward.hpp>
 #include <oblo/ecs/systems/system_graph_usages.hpp>
 #include <oblo/ecs/systems/system_trampoline.hpp>
-#include <oblo/core/unordered_map.hpp>
-
-#include <span>
 
 namespace oblo::ecs
 {
@@ -27,9 +26,9 @@ namespace oblo::ecs
         system_graph_builder& operator=(system_graph_builder&&) = delete;
 
         barrier_builder add_system(const system_descriptor& desc,
-            std::span<const type_id> before,
-            const std::span<const type_id> after,
-            std::span<const type_id> barriers);
+            span<const type_id> before,
+            const span<const type_id> after,
+            span<const type_id> barriers);
 
         template <typename T>
         barrier_builder add_system();

@@ -69,7 +69,7 @@ namespace oblo
             string_builder src;
             src.format("{}.cpp", name);
 
-            ASSERT_TRUE(filesystem::write_file(src, as_bytes(std::span{code.data(), code.size()}), {}));
+            ASSERT_TRUE(filesystem::write_file(src, as_bytes(span{code.data(), code.size()}), {}));
 
             string_builder dst;
             filesystem::current_path(dst);

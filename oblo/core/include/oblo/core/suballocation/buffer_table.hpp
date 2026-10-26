@@ -2,8 +2,7 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
-
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {
@@ -45,15 +44,15 @@ namespace oblo
         /// @return The total suballocated size, or an error.
         [[nodiscard]] expected<u64> init(u64 memStartOffset,
             u64 memTotalSize,
-            std::span<const buffer_table_column_description> columns,
+            span<const buffer_table_column_description> columns,
             u64 rows,
             u64 bufferAlignment);
 
         void shutdown();
 
-        std::span<const h32<buffer_table_name>> names() const;
-        std::span<const subrange> buffer_subranges() const;
-        std::span<const u64> element_sizes() const;
+        span<const h32<buffer_table_name>> names() const;
+        span<const subrange> buffer_subranges() const;
+        span<const u64> element_sizes() const;
 
         i32 find(h32<buffer_table_name> name) const;
 

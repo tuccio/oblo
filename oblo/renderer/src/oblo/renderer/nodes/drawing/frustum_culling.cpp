@@ -42,7 +42,7 @@ namespace oblo
         auto& drawBufferData = ctx.access(outDrawBufferData);
 
         const auto& drawRegistry = *ctx.access(inRenderWorld).drawRegistry;
-        const std::span drawCalls = drawRegistry.get_draw_calls();
+        const span drawCalls = drawRegistry.get_draw_calls();
 
         if (drawCalls.empty())
         {
@@ -71,7 +71,7 @@ namespace oblo
                 .drawCallCountBuffer = ctx.create_dynamic_buffer(
                     {
                         .size = sizeof(u32),
-                        .data = {as_bytes(std::span{&zero, 1})},
+                        .data = {as_bytes(span{&zero, 1})},
                     },
                     buffer_usage::storage_write),
                 .preCullingIdMap = ctx.create_dynamic_buffer(
@@ -104,7 +104,7 @@ namespace oblo
 
         if (const auto pass = ctx.begin_pass(cullPassInstance))
         {
-            const std::span drawData = ctx.access(outDrawBufferData);
+            const span drawData = ctx.access(outDrawBufferData);
 
             const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
@@ -128,7 +128,7 @@ namespace oblo
                 };
 
                 ctx.bind_descriptor_sets(bindingTable);
-                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&pcData, 1}));
+                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span{&pcData, 1}));
 
                 ctx.dispatch_compute(round_up_div(count, subgroupSize), 1, 1);
             }

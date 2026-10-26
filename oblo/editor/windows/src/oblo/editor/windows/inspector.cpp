@@ -69,7 +69,7 @@ namespace oblo::editor
             m_ctx->picker.set_window_manager(&ctx.windowManager);
 
             auto* const selectionService = m_editorWorld->get_selected_entities();
-            const std::span selectedEntities = selectionService->get();
+            const span selectedEntities = selectionService->get();
 
             auto* const entityRegistry = m_editorWorld->get_entity_registry();
 
@@ -122,7 +122,7 @@ namespace oblo::editor
 
                     ImGui::PopStyleColor();
 
-                    const std::span components = entityRegistry->get_component_types(e);
+                    const span components = entityRegistry->get_component_types(e);
 
                     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2));
 

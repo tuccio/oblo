@@ -9,7 +9,7 @@
 #include <oblo/renderer/graph/pins.hpp>
 
 #include <initializer_list>
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {
@@ -108,7 +108,7 @@ namespace oblo
         binding_tables_span(const binding_tables_span&) = default;
         binding_tables_span(const binding_table& t) : m_table{&t}, m_count{1} {}
 
-        binding_tables_span(std::span<const binding_table* const> tables) :
+        binding_tables_span(span<const binding_table* const> tables) :
             m_array{tables.data()}, m_count{tables.size()}
         {
             if (m_count == 1)
@@ -118,14 +118,14 @@ namespace oblo
         }
 
         template <usize N>
-        binding_tables_span(const binding_table* (&array)[N]) : binding_tables_span{std::span{array}}
+        binding_tables_span(const binding_table* (&array)[N]) : binding_tables_span{span{array}}
         {
         }
 
-        std::span<const binding_table* const> span() const&
+        span<const binding_table* const> span() const&
         {
             auto* const array = m_count == 1 ? &m_table : m_array;
-            return std::span<const binding_table* const>{array, m_count};
+            return span<const binding_table* const>{array, m_count};
         }
 
     private:

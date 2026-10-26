@@ -210,7 +210,7 @@ namespace oblo::gpu::vk
         return m_allocator->m_hDevice;
     }
 
-    VkResult gpu_allocator::invalidate_mapped_memory_ranges(std::span<const VmaAllocation> allocations)
+    VkResult gpu_allocator::invalidate_mapped_memory_ranges(span<const VmaAllocation> allocations)
     {
         return vmaInvalidateAllocations(m_allocator, u32(allocations.size()), allocations.data(), nullptr, nullptr);
     }

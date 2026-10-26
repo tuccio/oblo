@@ -45,7 +45,7 @@ namespace oblo
 
             bool import(import_context ctx)
             {
-                const std::span configs = ctx.get_import_node_configs();
+                const span configs = ctx.get_import_node_configs();
 
                 const auto& nodeConfig = configs[0];
 
@@ -291,7 +291,7 @@ public class Behaviour : IBehaviour
                                 path.append(".cs");
                             }
 
-                            if (const auto e = filesystem::write_file(path, as_bytes(std::span{code}), {}); !e)
+                            if (const auto e = filesystem::write_file(path, as_bytes(span{code}), {}); !e)
                             {
                                 return e.error();
                             }

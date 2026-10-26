@@ -2,12 +2,12 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/hash.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/format.hpp>
 #include <oblo/core/string/string_view.hpp>
 
 #include <format>
-#include <span>
 
 namespace oblo
 {
@@ -90,7 +90,7 @@ namespace oblo
 
         const char* c_str() const;
         const char* data() const;
-        std::span<char> mutable_data();
+        span<char> mutable_data();
         usize size() const;
 
         bool empty() const;
@@ -270,7 +270,7 @@ namespace oblo
         return m_buffer.data();
     }
 
-    OBLO_FORCEINLINE std::span<char> string_builder::mutable_data()
+    OBLO_FORCEINLINE span<char> string_builder::mutable_data()
     {
         return m_buffer;
     }

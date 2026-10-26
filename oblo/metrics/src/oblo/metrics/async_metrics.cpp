@@ -8,12 +8,12 @@ namespace oblo
         m_isDone = false;
     }
 
-    std::span<async_metrics::entry> async_metrics::get_entries()
+    span<async_metrics::entry> async_metrics::get_entries()
     {
         return m_entries;
     }
 
-    std::span<const async_metrics::entry> async_metrics::get_entries() const
+    span<const async_metrics::entry> async_metrics::get_entries() const
     {
         return m_entries;
     }

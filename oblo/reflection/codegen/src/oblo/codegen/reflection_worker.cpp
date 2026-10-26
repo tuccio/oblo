@@ -101,7 +101,7 @@ namespace oblo::gen
             }
         }
 
-        return filesystem::write_file(outputFile, as_bytes(std::span{m_content}), {});
+        return filesystem::write_file(outputFile, as_bytes(span{m_content}), {});
     }
 
     void reflection_worker::reset()

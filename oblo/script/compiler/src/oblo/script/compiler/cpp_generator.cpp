@@ -166,7 +166,7 @@ namespace oblo
             string_builder m_expressionType;
         };
 
-        bool get_children(const abstract_syntax_tree& ast, h32<ast_node> node, const std::span<h32<ast_node>> out)
+        bool get_children(const abstract_syntax_tree& ast, h32<ast_node> node, const span<h32<ast_node>> out)
         {
             const auto children = ast.children(node);
 

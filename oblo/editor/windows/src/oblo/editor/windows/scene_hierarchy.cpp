@@ -74,7 +74,7 @@ namespace oblo::editor
                     selection->push_refresh_event();
                 }
 
-                const std::span selectedEntities = selection->get();
+                const span selectedEntities = selection->get();
 
                 if (!selectedEntities.empty())
                 {

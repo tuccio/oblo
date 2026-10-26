@@ -74,13 +74,13 @@ namespace oblo::reflection
         void add_tag(u32 entityIndex, const type_id& type);
         void add_concept(
             u32 entityIndex, const type_id& type, u32 size, u32 alignment, const ranged_type_erasure& rte, void* src);
-        void add_enumerator(u32 entityIndex, cstring_view name, std::span<const byte> value);
+        void add_enumerator(u32 entityIndex, cstring_view name, span<const byte> value);
 
         u32 add_function_type(cstring_view fullyQualifiedName,
             void* f,
             invoker_fn invoker,
             const type_id& returnType,
-            std::span<const type_id> parameterTypes);
+            span<const type_id> parameterTypes);
 
         template <typename C>
         void add_concept(u32 entityIndex, C value)
@@ -104,7 +104,7 @@ namespace oblo::reflection
             return u32(bMemberPtr - bStructPtr);
         }
 
-        void make_array_type(u32 entityIndex, std::span<const usize> extents);
+        void make_array_type(u32 entityIndex, span<const usize> extents);
 
         void init_function_parameter(u32 entityIndex, u32 parameterIndex, cstring_view name);
 
@@ -170,7 +170,7 @@ namespace oblo::reflection
 
         enum_builder& add_enumerator(cstring_view name, T value)
         {
-            m_registrant.add_enumerator(m_entityIndex, name, std::as_bytes(std::span{&value, 1}));
+            m_registrant.add_enumerator(m_entityIndex, name, as_bytes(span{&value, 1}));
             return *this;
         }
 

@@ -92,8 +92,8 @@ namespace oblo
 
         const topology& get_graph() const;
 
-        std::span<const vertex_handle> get_inputs() const;
-        std::span<const vertex_handle> get_outputs() const;
+        span<const vertex_handle> get_inputs() const;
+        span<const vertex_handle> get_outputs() const;
 
         string_view get_name(vertex_handle inputOrOutput) const;
 

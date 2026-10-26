@@ -1,9 +1,9 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 
-#include <span>
 #include <vector>
 
 namespace oblo
@@ -34,7 +34,7 @@ namespace oblo
 
         void clear();
 
-        void add(std::span<const aabb> aabbs, u32 startingId);
+        void add(span<const aabb> aabbs, u32 startingId);
 
         aabb primitives_bounds(u32 begin, u32 end) const;
         aabb centroids_bounds(u32 begin, u32 end) const;
@@ -43,9 +43,9 @@ namespace oblo
 
         bool intersect(const ray& ray, u32 beginIndex, u16 numPrimitives, f32& distance, hit_result& result) const;
 
-        std::span<const u32> get_ids() const;
-        std::span<const aabb> get_aabbs() const;
-        std::span<const vec3> get_centroids() const;
+        span<const u32> get_ids() const;
+        span<const aabb> get_aabbs() const;
+        span<const vec3> get_centroids() const;
 
     private:
         std::vector<u32> m_ids;

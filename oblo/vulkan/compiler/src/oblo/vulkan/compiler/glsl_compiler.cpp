@@ -204,7 +204,7 @@ namespace oblo::vk
             glsl_compilation_base(allocator& allocator) : m_preprocessor{allocator}, m_error{&allocator} {}
 
             bool preprocess_from_file(
-                cstring_view path, string_view preamble, std::span<const string_builder> includeDirs)
+                cstring_view path, string_view preamble, span<const string_builder> includeDirs)
             {
                 OBLO_ASSERT(m_state == state::idle);
 
@@ -356,10 +356,10 @@ namespace oblo::vk
                 }
             }
 
-            std::span<const u32> get_spirv() override
+            span<const u32> get_spirv() override
             {
                 OBLO_ASSERT(m_state == state::compilation_complete);
-                return std::span{m_spirv};
+                return span{m_spirv};
             }
 
         private:
@@ -387,7 +387,7 @@ namespace oblo::vk
                 glslFile.append(workDir).append_path_separator().format("{}", id).append(
                     glsl_deduce_extension(m_stage));
 
-                if (!write_file(glslFile, as_bytes(std::span{sourceCode}), filesystem::write_mode::binary))
+                if (!write_file(glslFile, as_bytes(span{sourceCode}), filesystem::write_mode::binary))
                 {
                     m_state = state::compilation_failed;
                     m_error.clear().format("A filesystem error occurred while writing source code to {}", glslFile);
@@ -509,13 +509,13 @@ namespace oblo::vk
                 }
             }
 
-            std::span<const u32> get_spirv() override
+            span<const u32> get_spirv() override
             {
                 OBLO_ASSERT(m_state == state::compilation_complete);
                 OBLO_ASSERT(m_spirv.size() % sizeof(u32) == 0);
 
                 const auto n = m_spirv.size() / sizeof(u32);
-                const auto spv = std::span{start_lifetime_as_array<u32>(m_spirv.data(), n), n};
+                const auto spv = span{start_lifetime_as_array<u32>(m_spirv.data(), n), n};
 
                 return spv;
             }

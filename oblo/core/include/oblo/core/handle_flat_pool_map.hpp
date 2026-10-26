@@ -29,12 +29,12 @@ namespace oblo
         using base_type::size32;
         using base_type::try_find;
 
-        std::span<const Value> values() const
+        span<const Value> values() const
         {
             return base_type::value_storage();
         }
 
-        std::span<Value> values()
+        span<Value> values()
         {
             return base_type::value_storage();
         }

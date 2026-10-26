@@ -1,12 +1,11 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/properties/property_kind.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -43,7 +42,7 @@ namespace oblo
             return m_kind;
         }
 
-        std::span<const byte> get_bytes() const noexcept;
+        span<const byte> get_bytes() const noexcept;
 
         const byte* data() const noexcept;
         usize size() const noexcept;

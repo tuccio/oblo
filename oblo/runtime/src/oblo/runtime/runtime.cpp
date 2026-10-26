@@ -17,7 +17,7 @@ namespace oblo
 {
     namespace
     {
-        expected<ecs::system_seq_executor> create_system_executor(std::span<ecs::world_builder* const> worldBuilders,
+        expected<ecs::system_seq_executor> create_system_executor(span<ecs::world_builder* const> worldBuilders,
             ecs::system_graph_usages usages)
         {
             ecs::system_graph_builder builder{std::move(usages)};

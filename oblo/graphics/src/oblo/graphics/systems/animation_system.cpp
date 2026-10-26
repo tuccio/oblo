@@ -29,7 +29,7 @@ namespace oblo
     {
         template <typename T>
         [[nodiscard]] bool read_samples(
-            std::span<const byte> samples, usize previousSampleIdx, usize nextSampleIdx, T& s1, T& s2)
+            span<const byte> samples, usize previousSampleIdx, usize nextSampleIdx, T& s1, T& s2)
         {
             OBLO_ASSERT(previousSampleIdx <= nextSampleIdx);
 
@@ -47,7 +47,7 @@ namespace oblo
 
         template <typename T>
         [[nodiscard]] bool linear_interpolate_vector(
-            T& out, std::span<const byte> samples, usize previousSampleIdx, usize nextSampleIdx, f32 alpha)
+            T& out, span<const byte> samples, usize previousSampleIdx, usize nextSampleIdx, f32 alpha)
         {
             T s1, s2;
 
@@ -61,7 +61,7 @@ namespace oblo
         }
 
         [[nodiscard]] bool linear_interpolate_quaternion(
-            quaternion& out, std::span<const byte> samples, usize previousSampleIdx, usize nextSampleIdx, f32 alpha)
+            quaternion& out, span<const byte> samples, usize previousSampleIdx, usize nextSampleIdx, f32 alpha)
         {
             quaternion s1, s2;
 
@@ -82,9 +82,9 @@ namespace oblo
         };
 
         [[nodiscard]] bool interpolate_sample(animation_sample_buffer& buffer,
-            std::span<const animation_time_t> keyframes,
+            span<const animation_time_t> keyframes,
             animation_time_t currentTime,
-            std::span<const byte> samples,
+            span<const byte> samples,
             usize previousSampleIdx,
             usize nextSampleIdx,
             const animation_channel& channel)

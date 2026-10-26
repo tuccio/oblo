@@ -4,13 +4,12 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/lifetime.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/scene/resources/traits.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -64,7 +63,7 @@ namespace oblo
             u32 vertexCount,
             u32 indexCount,
             u32 meshletCount,
-            std::span<const mesh_attribute> attributes);
+            span<const mesh_attribute> attributes);
 
         OBLO_SCENE_API void clear();
 
@@ -72,14 +71,14 @@ namespace oblo
 
         OBLO_SCENE_API bool has_attribute(attribute_kind kind) const;
 
-        OBLO_SCENE_API std::span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
-        OBLO_SCENE_API std::span<const std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr) const;
+        OBLO_SCENE_API span<std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr);
+        OBLO_SCENE_API span<const std::byte> get_attribute(attribute_kind kind, data_format* outFormat = nullptr) const;
 
         template <typename T>
-        std::span<T> get_attribute(attribute_kind attribute);
+        span<T> get_attribute(attribute_kind attribute);
 
         template <typename T>
-        std::span<const T> get_attribute(attribute_kind attribute) const;
+        span<const T> get_attribute(attribute_kind attribute) const;
 
         OBLO_SCENE_API data_format get_attribute_format(attribute_kind attribute) const;
 
@@ -92,8 +91,8 @@ namespace oblo
         OBLO_SCENE_API u32 get_meshlet_count() const;
         OBLO_SCENE_API u32 get_elements_count(attribute_kind attribute) const;
 
-        OBLO_SCENE_API std::span<meshlet> get_meshlets();
-        OBLO_SCENE_API std::span<const meshlet> get_meshlets() const;
+        OBLO_SCENE_API span<meshlet> get_meshlets();
+        OBLO_SCENE_API span<const meshlet> get_meshlets() const;
 
         OBLO_SCENE_API void update_aabb();
         OBLO_SCENE_API aabb get_aabb() const;
@@ -103,11 +102,11 @@ namespace oblo
         template <typename T, typename Self>
         static auto get_attribute_impl(Self& self, attribute_kind attribute)
         {
-            const std::span bytes = self.get_attribute(attribute);
+            const span bytes = self.get_attribute(attribute);
 
             if (bytes.empty())
             {
-                return decltype(std::span{start_lifetime_as_array<T>(bytes.data(), 0), 0}){};
+                return decltype(span{start_lifetime_as_array<T>(bytes.data(), 0), 0}){};
             }
 
             OBLO_ASSERT(bytes.size() % sizeof(T) == 0);
@@ -115,7 +114,7 @@ namespace oblo
 
             auto* const ptr = start_lifetime_as_array<T>(bytes.data(), bytes.size());
             const usize size = bytes.size() / sizeof(T);
-            return std::span{ptr, size};
+            return span{ptr, size};
         };
 
     private:
@@ -134,13 +133,13 @@ namespace oblo
     } OBLO_RESOURCE();
 
     template <typename T>
-    std::span<T> mesh::get_attribute(attribute_kind attribute)
+    span<T> mesh::get_attribute(attribute_kind attribute)
     {
         return get_attribute_impl<T>(*this, attribute);
     }
 
     template <typename T>
-    std::span<const T> mesh::get_attribute(attribute_kind attribute) const
+    span<const T> mesh::get_attribute(attribute_kind attribute) const
     {
         return get_attribute_impl<T>(*this, attribute);
     }

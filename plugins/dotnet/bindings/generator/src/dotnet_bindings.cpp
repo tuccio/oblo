@@ -308,7 +308,7 @@ namespace oblo::gen::dotnet
 
         managedCode.append("}"); // namespace Oblo
 
-        const auto managed = filesystem::write_file(managedPath, as_bytes(std::span{managedCode}), {});
+        const auto managed = filesystem::write_file(managedPath, as_bytes(span{managedCode}), {});
 
         if (!managed)
         {

@@ -1,13 +1,11 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
-
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -32,7 +30,7 @@ namespace oblo
         h32<compute_pass_instance> passInstanceH;
         h32<compute_pass_instance> passInstanceV;
 
-        std::span<const f32> kernel;
+        span<const f32> kernel;
 
         void init(const frame_graph_init_context& ctx);
 

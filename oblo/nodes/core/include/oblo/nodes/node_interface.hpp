@@ -2,9 +2,8 @@
 
 #include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -33,7 +32,7 @@ namespace oblo
         [[nodiscard]] virtual bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const = 0;
     };
 }

@@ -2,9 +2,9 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/platform/compiler.hpp>
+#include <oblo/core/span.hpp>
 
 #include <iterator>
-#include <span>
 
 namespace oblo
 {
@@ -13,7 +13,7 @@ namespace oblo
     {
     public:
         using iterator_category = std::forward_iterator_tag;
-        using value_type = std::span<T>;
+        using value_type = span<T>;
         using reference = value_type;
         using pointer = value_type;
         using difference_type = ptrdiff;
@@ -47,7 +47,7 @@ namespace oblo
         OBLO_FORCEINLINE reference operator*() const
         {
             const usize contiguousElements = get_elements_in_chunk();
-            return std::span<T>{m_it.operator->(), contiguousElements};
+            return span<T>{m_it.operator->(), contiguousElements};
         }
 
         OBLO_FORCEINLINE friend bool operator<(const deque_chunk_iterator& lhs, const deque_chunk_iterator& rhs)

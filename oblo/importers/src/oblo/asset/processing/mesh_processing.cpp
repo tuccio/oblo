@@ -47,7 +47,7 @@ namespace oblo::importers::mesh_processing
 
         usize numMeshlets;
 
-        const std::span positions = inputMesh.get_attribute<vec3>(attribute_kind::position);
+        const span positions = inputMesh.get_attribute<vec3>(attribute_kind::position);
 
         constexpr f32 coneWeight = 0.f;
 
@@ -156,7 +156,7 @@ namespace oblo::importers::mesh_processing
             u32(numMeshlets),
             outAttributes);
 
-        const std::span outMeshlets = outputMesh.get_meshlets();
+        const span outMeshlets = outputMesh.get_meshlets();
 
         for (usize i = 0; i < numMeshlets; ++i)
         {
@@ -174,12 +174,12 @@ namespace oblo::importers::mesh_processing
         meshletVertices.resize(numTotalVertices);
 
         for (const auto& vertexAttribute :
-            std::span{outAttributes}.subspan(0, outAttributes.size() - numIndicesBuffers))
+            span{outAttributes}.subspan(0, outAttributes.size() - numIndicesBuffers))
         {
             OBLO_ASSERT(is_vertex_attribute(vertexAttribute.kind));
 
-            const std::span src = inputMesh.get_attribute(vertexAttribute.kind);
-            const std::span dst = outputMesh.get_attribute(vertexAttribute.kind);
+            const span src = inputMesh.get_attribute(vertexAttribute.kind);
+            const span dst = outputMesh.get_attribute(vertexAttribute.kind);
 
             byte* outIt = dst.data();
 
@@ -198,7 +198,7 @@ namespace oblo::importers::mesh_processing
 
         std::memcpy(outMicroIndices.data(), microIndices.data(), numTotalIndices);
 
-        const auto translateMicroIndices = [&outMeshlets, &microIndices]<typename T>(std::span<T> indices)
+        const auto translateMicroIndices = [&outMeshlets, &microIndices]<typename T>(span<T> indices)
         {
             auto outIt = indices.begin();
 

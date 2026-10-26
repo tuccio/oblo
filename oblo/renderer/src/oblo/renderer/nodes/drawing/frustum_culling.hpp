@@ -16,7 +16,7 @@ namespace oblo
         h32<compute_pass> cullPass;
         h32<compute_pass_instance> cullPassInstance;
 
-        pin::data<std::span<draw_buffer_data>> outDrawBufferData;
+        pin::data<span<draw_buffer_data>> outDrawBufferData;
 
         pin::buffer inMeshDatabase;
         pin::buffer inCameraBuffer;

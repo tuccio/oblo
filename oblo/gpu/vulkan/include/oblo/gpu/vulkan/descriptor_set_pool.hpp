@@ -4,11 +4,10 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/vulkan/error.hpp>
-
-#include <span>
 
 #include <vulkan/vulkan_core.h>
 
@@ -22,7 +21,7 @@ namespace oblo::gpu::vk
         void add_pool_kind(flags<gpu::resource_binding_kind> kinds,
             u32 maxSetsPerPool,
             VkDescriptorPoolCreateFlags createFlags,
-            const std::span<const VkDescriptorPoolSize> poolSizes);
+            const span<const VkDescriptorPoolSize> poolSizes);
 
         void shutdown();
 

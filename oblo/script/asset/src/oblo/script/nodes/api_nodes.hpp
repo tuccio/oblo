@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/ast/abstract_syntax_tree.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string.hpp>
 #include <oblo/core/string/string_builder.hpp>
@@ -16,7 +17,6 @@
 #include <oblo/script/resources/builtin_api.hpp>
 
 #include <optional>
-#include <span>
 
 namespace oblo::api_nodes
 {
@@ -89,7 +89,7 @@ namespace oblo::api_nodes
         bool generate(const node_graph_context&,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>>,
+            const span<const h32<ast_node>>,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
             const h32 call = ast.add_node(parent,
@@ -108,8 +108,8 @@ namespace oblo::api_nodes
     public:
         invoke_reflected_function_node(string_view name,
             std::optional<node_primitive_kind> returnKind,
-            std::span<const node_primitive_kind> paramKinds,
-            std::span<const cstring_view> paramNames) : m_name{name}, m_returnKind{returnKind}
+            span<const node_primitive_kind> paramKinds,
+            span<const cstring_view> paramNames) : m_name{name}, m_returnKind{returnKind}
         {
             const usize paramCount = paramKinds.size();
             m_paramKinds.reserve(paramCount);
@@ -161,7 +161,7 @@ namespace oblo::api_nodes
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
             add_node_execution_ast_node(outputs);

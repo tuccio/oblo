@@ -60,7 +60,7 @@ namespace oblo
 
     options_manager& options_manager::operator=(options_manager&&) noexcept = default;
 
-    void options_manager::init(std::span<const options_layer_descriptor> layers)
+    void options_manager::init(span<const options_layer_descriptor> layers)
     {
         m_impl = std::make_unique<impl>();
 

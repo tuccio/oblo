@@ -47,7 +47,7 @@ namespace oblo
                         return "Failed to cast asset"_err;
                     }
 
-                    return filesystem::write_file(destination, as_bytes(std::span{*b}), {});
+                    return filesystem::write_file(destination, as_bytes(span{*b}), {});
                 },
                 .createImporter = [](const any&) -> unique_ptr<file_importer>
                 { return allocate_unique<copy_importer>("3c06e01d-fb44-442d-8f62-3e6e4d14f74d"_uuid, "text"); },
@@ -353,7 +353,7 @@ namespace oblo
 
         void write_file(cstring_view file, string_view content)
         {
-            ASSERT_TRUE(filesystem::write_file(file, as_bytes(std::span{content.data(), content.size()}), {}));
+            ASSERT_TRUE(filesystem::write_file(file, as_bytes(span{content.data(), content.size()}), {}));
         }
 
         job_manager jm;

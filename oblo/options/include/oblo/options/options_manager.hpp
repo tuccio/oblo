@@ -2,12 +2,12 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/options/option_traits.hpp>
 #include <oblo/properties/property_kind.hpp>
 #include <oblo/properties/property_value_wrapper.hpp>
 
 #include <memory>
-#include <span>
 
 namespace oblo
 {
@@ -36,7 +36,7 @@ namespace oblo
         options_manager& operator=(const options_manager&) = delete;
         options_manager& operator=(options_manager&&) noexcept;
 
-        void init(std::span<const options_layer_descriptor> layers);
+        void init(span<const options_layer_descriptor> layers);
         void shutdown();
 
         h32<options_layer> get_default_layer() const;

@@ -17,7 +17,7 @@ namespace oblo
 
     namespace
     {
-        void add_attributes(property_tree& tree, property& prop, std::span<const reflection::attribute_data> attributes)
+        void add_attributes(property_tree& tree, property& prop, span<const reflection::attribute_data> attributes)
         {
             const u32 firstAttribute = u32(tree.attributes.size());
 
@@ -184,7 +184,7 @@ namespace oblo
 
             u32 prevSibling{};
 
-            const std::span fields = reflection->get_fields(classHandle);
+            const span fields = reflection->get_fields(classHandle);
 
             for (const auto& field : fields)
             {
@@ -334,7 +334,7 @@ namespace oblo
     namespace
     {
         void post_visit_append(
-            string_builder& builder, const property_tree& tree, u32 id, std::span<const usize> arrayIndices)
+            string_builder& builder, const property_tree& tree, u32 id, span<const usize> arrayIndices)
         {
             if (id == 0)
             {
@@ -377,7 +377,7 @@ namespace oblo
     void create_property_path(string_builder& builder,
         const property_tree& tree,
         const property& property,
-        std::span<const usize> arrayIndices)
+        span<const usize> arrayIndices)
     {
         post_visit_append(builder, tree, property.parent, arrayIndices);
         builder.append(property.name);
@@ -386,7 +386,7 @@ namespace oblo
     void create_property_path(string_builder& builder,
         const property_tree& tree,
         const property_node& node,
-        std::span<const usize> arrayIndices)
+        span<const usize> arrayIndices)
     {
         post_visit_append(builder, tree, narrow_cast<u32>(&node - tree.nodes.data()), arrayIndices);
 

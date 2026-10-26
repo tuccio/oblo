@@ -226,7 +226,7 @@ namespace oblo::ui
             }
         }
 
-        vec2 measure_text(font_cache& fonts, font_id font, FT_Face face, u16 fontSize, std::span<const u32> glyphs)
+        vec2 measure_text(font_cache& fonts, font_id font, FT_Face face, u16 fontSize, span<const u32> glyphs)
         {
             OBLO_ASSERT(face && face == fonts.find_font(font));
 

@@ -9,7 +9,7 @@
 
 namespace oblo
 {
-    template <class It>
+    template <typename It>
     class reverse_iterator
     {
     public:
@@ -24,7 +24,7 @@ namespace oblo
 
         OBLO_FORCEINLINE constexpr explicit reverse_iterator(It itr) : m_current(std::move(itr)) {}
 
-        template <class U>
+        template <typename U>
             requires(!std::is_same_v<U, It> && std::convertible_to<const U&, It>)
         OBLO_FORCEINLINE constexpr explicit reverse_iterator(const U& other) : m_current(other.base())
         {

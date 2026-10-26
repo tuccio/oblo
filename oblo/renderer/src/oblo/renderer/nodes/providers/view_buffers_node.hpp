@@ -36,14 +36,14 @@ namespace oblo
             ctx.create(outCameraBuffer,
                 {
                     .size = sizeof(camera_buffer),
-                    .data = std::as_bytes(std::span{&cameraBuffer, 1}),
+                    .data = as_bytes(span{&cameraBuffer, 1}),
                 },
                 buffer_access::uniform);
 
             ctx.create(outTimeBuffer,
                 {
                     .size = sizeof(time_buffer),
-                    .data = std::as_bytes(std::span{&timeBuffer, 1}),
+                    .data = as_bytes(span{&timeBuffer, 1}),
                 },
                 buffer_access::uniform);
 

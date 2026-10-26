@@ -789,7 +789,7 @@ namespace oblo::gpu::vk
         m_fences.erase(handle);
     }
 
-    result<> vulkan_instance::wait_for_fences(const std::span<const h32<fence>> fences)
+    result<> vulkan_instance::wait_for_fences(const span<const h32<fence>> fences)
     {
         buffered_array<VkFence, 8> vkFences;
         vkFences.reserve(fences.size());
@@ -805,7 +805,7 @@ namespace oblo::gpu::vk
         return translate_result(vkWaitForFences(m_device, vkFences.size32(), vkFences.data(), waitAll, timeout));
     }
 
-    result<> vulkan_instance::reset_fences(const std::span<const h32<fence>> fences)
+    result<> vulkan_instance::reset_fences(const span<const h32<fence>> fences)
     {
         buffered_array<VkFence, 8> vkFences;
         vkFences.reserve(fences.size());
@@ -1000,7 +1000,7 @@ namespace oblo::gpu::vk
     }
 
     result<hptr<bind_group>> vulkan_instance::acquire_transient_bind_group(h32<bind_group_layout> handle,
-        std::span<const bind_group_data> data)
+        span<const bind_group_data> data)
     {
         const bind_group_layout_impl& layoutImpl = m_bindGroupLayouts.at(handle);
         const VkDescriptorSetLayout layout = layoutImpl.descriptorSetLayout;
@@ -1025,7 +1025,7 @@ namespace oblo::gpu::vk
         return max_bindless_images;
     }
 
-    result<> vulkan_instance::set_bindless_images(std::span<const bindless_image_descriptor> images, u32 first)
+    result<> vulkan_instance::set_bindless_images(span<const bindless_image_descriptor> images, u32 first)
     {
         if (first + images.size() > m_bindlessImages.size())
         {
@@ -1162,7 +1162,7 @@ namespace oblo::gpu::vk
     }
 
     result<> vulkan_instance::fetch_command_buffers(h32<command_buffer_pool> pool,
-        std::span<hptr<command_buffer>> commandBuffers)
+        span<hptr<command_buffer>> commandBuffers)
     {
         auto& poolImpl = m_commandBufferPools.at(pool);
 
@@ -1174,7 +1174,7 @@ namespace oblo::gpu::vk
         }
 
         const auto fetchedBuffers =
-            std::span{poolImpl.commandBuffers}.subspan(poolImpl.currentlyUsedBuffers, commandBuffers.size());
+            span{poolImpl.commandBuffers}.subspan(poolImpl.currentlyUsedBuffers, commandBuffers.size());
 
         OBLO_ASSERT(fetchedBuffers.size_bytes() == commandBuffers.size_bytes());
         std::memcpy(commandBuffers.data(), fetchedBuffers.data(), commandBuffers.size_bytes());
@@ -1346,8 +1346,8 @@ namespace oblo::gpu::vk
         return m_images.at(imageHandle).descriptor;
     }
 
-    result<h32<image_pool>> vulkan_instance::create_image_pool(std::span<const image_descriptor> descriptors,
-        std::span<h32<image>> images)
+    result<h32<image_pool>> vulkan_instance::create_image_pool(span<const image_descriptor> descriptors,
+        span<h32<image>> images)
     {
         if (descriptors.size() != images.size() || descriptors.empty())
         {
@@ -1515,7 +1515,7 @@ namespace oblo::gpu::vk
             return error::invalid_usage;
         }
 
-        const auto spirv = std::span{
+        const auto spirv = span{
             reinterpret_cast<const u32*>(descriptor.data.data()),
             descriptor.data.size_bytes() / sizeof(u32),
         };
@@ -2489,7 +2489,7 @@ namespace oblo::gpu::vk
         return no_error;
     }
 
-    result<> vulkan_instance::memory_invalidate(std::span<const h32<buffer>> buffers)
+    result<> vulkan_instance::memory_invalidate(span<const h32<buffer>> buffers)
     {
         buffered_array<VmaAllocation, 8> allocations;
         allocations.reserve(buffers.size());
@@ -2504,7 +2504,7 @@ namespace oblo::gpu::vk
     }
 
     void vulkan_instance::cmd_copy_buffer(
-        hptr<command_buffer> cmd, h32<buffer> src, h32<buffer> dst, std::span<const buffer_copy_descriptor> copies)
+        hptr<command_buffer> cmd, h32<buffer> src, h32<buffer> dst, span<const buffer_copy_descriptor> copies)
     {
         const VkCommandBuffer vkCmd = unwrap_handle<VkCommandBuffer>(cmd);
 
@@ -2524,7 +2524,7 @@ namespace oblo::gpu::vk
     }
 
     void vulkan_instance::cmd_copy_buffer_to_image(
-        hptr<command_buffer> cmd, h32<buffer> src, h32<image> dst, std::span<const buffer_image_copy_descriptor> copies)
+        hptr<command_buffer> cmd, h32<buffer> src, h32<image> dst, span<const buffer_image_copy_descriptor> copies)
     {
         auto& imageImpl = m_images.at(dst);
 
@@ -2761,7 +2761,7 @@ namespace oblo::gpu::vk
     }
 
     void vulkan_instance::cmd_set_viewport(
-        hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> viewports, f32 minDepth, f32 maxDepth)
+        hptr<command_buffer> cmd, u32 firstScissor, span<const rectangle> viewports, f32 minDepth, f32 maxDepth)
     {
         buffered_array<VkViewport, 8> vkViewports;
         vkViewports.reserve(viewports.size());
@@ -2782,7 +2782,7 @@ namespace oblo::gpu::vk
     }
 
     void vulkan_instance::cmd_set_scissor(
-        hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors)
+        hptr<command_buffer> cmd, u32 firstScissor, span<const rectangle> scissors)
     {
         buffered_array<VkRect2D, 8> vkRects;
         vkRects.reserve(scissors.size());
@@ -2811,7 +2811,7 @@ namespace oblo::gpu::vk
             VkCommandBuffer cmd,
             VkPipelineBindPoint bindPoint,
             u32 firstSet,
-            std::span<const hptr<bind_group>> bindGroups)
+            span<const hptr<bind_group>> bindGroups)
         {
             vkCmdBindDescriptorSets(cmd,
                 bindPoint,
@@ -2827,7 +2827,7 @@ namespace oblo::gpu::vk
     void vulkan_instance::cmd_bind_groups(hptr<command_buffer> cmd,
         h32<graphics_pipeline> pipeline,
         u32 firstSet,
-        std::span<const hptr<bind_group>> bindGroups)
+        span<const hptr<bind_group>> bindGroups)
     {
         auto& pipelineImpl = m_renderPipelines.at(pipeline);
 
@@ -2841,7 +2841,7 @@ namespace oblo::gpu::vk
     void vulkan_instance::cmd_bind_groups(hptr<command_buffer> cmd,
         h32<compute_pipeline> pipeline,
         u32 firstSet,
-        std::span<const hptr<bind_group>> bindGroups)
+        span<const hptr<bind_group>> bindGroups)
     {
         auto& pipelineImpl = m_computePipelines.at(pipeline);
 
@@ -2855,7 +2855,7 @@ namespace oblo::gpu::vk
     void vulkan_instance::cmd_bind_groups(hptr<command_buffer> cmd,
         h32<raytracing_pipeline> pipeline,
         u32 firstSet,
-        std::span<const hptr<bind_group>> bindGroups)
+        span<const hptr<bind_group>> bindGroups)
     {
         auto& pipelineImpl = m_raytracingPipelines.at(pipeline);
 
@@ -2870,7 +2870,7 @@ namespace oblo::gpu::vk
         h32<graphics_pipeline> pipeline,
         flags<shader_stage> shaderStages,
         u32 offset,
-        std::span<const byte> data)
+        span<const byte> data)
     {
         auto& pipelineImpl = m_renderPipelines.at(pipeline);
 
@@ -2886,7 +2886,7 @@ namespace oblo::gpu::vk
         h32<compute_pipeline> pipeline,
         flags<shader_stage> shaderStages,
         u32 offset,
-        std::span<const byte> data)
+        span<const byte> data)
     {
         auto& pipelineImpl = m_computePipelines.at(pipeline);
 
@@ -2902,7 +2902,7 @@ namespace oblo::gpu::vk
         h32<raytracing_pipeline> pipeline,
         flags<shader_stage> shaderStages,
         u32 offset,
-        std::span<const byte> data)
+        span<const byte> data)
     {
         auto& pipelineImpl = m_raytracingPipelines.at(pipeline);
 
@@ -3079,8 +3079,8 @@ namespace oblo::gpu::vk
         return m_queues[queue.value - 1];
     }
 
-    result<> vulkan_instance::create_pipeline_layout(std::span<const push_constant_range> pushConstants,
-        std::span<const h32<bind_group_layout>> bindGroupLayouts,
+    result<> vulkan_instance::create_pipeline_layout(span<const push_constant_range> pushConstants,
+        span<const h32<bind_group_layout>> bindGroupLayouts,
         VkPipelineLayout* pipelineLayout,
         const debug_label& label)
     {
@@ -3126,7 +3126,7 @@ namespace oblo::gpu::vk
     }
 
     void vulkan_instance::initialize_descriptor_set(VkDescriptorSet descriptorSet,
-        std::span<const bind_group_data> data)
+        span<const bind_group_data> data)
     {
         constexpr u32 MaxWrites{64};
 

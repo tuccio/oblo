@@ -21,7 +21,7 @@ namespace oblo
 
         gpu::result<> submit_uploads();
 
-        gpu::result<> upload(std::span<const byte> source, h32<gpu::buffer> buffer, u64 bufferOffset);
+        gpu::result<> upload(span<const byte> source, h32<gpu::buffer> buffer, u64 bufferOffset);
 
         gpu::result<> upload(const texture& source, const immediate_image_upload_desc& desc);
 

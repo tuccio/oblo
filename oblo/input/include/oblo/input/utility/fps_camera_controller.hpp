@@ -1,12 +1,12 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/input/input_event.hpp>
 #include <oblo/math/quaternion.hpp>
 #include <oblo/math/vec2.hpp>
 #include <oblo/math/vec3.hpp>
 
 #include <array>
-#include <span>
 
 namespace oblo
 {
@@ -19,7 +19,7 @@ namespace oblo
         vec3 get_position() const;
         quaternion get_orientation() const;
 
-        void process(std::span<const input_event> events, time dt);
+        void process(span<const input_event> events, time dt);
 
         void bind(mouse_key key, action a);
         void bind(keyboard_key key, action a);

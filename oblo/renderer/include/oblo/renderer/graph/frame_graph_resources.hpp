@@ -1,10 +1,9 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/debug_label.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/enums.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -20,7 +19,7 @@ namespace oblo
     struct buffer_resource_initializer
     {
         u64 size{};
-        std::span<const byte> data;
+        span<const byte> data;
         bool isStable{};
     };
 }

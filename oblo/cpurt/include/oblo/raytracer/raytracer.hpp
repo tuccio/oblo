@@ -2,11 +2,11 @@
 
 #include <oblo/acceleration/aabb_container.hpp>
 #include <oblo/acceleration/bvh.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/raytracer/camera.hpp>
 
 #include <random>
-#include <span>
 #include <vector>
 
 namespace oblo
@@ -62,7 +62,7 @@ namespace oblo
         u32 add_material(const material& material);
         u32 add_instance(const render_instance& instance);
 
-        std::span<const triangle_container> get_meshes() const;
+        span<const triangle_container> get_meshes() const;
 
         void clear();
 
@@ -76,7 +76,7 @@ namespace oblo
 
     private:
         struct trace_context;
-        void trace(trace_context& context, std::span<const ray> initialRays, raytracer_state& state) const;
+        void trace(trace_context& context, span<const ray> initialRays, raytracer_state& state) const;
 
     private:
         bvh m_tlas;
@@ -118,7 +118,7 @@ namespace oblo
             return m_metrics;
         }
 
-        std::span<const vec3> get_radiance_buffer() const
+        span<const vec3> get_radiance_buffer() const
         {
             return m_radianceBuffer;
         }

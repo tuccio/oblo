@@ -142,8 +142,8 @@ namespace oblo::test
 
         const auto& g = mainViewTemplate.get_graph();
 
-        const std::span inputs = mainViewTemplate.get_inputs();
-        const std::span outputs = mainViewTemplate.get_outputs();
+        const span inputs = mainViewTemplate.get_inputs();
+        const span outputs = mainViewTemplate.get_outputs();
 
         ASSERT_EQ(inputs.size(), 3);
         ASSERT_EQ(outputs.size(), 1);

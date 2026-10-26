@@ -2,14 +2,13 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <span>
 
 namespace oblo
 {

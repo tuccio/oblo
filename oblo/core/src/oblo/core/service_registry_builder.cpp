@@ -19,7 +19,7 @@ namespace oblo
 
         for (usize builderIndex = 0; builderIndex < m_builders.size(); ++builderIndex)
         {
-            const std::span builtTypes = m_builders[builderIndex].getBases();
+            const span builtTypes = m_builders[builderIndex].getBases();
             auto v = graph.add_vertex(builderIndex);
             vertices.push_back(v);
 
@@ -37,7 +37,7 @@ namespace oblo
 
         for (usize builderIndex = 0; builderIndex < m_builders.size(); ++builderIndex)
         {
-            const std::span requiredTypes = m_builders[builderIndex].getRequires();
+            const span requiredTypes = m_builders[builderIndex].getRequires();
 
             for (const auto& t : requiredTypes)
             {

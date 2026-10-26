@@ -1,6 +1,8 @@
 #pragma once
 
+#include <oblo/core/fixed_span.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
 #include <oblo/ecs/entity_registry.hpp>
 #include <oblo/ecs/type_set.hpp>
@@ -46,7 +48,7 @@ namespace oblo::ecs
         // This is so we can allow empty ranges
         static constexpr usize s_ArraySize = sizeof...(Components) > 0 ? sizeof...(Components) : 1;
 
-        std::span<const component_type, sizeof...(Components)> get_types() const;
+        fixed_span<const component_type, sizeof...(Components)> get_types() const;
 
         using entity_registry_t = std::conditional_t<IsConst, const entity_registry, entity_registry>;
 
@@ -84,15 +86,15 @@ namespace oblo::ecs
 
             if constexpr (std::is_base_of_v<wrapper, chunk>)
             {
-                return std::span<T>{(static_cast<const wrapper*>(this))->pointer, m_numEntities};
+                return span<T>{(static_cast<const wrapper*>(this))->pointer, m_numEntities};
             }
             else if constexpr (std::is_base_of_v<mutable_wrapper, chunk>)
             {
-                return std::span<T>{(static_cast<const mutable_wrapper*>(this))->pointer, m_numEntities};
+                return span<T>{(static_cast<const mutable_wrapper*>(this))->pointer, m_numEntities};
             }
             else if constexpr (std::is_base_of_v<const_wrapper, chunk>)
             {
-                return std::span<const T>{(static_cast<const const_wrapper*>(this))->pointer, m_numEntities};
+                return span<const T>{(static_cast<const const_wrapper*>(this))->pointer, m_numEntities};
             }
         }
 
@@ -118,9 +120,9 @@ namespace oblo::ecs
         }
 
         template <typename T>
-        std::span<T> try_get() const
+        span<T> try_get() const
         {
-            std::span<T> r;
+            span<T> r;
 
             const entity* entities;
 
@@ -131,7 +133,7 @@ namespace oblo::ecs
             if (fetch_component_offsets(m_archetype, components, offsets))
             {
                 fetch_chunk_data(m_archetype, m_chunkIndex, offsets, &entities, data);
-                r = std::span<T>{reinterpret_cast<T*>(data[0]), m_numEntities};
+                r = span<T>{reinterpret_cast<T*>(data[0]), m_numEntities};
             }
 
             return r;
@@ -181,8 +183,8 @@ namespace oblo::ecs
             byte* componentsData[s_ArraySize];
             const ecs::entity* entities;
 
-            std::span<byte*> componentsDataSpan;
-            std::span<const u32> offsetsSpan;
+            span<byte*> componentsDataSpan;
+            span<const u32> offsetsSpan;
 
             if constexpr (sizeof...(Components) > 0)
             {
@@ -268,7 +270,7 @@ namespace oblo::ecs
 
         bool update_iterator_data()
         {
-            std::span<u32> offsetsSpan;
+            span<u32> offsetsSpan;
 
             if constexpr (sizeof...(Components) > 0)
             {
@@ -397,7 +399,7 @@ namespace oblo::ecs
         auto* const begin = m_registry->m_componentsStorage.data();
 
         for (auto* it = m_registry->find_first_match(begin, 0, m_include, m_exclude); it != nullptr;
-             it = m_registry->find_first_match(it, 1, m_include, m_exclude))
+            it = m_registry->find_first_match(it, 1, m_include, m_exclude))
         {
             u32 offsets[numComponents];
 
@@ -429,9 +431,8 @@ namespace oblo::ecs
                                             const u8* mapping,
                                             std::index_sequence<I...>)
                 {
-                    f(std::span{entities, numEntities},
-                        std::span<Components>{reinterpret_cast<Components*>(componentsData[mapping[I]]),
-                            numEntities}...);
+                    f(span{entities, numEntities},
+                        span<Components>{reinterpret_cast<Components*>(componentsData[mapping[I]]), numEntities}...);
                 };
 
                 invoke(f,
@@ -445,8 +446,8 @@ namespace oblo::ecs
     }
 
     template <bool IsConst, typename... Components>
-    std::span<const component_type, sizeof...(Components)> entity_registry::typed_range<IsConst,
-        Components...>::get_types() const
+    fixed_span<const component_type, sizeof...(Components)> entity_registry::typed_range<IsConst, Components...>::get_types()
+        const
     {
         if constexpr (sizeof...(Components) > 0)
         {

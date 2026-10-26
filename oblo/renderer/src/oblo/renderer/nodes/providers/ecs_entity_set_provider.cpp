@@ -63,7 +63,7 @@ namespace oblo
         const auto stagedSpans = allocate_n_span<staging_buffer_span>(frameAllocator, entities.chunks_count());
         auto nextStagedSpanIt = stagedSpans.data();
 
-        for (const std::span chunk : deque_chunk_range(entities))
+        for (const span chunk : deque_chunk_range(entities))
         {
             const auto stagedSpan = ctx.stage_upload(as_bytes(chunk));
             *nextStagedSpanIt = stagedSpan;

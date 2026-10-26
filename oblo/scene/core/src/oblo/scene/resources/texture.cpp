@@ -109,23 +109,23 @@ namespace oblo
         return {t->baseWidth, t->baseHeight};
     }
 
-    std::span<std::byte> texture::get_data()
+    span<std::byte> texture::get_data()
     {
         auto* const t = to_ktx(m_impl);
         u8* const data = ktxTexture_GetData(t);
         const auto dataSize = ktxTexture_GetDataSize(t);
-        return std::span<std::byte>{reinterpret_cast<std::byte*>(data), dataSize};
+        return span<std::byte>{reinterpret_cast<std::byte*>(data), dataSize};
     }
 
-    std::span<const std::byte> texture::get_data() const
+    span<const std::byte> texture::get_data() const
     {
         auto* const t = to_ktx(m_impl);
         u8* const data = ktxTexture_GetData(t);
         const auto dataSize = ktxTexture_GetDataSize(t);
-        return std::span<const std::byte>{reinterpret_cast<std::byte*>(data), dataSize};
+        return span<const std::byte>{reinterpret_cast<std::byte*>(data), dataSize};
     }
 
-    std::span<std::byte> texture::get_data(u32 level, u32 face, u32 layer)
+    span<std::byte> texture::get_data(u32 level, u32 face, u32 layer)
     {
         auto* const t = to_ktx(m_impl);
         ktx_size_t offset;
@@ -144,7 +144,7 @@ namespace oblo
         return get_data().subspan(offset, size);
     }
 
-    std::span<const std::byte> texture::get_data(u32 level, u32 face, u32 layer) const
+    span<const std::byte> texture::get_data(u32 level, u32 face, u32 layer) const
     {
         auto* const t = to_ktx(m_impl);
         ktx_size_t offset;

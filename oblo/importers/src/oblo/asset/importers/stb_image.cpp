@@ -51,8 +51,8 @@ namespace oblo::importers
 
             for (u32 mipLevel = 1; mipLevel < numLevels; ++mipLevel)
             {
-                const std::span<const byte> previous = out.get_data(mipLevel - 1, 0, 0);
-                const std::span<byte> current = out.get_data(mipLevel, 0, 0);
+                const span<const byte> previous = out.get_data(mipLevel - 1, 0, 0);
+                const span<byte> current = out.get_data(mipLevel, 0, 0);
 
                 const u32 prevMipWidth = width >> (mipLevel - 1);
                 const u32 prevMipHeight = height >> (mipLevel - 1);

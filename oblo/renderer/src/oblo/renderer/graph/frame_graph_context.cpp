@@ -686,12 +686,12 @@ namespace oblo
         return m_frameGraph.rng;
     }
 
-    staging_buffer_span frame_graph_build_context::stage_upload(std::span<const byte> data) const
+    staging_buffer_span frame_graph_build_context::stage_upload(span<const byte> data) const
     {
         return m_args.stagingBuffer.stage(data).value();
     }
 
-    staging_buffer_span frame_graph_build_context::stage_upload_image(std::span<const byte> data, u32 texelSize) const
+    staging_buffer_span frame_graph_build_context::stage_upload_image(span<const byte> data, u32 texelSize) const
     {
         return m_args.stagingBuffer.stage_image(data, texelSize).value();
     }
@@ -1006,7 +1006,7 @@ namespace oblo
         return m_frameGraph.frameCounter;
     }
 
-    void frame_graph_execute_context::upload(pin::buffer h, std::span<const byte> data, u64 bufferOffset) const
+    void frame_graph_execute_context::upload(pin::buffer h, span<const byte> data, u64 bufferOffset) const
     {
         OBLO_ASSERT(m_state.currentPass && m_frameGraph.passes[m_state.currentPass.value].kind == pass_kind::transfer);
 
@@ -1177,7 +1177,7 @@ namespace oblo
     }
 
     void frame_graph_execute_context::push_constants(
-        flags<gpu::shader_stage> stages, u32 offset, std::span<const byte> bytes) const
+        flags<gpu::shader_stage> stages, u32 offset, span<const byte> bytes) const
     {
         auto& pm = m_args.rendererPlatform.passManager;
 

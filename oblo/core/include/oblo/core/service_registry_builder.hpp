@@ -4,8 +4,8 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
 #include <oblo/core/service_registry.hpp>
+#include <oblo/core/span.hpp>
 
-#include <span>
 #include <tuple>
 
 namespace oblo
@@ -81,7 +81,7 @@ namespace oblo
         struct builder_info
         {
             using build_fn = void (*)(service_registry&, void*);
-            using get_type_fn = std::span<const type_id> (*)();
+            using get_type_fn = span<const type_id> (*)();
 
             build_fn build;
             void* callback;
@@ -99,7 +99,7 @@ namespace oblo
     namespace detail
     {
         template <typename... T>
-        std::span<const type_id> make_type_span()
+        span<const type_id> make_type_span()
         {
             if constexpr (sizeof...(T) > 0)
             {

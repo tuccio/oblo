@@ -19,7 +19,7 @@ namespace oblo::vk
         class cached_spirv final : public shader_compiler::result_core
         {
         public:
-            explicit cached_spirv(shader_compiler::result wrapped, std::span<const u32> spirv) :
+            explicit cached_spirv(shader_compiler::result wrapped, span<const u32> spirv) :
                 m_wrapped{std::move(wrapped)}, m_spirv{spirv}
             {
             }
@@ -44,14 +44,14 @@ namespace oblo::vk
                 return m_wrapped.get_source_files(sourceFiles);
             }
 
-            std::span<const u32> get_spirv() override
+            span<const u32> get_spirv() override
             {
                 return m_spirv;
             }
 
         private:
             shader_compiler::result m_wrapped;
-            std::span<const u32> m_spirv;
+            span<const u32> m_spirv;
         };
 
         class error_result final : public shader_compiler::result_core
@@ -80,7 +80,7 @@ namespace oblo::vk
                 OBLO_ASSERT(false);
             }
 
-            virtual std::span<const u32> get_spirv()
+            virtual span<const u32> get_spirv()
             {
                 OBLO_ASSERT(false);
                 return {};
@@ -172,7 +172,7 @@ namespace oblo::vk
             if (diskSpv && !diskSpv->empty())
             {
                 const auto n = diskSpv->size() / sizeof(u32);
-                const auto spv = std::span{start_lifetime_as_array<u32>(diskSpv->data(), n), n};
+                const auto spv = span{start_lifetime_as_array<u32>(diskSpv->data(), n), n};
 
                 return shader_compiler::result{allocate_unique<cached_spirv>(std::move(result), spv)};
             }
@@ -186,7 +186,7 @@ namespace oblo::vk
             sourceCodePath.append(glsl_deduce_extension(stage));
 
             write_file(sourceCodePath,
-                as_bytes(std::span{sourceCode.data(), sourceCode.size()}),
+                as_bytes(span{sourceCode.data(), sourceCode.size()}),
                 filesystem::write_mode::binary)
                 .assert_value();
         }

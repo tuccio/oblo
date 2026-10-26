@@ -40,16 +40,16 @@ namespace oblo::ecs
         entity create(const component_and_tag_sets& types);
 
         /// @brief Creates entities with the given components and tags signature.
-        void create(const component_and_tag_sets& types, u32 count, std::span<entity> outEntityIds = {});
+        void create(const component_and_tag_sets& types, u32 count, span<entity> outEntityIds = {});
 
         /// @brief Creates entities with ids previously reserved with reserve_ids.
-        void create_with_reserved_ids(const component_and_tag_sets& types, std::span<const entity> entityIds);
+        void create_with_reserved_ids(const component_and_tag_sets& types, span<const entity> entityIds);
 
         template <typename... ComponentsOrTags>
         entity create();
 
         template <typename... ComponentsOrTags>
-        void create(u32 count, std::span<entity> outEntityIds = {});
+        void create(u32 count, span<entity> outEntityIds = {});
 
         void destroy(entity e);
         void destroy_all();
@@ -68,11 +68,11 @@ namespace oblo::ecs
 
         /// @brief Reserves entity ids that can be used for creating entities later.
         /// @see create_with_reserved_ids
-        void reserve_ids(std::span<entity> outEntityIds);
+        void reserve_ids(span<entity> outEntityIds);
 
         /// @brief Releases reserved entity ids that were not used for creating entities.
         /// @remarks The entities must not exist, and the ids must have been reserved with reserve_ids before.
-        void release_reserved_ids(std::span<const entity> reservedIds);
+        void release_reserved_ids(span<const entity> reservedIds);
 
         template <typename Component>
         const Component& get(entity e) const;
@@ -90,10 +90,10 @@ namespace oblo::ecs
         const std::byte* try_get(entity e, component_type component) const;
 
         void get(entity e,
-            const std::span<const component_type> components,
-            std::span<const std::byte*> outComponents) const;
+            const span<const component_type> components,
+            span<const std::byte*> outComponents) const;
 
-        void get(entity e, const std::span<const component_type> components, std::span<std::byte*> outComponents);
+        void get(entity e, const span<const component_type> components, span<std::byte*> outComponents);
 
         template <typename... Components>
             requires(sizeof...(Components) > 1)
@@ -115,14 +115,14 @@ namespace oblo::ecs
 
         archetype_storage get_archetype_storage(entity e) const;
 
-        std::span<const entity> entities() const;
+        span<const entity> entities() const;
 
-        std::span<const component_type> get_component_types(entity e) const;
-        std::span<const tag_type> get_tag_types(entity e) const;
+        span<const component_type> get_component_types(entity e) const;
+        span<const tag_type> get_tag_types(entity e) const;
 
         const type_registry& get_type_registry() const;
 
-        std::span<const archetype_storage> get_archetypes() const;
+        span<const archetype_storage> get_archetypes() const;
 
         /// @brief Sets the modification id that will be applied when creating entities or calling notify on entity
         /// ranges.
@@ -159,23 +159,23 @@ namespace oblo::ecs
             const component_and_tag_sets& includes,
             const component_and_tag_sets& excludes) const;
 
-        static void sort_and_map(std::span<component_type> componentTypes, std::span<u8> mapping);
+        static void sort_and_map(span<component_type> componentTypes, span<u8> mapping);
 
         static bool fetch_component_offsets(
-            const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets);
+            const archetype_storage& storage, span<const component_type> componentTypes, span<u32> offsets);
 
         static u32 fetch_chunk_data(const archetype_storage& storage,
             u32 chunkIndex,
-            std::span<const u32> offsets,
+            span<const u32> offsets,
             const entity** entities,
-            std::span<std::byte*> componentData);
+            span<std::byte*> componentData);
 
         const archetype_storage& find_or_create_storage(const component_and_tag_sets& types);
 
-        void find_component_types(std::span<const type_id> typeIds, std::span<component_type> types);
+        void find_component_types(span<const type_id> typeIds, span<component_type> types);
 
         void find_component_data(
-            entity e, const std::span<const type_id> typeIds, std::span<std::byte*> outComponents) const;
+            entity e, const span<const type_id> typeIds, span<std::byte*> outComponents) const;
 
         void move_last_and_pop(const entity_data& entityData);
 
@@ -208,7 +208,7 @@ namespace oblo::ecs
     }
 
     template <typename... ComponentsOrTags>
-    void entity_registry::create(u32 count, std::span<entity> outEntityIds)
+    void entity_registry::create(u32 count, span<entity> outEntityIds)
     {
         return create(make_type_sets<ComponentsOrTags...>(*m_typeRegistry), count, outEntityIds);
     }

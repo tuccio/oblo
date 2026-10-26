@@ -54,7 +54,7 @@ namespace oblo
             unreachable();
         }
 
-        debugPassInstance = ctx.compute_pass(debugPass, {.defines = std::span(&define, 1)});
+        debugPassInstance = ctx.compute_pass(debugPass, {.defines = span(&define, 1)});
 
         const auto& visBufferInit = ctx.get_current_initializer(inVisibilityBuffer).value();
         const vec2u resolution = {visBufferInit.width, visBufferInit.height};
@@ -129,7 +129,7 @@ namespace oblo
             switch (ctx.access(inMode))
             {
             case mode::surfel_tile_coverage:
-                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&surfel_tiling::tile_size, 1}));
+                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span{&surfel_tiling::tile_size, 1}));
                 break;
 
             default:

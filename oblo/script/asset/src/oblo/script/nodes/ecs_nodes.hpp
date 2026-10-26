@@ -47,7 +47,7 @@ namespace oblo::ecs_nodes
         bool generate(const node_graph_context&,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>>,
+            const span<const h32<ast_node>>,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
             add_node_execution_ast_node(outputs);
@@ -138,7 +138,7 @@ namespace oblo::ecs_nodes
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
             add_node_execution_ast_node(outputs);
@@ -255,7 +255,7 @@ namespace oblo::ecs_nodes
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
             add_node_execution_ast_node(outputs);

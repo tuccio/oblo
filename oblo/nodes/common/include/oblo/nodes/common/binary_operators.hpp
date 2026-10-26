@@ -36,7 +36,7 @@ namespace oblo
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs,
             h32<node_graph_in_pin> lhs,
             h32<node_graph_in_pin> rhs,
@@ -125,7 +125,7 @@ namespace oblo
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const override
         {
             return static_cast<const Base*>(this)->generate(g, ast, parent, inputs, outputs);
@@ -153,7 +153,7 @@ namespace oblo
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const
         {
             return uniform_binary_operator::generate(g,
@@ -197,7 +197,7 @@ namespace oblo
         bool generate(const node_graph_context& g,
             abstract_syntax_tree& ast,
             h32<ast_node> parent,
-            const std::span<const h32<ast_node>> inputs,
+            const span<const h32<ast_node>> inputs,
             dynamic_array<h32<ast_node>>& outputs) const
         {
             return uniform_binary_operator::generate(g,

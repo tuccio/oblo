@@ -257,7 +257,7 @@ namespace oblo
         m_sceneViews.erase(subgraph);
     }
 
-    std::span<const h32<frame_graph_subgraph>> scene_renderer::get_scene_views() const
+    span<const h32<frame_graph_subgraph>> scene_renderer::get_scene_views() const
     {
         return m_sceneViews.keys();
     }
