@@ -210,7 +210,7 @@ namespace oblo
 
                             if (downloadResult)
                             {
-                                const std::span bytes = *downloadResult;
+                                const span bytes = *downloadResult;
                                 std::memcpy(&viewport.picking.result,
                                     bytes.data(),
                                     min(bytes.size(), sizeof(picking_result)));
@@ -262,7 +262,7 @@ namespace oblo
                 ++numRemovedElements;
             }
 
-            for (auto e : std::span(elementsToRemove, numRemovedElements))
+            for (auto e : span(elementsToRemove, numRemovedElements))
             {
                 m_renderGraphs.erase(e);
             }

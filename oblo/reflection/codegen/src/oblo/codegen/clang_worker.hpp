@@ -25,7 +25,7 @@ namespace oblo::gen
 
         ~clang_worker();
 
-        expected<target_data> parse_code(cstring_view sourceFile, std::span<const char* const> args);
+        expected<target_data> parse_code(cstring_view sourceFile, span<const char* const> args);
 
         cstring_view get_errors() const;
 

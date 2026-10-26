@@ -1,13 +1,12 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/picking_configuration.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 #include <oblo/renderer/nodes/providers/instance_table_node.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -17,8 +16,8 @@ namespace oblo
     {
         pin::data<render_world> inRenderWorld;
         pin::data<vec2u> inResolution;
-        pin::data<std::span<draw_buffer_data>> inDrawData;
-        pin::data<std::span<pin::buffer>> inDrawCallBuffer;
+        pin::data<span<draw_buffer_data>> inDrawData;
+        pin::data<span<pin::buffer>> inDrawCallBuffer;
         pin::data<picking_configuration> inPickingConfiguration;
 
         pin::buffer inCameraBuffer;

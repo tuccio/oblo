@@ -12,7 +12,7 @@
 #include <oblo/renderer/draw/mesh_database.hpp>
 
 #include <array>
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {
@@ -85,9 +85,9 @@ namespace oblo
         void generate_draw_calls(frame_allocator& allocator);
         void generate_raytracing_structures(frame_allocator& allocator, hptr<gpu::command_buffer> commandBuffer);
 
-        std::span<const batch_draw_data> get_draw_calls() const;
+        span<const batch_draw_data> get_draw_calls() const;
 
-        std::span<const std::byte> get_mesh_database_data() const;
+        span<const std::byte> get_mesh_database_data() const;
 
         h32<gpu::acceleration_structure> get_tlas() const;
 
@@ -105,7 +105,7 @@ namespace oblo
 
     private:
         void create_instances();
-        void defer_upload(const std::span<const byte> data, const gpu::buffer_range& b);
+        void defer_upload(const span<const byte> data, const gpu::buffer_range& b);
 
         void release(rt_acceleration_structure& as);
 
@@ -131,7 +131,7 @@ namespace oblo
         const batch_draw_data* m_drawData{};
         u32 m_drawDataCount{};
 
-        std::span<const std::byte> m_meshDatabaseData;
+        span<const std::byte> m_meshDatabaseData;
 
         unordered_map<uuid, h32<draw_mesh>> m_cachedMeshes;
 

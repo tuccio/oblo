@@ -195,7 +195,7 @@ namespace oblo
     {
         if (m_usedSlots > 0)
         {
-            m_gpu->set_bindless_images(std::span{m_textures}.subspan(0, m_usedSlots), 0).assert_value();
+            m_gpu->set_bindless_images(span{m_textures}.subspan(0, m_usedSlots), 0).assert_value();
         }
     }
 

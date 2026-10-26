@@ -450,7 +450,7 @@ namespace oblo
         return &moduleEntry;
     }
 
-    std::span<void* const> module_manager::find_services(const type_id& type) const
+    span<void* const> module_manager::find_services(const type_id& type) const
     {
         const auto it = m_services.find(type);
 

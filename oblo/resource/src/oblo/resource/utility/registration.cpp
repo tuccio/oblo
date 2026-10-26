@@ -6,7 +6,7 @@
 
 namespace oblo
 {
-    void register_resource_types(resource_registry& registry, std::span<const resource_types_provider* const> providers)
+    void register_resource_types(resource_registry& registry, span<const resource_types_provider* const> providers)
     {
         deque<resource_type_descriptor> resourceTypes;
 

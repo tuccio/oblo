@@ -161,8 +161,8 @@ namespace oblo::importers
 
         const aiScene* const scene = m_impl->scene;
 
-        const std::span importNodeConfigs = ctx.get_import_node_configs();
-        const std::span importNodes = ctx.get_import_nodes();
+        const span importNodeConfigs = ctx.get_import_node_configs();
+        const span importNodes = ctx.get_import_nodes();
 
         const auto& hierarchyNodeConfig = importNodeConfigs[m_impl->importHierarchy.nodeIndex];
 
@@ -243,32 +243,32 @@ namespace oblo::importers
 
                     if (aiMesh->HasPositions())
                     {
-                        const std::span positions = srcMesh.get_attribute<vec3>(attribute_kind::position);
+                        const span positions = srcMesh.get_attribute<vec3>(attribute_kind::position);
                         std::memcpy(positions.data(), aiMesh->mVertices, positions.size_bytes());
                     }
 
                     if (aiMesh->HasNormals())
                     {
-                        const std::span normals = srcMesh.get_attribute<vec3>(attribute_kind::normal);
+                        const span normals = srcMesh.get_attribute<vec3>(attribute_kind::normal);
                         std::memcpy(normals.data(), aiMesh->mNormals, normals.size_bytes());
                     }
 
                     if (aiMesh->HasTangentsAndBitangents())
                     {
-                        const std::span tangents = srcMesh.get_attribute<vec3>(attribute_kind::tangent);
+                        const span tangents = srcMesh.get_attribute<vec3>(attribute_kind::tangent);
                         std::memcpy(tangents.data(), aiMesh->mTangents, tangents.size_bytes());
 
-                        const std::span bitangents = srcMesh.get_attribute<vec3>(attribute_kind::bitangent);
+                        const span bitangents = srcMesh.get_attribute<vec3>(attribute_kind::bitangent);
                         std::memcpy(bitangents.data(), aiMesh->mBitangents, bitangents.size_bytes());
                     }
 
                     if (aiMesh->HasFaces())
                     {
-                        auto fillIndices = [aiMesh]<typename T>(std::span<T> indices)
+                        auto fillIndices = [aiMesh]<typename T>(span<T> indices)
                         {
                             auto outIt = indices.begin();
 
-                            for (const auto& face : std::span{aiMesh->mFaces, aiMesh->mNumFaces})
+                            for (const auto& face : span{aiMesh->mFaces, aiMesh->mNumFaces})
                             {
                                 if (face.mNumIndices != indicesPerFace)
                                 {
@@ -477,7 +477,7 @@ namespace oblo::importers
 
                 if (node->mNumMeshes >= 0)
                 {
-                    for (u32 meshIndex : std::span{node->mMeshes, node->mNumMeshes})
+                    for (u32 meshIndex : span{node->mMeshes, node->mNumMeshes})
                     {
                         const auto& importMesh = m_impl->importMeshes[meshIndex];
                         const auto& meshNode = importNodes[importMesh.nodeIndex];
@@ -501,7 +501,7 @@ namespace oblo::importers
                     }
                 }
 
-                for (aiNode* child : std::span{node->mChildren, node->mNumChildren})
+                for (aiNode* child : span{node->mChildren, node->mNumChildren})
                 {
                     stack.push_back({.parent = e, .node = child});
                 }

@@ -16,7 +16,7 @@ namespace oblo
         u32 numVertices,
         u32 numIndices,
         u32 meshletCount,
-        std::span<const mesh_attribute> attributes)
+        span<const mesh_attribute> attributes)
     {
         clear();
 
@@ -95,13 +95,13 @@ namespace oblo
         return m_attributeFlags.contains(kind);
     }
 
-    std::span<std::byte> mesh::get_attribute(attribute_kind kind, data_format* outFormat)
+    span<std::byte> mesh::get_attribute(attribute_kind kind, data_format* outFormat)
     {
-        const std::span<const std::byte> data = static_cast<const mesh*>(this)->get_attribute(kind, outFormat);
+        const span<const std::byte> data = static_cast<const mesh*>(this)->get_attribute(kind, outFormat);
         return {const_cast<std::byte*>(data.data()), data.size()};
     }
 
-    std::span<const std::byte> mesh::get_attribute(attribute_kind kind, data_format* outFormat) const
+    span<const std::byte> mesh::get_attribute(attribute_kind kind, data_format* outFormat) const
     {
         for (const auto& attribute : m_attributes)
         {
@@ -112,7 +112,7 @@ namespace oblo
                     *outFormat = attribute.format;
                 }
 
-                return std::span{m_storage}.subspan(attribute.beginIndex, attribute.endIndex - attribute.beginIndex);
+                return span{m_storage}.subspan(attribute.beginIndex, attribute.endIndex - attribute.beginIndex);
             }
         }
 
@@ -149,12 +149,12 @@ namespace oblo
         return is_vertex_attribute(attribute) ? get_vertex_count() : get_index_count();
     }
 
-    std::span<meshlet> mesh::get_meshlets()
+    span<meshlet> mesh::get_meshlets()
     {
         return m_meshlets;
     }
 
-    std::span<const meshlet> mesh::get_meshlets() const
+    span<const meshlet> mesh::get_meshlets() const
     {
         return m_meshlets;
     }
@@ -184,7 +184,7 @@ namespace oblo
 
     void mesh::update_aabb()
     {
-        const auto positions = get_attribute<vec3>(attribute_kind::position);
+        const span positions = get_attribute<vec3>(attribute_kind::position);
         m_aabb = compute_aabb(positions);
     }
 

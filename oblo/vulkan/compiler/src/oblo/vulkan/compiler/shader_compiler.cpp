@@ -34,7 +34,7 @@ namespace oblo::vk
         return m_core->get_source_files(sourceFiles);
     }
 
-    std::span<const u32> shader_compiler::result::get_spirv() const
+    span<const u32> shader_compiler::result::get_spirv() const
     {
         return m_core->get_spirv();
     }

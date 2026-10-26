@@ -66,7 +66,7 @@ namespace oblo
     }
 
     template <typename T>
-    inline u32 write_child_array(data_document& doc, u32 parent, hashed_string_view name, std::span<const T> values)
+    inline u32 write_child_array(data_document& doc, u32 parent, hashed_string_view name, span<const T> values)
     {
         const u32 node = doc.child_array(parent, name);
 
@@ -92,7 +92,7 @@ namespace oblo
     }
 
     template <typename T>
-    inline expected<> read_array(const data_document& doc, u32 node, std::span<T> values)
+    inline expected<> read_array(const data_document& doc, u32 node, span<T> values)
     {
         if (node == data_node::Invalid || !doc.is_array(node))
         {
@@ -139,7 +139,7 @@ namespace oblo
     }
 
     template <typename T>
-    inline expected<> read_child_array(const data_document& doc, u32 parent, hashed_string_view name, std::span<T> values)
+    inline expected<> read_child_array(const data_document& doc, u32 parent, hashed_string_view name, span<T> values)
     {
         const u32 node = doc.find_child(parent, name);
         return read_array(doc, node, values);

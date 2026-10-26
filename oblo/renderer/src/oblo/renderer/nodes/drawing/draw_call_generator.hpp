@@ -15,10 +15,10 @@ namespace oblo
         h32<compute_pass> drawCallGeneratorPass;
         h32<compute_pass_instance> drawCallGeneratorPassInstance;
 
-        pin::data<std::span<draw_buffer_data>> inDrawBufferData;
+        pin::data<span<draw_buffer_data>> inDrawBufferData;
         pin::data<render_world> inRenderWorld;
 
-        pin::data<std::span<pin::buffer>> outDrawCallBuffer;
+        pin::data<span<pin::buffer>> outDrawCallBuffer;
 
         pin::buffer inInstanceTables;
         pin::data<instance_data_table_buffers_span> inInstanceBuffers;

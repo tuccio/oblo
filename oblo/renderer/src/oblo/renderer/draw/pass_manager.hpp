@@ -5,12 +5,11 @@
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/forward.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/gpu/enums.hpp>
 #include <oblo/gpu/forward.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -55,7 +54,7 @@ namespace oblo
 
         void shutdown();
 
-        void set_system_include_paths(std::span<const string_view> paths);
+        void set_system_include_paths(span<const string_view> paths);
         void set_raytracing_enabled(bool isRayTracingEnabled);
 
         h32<render_pass> register_render_pass(const render_pass_initializer& desc);
@@ -93,20 +92,16 @@ namespace oblo
 
         u32 get_subgroup_size() const;
 
-        void push_constants(const render_pass_context& ctx,
-            flags<gpu::shader_stage> stages,
-            u32 offset,
-            std::span<const byte> data) const;
+        void push_constants(
+            const render_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, span<const byte> data) const;
 
-        void push_constants(const compute_pass_context& ctx,
-            flags<gpu::shader_stage> stages,
-            u32 offset,
-            std::span<const byte> data) const;
+        void push_constants(
+            const compute_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, span<const byte> data) const;
 
         void push_constants(const raytracing_pass_context& ctx,
             flags<gpu::shader_stage> stages,
             u32 offset,
-            std::span<const byte> data) const;
+            span<const byte> data) const;
 
         void bind_descriptor_sets(const render_pass_context& ctx, locate_binding_fn locateBinding) const;
 

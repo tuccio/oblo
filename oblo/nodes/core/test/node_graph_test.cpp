@@ -43,7 +43,7 @@ namespace oblo
             bool generate(const node_graph_context&,
                 abstract_syntax_tree&,
                 h32<ast_node>,
-                const std::span<const h32<ast_node>>,
+                const span<const h32<ast_node>>,
                 dynamic_array<h32<ast_node>>&) const override
             {
                 return false;
@@ -80,7 +80,7 @@ namespace oblo
             bool generate(const node_graph_context&,
                 abstract_syntax_tree&,
                 h32<ast_node>,
-                const std::span<const h32<ast_node>>,
+                const span<const h32<ast_node>>,
                 dynamic_array<h32<ast_node>>&) const override
             {
                 return false;
@@ -112,7 +112,7 @@ namespace oblo
             bool generate(const node_graph_context&,
                 abstract_syntax_tree&,
                 h32<ast_node>,
-                const std::span<const h32<ast_node>>,
+                const span<const h32<ast_node>>,
                 dynamic_array<h32<ast_node>>& outputs) const override
             {
                 // Execution pins don't carry a value
@@ -160,7 +160,7 @@ namespace oblo
             bool generate(const node_graph_context&,
                 abstract_syntax_tree& ast,
                 h32<ast_node> parent,
-                const std::span<const h32<ast_node>>,
+                const span<const h32<ast_node>>,
                 dynamic_array<h32<ast_node>>& outputs) const override
             {
                 outputs.emplace_back();
@@ -197,7 +197,7 @@ namespace oblo
             bool generate(const node_graph_context&,
                 abstract_syntax_tree& ast,
                 h32<ast_node> parent,
-                const std::span<const h32<ast_node>>,
+                const span<const h32<ast_node>>,
                 dynamic_array<h32<ast_node>>& outputs) const override
             {
                 outputs.emplace_back(ast.add_node(parent, ast_f32_constant{.value = m_value}));

@@ -39,7 +39,7 @@ namespace oblo
         m_centroids.clear();
     }
 
-    void triangle_container::add(std::span<const triangle> triangles)
+    void triangle_container::add(span<const triangle> triangles)
     {
         const auto currentSize = m_triangles.size();
         const auto newSize = currentSize + triangles.size();
@@ -51,7 +51,7 @@ namespace oblo
 
         for (const auto& triangle : triangles)
         {
-            const auto aabb = oblo::compute_aabb(std::span{triangle.v});
+            const auto aabb = oblo::compute_aabb(span{triangle.v});
             const auto centroid = (triangle.v[0] + triangle.v[1] + triangle.v[2]) / 3.f;
             const auto normal = normalize(cross(triangle.v[1] - triangle.v[0], triangle.v[2] - triangle.v[0]));
 
@@ -71,12 +71,12 @@ namespace oblo
 
     aabb triangle_container::primitives_bounds(u32 begin, u32 end) const
     {
-        return oblo::compute_aabb(std::span(m_aabbs).subspan(begin, end - begin));
+        return oblo::compute_aabb(span(m_aabbs).subspan(begin, end - begin));
     }
 
     aabb triangle_container::centroids_bounds(u32 begin, u32 end) const
     {
-        return oblo::compute_aabb(std::span(m_centroids).subspan(begin, end - begin));
+        return oblo::compute_aabb(span(m_centroids).subspan(begin, end - begin));
     }
 
     u32 triangle_container::partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint)
@@ -96,7 +96,7 @@ namespace oblo
     bool triangle_container::intersect(
         const ray& ray, u32 beginIndex, u16 numPrimitives, f32& distance, hit_result& result) const
     {
-        const auto triangles = std::span{m_triangles}.subspan(beginIndex, numPrimitives);
+        const auto triangles = span{m_triangles}.subspan(beginIndex, numPrimitives);
         u32 current = beginIndex;
 
         bool hit = false;
@@ -116,22 +116,22 @@ namespace oblo
         return hit;
     }
 
-    std::span<const triangle> triangle_container::get_triangles() const
+    span<const triangle> triangle_container::get_triangles() const
     {
         return m_triangles;
     }
 
-    std::span<const aabb> triangle_container::get_aabbs() const
+    span<const aabb> triangle_container::get_aabbs() const
     {
         return m_aabbs;
     }
 
-    std::span<const vec3> triangle_container::get_centroids() const
+    span<const vec3> triangle_container::get_centroids() const
     {
         return m_centroids;
     }
 
-    std::span<const vec3> triangle_container::get_normals() const
+    span<const vec3> triangle_container::get_normals() const
     {
         return m_normals;
     }

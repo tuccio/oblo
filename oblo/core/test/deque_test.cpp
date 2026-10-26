@@ -2,6 +2,7 @@
 
 #include <oblo/core/buffered_array.hpp>
 #include <oblo/core/deque.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/unordered_map.hpp>
 
 #include "checked_allocator.hpp"
@@ -9,7 +10,6 @@
 
 #include <algorithm>
 #include <deque>
-#include <span>
 #include <vector>
 
 namespace oblo
@@ -67,7 +67,6 @@ namespace oblo
 
         ASSERT_EQ(allocator.allocations.size(), 0);
     }
-
 
     TEST(deque, deque_move_only)
     {

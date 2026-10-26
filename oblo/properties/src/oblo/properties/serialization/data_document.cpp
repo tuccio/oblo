@@ -165,7 +165,7 @@ namespace oblo
     }
 
     void data_document::child_value(
-        u32 parentIndex, hashed_string_view key, property_kind kind, std::span<const byte> data)
+        u32 parentIndex, hashed_string_view key, property_kind kind, span<const byte> data)
     {
         const u32 newChild = u32(m_nodes.size());
         auto& newValue = m_nodes.emplace_back();
@@ -290,7 +290,7 @@ namespace oblo
         n.objectOrArray = make_invalid_object_or_array();
     }
 
-    void data_document::make_value(u32 nodeIndex, property_kind kind, std::span<const byte> data)
+    void data_document::make_value(u32 nodeIndex, property_kind kind, span<const byte> data)
     {
         auto& newValue = m_nodes[nodeIndex];
 
@@ -421,7 +421,7 @@ namespace oblo
         return hashed_string_view{string_view{n.key, n.keyLen}, n.keyHash};
     }
 
-    expected<std::span<const byte>, data_document::error> data_document::read_value(u32 node) const
+    expected<span<const byte>, data_document::error> data_document::read_value(u32 node) const
     {
         if (node >= m_nodes.size())
         {
@@ -437,7 +437,7 @@ namespace oblo
 
         const auto sizeAndAlignment = get_size_and_alignment(n.valueKind);
 
-        return std::span<const byte>{reinterpret_cast<const byte*>(n.value.data), sizeAndAlignment.first};
+        return span<const byte>{reinterpret_cast<const byte*>(n.value.data), sizeAndAlignment.first};
     }
 
     expected<data_string, data_document::error> data_document::read_string(u32 node) const

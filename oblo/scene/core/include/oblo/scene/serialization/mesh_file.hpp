@@ -3,8 +3,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/forward.hpp>
-
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace tinygltf
 {
@@ -35,7 +34,7 @@ namespace oblo
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
         dynamic_array<gltf_accessor>& sources,
-        const std::span<bool>* usedBuffers,
+        const span<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags);
 
     OBLO_SCENE_API expected<> load_mesh(mesh& mesh, cstring_view source);

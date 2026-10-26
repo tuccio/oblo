@@ -393,7 +393,7 @@ namespace oblo
         shutdown();
     }
 
-    bool asset_registry::initialize(std::span<const asset_repository_descriptor> assetRepositories,
+    bool asset_registry::initialize(span<const asset_repository_descriptor> assetRepositories,
         cstring_view artifactsDir)
     {
         if (!ensure_directories(artifactsDir))
@@ -1196,7 +1196,7 @@ namespace oblo
         // The first entry should just be a dummy
         OBLO_ASSERT(m_impl->assetRepositories.empty() || m_impl->assetRepositories[0].name.empty());
 
-        for (auto& repo : std::span{m_impl->assetRepositories}.subspan(1))
+        for (auto& repo : span{m_impl->assetRepositories}.subspan(1))
         {
             for (auto&& entry : std::filesystem::recursive_directory_iterator{repo.assetDir.as<std::string>(), ec})
             {
@@ -1277,7 +1277,7 @@ namespace oblo
 
             auto readUuidFromFileName = [](cstring_view filename, uuid& id) { return id.parse_from(filename); };
 
-            for (auto& assetSource : std::span{m_impl->assetRepositories}.subspan(1))
+            for (auto& assetSource : span{m_impl->assetRepositories}.subspan(1))
             {
                 for (const cstring_view cleanupDir : {assetSource.sourceDir.view(), m_impl->artifactsDir.view()})
                 {
@@ -1452,7 +1452,7 @@ namespace oblo
             it = m_impl->currentImports.erase_unordered(it);
         }
 
-        for (auto& assetSource : std::span{m_impl->assetRepositories}.subspan(1))
+        for (auto& assetSource : span{m_impl->assetRepositories}.subspan(1))
         {
             if (!assetSource.watcher)
             {

@@ -4,6 +4,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/deque.hpp>
 #include <oblo/core/filesystem/file.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unreachable.hpp>
 #include <oblo/core/uuid.hpp>
@@ -197,7 +198,7 @@ namespace oblo::json
                     m_doc.child_value(m_stack.back().id,
                         hashed_string_view{m_lastString},
                         property_kind::string,
-                        std::as_bytes(std::span{&sv, 1}));
+                        as_bytes(span{&sv, 1}));
 
                     m_lastString.clear();
                     m_state = next_state_from_stack();
@@ -217,7 +218,7 @@ namespace oblo::json
                     m_doc.child_value(m_stack.back().id,
                         hashed_string_view{m_lastString},
                         property_kind::boolean,
-                        std::as_bytes(std::span{&value, 1}));
+                        as_bytes(span{&value, 1}));
 
                     m_lastString.clear();
                     m_state = next_state_from_stack();
@@ -235,7 +236,7 @@ namespace oblo::json
                     m_doc.child_value(m_stack.back().id,
                         hashed_string_view{m_lastString},
                         property_kind::i32,
-                        std::as_bytes(std::span{&value, 1}));
+                        as_bytes(span{&value, 1}));
 
                     m_lastString.clear();
                     m_state = next_state_from_stack();
@@ -253,7 +254,7 @@ namespace oblo::json
                     m_doc.child_value(m_stack.back().id,
                         hashed_string_view{m_lastString},
                         property_kind::u32,
-                        std::as_bytes(std::span{&value, 1}));
+                        as_bytes(span{&value, 1}));
 
                     m_lastString.clear();
                     m_state = next_state_from_stack();
@@ -271,7 +272,7 @@ namespace oblo::json
                     m_doc.child_value(m_stack.back().id,
                         hashed_string_view{m_lastString},
                         property_kind::i64,
-                        std::as_bytes(std::span{&value, 1}));
+                        as_bytes(span{&value, 1}));
 
                     m_lastString.clear();
                     m_state = next_state_from_stack();
@@ -289,7 +290,7 @@ namespace oblo::json
                     m_doc.child_value(m_stack.back().id,
                         hashed_string_view{m_lastString},
                         property_kind::u64,
-                        std::as_bytes(std::span{&value, 1}));
+                        as_bytes(span{&value, 1}));
 
                     m_lastString.clear();
                     m_state = next_state_from_stack();
@@ -307,7 +308,7 @@ namespace oblo::json
                     m_doc.child_value(m_stack.back().id,
                         hashed_string_view{m_lastString},
                         property_kind::f64,
-                        std::as_bytes(std::span{&value, 1}));
+                        as_bytes(span{&value, 1}));
 
                     m_lastString.clear();
                     m_state = next_state_from_stack();

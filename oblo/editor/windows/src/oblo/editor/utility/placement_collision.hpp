@@ -3,12 +3,11 @@
 #include <oblo/acceleration/aabb_container.hpp>
 #include <oblo/acceleration/bvh.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/ecs/handles.hpp>
 #include <oblo/math/aabb.hpp>
 #include <oblo/math/ray.hpp>
 #include <oblo/math/vec3.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -26,9 +25,8 @@ namespace oblo::editor
     class placement_collision
     {
     public:
-        void build(const resource_registry& resources,
-            ecs::entity_registry& reg,
-            std::span<const ecs::entity> excludedEntities);
+        void build(
+            const resource_registry& resources, ecs::entity_registry& reg, span<const ecs::entity> excludedEntities);
 
         bool empty() const;
 

@@ -441,7 +441,7 @@ namespace oblo
             it->outputs.emplace(templateGraph[out].name, outVertex);
         }
 
-        const std::span allVertices = templateToInstanceMap.values();
+        const span allVertices = templateToInstanceMap.values();
         it->vertices.assign(allVertices.begin(), allVertices.end());
 
         return subgraph;
@@ -847,7 +847,7 @@ namespace oblo
 
         // We may have some extra hidden nodes (e.g. metrics download) that do not belong to the sorted nodes list, they
         // don't need to be executed, but they may still have passes that get executed after the main execution
-        const std::span regularNodePasses = std::span{m_impl->passesPerNode}.subspan(0, m_impl->sortedNodes.size());
+        const span regularNodePasses = span{m_impl->passesPerNode}.subspan(0, m_impl->sortedNodes.size());
 
         for (const auto& [nodeToExecute, passesPerNode] : zip_range(m_impl->sortedNodes, regularNodePasses))
         {
@@ -1016,7 +1016,7 @@ namespace oblo
             }
         }
 
-        const auto bufferBarriers = std::span{
+        const auto bufferBarriers = span{
             barriers->bufferBarriers.data() + pass.bufferBarriersBegin,
             barriers->bufferBarriers.data() + pass.bufferBarriersEnd,
         };
@@ -1141,7 +1141,7 @@ namespace oblo
 
     void frame_graph::fetch_subgraphs(deque<h32<frame_graph_subgraph>>& outSubgraphs)
     {
-        const std::span subgraphs = m_impl->subgraphs.keys();
+        const span subgraphs = m_impl->subgraphs.keys();
         outSubgraphs.append(subgraphs.begin(), subgraphs.end());
     }
 

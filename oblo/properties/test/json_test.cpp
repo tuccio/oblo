@@ -34,9 +34,9 @@ namespace oblo
 
             const auto root = doc.get_root();
 
-            doc.child_value(root, "myU32", property_kind::u32, std::as_bytes(std::span{&expected.myU32, 1}));
-            doc.child_value(root, "myF32", property_kind::f32, std::as_bytes(std::span{&expected.myF32, 1}));
-            doc.child_value(root, "myBool", property_kind::boolean, std::as_bytes(std::span{&expected.myBool, 1}));
+            doc.child_value(root, "myU32", property_kind::u32, as_bytes(span{&expected.myU32, 1}));
+            doc.child_value(root, "myF32", property_kind::f32, as_bytes(span{&expected.myF32, 1}));
+            doc.child_value(root, "myBool", property_kind::boolean, as_bytes(span{&expected.myBool, 1}));
 
             const auto array = doc.child_array(root, "myArray", 2);
 
@@ -45,7 +45,7 @@ namespace oblo
             for (auto arrayElement = doc.child_next(array, data_node::Invalid); arrayElement != data_node::Invalid;
                  arrayElement = doc.child_next(array, arrayElement))
             {
-                doc.make_value(arrayElement, property_kind::u32, std::as_bytes(std::span{&expected.myArray[i], 1}));
+                doc.make_value(arrayElement, property_kind::u32, as_bytes(span{&expected.myArray[i], 1}));
                 ++i;
             }
 

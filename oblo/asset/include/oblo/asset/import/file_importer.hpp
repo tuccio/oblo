@@ -1,9 +1,8 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/uuid.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -16,8 +15,8 @@ namespace oblo
 
     struct file_import_results
     {
-        std::span<const import_artifact> artifacts;
-        std::span<const string> sourceFiles;
+        span<const import_artifact> artifacts;
+        span<const string> sourceFiles;
     };
 
     class file_importer

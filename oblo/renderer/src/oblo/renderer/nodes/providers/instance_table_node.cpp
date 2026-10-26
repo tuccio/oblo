@@ -21,7 +21,7 @@ namespace oblo
 
         ctx.register_global_tlas(drawRegistry.get_tlas());
 
-        const std::span meshDatabaseData = drawRegistry.get_mesh_database_data();
+        const span meshDatabaseData = drawRegistry.get_mesh_database_data();
 
         ctx.create(outMeshDatabase,
             {
@@ -30,7 +30,7 @@ namespace oblo
             },
             buffer_usage::storage_upload);
 
-        const std::span drawCalls = drawRegistry.get_draw_calls();
+        const span drawCalls = drawRegistry.get_draw_calls();
         const auto numTables = drawCalls.size();
 
         auto& instanceBuffers = ctx.access(outInstanceBuffers);

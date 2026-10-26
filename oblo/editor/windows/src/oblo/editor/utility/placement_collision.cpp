@@ -16,7 +16,7 @@
 namespace oblo::editor
 {
     void placement_collision::build(
-        const resource_registry& resources, ecs::entity_registry& reg, std::span<const ecs::entity> excludedEntities)
+        const resource_registry& resources, ecs::entity_registry& reg, span<const ecs::entity> excludedEntities)
     {
         dynamic_array<aabb> boxes;
         boxes.reserve(64);
@@ -90,7 +90,7 @@ namespace oblo::editor
             f32 bestSign{};
             bool found = false;
 
-            const std::span<const aabb> aabbs = m_primitives.get_aabbs();
+            const span<const aabb> aabbs = m_primitives.get_aabbs();
 
             m_bvh.intersect_aabb(current,
                 [&aabbs, &current, &bestDistance, &bestAxis, &bestSign, &found](u32 offset, u32 numPrimitives)

@@ -271,7 +271,7 @@ namespace oblo
         return m_impl;
     }
 
-    void graphics_window::set_icon(u32 w, u32 h, std::span<const byte> data)
+    void graphics_window::set_icon(u32 w, u32 h, span<const byte> data)
     {
         SDL_Window* const sdlWindow = static_cast<SDL_Window*>(m_impl);
 

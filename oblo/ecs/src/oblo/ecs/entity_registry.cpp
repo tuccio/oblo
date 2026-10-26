@@ -124,7 +124,7 @@ namespace oblo::ecs
         archetype->modificationId = m_modificationId;
     }
 
-    void entity_registry::create(const component_and_tag_sets& types, const u32 count, std::span<entity> outEntityIds)
+    void entity_registry::create(const component_and_tag_sets& types, const u32 count, span<entity> outEntityIds)
     {
         OBLO_ASSERT(outEntityIds.size() == 0 || outEntityIds.size() == count);
 
@@ -155,7 +155,7 @@ namespace oblo::ecs
     }
 
     void entity_registry::create_with_reserved_ids(const component_and_tag_sets& types,
-        std::span<const entity> entityIds)
+        span<const entity> entityIds)
     {
         if (entityIds.empty())
         {
@@ -282,7 +282,7 @@ namespace oblo::ecs
         return m_entities.try_find(e) != nullptr;
     }
 
-    void entity_registry::reserve_ids(std::span<entity> outEntityIds)
+    void entity_registry::reserve_ids(span<entity> outEntityIds)
     {
         for (entity& outEntity : outEntityIds)
         {
@@ -290,7 +290,7 @@ namespace oblo::ecs
         }
     }
 
-    void entity_registry::release_reserved_ids(std::span<const entity> reservedIds)
+    void entity_registry::release_reserved_ids(span<const entity> reservedIds)
     {
         for (const entity e : reservedIds)
         {
@@ -345,7 +345,7 @@ namespace oblo::ecs
     }
 
     void entity_registry::get(
-        entity e, const std::span<const component_type> components, std::span<const std::byte*> outComponents) const
+        entity e, const span<const component_type> components, span<const std::byte*> outComponents) const
     {
         OBLO_ASSERT(components.size() == outComponents.size());
 
@@ -380,7 +380,7 @@ namespace oblo::ecs
     }
 
     void entity_registry::get(
-        entity e, const std::span<const component_type> components, std::span<std::byte*> outComponents)
+        entity e, const span<const component_type> components, span<std::byte*> outComponents)
     {
         get(e, components, {const_cast<const std::byte**>(outComponents.data()), outComponents.size()});
     }
@@ -391,12 +391,12 @@ namespace oblo::ecs
         return {entityData ? entityData->archetype : nullptr};
     }
 
-    std::span<const entity> entity_registry::entities() const
+    span<const entity> entity_registry::entities() const
     {
         return m_entities.keys();
     }
 
-    std::span<const component_type> entity_registry::get_component_types(entity e) const
+    span<const component_type> entity_registry::get_component_types(entity e) const
     {
         const entity_data* entityData = m_entities.try_find(e);
 
@@ -409,7 +409,7 @@ namespace oblo::ecs
         return {archetype->components, archetype->numComponents};
     }
 
-    std::span<const tag_type> entity_registry::get_tag_types(entity e) const
+    span<const tag_type> entity_registry::get_tag_types(entity e) const
     {
         const entity_data* entityData = m_entities.try_find(e);
 
@@ -422,7 +422,7 @@ namespace oblo::ecs
         return {archetype->tags, archetype->numTags};
     }
 
-    std::span<const archetype_storage> entity_registry::get_archetypes() const
+    span<const archetype_storage> entity_registry::get_archetypes() const
     {
         return m_componentsStorage;
     }
@@ -515,7 +515,7 @@ namespace oblo::ecs
         return nullptr;
     }
 
-    void entity_registry::sort_and_map(const std::span<component_type> componentTypes, const std::span<u8> mapping)
+    void entity_registry::sort_and_map(const span<component_type> componentTypes, const span<u8> mapping)
     {
         for (u8 i = 0; i < mapping.size(); ++i)
         {
@@ -530,7 +530,7 @@ namespace oblo::ecs
     }
 
     bool entity_registry::fetch_component_offsets(
-        const archetype_storage& storage, std::span<const component_type> componentTypes, std::span<u32> offsets)
+        const archetype_storage& storage, span<const component_type> componentTypes, span<u32> offsets)
     {
         const archetype_impl& archetype = *storage.archetype;
 
@@ -579,9 +579,9 @@ namespace oblo::ecs
 
     u32 entity_registry::fetch_chunk_data(const archetype_storage& storage,
         u32 chunkIndex,
-        std::span<const u32> offsets,
+        span<const u32> offsets,
         const entity** entities,
-        std::span<std::byte*> componentData)
+        span<std::byte*> componentData)
     {
         const auto& archetype = *storage.archetype;
         chunk* const chunk = archetype.chunks[chunkIndex];
@@ -596,7 +596,7 @@ namespace oblo::ecs
         return chunk->header.numEntities;
     }
 
-    void entity_registry::find_component_types(std::span<const type_id> typeIds, std::span<component_type> types)
+    void entity_registry::find_component_types(span<const type_id> typeIds, span<component_type> types)
     {
         OBLO_ASSERT(typeIds.size() == types.size());
         for (usize i = 0; i < typeIds.size(); ++i)
@@ -623,7 +623,7 @@ namespace oblo::ecs
     }
 
     void entity_registry::find_component_data(
-        entity e, const std::span<const type_id> typeIds, std::span<std::byte*> outComponents) const
+        entity e, const span<const type_id> typeIds, span<std::byte*> outComponents) const
     {
         OBLO_ASSERT(typeIds.size() == outComponents.size());
 

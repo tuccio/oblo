@@ -2,10 +2,10 @@
 
 #include <oblo/core/debug.hpp>
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 
-#include <span>
 #include <utility>
 
 namespace oblo
@@ -169,7 +169,7 @@ namespace oblo
                 return *v;
             }
 
-            std::span<const Key> keys() const
+            span<const Key> keys() const
             {
                 return m_denseKey;
             }

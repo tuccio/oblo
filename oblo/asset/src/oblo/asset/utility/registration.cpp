@@ -11,7 +11,7 @@
 
 namespace oblo
 {
-    void register_file_importers(asset_registry& registry, std::span<const file_importers_provider* const> providers)
+    void register_file_importers(asset_registry& registry, span<const file_importers_provider* const> providers)
     {
         dynamic_array<file_importer_descriptor> importers;
         importers.reserve(128);
@@ -28,7 +28,7 @@ namespace oblo
         }
     }
 
-    void register_native_asset_types(asset_registry& registry, std::span<const native_asset_provider* const> providers)
+    void register_native_asset_types(asset_registry& registry, span<const native_asset_provider* const> providers)
     {
         deque<native_asset_descriptor> nativeAssetTypes;
 

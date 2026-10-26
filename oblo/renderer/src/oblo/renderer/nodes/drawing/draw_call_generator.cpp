@@ -33,7 +33,7 @@ namespace oblo
         auto& drawCallBuffer = ctx.access(outDrawCallBuffer);
 
         const auto& drawRegistry = *ctx.access(inRenderWorld).drawRegistry;
-        const std::span drawCalls = drawRegistry.get_draw_calls();
+        const span drawCalls = drawRegistry.get_draw_calls();
 
         if (drawCalls.empty())
         {
@@ -67,8 +67,8 @@ namespace oblo
     {
         if (const auto pass = ctx.begin_pass(drawCallGeneratorPassInstance))
         {
-            const std::span drawData = ctx.access(inDrawBufferData);
-            const std::span drawCallBuffers = ctx.access(outDrawCallBuffer);
+            const span drawData = ctx.access(inDrawBufferData);
+            const span drawCallBuffers = ctx.access(outDrawCallBuffer);
 
             const auto subgroupSize = ctx.get_gpu_info().subgroupSize;
 
@@ -95,7 +95,7 @@ namespace oblo
                 };
 
                 ctx.bind_descriptor_sets(bindingTable);
-                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(std::span{&pcData, 1}));
+                ctx.push_constants(gpu::shader_stage::compute, 0, as_bytes(span{&pcData, 1}));
 
                 // We could also use the draw count to dispatch indirect here, it may be more efficient when many
                 // objects are culled

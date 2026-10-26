@@ -2,13 +2,12 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/lifetime.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/unordered_map.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -54,7 +53,7 @@ namespace oblo
         OBLO_MODULES_API void shutdown();
 
         template <typename T>
-        std::span<T* const> find_services() const;
+        span<T* const> find_services() const;
 
         template <typename T>
         T* find_unique_service() const;
@@ -82,7 +81,7 @@ namespace oblo
         [[nodiscard]] OBLO_MODULES_API module_storage* load(const hashed_string_view& id,
             unique_ptr<module_interface> module);
 
-        OBLO_MODULES_API std::span<void* const> find_services(const type_id& type) const;
+        OBLO_MODULES_API span<void* const> find_services(const type_id& type) const;
 
     private:
         std::unordered_map<hashed_string_view, module_storage, hash<hashed_string_view>> m_modules;
@@ -132,7 +131,7 @@ namespace oblo
     }
 
     template <typename T>
-    std::span<T* const> module_manager::find_services() const
+    span<T* const> module_manager::find_services() const
     {
         const auto services = find_services(get_type_id<T>());
 
@@ -150,7 +149,7 @@ namespace oblo
     template <typename T>
     T* module_manager::find_unique_service() const
     {
-        const std::span services = find_services<T>();
+        const span services = find_services<T>();
         OBLO_ASSERT(services.size() <= 1);
         return services.empty() ? nullptr : services[0];
     }

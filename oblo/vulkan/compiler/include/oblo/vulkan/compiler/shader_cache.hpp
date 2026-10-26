@@ -1,11 +1,10 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/vulkan/compiler/shader_compiler.hpp>
-
-#include <span>
 
 namespace oblo
 {

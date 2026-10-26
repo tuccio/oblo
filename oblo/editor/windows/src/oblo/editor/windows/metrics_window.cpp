@@ -183,7 +183,7 @@ namespace oblo::editor
             set_metrics_data_sync<memory_usage_metrics>(globalMetrics.emplace_back(), memoryUsage);
         }
 
-        void push_displayed_metrics(std::span<const async_metrics_entry> entries)
+        void push_displayed_metrics(span<const async_metrics_entry> entries)
         {
             for (const auto& entry : entries)
             {

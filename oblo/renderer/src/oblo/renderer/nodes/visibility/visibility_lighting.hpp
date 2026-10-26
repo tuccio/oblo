@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/light_data.hpp>
 #include <oblo/renderer/data/light_visibility_event.hpp>
@@ -9,8 +10,6 @@
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 #include <oblo/renderer/nodes/providers/instance_table_node.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -47,7 +46,7 @@ namespace oblo
     {
         pin::data<vec2u> inResolution;
 
-        pin::data<std::span<const light_data>> inLights;
+        pin::data<span<const light_data>> inLights;
 
         pin::data_sink<light_visibility_event> inShadowSink;
 

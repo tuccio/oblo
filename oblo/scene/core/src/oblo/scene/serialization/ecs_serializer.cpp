@@ -93,12 +93,12 @@ namespace oblo::ecs_serializer
                         continue;
                     }
 
-                    const std::span componentTypes = reg.get_component_types(entityId);
+                    const span componentTypes = reg.get_component_types(entityId);
 
                     componentOffsets.assign_default(componentTypes.size());
                     componentArrays.assign_default(componentTypes.size());
 
-                    const std::span tagTypes = reg.get_tag_types(entityId);
+                    const span tagTypes = reg.get_tag_types(entityId);
 
                     nodeStack.clear();
                     ptrStack.clear();

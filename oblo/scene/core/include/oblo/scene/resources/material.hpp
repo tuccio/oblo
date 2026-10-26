@@ -3,6 +3,7 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string.hpp>
@@ -12,8 +13,6 @@
 #include <oblo/core/uuid.hpp>
 #include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/scene/resources/traits.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -86,7 +85,7 @@ namespace oblo
 
         OBLO_SCENE_API const material_property* get_property(hashed_string_view name) const;
 
-        OBLO_SCENE_API std::span<const material_property> get_properties() const;
+        OBLO_SCENE_API span<const material_property> get_properties() const;
 
         template <material_type_tag Tag, typename T>
         void set_property(hashed_string_view name, const T& value)

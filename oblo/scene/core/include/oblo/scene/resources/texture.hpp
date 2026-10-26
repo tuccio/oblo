@@ -1,14 +1,13 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/reflection/codegen/annotations.hpp>
 #include <oblo/scene/resources/texture_format.hpp>
 #include <oblo/scene/resources/traits.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -47,11 +46,11 @@ namespace oblo
 
         vec2u get_resolution() const;
 
-        std::span<std::byte> get_data();
-        std::span<const std::byte> get_data() const;
+        span<std::byte> get_data();
+        span<const std::byte> get_data() const;
 
-        std::span<std::byte> get_data(u32 level, u32 face, u32 layer);
-        std::span<const std::byte> get_data(u32 level, u32 face, u32 layer) const;
+        span<std::byte> get_data(u32 level, u32 face, u32 layer);
+        span<const std::byte> get_data(u32 level, u32 face, u32 layer) const;
 
         u32 get_row_pitch(u32 level) const;
 

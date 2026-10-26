@@ -184,7 +184,7 @@ namespace oblo
 
         struct subpass_info;
 
-        std::span<subpass_info> subpasses;
+        span<subpass_info> subpasses;
 
         u32 reductionGroupSize;
 

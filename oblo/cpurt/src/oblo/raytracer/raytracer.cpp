@@ -66,7 +66,7 @@ namespace oblo
         return index;
     }
 
-    std::span<const triangle_container> raytracer::get_meshes() const
+    span<const triangle_container> raytracer::get_meshes() const
     {
         return m_meshes;
     }
@@ -127,7 +127,7 @@ namespace oblo
 
                 trace(context, rays, state);
 
-                for (const auto& sample : std::span{context.output}.first(numSamples))
+                for (const auto& sample : span{context.output}.first(numSamples))
                 {
                     *pixelOut += sample.irradiance;
                 }
@@ -228,7 +228,7 @@ namespace oblo
         return found;
     }
 
-    void raytracer::trace(trace_context& context, std::span<const ray> initialRays, raytracer_state& state) const
+    void raytracer::trace(trace_context& context, span<const ray> initialRays, raytracer_state& state) const
     {
         context.casts[0].clear();
         context.casts[1].clear();
@@ -285,7 +285,7 @@ namespace oblo
         }
 
         // Resolve secondary rays back to front
-        const auto outputArray = std::span{context.output}.subspan(initialRays.size());
+        const auto outputArray = span{context.output}.subspan(initialRays.size());
 
         for (auto it = outputArray.rbegin(); it != outputArray.rend(); ++it)
         {

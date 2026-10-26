@@ -114,7 +114,7 @@ namespace oblo::editor
 
         m_root->services = service_context{nullptr, serviceRegistry};
 
-        const std::span windowModuleProviders = module_manager::get().find_services<window_modules_provider>();
+        const span windowModuleProviders = module_manager::get().find_services<window_modules_provider>();
 
         for (const auto* const provider : windowModuleProviders)
         {

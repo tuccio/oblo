@@ -7,7 +7,7 @@ namespace oblo
 {
     namespace
     {
-        u64 compute_buffer_size(std::span<const buffer_table_column_description> columns, u32 multiplier, u32 alignment)
+        u64 compute_buffer_size(span<const buffer_table_column_description> columns, u32 multiplier, u32 alignment)
         {
             u64 maxBufferSize = narrow_cast<u32>((alignment - 1) * columns.size());
 
@@ -23,8 +23,8 @@ namespace oblo
     }
 
     bool mesh_table::init(gpu::gpu_instance& gpu,
-        std::span<const buffer_table_column_description> vertexAttributes,
-        std::span<const buffer_table_column_description> meshAttributes,
+        span<const buffer_table_column_description> vertexAttributes,
+        span<const buffer_table_column_description> meshAttributes,
         flags<gpu::buffer_usage> vertexBufferUsage,
         flags<gpu::buffer_usage> meshBufferUsage,
         u32 indexByteSize,
@@ -213,11 +213,11 @@ namespace oblo
     }
 
     bool mesh_table::fetch_buffers(mesh_table_entry_id mesh,
-        std::span<const h32<buffer_table_name>> vertexBufferNames,
-        std::span<gpu::buffer_range> vertexBuffers,
+        span<const h32<buffer_table_name>> vertexBufferNames,
+        span<gpu::buffer_range> vertexBuffers,
         gpu::buffer_range* indexBuffer,
-        std::span<const h32<buffer_table_name>> meshDataNames,
-        std::span<gpu::buffer_range> meshDataBuffers,
+        span<const h32<buffer_table_name>> meshDataNames,
+        span<gpu::buffer_range> meshDataBuffers,
         gpu::buffer_range* meshletBuffer) const
     {
         const auto* range = m_ranges.try_find(mesh);
@@ -231,8 +231,8 @@ namespace oblo
             // Handle vertex buffers
             OBLO_ASSERT(vertexBufferNames.size() == vertexBuffers.size())
 
-            const std::span allBuffers = m_vertexTable.buffer_subranges();
-            const std::span elementSizes = m_vertexTable.element_sizes();
+            const span allBuffers = m_vertexTable.buffer_subranges();
+            const span elementSizes = m_vertexTable.element_sizes();
 
             for (usize i = 0; i < vertexBufferNames.size(); ++i)
             {
@@ -261,8 +261,8 @@ namespace oblo
             // Handle mesh data
             OBLO_ASSERT(meshDataNames.size() == meshDataBuffers.size())
 
-            const std::span allBuffers = m_meshDataTable.buffer_subranges();
-            const std::span elementSizes = m_meshDataTable.element_sizes();
+            const span allBuffers = m_meshDataTable.buffer_subranges();
+            const span elementSizes = m_meshDataTable.element_sizes();
 
             for (usize i = 0; i < meshDataNames.size(); ++i)
             {
@@ -308,11 +308,11 @@ namespace oblo
         return true;
     }
 
-    void mesh_table::fetch_buffers(std::span<const h32<buffer_table_name>> names,
-        std::span<gpu::buffer_range> vertexBuffers,
+    void mesh_table::fetch_buffers(span<const h32<buffer_table_name>> names,
+        span<gpu::buffer_range> vertexBuffers,
         gpu::buffer_range* indexBuffer) const
     {
-        const std::span allBuffers = m_vertexTable.buffer_subranges();
+        const span allBuffers = m_vertexTable.buffer_subranges();
 
         for (usize i = 0; i < names.size(); ++i)
         {
@@ -336,8 +336,8 @@ namespace oblo
         }
     }
 
-    bool mesh_table::allocate_meshes(std::span<const mesh_table_entry> meshes,
-        std::span<mesh_table_entry_id> outHandles)
+    bool mesh_table::allocate_meshes(span<const mesh_table_entry> meshes,
+        span<mesh_table_entry_id> outHandles)
     {
         OBLO_ASSERT(meshes.size() == outHandles.size());
 
@@ -423,12 +423,12 @@ namespace oblo
         return m_meshDataBuffer;
     }
 
-    std::span<const buffer_table_subrange> mesh_table::vertex_attribute_buffer_subranges() const
+    span<const buffer_table_subrange> mesh_table::vertex_attribute_buffer_subranges() const
     {
         return m_vertexTable.buffer_subranges();
     }
 
-    std::span<const buffer_table_subrange> mesh_table::mesh_data_buffer_subranges() const
+    span<const buffer_table_subrange> mesh_table::mesh_data_buffer_subranges() const
     {
         return m_meshDataTable.buffer_subranges();
     }

@@ -50,8 +50,8 @@ namespace oblo::gpu
         virtual result<h32<fence>> create_fence(const fence_descriptor& descriptor) = 0;
         virtual void destroy(h32<fence> handle) = 0;
 
-        virtual result<> wait_for_fences(const std::span<const h32<fence>> fences) = 0;
-        virtual result<> reset_fences(const std::span<const h32<fence>> fences) = 0;
+        virtual result<> wait_for_fences(const span<const h32<fence>> fences) = 0;
+        virtual result<> reset_fences(const span<const h32<fence>> fences) = 0;
 
         virtual result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) = 0;
         virtual void destroy(h32<semaphore> handle) = 0;
@@ -65,11 +65,11 @@ namespace oblo::gpu
         virtual void destroy(h32<bind_group_layout> handle) = 0;
 
         virtual result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle,
-            std::span<const bind_group_data> data) = 0;
+            span<const bind_group_data> data) = 0;
 
         virtual u32 get_max_bindless_images() const = 0;
 
-        virtual result<> set_bindless_images(std::span<const bindless_image_descriptor> images, u32 first) = 0;
+        virtual result<> set_bindless_images(span<const bindless_image_descriptor> images, u32 first) = 0;
 
         virtual result<hptr<bind_group>> acquire_transient_bindless_images_bind_group(
             h32<bind_group_layout> handle, u32 binding, u32 count) = 0;
@@ -78,7 +78,7 @@ namespace oblo::gpu
             const command_buffer_pool_descriptor& descriptor) = 0;
 
         virtual result<> fetch_command_buffers(h32<command_buffer_pool> pool,
-            std::span<hptr<command_buffer>> commandBuffers) = 0;
+            span<hptr<command_buffer>> commandBuffers) = 0;
 
         virtual void destroy(h32<command_buffer_pool> commandBufferPool) = 0;
 
@@ -104,8 +104,8 @@ namespace oblo::gpu
 
         virtual image_descriptor get_image_descriptor(h32<image> imageHandle) = 0;
 
-        virtual result<h32<image_pool>> create_image_pool(std::span<const image_descriptor> descriptors,
-            std::span<h32<image>> images) = 0;
+        virtual result<h32<image_pool>> create_image_pool(span<const image_descriptor> descriptors,
+            span<h32<image>> images) = 0;
 
         virtual void destroy(h32<image_pool> imagePoolHandle) = 0;
 
@@ -184,19 +184,19 @@ namespace oblo::gpu
 
         virtual result<> memory_unmap(h32<buffer> buffer) = 0;
 
-        virtual result<> memory_invalidate(std::span<const h32<buffer>> buffers) = 0;
+        virtual result<> memory_invalidate(span<const h32<buffer>> buffers) = 0;
 
         // Transfer commands
 
         virtual void cmd_copy_buffer(hptr<command_buffer> cmd,
             h32<buffer> src,
             h32<buffer> dst,
-            std::span<const buffer_copy_descriptor> copies) = 0;
+            span<const buffer_copy_descriptor> copies) = 0;
 
         virtual void cmd_copy_buffer_to_image(hptr<command_buffer> cmd,
             h32<buffer> src,
             h32<image> dst,
-            std::span<const buffer_image_copy_descriptor> copies) = 0;
+            span<const buffer_image_copy_descriptor> copies) = 0;
 
         virtual void cmd_blit(hptr<command_buffer> cmd, h32<image> src, h32<image> dst, gpu::sampler_filter filter) = 0;
 
@@ -233,12 +233,12 @@ namespace oblo::gpu
 
         virtual void cmd_set_viewport(hptr<command_buffer> cmd,
             u32 firstViewport,
-            std::span<const rectangle> viewports,
+            span<const rectangle> viewports,
             f32 minDepth,
             f32 maxDepth) = 0;
 
         virtual void cmd_set_scissor(
-            hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) = 0;
+            hptr<command_buffer> cmd, u32 firstScissor, span<const rectangle> scissors) = 0;
 
         virtual void cmd_bind_index_buffer(
             hptr<command_buffer> cmd, h32<buffer> buffer, u64 offset, gpu::mesh_index_type format) = 0;
@@ -246,35 +246,35 @@ namespace oblo::gpu
         virtual void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,
             u32 firstGroup,
-            std::span<const hptr<bind_group>> bindGroups) = 0;
+            span<const hptr<bind_group>> bindGroups) = 0;
 
         virtual void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<compute_pipeline> pipeline,
             u32 firstGroup,
-            std::span<const hptr<bind_group>> bindGroups) = 0;
+            span<const hptr<bind_group>> bindGroups) = 0;
 
         virtual void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<raytracing_pipeline> pipeline,
             u32 firstGroup,
-            std::span<const hptr<bind_group>> bindGroups) = 0;
+            span<const hptr<bind_group>> bindGroups) = 0;
 
         virtual void cmd_push_constants(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,
             flags<shader_stage> shaderStages,
             u32 offset,
-            std::span<const byte> data) = 0;
+            span<const byte> data) = 0;
 
         virtual void cmd_push_constants(hptr<command_buffer> cmd,
             h32<compute_pipeline> pipeline,
             flags<shader_stage> shaderStages,
             u32 offset,
-            std::span<const byte> data) = 0;
+            span<const byte> data) = 0;
 
         virtual void cmd_push_constants(hptr<command_buffer> cmd,
             h32<raytracing_pipeline> pipeline,
             flags<shader_stage> shaderStages,
             u32 offset,
-            std::span<const byte> data) = 0;
+            span<const byte> data) = 0;
 
         // Debugging and profiling
 

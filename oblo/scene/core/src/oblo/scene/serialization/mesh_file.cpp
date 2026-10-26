@@ -7,6 +7,7 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/filesystem/file.hpp>
 #include <oblo/core/filesystem/filesystem.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/math/float.hpp>
@@ -17,8 +18,6 @@
 #include <oblo/scene/resources/mesh.hpp>
 
 #include <tinygltf/implementation.hpp>
-
-#include <span>
 
 // Unfortunately tiny_gltf includes Windows.h
 #ifdef GetObject
@@ -193,7 +192,7 @@ namespace oblo
                 switch (m.get_attribute_format(attribute_kind::indices))
                 {
                 case data_format::u8: {
-                    const std::span indices = m.get_attribute<u8>(attribute_kind::indices);
+                    const span indices = m.get_attribute<u8>(attribute_kind::indices);
 
                     for (u32 i = 0; i < m.get_index_count(); i += 3)
                     {
@@ -204,7 +203,7 @@ namespace oblo
                 }
 
                 case data_format::u16: {
-                    const std::span indices = m.get_attribute<u16>(attribute_kind::indices);
+                    const span indices = m.get_attribute<u16>(attribute_kind::indices);
 
                     for (u32 i = 0; i < m.get_index_count(); i += 3)
                     {
@@ -215,7 +214,7 @@ namespace oblo
                 }
 
                 case data_format::u32: {
-                    const std::span indices = m.get_attribute<u32>(attribute_kind::indices);
+                    const span indices = m.get_attribute<u32>(attribute_kind::indices);
 
                     for (u32 i = 0; i < m.get_index_count(); i += 3)
                     {
@@ -290,7 +289,7 @@ namespace oblo
         for (u32 attributeIndex = 0; attributeIndex < numAttributes; ++attributeIndex)
         {
             const mesh_attribute attribute = mesh.get_attribute_at(attributeIndex);
-            const std::span<const std::byte> attributeData = mesh.get_attribute(attribute.kind);
+            const span<const std::byte> attributeData = mesh.get_attribute(attribute.kind);
 
             const auto bufferViewId = int(model.bufferViews.size());
             const auto bufferId = int(model.buffers.size());
@@ -302,7 +301,7 @@ namespace oblo
 
             auto& buffer = model.buffers.emplace_back();
 
-            const std::span<const unsigned char> attributeDataUChar{
+            const span<const unsigned char> attributeDataUChar{
                 reinterpret_cast<const unsigned char*>(attributeData.data()),
                 attributeData.size()};
 
@@ -394,7 +393,7 @@ namespace oblo
 
             auto& buffer = model.buffers.emplace_back();
 
-            const std::span<const unsigned char> meshletDataUChar{
+            const span<const unsigned char> meshletDataUChar{
                 reinterpret_cast<const unsigned char*>(meshletBytes.data()),
                 meshletBytes.size()};
 
@@ -451,7 +450,7 @@ namespace oblo
         const tinygltf::Primitive& primitive,
         dynamic_array<mesh_attribute>& attributes,
         dynamic_array<gltf_accessor>& sources,
-        const std::span<bool>* usedBuffers,
+        const span<bool>* usedBuffers,
         flags<mesh_post_process> processingFlags)
     {
         const auto primitiveKind = convert_primitive_kind(primitive.mode);
@@ -608,7 +607,7 @@ namespace oblo
         for (u32 i = 0; i < numAttributesFromFile; ++i)
         {
             const auto attributeKind = attributes[i].kind;
-            const std::span bytes = mesh.get_attribute(attributeKind);
+            const span bytes = mesh.get_attribute(attributeKind);
             const auto accessorIndex = sources[i];
             const auto& accessor = model.accessors[accessorIndex];
             const auto& bufferView = model.bufferViews[accessor.bufferView];

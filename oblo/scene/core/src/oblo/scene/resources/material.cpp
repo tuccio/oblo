@@ -43,7 +43,7 @@ namespace oblo
         return &m_properties[it->second];
     }
 
-    std::span<const material_property> material::get_properties() const
+    span<const material_property> material::get_properties() const
     {
         return m_properties;
     }
@@ -62,14 +62,14 @@ namespace oblo
         {
             const auto propertyNode = doc.child_object(properties, property.name);
 
-            doc.child_value(propertyNode, "type", property_kind::u8, std::as_bytes(std::span{&property.type, 1}));
+            doc.child_value(propertyNode, "type", property_kind::u8, as_bytes(span{&property.type, 1}));
 
             constexpr hashed_string_view valueLabel{"value"};
 
             switch (property.type)
             {
             case material_property_type::f32:
-                doc.child_value(propertyNode, valueLabel, property_kind::f32, std::span{property.storage.buffer});
+                doc.child_value(propertyNode, valueLabel, property_kind::f32, span{property.storage.buffer});
                 break;
 
             case material_property_type::vec2: {
@@ -77,8 +77,8 @@ namespace oblo
 
                 const auto valueNode = doc.child_object(propertyNode, valueLabel);
 
-                doc.child_value(valueNode, "x", property_kind::f32, std::as_bytes(std::span{v + 0, 1}));
-                doc.child_value(valueNode, "y", property_kind::f32, std::as_bytes(std::span{v + 1, 1}));
+                doc.child_value(valueNode, "x", property_kind::f32, as_bytes(span{v + 0, 1}));
+                doc.child_value(valueNode, "y", property_kind::f32, as_bytes(span{v + 1, 1}));
             }
             break;
 
@@ -89,9 +89,9 @@ namespace oblo
 
                 const auto valueNode = doc.child_object(propertyNode, valueLabel);
 
-                doc.child_value(valueNode, "x", property_kind::f32, std::as_bytes(std::span{v + 0, 1}));
-                doc.child_value(valueNode, "y", property_kind::f32, std::as_bytes(std::span{v + 1, 1}));
-                doc.child_value(valueNode, "z", property_kind::f32, std::as_bytes(std::span{v + 2, 1}));
+                doc.child_value(valueNode, "x", property_kind::f32, as_bytes(span{v + 0, 1}));
+                doc.child_value(valueNode, "y", property_kind::f32, as_bytes(span{v + 1, 1}));
+                doc.child_value(valueNode, "z", property_kind::f32, as_bytes(span{v + 2, 1}));
             }
             break;
 
@@ -100,15 +100,15 @@ namespace oblo
 
                 const auto valueNode = doc.child_object(propertyNode, valueLabel);
 
-                doc.child_value(valueNode, "x", property_kind::f32, std::as_bytes(std::span{v + 0, 1}));
-                doc.child_value(valueNode, "y", property_kind::f32, std::as_bytes(std::span{v + 1, 1}));
-                doc.child_value(valueNode, "z", property_kind::f32, std::as_bytes(std::span{v + 2, 1}));
-                doc.child_value(valueNode, "w", property_kind::f32, std::as_bytes(std::span{v + 3, 1}));
+                doc.child_value(valueNode, "x", property_kind::f32, as_bytes(span{v + 0, 1}));
+                doc.child_value(valueNode, "y", property_kind::f32, as_bytes(span{v + 1, 1}));
+                doc.child_value(valueNode, "z", property_kind::f32, as_bytes(span{v + 2, 1}));
+                doc.child_value(valueNode, "w", property_kind::f32, as_bytes(span{v + 3, 1}));
             }
             break;
 
             case material_property_type::texture:
-                doc.child_value(propertyNode, valueLabel, property_kind::uuid, std::span{property.storage.buffer});
+                doc.child_value(propertyNode, valueLabel, property_kind::uuid, span{property.storage.buffer});
                 break;
             }
         }

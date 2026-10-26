@@ -19,7 +19,7 @@ namespace oblo
         deque<options_layer_provider_descriptor> moduleLayers;
 
         // Gather all layers
-        const std::span layersProviders = module_manager::get().find_services<options_layer_provider>();
+        const span layersProviders = module_manager::get().find_services<options_layer_provider>();
 
         for (const auto& p : layersProviders)
         {
@@ -38,7 +38,7 @@ namespace oblo
         // Now register all options
         deque<option_descriptor> moduleOptions;
 
-        const std::span optionsProviders = module_manager::get().find_services<options_provider>();
+        const span optionsProviders = module_manager::get().find_services<options_provider>();
 
         for (const auto& p : optionsProviders)
         {

@@ -81,8 +81,8 @@ namespace oblo::editor
             return false;
         }
 
-        const std::span viewportModeNames = reflection->get_enumerator_names(viewportMode);
-        const std::span viewportModeValues = reflection->get_enumerator_values(viewportMode);
+        const span viewportModeNames = reflection->get_enumerator_names(viewportMode);
+        const span viewportModeValues = reflection->get_enumerator_values(viewportMode);
 
         m_viewportModes.assign(viewportModeNames.size(), {});
 

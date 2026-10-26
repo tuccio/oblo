@@ -1,9 +1,9 @@
 #pragma once
 
 #include <oblo/core/lifetime.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 
-#include <span>
 #include <type_traits>
 
 namespace oblo
@@ -39,7 +39,7 @@ namespace oblo
     }
 
     template <typename T, typename Allocator>
-    [[nodiscard]] std::span<T> allocate_n_span(Allocator& allocator, usize count)
+    [[nodiscard]] span<T> allocate_n_span(Allocator& allocator, usize count)
         requires(std::is_pod_v<T> || std::is_trivially_destructible_v<T>)
     {
         return {allocate_n<T>(allocator, count), count};

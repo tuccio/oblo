@@ -5,7 +5,7 @@
 #include <oblo/ecs/component_type_desc.hpp>
 #include <oblo/ecs/type_set.hpp>
 
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {
@@ -134,7 +134,7 @@ namespace oblo::ecs
     void reserve_chunks(memory_pool& pool, archetype_impl& archetype, u32 newCount);
 
     // TODO: Could be implemented with bitwise operations and type_set instead
-    inline u8 find_component_index(std::span<const component_type> types, component_type component)
+    inline u8 find_component_index(span<const component_type> types, component_type component)
     {
         for (const component_type& c : types)
         {

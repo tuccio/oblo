@@ -1,21 +1,20 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/renderer/data/render_world.hpp>
 #include <oblo/renderer/graph/enums.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 
-#include <span>
-
 namespace oblo
 {
     struct instance_data_table_buffers
     {
-        std::span<pin::buffer> bufferResources;
+        span<pin::buffer> bufferResources;
         const u32* bufferIds;
     };
 
-    using instance_data_table_buffers_span = std::span<instance_data_table_buffers>;
+    using instance_data_table_buffers_span = span<instance_data_table_buffers>;
 
     struct instance_data_table;
 
@@ -26,7 +25,7 @@ namespace oblo
         pin::data<instance_data_table_buffers_span> outInstanceBuffers;
         pin::data<render_world> inRenderWorld;
 
-        std::span<instance_data_table> instanceTableArray;
+        span<instance_data_table> instanceTableArray;
 
         h32<transfer_pass_instance> uploadPass;
 

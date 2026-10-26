@@ -72,12 +72,12 @@ namespace oblo
     void create_property_path(string_builder& builder,
         const property_tree& tree,
         const property& property,
-        std::span<const usize> arrayIndices);
+        span<const usize> arrayIndices);
 
     void create_property_path(string_builder& builder,
         const property_tree& tree,
         const property_node& node,
-        std::span<const usize> arrayIndices);
+        span<const usize> arrayIndices);
 
     [[nodiscard]] bool find_property_or_node_by_path(
         const property_tree& tree, string_view path, const property_node** outNode, const property** outProperty);

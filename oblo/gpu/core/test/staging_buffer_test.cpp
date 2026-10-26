@@ -95,7 +95,7 @@ namespace oblo::gpu
         data_array data;
         std::iota(std::begin(data), std::end(data), 0);
 
-        const std::span dataSpan = std::as_bytes(std::span{data});
+        const span dataSpan = as_bytes(span{data});
 
         u64 lastSubmitIndex{};
 
@@ -207,7 +207,7 @@ namespace oblo::gpu
         std::array<i32, data_array{}.size() / 2> halfSizeData;
         std::fill(std::begin(halfSizeData), std::end(halfSizeData), 42);
 
-        const auto newDataSpan = std::as_bytes(std::span{halfSizeData});
+        const auto newDataSpan = as_bytes(span{halfSizeData});
 
         data_array newExpected = data;
         std::copy(halfSizeData.begin(), halfSizeData.end(), newExpected.begin());

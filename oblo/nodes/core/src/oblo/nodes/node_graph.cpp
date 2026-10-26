@@ -644,7 +644,7 @@ namespace oblo
             const node_data& srcNode = m_graph[srcHandle].data.as<node_data>();
             const node_data& dstNode = m_graph[dstHandle].data.as<node_data>();
 
-            const auto findPinById = [this](std::span<const node_graph_vertex_handle> pins,
+            const auto findPinById = [this](span<const node_graph_vertex_handle> pins,
                                          const uuid& id) -> node_graph_vertex_handle
             {
                 for (const h32 pin : pins)
@@ -1095,7 +1095,7 @@ namespace oblo
     {
         OBLO_ASSERT(h);
 
-        const std::span inEdges = m_graph->get_in_edges(to_vertex_handle(h));
+        const span inEdges = m_graph->get_in_edges(to_vertex_handle(h));
 
         if (inEdges.size() != 1)
         {

@@ -12,7 +12,7 @@ namespace oblo::importers
     namespace
     {
         template <typename T>
-        file_importer_descriptor make_file_importer_desc(std::span<const string_view> extensions)
+        file_importer_descriptor make_file_importer_desc(span<const string_view> extensions)
         {
             return file_importer_descriptor{
                 .type = get_type_id<T>(),

@@ -140,7 +140,7 @@ namespace oblo
         return true;
     }
 
-    std::span<const byte> property_value_wrapper::get_bytes() const noexcept
+    span<const byte> property_value_wrapper::get_bytes() const noexcept
     {
         return {data(), size()};
     }

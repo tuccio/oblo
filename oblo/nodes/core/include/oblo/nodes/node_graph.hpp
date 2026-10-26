@@ -2,8 +2,7 @@
 
 #include <oblo/core/expected.hpp>
 #include <oblo/core/graph/directed_graph.hpp>
-
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {

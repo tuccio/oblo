@@ -19,9 +19,9 @@ namespace oblo::ecs
     system_graph_builder::~system_graph_builder() = default;
 
     barrier_builder system_graph_builder::add_system(const system_descriptor& desc,
-        std::span<const type_id> before,
-        const std::span<const type_id> after,
-        std::span<const type_id> barriers)
+        span<const type_id> before,
+        const span<const type_id> after,
+        span<const type_id> barriers)
     {
         const auto id = m_graph.add_system(desc);
 

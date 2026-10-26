@@ -9,7 +9,7 @@ namespace oblo::editor
     {
     public:
         void add(ecs::entity e);
-        void add(std::span<const ecs::entity> entities);
+        void add(span<const ecs::entity> entities);
 
         void remove(ecs::entity e);
 
@@ -17,7 +17,7 @@ namespace oblo::editor
 
         bool contains(ecs::entity e) const;
 
-        std::span<const ecs::entity> get() const;
+        span<const ecs::entity> get() const;
 
         void push_refresh_event();
 
@@ -36,7 +36,7 @@ namespace oblo::editor
         m_selected.emplace(e);
     }
 
-    inline void selected_entities::add(std::span<const ecs::entity> entities)
+    inline void selected_entities::add(span<const ecs::entity> entities)
     {
         for (const auto e : entities)
         {
@@ -59,7 +59,7 @@ namespace oblo::editor
         return m_selected.try_find(e) != nullptr;
     }
 
-    inline std::span<const ecs::entity> selected_entities::get() const
+    inline span<const ecs::entity> selected_entities::get() const
     {
         return m_selected.keys();
     }

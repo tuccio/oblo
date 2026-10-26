@@ -3,7 +3,7 @@
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {
@@ -15,6 +15,6 @@ namespace oblo
 
     struct compute_pipeline_initializer
     {
-        std::span<const hashed_string_view> defines;
+        span<const hashed_string_view> defines;
     };
 }

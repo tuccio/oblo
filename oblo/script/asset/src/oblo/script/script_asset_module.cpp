@@ -183,7 +183,7 @@ namespace oblo
 
             bool import(import_context ctx)
             {
-                const std::span configs = ctx.get_import_node_configs();
+                const span configs = ctx.get_import_node_configs();
 
                 string_builder destination;
                 compiled_script script;
@@ -301,7 +301,7 @@ namespace oblo
                 string_builder src;
                 src.format("{}.cpp", destination);
 
-                if (!filesystem::write_file(src, as_bytes(std::span{code->data(), code->size()}), {}))
+                if (!filesystem::write_file(src, as_bytes(span{code->data(), code->size()}), {}))
                 {
                     return false;
                 }
@@ -942,7 +942,7 @@ namespace oblo
                                 bool generate(const node_graph_context&,
                                     abstract_syntax_tree&,
                                     h32<ast_node>,
-                                    const std::span<const h32<ast_node>>,
+                                    const span<const h32<ast_node>>,
                                     dynamic_array<h32<ast_node>>& outputs) const override
                                 {
                                     add_node_execution_ast_node(outputs);
@@ -1010,8 +1010,8 @@ namespace oblo
 
                                 return allocate_unique<api_nodes::invoke_reflected_function_node>(fnUserdata->name,
                                     fnUserdata->returnKind,
-                                    std::span{fnUserdata->paramKinds},
-                                    std::span{fnUserdata->paramNames});
+                                    span{fnUserdata->paramKinds},
+                                    span{fnUserdata->paramNames});
                             },
                             .userdata = make_any<reflected_function_userdata>(std::move(userdata)),
                         });

@@ -2,10 +2,9 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/handle_flat_pool_set.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/renderer/graph/frame_graph.hpp>
 #include <oblo/renderer/graph/frame_graph_registry.hpp>
-
-#include <span>
 
 namespace oblo::ecs
 {
@@ -28,7 +27,7 @@ namespace oblo
 
     struct scene_lights
     {
-        std::span<const light_data> data;
+        span<const light_data> data;
     };
 
     enum class scene_view_kind
@@ -62,7 +61,7 @@ namespace oblo
         h32<frame_graph_subgraph> create_scene_view(scene_view_kind kind);
         void remove_scene_view(h32<frame_graph_subgraph> subgraph);
 
-        std::span<const h32<frame_graph_subgraph>> get_scene_views() const;
+        span<const h32<frame_graph_subgraph>> get_scene_views() const;
 
         bool is_scene_view(h32<frame_graph_subgraph> graph) const;
 

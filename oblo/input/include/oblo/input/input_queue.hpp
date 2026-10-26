@@ -1,13 +1,12 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/input/input_event.hpp>
-
-#include <span>
 
 namespace oblo
 {
-    using input_events = std::span<const input_event>;
+    using input_events = span<const input_event>;
 
     class input_queue
     {

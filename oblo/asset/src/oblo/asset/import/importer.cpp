@@ -44,8 +44,8 @@ namespace oblo
 
     struct import_context_impl
     {
-        std::span<const import_node> nodes;
-        std::span<const import_node_config> importNodesConfig;
+        span<const import_node> nodes;
+        span<const import_node_config> importNodesConfig;
         const data_document& settings;
         cstring_view temporaryPath;
         const importer::file_import_data* fileImportData;
@@ -353,7 +353,7 @@ namespace oblo
                 // TODO: Ensure that names are unique
                 auto& config = importNodesConfig[i];
                 const auto h = hash_all<hash>(node.name, node.artifactType, i);
-                config.id = uuidGenerator.generate(std::as_bytes(std::span{&h, 1}));
+                config.id = uuidGenerator.generate(as_bytes(span{&h, 1}));
 
                 const auto [artifactIt, artifactInserted] = m_artifacts.emplace(config.id,
                     artifact_meta{
@@ -434,24 +434,24 @@ namespace oblo
         return outPath;
     }
 
-    std::span<const import_node> import_context::get_import_nodes() const
+    span<const import_node> import_context::get_import_nodes() const
     {
         return m_impl->nodes;
     }
 
-    std::span<const import_node> import_context::get_child_import_nodes(usize i) const
+    span<const import_node> import_context::get_child_import_nodes(usize i) const
     {
         OBLO_ASSERT(i < m_impl->fileImportData->childrenCount);
         const auto index = m_impl->fileImportData->firstChild + i;
         return m_impl->allImporters->at(index).preview.nodes;
     }
 
-    std::span<const import_node_config> import_context::get_import_node_configs() const
+    span<const import_node_config> import_context::get_import_node_configs() const
     {
         return m_impl->importNodesConfig;
     }
 
-    std::span<const import_node_config> import_context::get_child_import_node_configs(usize i) const
+    span<const import_node_config> import_context::get_child_import_node_configs(usize i) const
     {
         OBLO_ASSERT(i < m_impl->fileImportData->childrenCount);
         const auto index = m_impl->fileImportData->firstChild + i;

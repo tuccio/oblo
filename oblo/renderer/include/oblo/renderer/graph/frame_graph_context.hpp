@@ -5,6 +5,7 @@
 #include <oblo/core/flags.hpp>
 #include <oblo/core/flat_dense_forward.hpp>
 #include <oblo/core/handle.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/types.hpp>
@@ -13,8 +14,6 @@
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/frame_graph_resources.hpp>
 #include <oblo/renderer/graph/pins.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -125,7 +124,7 @@ namespace oblo
         }
 
         template <typename T>
-        std::span<const T> access(pin::data_sink<T> data) const
+        span<const T> access(pin::data_sink<T> data) const
         {
             return *static_cast<pin::data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
@@ -152,8 +151,8 @@ namespace oblo
 
         random_generator& get_random_generator() const;
 
-        gpu::staging_buffer_span stage_upload(std::span<const byte> data) const;
-        gpu::staging_buffer_span stage_upload_image(std::span<const byte> data, u32 texelSize) const;
+        gpu::staging_buffer_span stage_upload(span<const byte> data) const;
+        gpu::staging_buffer_span stage_upload_image(span<const byte> data, u32 texelSize) const;
 
         u32 get_current_frames_count() const;
 
@@ -221,7 +220,7 @@ namespace oblo
         }
 
         template <typename T>
-        std::span<const T> access(pin::data_sink<T> data) const
+        span<const T> access(pin::data_sink<T> data) const
         {
             return *static_cast<pin::data_sink_container<T>*>(access_storage(h32<frame_graph_pin_storage>{data.value}));
         }
@@ -250,7 +249,7 @@ namespace oblo
 
         // TODO: This should probably be deprecated, it would be hard to make this thread-safe, staging should happen
         // when building instead.
-        void upload(pin::buffer h, std::span<const byte> data, u64 bufferOffset = 0) const;
+        void upload(pin::buffer h, span<const byte> data, u64 bufferOffset = 0) const;
 
         void upload(pin::buffer h, const staging_buffer_span& data, u64 bufferOffset = 0) const;
 
@@ -273,7 +272,7 @@ namespace oblo
         void set_viewport(u32 w, u32 h, f32 minDepth = 0.f, f32 maxDepth = 1.f) const;
         void set_scissor(i32 x, i32 y, u32 w, u32 h) const;
 
-        void push_constants(flags<gpu::shader_stage, 14> stages, u32 offset, std::span<const byte> bytes) const;
+        void push_constants(flags<gpu::shader_stage, 14> stages, u32 offset, span<const byte> bytes) const;
         void dispatch_compute(u32 groupsX, u32 groupsY, u32 groupsZ) const;
         void trace_rays(u32 x, u32 y, u32 z) const;
 

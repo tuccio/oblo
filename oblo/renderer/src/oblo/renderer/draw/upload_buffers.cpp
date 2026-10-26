@@ -69,7 +69,7 @@ namespace oblo
         m_commandPools.shutdown();
     }
 
-    gpu::result<> upload_buffers::upload(std::span<const byte> source, h32<gpu::buffer> buffer, u64 bufferOffset)
+    gpu::result<> upload_buffers::upload(span<const byte> source, h32<gpu::buffer> buffer, u64 bufferOffset)
     {
         OBLO_PROFILE_SCOPE();
 

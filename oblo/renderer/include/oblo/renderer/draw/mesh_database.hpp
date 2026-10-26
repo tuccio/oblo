@@ -3,11 +3,10 @@
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/handle.hpp>
-#include <oblo/gpu/forward.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/gpu/enums.hpp>
+#include <oblo/gpu/forward.hpp>
 #include <oblo/renderer/data/handles.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -57,11 +56,11 @@ namespace oblo
             u32 meshAttributesMask, gpu::mesh_index_type indexType, u32 vertexCount, u32 indexCount, u32 meshletsCount);
 
         bool fetch_buffers(mesh_handle mesh,
-            std::span<const u32> vertexAttributes,
-            std::span<gpu::buffer_range> vertexBuffers,
+            span<const u32> vertexAttributes,
+            span<gpu::buffer_range> vertexBuffers,
             gpu::buffer_range* indexBuffer,
-            std::span<const h32<buffer_table_name>> meshBufferNames,
-            std::span<gpu::buffer_range> meshBuffers,
+            span<const h32<buffer_table_name>> meshBufferNames,
+            span<gpu::buffer_range> meshBuffers,
             gpu::buffer_range* meshletsBuffer) const;
 
         gpu::mesh_index_type get_index_type(mesh_handle mesh) const;
@@ -72,7 +71,7 @@ namespace oblo
 
         table_range get_table_range(mesh_handle mesh) const;
 
-        std::span<const std::byte> create_mesh_table_lookup(frame_allocator& allocator) const;
+        span<const std::byte> create_mesh_table_lookup(frame_allocator& allocator) const;
 
         u64 calculate_mesh_tables_size() const;
 
@@ -112,8 +111,8 @@ namespace oblo
     struct mesh_database::initializer
     {
         gpu::gpu_instance& gpu;
-        std::span<const mesh_attribute_description> attributes;
-        std::span<const mesh_attribute_description> meshData;
+        span<const mesh_attribute_description> attributes;
+        span<const mesh_attribute_description> meshData;
         flags<gpu::buffer_usage> vertexBufferUsage;
         flags<gpu::buffer_usage> indexBufferUsage;
         flags<gpu::buffer_usage> meshBufferUsage;

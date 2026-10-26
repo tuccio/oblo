@@ -142,7 +142,7 @@ namespace oblo
             {"b_EcsEntitySet"_hsv, inEntitySetBuffer},
         });
 
-        const std::span drawData = ctx.access(inDrawData);
+        const span drawData = ctx.access(inDrawData);
 
         const gpu::graphics_attachment colorAttachments[] = {
             {
@@ -206,7 +206,7 @@ namespace oblo
             };
 
             ctx.bind_descriptor_sets(bindingTables);
-            ctx.push_constants(gpu::shader_stage::mesh, 0, as_bytes(std::span{&pushConstants, 1}));
+            ctx.push_constants(gpu::shader_stage::mesh, 0, as_bytes(span{&pushConstants, 1}));
 
             ctx.draw_mesh_tasks_indirect_count(drawCallBufferSpan[drawCallIndex],
                 0,

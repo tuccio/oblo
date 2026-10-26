@@ -153,7 +153,7 @@ namespace oblo::ecs
                 u32 foundChanges = 0;
 
                 reg.range<u32>().notified().for_each_chunk(
-                    [&](std::span<const entity>, std::span<const u32> values)
+                    [&](span<const entity>, span<const u32> values)
                     {
                         ++iteratedChunks;
 

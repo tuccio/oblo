@@ -1,13 +1,12 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/math/vec2u.hpp>
 #include <oblo/renderer/data/async_download.hpp>
 #include <oblo/renderer/data/picking_configuration.hpp>
 #include <oblo/renderer/graph/forward.hpp>
 #include <oblo/renderer/graph/pins.hpp>
 #include <oblo/renderer/nodes/providers/instance_table_node.hpp>
-
-#include <span>
 
 namespace oblo
 {

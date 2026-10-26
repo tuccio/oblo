@@ -1,10 +1,9 @@
 #pragma once
 
 #include <oblo/core/dynamic_array.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/thread/future.hpp>
 #include <oblo/core/type_id.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -18,8 +17,8 @@ namespace oblo
     public:
         OBLO_METRICS_API void init(dynamic_array<entry> entries);
 
-        OBLO_METRICS_API std::span<entry> get_entries();
-        OBLO_METRICS_API std::span<const entry> get_entries() const;
+        OBLO_METRICS_API span<entry> get_entries();
+        OBLO_METRICS_API span<const entry> get_entries() const;
 
         OBLO_METRICS_API void update();
 

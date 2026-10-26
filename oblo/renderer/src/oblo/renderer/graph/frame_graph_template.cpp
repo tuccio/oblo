@@ -83,12 +83,12 @@ namespace oblo
         return m_graph;
     }
 
-    std::span<const frame_graph_template::vertex_handle> frame_graph_template::get_inputs() const
+    span<const frame_graph_template::vertex_handle> frame_graph_template::get_inputs() const
     {
         return m_inputs;
     }
 
-    std::span<const frame_graph_template::vertex_handle> frame_graph_template::get_outputs() const
+    span<const frame_graph_template::vertex_handle> frame_graph_template::get_outputs() const
     {
         return m_outputs;
     }

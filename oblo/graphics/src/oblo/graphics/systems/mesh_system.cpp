@@ -300,7 +300,7 @@ namespace oblo
                  .with<global_transform_component>()
                  .exclude<mesh_processed_tag>())
         {
-            const std::span skinComponents = chunk.try_get<const skin_component>();
+            const span skinComponents = chunk.try_get<const skin_component>();
 
             if (skinComponents.empty())
             {

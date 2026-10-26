@@ -4,11 +4,10 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/handle.hpp>
 #include <oblo/core/ring_buffer_tracker.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/gpu/error.hpp>
 #include <oblo/gpu/forward.hpp>
-
-#include <span>
 
 namespace oblo::gpu
 {
@@ -37,19 +36,19 @@ namespace oblo::gpu
 
         expected<staging_buffer_span> stage_allocate(u64 size);
 
-        expected<staging_buffer_span> stage(std::span<const byte> source);
+        expected<staging_buffer_span> stage(span<const byte> source);
 
-        expected<staging_buffer_span> stage_image(std::span<const byte> source, u32 texelSize);
+        expected<staging_buffer_span> stage_image(span<const byte> source, u32 texelSize);
 
-        void copy_to(staging_buffer_span destination, u64 destinationOffset, std::span<const byte> source);
-        void copy_from(std::span<byte> destination, staging_buffer_span source, u64 sourceOffset);
+        void copy_to(staging_buffer_span destination, u64 destinationOffset, span<const byte> source);
+        void copy_from(span<byte> destination, staging_buffer_span source, u64 sourceOffset);
 
         void upload(
             hptr<command_buffer> commandBuffer, staging_buffer_span source, h32<buffer> buffer, u64 bufferOffset) const;
 
         void upload(hptr<command_buffer> commandBuffer,
             h32<image> image,
-            std::span<const buffer_image_copy_descriptor> copies) const;
+            span<const buffer_image_copy_descriptor> copies) const;
 
         void download(
             hptr<command_buffer> commandBuffer, h32<buffer> buffer, u64 bufferOffset, staging_buffer_span source) const;

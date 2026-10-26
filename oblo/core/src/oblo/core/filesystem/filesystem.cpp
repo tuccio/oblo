@@ -56,7 +56,7 @@ namespace oblo::filesystem
         }
 
         template <typename Allocator>
-        expected<std::span<char>> load_impl(Allocator& allocator, cstring_view path, const char* mode, usize alignment)
+        expected<span<char>> load_impl(Allocator& allocator, cstring_view path, const char* mode, usize alignment)
         {
             const file_ptr f{open_file(path, mode)};
 
@@ -89,7 +89,7 @@ namespace oblo::filesystem
 
             finalize_impl(allocator, readBytes);
 
-            return std::span{static_cast<char*>(buffer), readBytes};
+            return span{static_cast<char*>(buffer), readBytes};
         }
     }
 
@@ -102,11 +102,11 @@ namespace oblo::filesystem
             return e.error();
         }
 
-        const auto span = std::as_writable_bytes(*e);
+        const auto span = as_writable_bytes(*e);
         return unique_ptr<byte[]>(span.data(), span.size(), allocator);
     }
 
-    expected<std::span<byte>> load_binary_file_into_memory(
+    expected<span<byte>> load_binary_file_into_memory(
         frame_allocator& allocator, cstring_view path, usize alignment)
     {
         const auto e = load_impl(allocator, path, "rb", alignment);
@@ -116,15 +116,15 @@ namespace oblo::filesystem
             return e.error();
         }
 
-        return std::as_writable_bytes(*e);
+        return as_writable_bytes(*e);
     }
 
-    expected<std::span<char>> load_text_file_into_memory(frame_allocator& allocator, cstring_view path, usize alignment)
+    expected<span<char>> load_text_file_into_memory(frame_allocator& allocator, cstring_view path, usize alignment)
     {
         return load_impl(allocator, path, "r", alignment);
     }
 
-    expected<std::span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path)
+    expected<span<byte>> load_binary_file_into_memory(dynamic_array<byte>& out, cstring_view path)
     {
         const auto e = load_impl(out, path, "rb", 1);
 
@@ -133,15 +133,15 @@ namespace oblo::filesystem
             return e.error();
         }
 
-        return std::as_writable_bytes(*e);
+        return as_writable_bytes(*e);
     }
 
-    expected<std::span<char>> load_text_file_into_memory(dynamic_array<char>& out, cstring_view path)
+    expected<span<char>> load_text_file_into_memory(dynamic_array<char>& out, cstring_view path)
     {
         return load_impl(out, path, "r", 1);
     }
 
-    expected<std::span<char>> load_text_file_into_memory(string_builder& out, cstring_view path)
+    expected<span<char>> load_text_file_into_memory(string_builder& out, cstring_view path)
     {
         return load_impl(out, path, "r", 1);
     }
@@ -177,7 +177,7 @@ namespace oblo::filesystem
 #endif
     }
 
-    expected<> write_file(cstring_view destination, std::span<const byte> bytes, flags<write_mode> mode)
+    expected<> write_file(cstring_view destination, span<const byte> bytes, flags<write_mode> mode)
     {
         const char* cMode{};
 
@@ -479,7 +479,7 @@ namespace oblo::filesystem
         return convert_stl_time(t);
     }
 
-    bool search_file_in_paths(string_builder& out, string_view fileName, std::span<const string_view> extraPaths)
+    bool search_file_in_paths(string_builder& out, string_view fileName, span<const string_view> extraPaths)
     {
         for (const string_view p : extraPaths)
         {

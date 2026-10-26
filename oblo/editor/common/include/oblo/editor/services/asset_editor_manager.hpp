@@ -2,12 +2,11 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/expected.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/core/unordered_map.hpp>
 #include <oblo/core/uuid.hpp>
 #include <oblo/editor/window_handle.hpp>
-
-#include <span>
 
 namespace oblo
 {

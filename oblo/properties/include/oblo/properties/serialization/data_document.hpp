@@ -49,7 +49,7 @@ namespace oblo
 
         u32 child_object(u32 parent, hashed_string_view key);
         void child_value(u32 parent, hashed_string_view key, const property_value_wrapper& w);
-        void child_value(u32 parent, hashed_string_view key, property_kind kind, std::span<const byte> data);
+        void child_value(u32 parent, hashed_string_view key, property_kind kind, span<const byte> data);
         u32 child_next(u32 objectOrArray, u32 previous) const;
         u32 children_count(u32 objectOrArray) const;
 
@@ -60,7 +60,7 @@ namespace oblo
 
         void make_array(u32 node);
         void make_object(u32 node);
-        void make_value(u32 node, property_kind kind, std::span<const byte> data);
+        void make_value(u32 node, property_kind kind, span<const byte> data);
         void make_value(u32 node, const property_value_wrapper& w);
 
         const deque<data_node>& get_nodes() const;
@@ -68,7 +68,7 @@ namespace oblo
         u32 find_child(u32 parent, hashed_string_view name) const;
         hashed_string_view get_node_name(u32 node) const;
 
-        expected<std::span<const byte>, error> read_value(u32 node) const;
+        expected<span<const byte>, error> read_value(u32 node) const;
         expected<data_string, error> read_string(u32 node) const;
         expected<bool, error> read_bool(u32 node) const;
 
@@ -117,14 +117,14 @@ namespace oblo
 
     template <typename T>
         requires std::is_pod_v<T>
-    constexpr std::span<const byte> as_bytes(const T& value)
+    constexpr span<const byte> as_bytes(const T& value)
     {
-        return as_bytes(std::span{&value, 1});
+        return as_bytes(span{&value, 1});
     }
 
-    inline std::span<const byte> as_bytes(const data_string& value)
+    inline span<const byte> as_bytes(const data_string& value)
     {
-        return as_bytes(std::span{&value, 1});
+        return as_bytes(span{&value, 1});
     }
 
     class data_document::children_iterator

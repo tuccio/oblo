@@ -1,13 +1,12 @@
 #pragma once
 
 #include <oblo/core/deque.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/unique_ptr.hpp>
 #include <oblo/vulkan/compiler/shader_stage.hpp>
-
-#include <span>
 
 namespace oblo::vk
 {
@@ -35,7 +34,7 @@ namespace oblo::vk
 
     struct shader_compiler_config
     {
-        std::span<const string_view> includeDirectories;
+        span<const string_view> includeDirectories;
     };
 
     class shader_compiler
@@ -78,7 +77,7 @@ namespace oblo::vk
 
         OBLO_VULKAN_COMPILER_API void get_source_files(deque<string_view>& sourceFiles) const;
 
-        OBLO_VULKAN_COMPILER_API std::span<const u32> get_spirv() const;
+        OBLO_VULKAN_COMPILER_API span<const u32> get_spirv() const;
 
     private:
         unique_ptr<shader_compiler::result_core> m_core;

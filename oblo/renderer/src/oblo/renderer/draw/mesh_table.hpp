@@ -47,8 +47,8 @@ namespace oblo
         ~mesh_table() = default;
 
         [[nodiscard]] bool init(gpu::gpu_instance& gpu,
-            std::span<const buffer_table_column_description> vertexAttributes,
-            std::span<const buffer_table_column_description> meshAttributes,
+            span<const buffer_table_column_description> vertexAttributes,
+            span<const buffer_table_column_description> meshAttributes,
             flags<gpu::buffer_usage> bufferUsage,
             flags<gpu::buffer_usage> meshBufferUsage,
             u32 indexByteSize,
@@ -61,26 +61,26 @@ namespace oblo
         void shutdown(gpu::gpu_instance& ctx);
 
         bool fetch_buffers(mesh_table_entry_id mesh,
-            std::span<const h32<buffer_table_name>> vertexBufferNames,
-            std::span<gpu::buffer_range> vertexBuffers,
+            span<const h32<buffer_table_name>> vertexBufferNames,
+            span<gpu::buffer_range> vertexBuffers,
             gpu::buffer_range* indexBuffer,
-            std::span<const h32<buffer_table_name>> meshDataNames,
-            std::span<gpu::buffer_range> meshDataBuffers,
+            span<const h32<buffer_table_name>> meshDataNames,
+            span<gpu::buffer_range> meshDataBuffers,
             gpu::buffer_range* meshletBuffer) const;
 
-        void fetch_buffers(std::span<const h32<buffer_table_name>> names,
-            std::span<gpu::buffer_range> vertexBuffers,
+        void fetch_buffers(span<const h32<buffer_table_name>> names,
+            span<gpu::buffer_range> vertexBuffers,
             gpu::buffer_range* indexBuffer) const;
 
-        bool allocate_meshes(std::span<const mesh_table_entry> meshes, std::span<mesh_table_entry_id> outHandles);
+        bool allocate_meshes(span<const mesh_table_entry> meshes, span<mesh_table_entry_id> outHandles);
 
         gpu::buffer_range index_buffer() const;
         h32<gpu::buffer> meshlet_buffer() const;
         h32<gpu::buffer> vertex_buffer() const;
         h32<gpu::buffer> mesh_data_buffer() const;
 
-        std::span<const buffer_table_subrange> vertex_attribute_buffer_subranges() const;
-        std::span<const buffer_table_subrange> mesh_data_buffer_subranges() const;
+        span<const buffer_table_subrange> vertex_attribute_buffer_subranges() const;
+        span<const buffer_table_subrange> mesh_data_buffer_subranges() const;
 
         u32 vertex_count() const;
         u32 index_count() const;

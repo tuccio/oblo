@@ -26,7 +26,7 @@ namespace oblo
 
     expected<u64> buffer_table::init(u64 memStartOffset,
         u64 memTotalSize,
-        std::span<const column_description> columns,
+        span<const column_description> columns,
         u64 rows,
         u64 bufferAlignment)
     {
@@ -145,17 +145,17 @@ namespace oblo
         }
     }
 
-    std::span<const h32<buffer_table_name>> buffer_table::names() const
+    span<const h32<buffer_table_name>> buffer_table::names() const
     {
         return {m_names, m_columns};
     }
 
-    std::span<const buffer_table_subrange> buffer_table::buffer_subranges() const
+    span<const buffer_table_subrange> buffer_table::buffer_subranges() const
     {
         return {m_bufferSubranges, m_columns};
     }
 
-    std::span<const u64> buffer_table::element_sizes() const
+    span<const u64> buffer_table::element_sizes() const
     {
         return {m_elementSizes, m_columns};
     }

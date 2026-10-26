@@ -327,7 +327,7 @@ namespace oblo::importers
             {
                 for (u32 face = 0; face < desc.numFaces; ++face)
                 {
-                    const std::span outData = out.get_data(level, face, layer);
+                    const span outData = out.get_data(level, face, layer);
 
                     if (std::fread(outData.data(), 1, outData.size(), file.get()) != outData.size())
                     {

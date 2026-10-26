@@ -223,7 +223,7 @@ namespace oblo
 
                 t.allocate(texture_desc::make_2d(tex.Width, tex.Height, map_imgui_format(tex.Format))).assert_value();
 
-                const std::span textureData = t.get_data();
+                const span textureData = t.get_data();
 
                 if (usize(tex.GetSizeInBytes()) == textureData.size_bytes())
                 {
@@ -292,8 +292,8 @@ namespace oblo
             h32<render_pass> renderPass;
             h32<render_pass_instance> renderPassInstance;
 
-            std::span<h32<resident_texture>> registeredTextures;
-            std::span<h32<resident_texture>> subgraphTextures;
+            span<h32<resident_texture>> registeredTextures;
+            span<h32<resident_texture>> subgraphTextures;
 
             struct pending_upload
             {
@@ -456,10 +456,10 @@ namespace oblo
 
                 ctx.acquire(inOutRenderTarget, texture_usage::render_target_write);
 
-                const std::span vertices =
+                const span vertices =
                     allocate_n_span<ImDrawVert>(ctx.get_frame_allocator(), usize(drawData->TotalVtxCount));
 
-                const std::span indices =
+                const span indices =
                     allocate_n_span<ImDrawIdx>(ctx.get_frame_allocator(), usize(drawData->TotalIdxCount));
 
                 auto vertexIt = vertices.data();
@@ -553,7 +553,7 @@ namespace oblo
 
                     ctx.push_constants(gpu::shader_stage::vertex | gpu::shader_stage::fragment,
                         0,
-                        as_bytes(std::span{&transformConstants, 1}));
+                        as_bytes(span{&transformConstants, 1}));
 
                     // Will project scissor/clipping rectangles into framebuffer space
                     // (0,0) unless using multi-viewports
@@ -607,7 +607,7 @@ namespace oblo
 
                                 ctx.push_constants(gpu::shader_stage::vertex | gpu::shader_stage::fragment,
                                     sizeof(transform_constants),
-                                    as_bytes(std::span{&residentTexture, 1}));
+                                    as_bytes(span{&residentTexture, 1}));
 
                                 lastImage = newImage;
                             }
@@ -647,7 +647,7 @@ namespace oblo
 
                 ctx.acquire(resource, texture_usage::transfer_destination);
 
-                const std::span src = as_bytes(std::span{tex.Pixels, usize(tex.GetSizeInBytes())});
+                const span src = as_bytes(span{tex.Pixels, usize(tex.GetSizeInBytes())});
                 const auto staged = ctx.stage_upload_image(src, u32(tex.BytesPerPixel));
 
                 uploads.emplace_back(resource, staged);

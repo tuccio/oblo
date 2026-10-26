@@ -2,10 +2,9 @@
 
 #include <oblo/core/handle.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/math/vec2u.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -85,7 +84,7 @@ namespace oblo
 
         native_window_handle get_native_handle() const;
 
-        void set_icon(u32 w, u32 h, std::span<const byte> data);
+        void set_icon(u32 w, u32 h, span<const byte> data);
 
         void set_input_queue(input_queue* inputQueue);
         input_queue* get_input_queue() const;

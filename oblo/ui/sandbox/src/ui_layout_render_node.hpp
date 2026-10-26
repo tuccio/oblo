@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/gpu/forward.hpp>
 #include <oblo/gpu/staging_buffer.hpp>
 #include <oblo/math/vec2u.hpp>
@@ -9,8 +10,6 @@
 #include <oblo/ui/ui.hpp>
 
 #include <ui_layout_atlas_cache.hpp>
-
-#include <span>
 
 namespace oblo
 {

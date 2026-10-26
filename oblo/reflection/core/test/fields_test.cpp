@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <oblo/core/algorithm/find.hpp>
 #include <oblo/reflection/access.hpp>
 #include <oblo/reflection/reflection_registry.hpp>
 #include <oblo/reflection/registration/registrant.hpp>
@@ -27,7 +28,7 @@ namespace oblo::reflection
             wchar_t wcharField;
         };
 
-        auto find_field_by_name(std::span<const field_data> fields, const string_view name)
+        auto find_field_by_name(span<const field_data> fields, const string_view name)
         {
             return find_if(fields.begin(),
                 fields.end(),
@@ -59,7 +60,7 @@ namespace oblo::reflection
         const class_handle podType = reg.find_class<test_pod>();
         ASSERT_TRUE(podType);
 
-        const std::span fields = reg.get_fields(podType);
+        const span fields = reg.get_fields(podType);
 
         ASSERT_EQ(fields.size(), 13);
 

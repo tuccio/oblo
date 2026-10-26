@@ -1,10 +1,10 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 
 #include <cstdio>
-#include <span>
 
 namespace oblo::platform
 {
@@ -13,7 +13,7 @@ namespace oblo::platform
     struct process_descriptor
     {
         cstring_view path;
-        std::span<const cstring_view> arguments;
+        span<const cstring_view> arguments;
         cstring_view workDir;
         const file* inputStream{};
         const file* outputStream{};

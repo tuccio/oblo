@@ -15,7 +15,7 @@ namespace oblo::gpu::vk
     void descriptor_set_pool::add_pool_kind(flags<gpu::resource_binding_kind> kinds,
         u32 maxSetsPerPool,
         VkDescriptorPoolCreateFlags createFlags,
-        const std::span<const VkDescriptorPoolSize> poolSizes)
+        const span<const VkDescriptorPoolSize> poolSizes)
     {
         auto& impl = m_pools.emplace_back();
 

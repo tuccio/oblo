@@ -1,12 +1,12 @@
 #pragma once
 
 #include <oblo/core/debug.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/color.hpp>
 #include <oblo/thread/parallel_for.hpp>
 
-#include <span>
 #include <type_traits>
 
 namespace oblo::importers::image_processing
@@ -67,25 +67,43 @@ namespace oblo::importers::image_processing
         using rgba = component_swizzle<component::red, component::green, component::blue, component::alpha>;
     }
 
+    template <typename T, usize Components>
+    struct fixed_pixel_view
+    {
+        T* first;
+
+        T& operator[](usize index) const noexcept
+        {
+            OBLO_ASSERT(index < Components);
+            return first[index];
+        }
+
+        static fixed_pixel_view<T, Components> from(span<T> s)
+        {
+            OBLO_ASSERT(s.size() >= Components);
+            return {s.data()};
+        }
+    };
+
     template <typename T, typename Swizzle>
     class image_view
     {
     public:
         static constexpr u32 Components = Swizzle::count();
         using byte_type = std::conditional_t<std::is_const_v<T>, const byte, byte>;
-        using pixel_view = std::span<T, Components>;
         using swizzle = Swizzle;
+        using pixel_view = fixed_pixel_view<T, Components>;
 
         image_view() = default;
         image_view(const image_view&) = default;
 
-        explicit image_view(std::span<byte_type> data, u32 width, u32 height, u32 rowPacking = Components) :
+        explicit image_view(span<byte_type> data, u32 width, u32 height, u32 rowPacking = Components) :
             m_width{width}, m_height{height}
         {
             OBLO_ASSERT(data.size() % (sizeof(T) * Components) == 0);
             OBLO_ASSERT(uintptr(data.data()) % alignof(T) == 0);
 
-            m_view = std::span{reinterpret_cast<T*>(data.data()), data.size() / sizeof(T)};
+            m_view = span{reinterpret_cast<T*>(data.data()), data.size() / sizeof(T)};
 
             m_rowPitch = round_up_multiple(width * Components, rowPacking);
             OBLO_ASSERT(data.size() >= height * m_rowPitch);
@@ -98,7 +116,7 @@ namespace oblo::importers::image_processing
             OBLO_ASSERT(row < m_height && column < m_width);
 
             const u32 offset = m_rowPitch * row + column * Components;
-            return m_view.subspan(offset).template subspan<0, Components>();
+            return pixel_view::from(m_view.subspan(offset));
         }
 
         u32 get_width() const
@@ -112,7 +130,7 @@ namespace oblo::importers::image_processing
         }
 
     private:
-        std::span<T> m_view;
+        span<T> m_view;
         u32 m_width{};
         u32 m_height{};
         u32 m_rowPitch{};

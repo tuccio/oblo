@@ -110,7 +110,7 @@ namespace oblo
 
             ctx.bind_descriptor_sets(bindingTable);
 
-            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(std::span{&constants, 1}));
+            ctx.push_constants(gpu::shader_stage::raygen, 0, as_bytes(span{&constants, 1}));
 
             ctx.trace_rays(resolution.x, resolution.y, 1);
 

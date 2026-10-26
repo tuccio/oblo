@@ -2,9 +2,8 @@
 
 #include <oblo/core/dynamic_array.hpp>
 #include <oblo/core/flags.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/types.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -27,7 +26,7 @@ namespace oblo
             visited,
         };
 
-        const std::span vertices = g.get_vertices();
+        const span vertices = g.get_vertices();
         const usize numNodes = vertices.size();
 
         dynamic_array<visit_state> nodeStates{temporaryAllocator};

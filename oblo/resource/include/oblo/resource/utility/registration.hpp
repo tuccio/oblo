@@ -1,6 +1,6 @@
 #pragma once
 
-#include <span>
+#include <oblo/core/span.hpp>
 
 namespace oblo
 {
@@ -9,5 +9,5 @@ namespace oblo
     class resource_types_provider;
 
     void register_resource_types(resource_registry& registry,
-        std::span<const resource_types_provider* const> providers);
+        span<const resource_types_provider* const> providers);
 }

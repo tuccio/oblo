@@ -391,7 +391,7 @@ namespace oblo
             }
         }
 
-        u64 hash_defines(std::span<const hashed_string_view> defines)
+        u64 hash_defines(span<const hashed_string_view> defines)
         {
             u64 hash{0};
 
@@ -469,8 +469,8 @@ namespace oblo
 
         h32<gpu::shader_module> create_shader_module(gpu::shader_stage stage,
             cstring_view filePath,
-            std::span<const string_view> builtInDefines,
-            std::span<const hashed_string_view> defines,
+            span<const string_view> builtInDefines,
+            span<const hashed_string_view> defines,
             string_view debugName,
             const vk::shader_compiler_options& compilerOptions,
             vk::shader_compiler::result& result);
@@ -481,7 +481,7 @@ namespace oblo
 
         void create_reflection(base_pipeline& newPipeline,
             gpu::shader_stage stage,
-            std::span<const u32> spirv,
+            span<const u32> spirv,
             vertex_inputs_reflection& vertexInputsReflection);
 
         hptr<gpu::bind_group> create_descriptor_set(h32<gpu::bind_group_layout> descriptorSetLayout,
@@ -528,8 +528,8 @@ namespace oblo
 
     h32<gpu::shader_module> pass_manager::impl::create_shader_module(gpu::shader_stage stage,
         cstring_view filePath,
-        std::span<const string_view> builtInDefines,
-        std::span<const hashed_string_view> userDefines,
+        span<const string_view> builtInDefines,
+        span<const hashed_string_view> userDefines,
         string_view debugName,
         const vk::shader_compiler_options& compilerOptions,
         vk::shader_compiler::result& result)
@@ -719,7 +719,7 @@ namespace oblo
 
     void pass_manager::impl::create_reflection(base_pipeline& newPipeline,
         gpu::shader_stage stage,
-        std::span<const u32> spirv,
+        span<const u32> spirv,
         vertex_inputs_reflection& vertexInputsReflection)
     {
         spirv_cross::Compiler compiler{spirv.data(), spirv.size()};
@@ -1345,7 +1345,7 @@ namespace oblo
         m_impl.reset();
     }
 
-    void pass_manager::set_system_include_paths(std::span<const string_view> paths)
+    void pass_manager::set_system_include_paths(span<const string_view> paths)
     {
         if (m_impl->glslcCompiler)
         {
@@ -2216,13 +2216,13 @@ namespace oblo
     }
 
     void pass_manager::push_constants(
-        const render_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, std::span<const byte> data) const
+        const render_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, span<const byte> data) const
     {
         m_impl->gpu->cmd_push_constants(ctx.commandBuffer, ctx.internalPipeline->pipeline, stages, offset, data);
     }
 
     void pass_manager::push_constants(
-        const compute_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, std::span<const byte> data) const
+        const compute_pass_context& ctx, flags<gpu::shader_stage> stages, u32 offset, span<const byte> data) const
     {
         m_impl->gpu->cmd_push_constants(ctx.commandBuffer, ctx.internalPipeline->pipeline, stages, offset, data);
     }
@@ -2230,7 +2230,7 @@ namespace oblo
     void pass_manager::push_constants(const raytracing_pass_context& ctx,
         flags<gpu::shader_stage> stages,
         u32 offset,
-        std::span<const byte> data) const
+        span<const byte> data) const
     {
         m_impl->gpu->cmd_push_constants(ctx.commandBuffer, ctx.internalPipeline->pipeline, stages, offset, data);
     }
@@ -2245,7 +2245,7 @@ namespace oblo
             m_impl->gpu->cmd_bind_groups(ctx.commandBuffer,
                 ctx.internalPipeline->pipeline,
                 0u,
-                std::span{&bindGroup, 1u});
+                span{&bindGroup, 1u});
         }
     }
 
@@ -2259,7 +2259,7 @@ namespace oblo
             m_impl->gpu->cmd_bind_groups(ctx.commandBuffer,
                 ctx.internalPipeline->pipeline,
                 0u,
-                std::span{&bindGroup, 1u});
+                span{&bindGroup, 1u});
         }
     }
 
@@ -2273,7 +2273,7 @@ namespace oblo
             m_impl->gpu->cmd_bind_groups(ctx.commandBuffer,
                 ctx.internalPipeline->pipeline,
                 0u,
-                std::span{&bindGroup, 1u});
+                span{&bindGroup, 1u});
         }
     }
 

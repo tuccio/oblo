@@ -244,9 +244,9 @@ namespace oblo::importers
             ASSERT_EQ(meshResource->get_attribute_format(attribute_kind::normal), data_format::vec3);
             ASSERT_EQ(meshResource->get_attribute_format(attribute_kind::indices), data_format::u16);
 
-            const std::span positions = meshResource->get_attribute<vec3>(attribute_kind::position);
-            const std::span normals = meshResource->get_attribute<vec3>(attribute_kind::normal);
-            const std::span indices = meshResource->get_attribute<u16>(attribute_kind::indices);
+            const span positions = meshResource->get_attribute<vec3>(attribute_kind::position);
+            const span normals = meshResource->get_attribute<vec3>(attribute_kind::normal);
+            const span indices = meshResource->get_attribute<u16>(attribute_kind::indices);
 
             ASSERT_EQ(positions.size(), expectedVertexCount);
             ASSERT_EQ(normals.size(), expectedVertexCount);

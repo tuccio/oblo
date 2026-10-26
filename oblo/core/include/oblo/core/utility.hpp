@@ -3,6 +3,7 @@
 #include <oblo/core/debug.hpp>
 #include <oblo/core/platform/compiler.hpp>
 #include <oblo/core/preprocessor.hpp>
+#include <oblo/core/types.hpp>
 
 #include <cmath>
 #include <utility>
@@ -89,5 +90,23 @@ namespace oblo
     OBLO_FORCEINLINE constexpr T round_up_multiple(const T number, const T multiple)
     {
         return round_up_div(number, multiple) * multiple;
+    }
+
+    constexpr usize clamp_offset(usize size, usize offset, usize count) noexcept
+    {
+        const usize r = size - offset;
+        return r < count ? r : count;
+    }
+
+    static constexpr usize cstring_length(const char* ptr) noexcept
+    {
+        usize i = 0;
+
+        while (ptr[i] != '\0')
+        {
+            ++i;
+        }
+
+        return i;
     }
 }

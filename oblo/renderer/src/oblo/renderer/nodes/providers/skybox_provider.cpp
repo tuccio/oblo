@@ -30,7 +30,7 @@ namespace oblo
         ctx.create(outSkyboxSettingsBuffer,
             buffer_resource_initializer{
                 .size = sizeof(skybox_settings_buffer),
-                .data = as_bytes(std::span{&content, 1}),
+                .data = as_bytes(span{&content, 1}),
             },
             buffer_usage::uniform);
     }

@@ -47,8 +47,8 @@ namespace oblo::gpu::vk
         result<h32<fence>> create_fence(const fence_descriptor& descriptor) override;
         void destroy(h32<fence> handle) override;
 
-        result<> wait_for_fences(const std::span<const h32<fence>> fences) override;
-        result<> reset_fences(const std::span<const h32<fence>> fences) override;
+        result<> wait_for_fences(const span<const h32<fence>> fences) override;
+        result<> reset_fences(const span<const h32<fence>> fences) override;
 
         result<h32<semaphore>> create_semaphore(const semaphore_descriptor& descriptor) override;
         void destroy(h32<semaphore> handle) override;
@@ -62,11 +62,11 @@ namespace oblo::gpu::vk
         void destroy(h32<bind_group_layout> handle) override;
 
         result<hptr<bind_group>> acquire_transient_bind_group(h32<bind_group_layout> handle,
-            std::span<const bind_group_data> data) override;
+            span<const bind_group_data> data) override;
 
         u32 get_max_bindless_images() const override;
 
-        result<> set_bindless_images(std::span<const bindless_image_descriptor> images, u32 first) override;
+        result<> set_bindless_images(span<const bindless_image_descriptor> images, u32 first) override;
 
         result<hptr<bind_group>> acquire_transient_bindless_images_bind_group(
             h32<bind_group_layout> handle, u32 binding, u32 count) override;
@@ -79,7 +79,7 @@ namespace oblo::gpu::vk
         result<> reset_command_buffer_pool(h32<command_buffer_pool> commandBufferPool) override;
 
         result<> fetch_command_buffers(h32<command_buffer_pool> pool,
-            std::span<hptr<command_buffer>> commandBuffers) override;
+            span<hptr<command_buffer>> commandBuffers) override;
 
         result<> begin_command_buffer(hptr<command_buffer> commandBuffer) override;
         result<> end_command_buffer(hptr<command_buffer> commandBuffer) override;
@@ -102,8 +102,8 @@ namespace oblo::gpu::vk
 
         image_descriptor get_image_descriptor(h32<image> imageHandle) override;
 
-        result<h32<image_pool>> create_image_pool(std::span<const image_descriptor> descriptors,
-            std::span<h32<image>> images) override;
+        result<h32<image_pool>> create_image_pool(span<const image_descriptor> descriptors,
+            span<h32<image>> images) override;
 
         void destroy(h32<image_pool> imagePoolHandle) override;
 
@@ -150,19 +150,19 @@ namespace oblo::gpu::vk
 
         result<> memory_unmap(h32<buffer> buffer) override;
 
-        result<> memory_invalidate(std::span<const h32<buffer>> buffers) override;
+        result<> memory_invalidate(span<const h32<buffer>> buffers) override;
 
         // Transfer commands
 
         void cmd_copy_buffer(hptr<command_buffer> cmd,
             h32<buffer> src,
             h32<buffer> dst,
-            std::span<const buffer_copy_descriptor> copies) override;
+            span<const buffer_copy_descriptor> copies) override;
 
         void cmd_copy_buffer_to_image(hptr<command_buffer> cmd,
             h32<buffer> src,
             h32<image> dst,
-            std::span<const buffer_image_copy_descriptor> copies) override;
+            span<const buffer_image_copy_descriptor> copies) override;
 
         void cmd_blit(hptr<command_buffer> cmd, h32<image> src, h32<image> dst, gpu::sampler_filter filter) override;
 
@@ -202,11 +202,11 @@ namespace oblo::gpu::vk
 
         void cmd_set_viewport(hptr<command_buffer> cmd,
             u32 firstScissor,
-            std::span<const rectangle> viewports,
+            span<const rectangle> viewports,
             f32 minDepth,
             f32 maxDepth) override;
 
-        void cmd_set_scissor(hptr<command_buffer> cmd, u32 firstScissor, std::span<const rectangle> scissors) override;
+        void cmd_set_scissor(hptr<command_buffer> cmd, u32 firstScissor, span<const rectangle> scissors) override;
 
         void cmd_bind_index_buffer(
             hptr<command_buffer> cmd, h32<buffer> buffer, u64 offset, gpu::mesh_index_type format) override;
@@ -214,35 +214,35 @@ namespace oblo::gpu::vk
         void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,
             u32 firstGroup,
-            std::span<const hptr<bind_group>> bindGroups) override;
+            span<const hptr<bind_group>> bindGroups) override;
 
         void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<compute_pipeline> pipeline,
             u32 firstGroup,
-            std::span<const hptr<bind_group>> bindGroups) override;
+            span<const hptr<bind_group>> bindGroups) override;
 
         void cmd_bind_groups(hptr<command_buffer> cmd,
             h32<raytracing_pipeline> pipeline,
             u32 firstGroup,
-            std::span<const hptr<bind_group>> bindGroups) override;
+            span<const hptr<bind_group>> bindGroups) override;
 
         void cmd_push_constants(hptr<command_buffer> cmd,
             h32<graphics_pipeline> pipeline,
             flags<shader_stage> shaderStages,
             u32 offset,
-            std::span<const byte> data) override;
+            span<const byte> data) override;
 
         void cmd_push_constants(hptr<command_buffer> cmd,
             h32<compute_pipeline> pipeline,
             flags<shader_stage> shaderStages,
             u32 offset,
-            std::span<const byte> data) override;
+            span<const byte> data) override;
 
         void cmd_push_constants(hptr<command_buffer> cmd,
             h32<raytracing_pipeline> pipeline,
             flags<shader_stage> shaderStages,
             u32 offset,
-            std::span<const byte> data) override;
+            span<const byte> data) override;
 
         // Debugging and profiling
 
@@ -305,12 +305,12 @@ namespace oblo::gpu::vk
         template <typename T>
         void label_vulkan_object(T obj, const debug_label& label);
 
-        result<> create_pipeline_layout(std::span<const push_constant_range> pushConstants,
-            std::span<const h32<bind_group_layout>> bindGroupLayouts,
+        result<> create_pipeline_layout(span<const push_constant_range> pushConstants,
+            span<const h32<bind_group_layout>> bindGroupLayouts,
             VkPipelineLayout* pipelineLayout,
             const debug_label& label);
 
-        void initialize_descriptor_set(VkDescriptorSet descriptorSet, std::span<const bind_group_data> data);
+        void initialize_descriptor_set(VkDescriptorSet descriptorSet, span<const bind_group_data> data);
 
         VkSampler get_or_create_dummy_sampler();
 

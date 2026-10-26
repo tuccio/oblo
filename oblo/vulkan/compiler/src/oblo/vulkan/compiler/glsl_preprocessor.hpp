@@ -2,12 +2,11 @@
 
 #include <oblo/core/deque.hpp>
 #include <oblo/core/invoke/function_ref.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/stl/memory_resource_adapter.hpp>
 #include <oblo/core/string/string_builder.hpp>
 #include <oblo/core/string/transparent_string_hash.hpp>
 #include <oblo/core/unordered_map.hpp>
-
-#include <span>
 
 namespace oblo::vk
 {

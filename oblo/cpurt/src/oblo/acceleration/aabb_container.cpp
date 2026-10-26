@@ -1,5 +1,6 @@
 #include <oblo/acceleration/aabb_container.hpp>
 
+#include <oblo/core/iterator/reverse_iterator.hpp>
 #include <oblo/core/iterator/zip_iterator.hpp>
 #include <oblo/core/utility.hpp>
 #include <oblo/math/aabb.hpp>
@@ -45,7 +46,7 @@ namespace oblo
         m_centroids.clear();
     }
 
-    void aabb_container::add(std::span<const aabb> aabbs, u32 startingId)
+    void aabb_container::add(span<const aabb> aabbs, u32 startingId)
     {
         const auto currentSize = m_aabbs.size();
         const auto newSize = currentSize + aabbs.size();
@@ -66,12 +67,12 @@ namespace oblo
 
     aabb aabb_container::primitives_bounds(u32 begin, u32 end) const
     {
-        return oblo::compute_aabb(std::span(m_aabbs).subspan(begin, end - begin));
+        return oblo::compute_aabb(span(m_aabbs).subspan(begin, end - begin));
     }
 
     aabb aabb_container::centroids_bounds(u32 begin, u32 end) const
     {
-        return oblo::compute_aabb(std::span(m_centroids).subspan(begin, end - begin));
+        return oblo::compute_aabb(span(m_centroids).subspan(begin, end - begin));
     }
 
     u32 aabb_container::partition_by_axis(u32 beginIndex, u32 endIndex, u8 axisIndex, f32 midPoint)
@@ -91,7 +92,7 @@ namespace oblo
     bool aabb_container::intersect(
         const ray& ray, u32 beginIndex, u16 numPrimitives, f32& distance, hit_result& result) const
     {
-        const auto aabbs = std::span{m_aabbs}.subspan(beginIndex, numPrimitives);
+        const auto aabbs = span{m_aabbs}.subspan(beginIndex, numPrimitives);
         u32 current = beginIndex;
 
         bool hit = false;
@@ -111,17 +112,17 @@ namespace oblo
         return hit;
     }
 
-    std::span<const u32> aabb_container::get_ids() const
+    span<const u32> aabb_container::get_ids() const
     {
         return m_ids;
     }
 
-    std::span<const aabb> aabb_container::get_aabbs() const
+    span<const aabb> aabb_container::get_aabbs() const
     {
         return m_aabbs;
     }
 
-    std::span<const vec3> aabb_container::get_centroids() const
+    span<const vec3> aabb_container::get_centroids() const
     {
         return m_centroids;
     }

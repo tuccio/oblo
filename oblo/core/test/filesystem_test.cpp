@@ -47,7 +47,7 @@ namespace oblo
 
         bool write_text_file(cstring_view filename, string_view content)
         {
-            return filesystem::write_file(filename, as_bytes(std::span{content}), {}).has_value();
+            return filesystem::write_file(filename, as_bytes(span{content}), {}).has_value();
         }
 
         template <bool IsRecursive>

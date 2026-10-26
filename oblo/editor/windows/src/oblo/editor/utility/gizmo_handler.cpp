@@ -1160,7 +1160,7 @@ namespace oblo::editor
 
     bool gizmo_handler::handle(const resource_registry& resources,
         ecs::entity_registry& reg,
-        std::span<const ecs::entity> entities,
+        span<const ecs::entity> entities,
         vec2 origin,
         vec2 size,
         const ecs::entity cameraEntity,

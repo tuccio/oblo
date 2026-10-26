@@ -1,6 +1,7 @@
 #pragma once
 
 #include <oblo/core/deque.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/hashed_string_view.hpp>
 #include <oblo/core/type_id.hpp>
@@ -8,8 +9,8 @@
 #include <oblo/reflection/handles.hpp>
 #include <oblo/reflection/reflection_data.hpp>
 
+
 #include <optional>
-#include <span>
 
 namespace oblo::reflection
 {
@@ -58,13 +59,13 @@ namespace oblo::reflection
         class_handle try_get_class(type_handle typeId) const;
         enum_handle try_get_enum(type_handle typeId) const;
 
-        std::span<const field_data> get_fields(class_handle classId) const;
+        span<const field_data> get_fields(class_handle classId) const;
 
-        std::span<const function_handle> get_functions(class_handle classId) const;
+        span<const function_handle> get_functions(class_handle classId) const;
         function_data get_function_data(function_handle functionId) const;
 
-        std::span<const cstring_view> get_enumerator_names(enum_handle enumId) const;
-        std::span<const byte> get_enumerator_values(enum_handle enumId) const;
+        span<const cstring_view> get_enumerator_names(enum_handle enumId) const;
+        span<const byte> get_enumerator_values(enum_handle enumId) const;
         type_id get_underlying_type(enum_handle enumId) const;
 
         template <typename T>

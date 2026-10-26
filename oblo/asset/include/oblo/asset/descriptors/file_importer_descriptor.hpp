@@ -1,10 +1,9 @@
 #pragma once
 
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/type_id.hpp>
 #include <oblo/core/unique_ptr.hpp>
-
-#include <span>
 
 namespace oblo
 {
@@ -17,6 +16,6 @@ namespace oblo
     {
         type_id type;
         create_file_importer_fn create;
-        std::span<const string_view> extensions;
+        span<const string_view> extensions;
     };
 }

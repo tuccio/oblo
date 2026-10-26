@@ -285,7 +285,7 @@ namespace oblo::importers
         }
 
         cstring_view make_or_get_joint_name(
-            string_builder& jointNameBuilder, std::span<tinygltf::Node> nodes, i32 nodeIndex)
+            string_builder& jointNameBuilder, span<tinygltf::Node> nodes, i32 nodeIndex)
         {
             const tinygltf::Node& node = nodes[nodeIndex];
 
@@ -334,7 +334,7 @@ namespace oblo::importers
             }
         }
 
-        std::span<const byte> get_data_from_accessor(const tinygltf::Accessor& accessor) const
+        span<const byte> get_data_from_accessor(const tinygltf::Accessor& accessor) const
         {
             const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
             const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
@@ -425,7 +425,7 @@ namespace oblo::importers
                 });
 
                 return filesystem::write_file(args.pathBuilder,
-                    as_bytes(std::span{data, usize(bytes)}),
+                    as_bytes(span{data, usize(bytes)}),
                     filesystem::write_mode::binary)
                     .has_value();
             },
@@ -728,16 +728,16 @@ namespace oblo::importers
             cfg.generateMeshlets = settings.read_bool(generateMeshlets).value_or(true);
         }
 
-        const std::span importNodeConfigs = ctx.get_import_node_configs();
-        const std::span importNodes = ctx.get_import_nodes();
+        const span importNodeConfigs = ctx.get_import_node_configs();
+        const span importNodes = ctx.get_import_nodes();
 
         // Associate image indices to the import uuids, since materials will need to refer to them, but import of
         // textures happens in parallel
 
         for (usize i = 0; i < m_impl->importImages.size(); ++i)
         {
-            const std::span childNodes = ctx.get_child_import_nodes(i);
-            const std::span childNodeConfigs = ctx.get_child_import_node_configs(i);
+            const span childNodes = ctx.get_child_import_nodes(i);
+            const span childNodeConfigs = ctx.get_child_import_node_configs(i);
 
             if (childNodes.size() == 1 && childNodeConfigs[0].enabled &&
                 childNodes[0].artifactType == resource_type<texture>)
@@ -843,7 +843,7 @@ namespace oblo::importers
 
                 const usize offset = job_manager::get()->get_current_thread() * numBuffers;
 
-                const std::span usedBuffersSpan = std::span{usedBuffers}.subspan(offset, numBuffers);
+                const span usedBuffersSpan = span{usedBuffers}.subspan(offset, numBuffers);
 
                 for (u32 meshIndex = range.begin; meshIndex < range.end; ++meshIndex)
                 {
@@ -911,7 +911,7 @@ namespace oblo::importers
         {
             const usize offset = i * numBuffers;
 
-            const std::span usedBuffersSpan = std::span{usedBuffers}.subspan(offset, numBuffers);
+            const span usedBuffersSpan = span{usedBuffers}.subspan(offset, numBuffers);
 
             for (u32 j = 0; j < numBuffers; ++j)
             {
@@ -968,15 +968,15 @@ namespace oblo::importers
                 [[maybe_unused]] const data_format keyframeFormat =
                     convert_component_type(keyframesAccessor.componentType, keyframesAccessor.type);
 
-                const std::span keyframesBytes = m_impl->get_data_from_accessor(keyframesAccessor);
+                const span keyframesBytes = m_impl->get_data_from_accessor(keyframesAccessor);
                 const usize keyframesCount = keyframesBytes.size_bytes() / sizeof(animation_time_t);
 
-                const std::span keyframesData = {
+                const span keyframesData = {
                     start_lifetime_as_array<animation_time_t>(keyframesBytes.data(), keyframesCount),
                     keyframesCount,
                 };
 
-                const std::span dataBytes = m_impl->get_data_from_accessor(dataAccessor);
+                const span dataBytes = m_impl->get_data_from_accessor(dataAccessor);
 
                 string_view jointAnimationName;
                 string_view componentPropertyName;

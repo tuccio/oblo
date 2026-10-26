@@ -1,5 +1,6 @@
 #pragma once
 
+#include <oblo/core/types.hpp>
 namespace oblo
 {
     class allocator;
@@ -27,6 +28,12 @@ namespace oblo
 
     template <typename>
     class promise;
+
+    template <typename It>
+    class reverse_iterator;
+
+    template <typename T>
+    class span;
 
     template <typename T, typename D>
     class unique_ptr;

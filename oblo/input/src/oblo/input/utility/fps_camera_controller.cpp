@@ -29,7 +29,7 @@ namespace oblo
         return m_orientation;
     }
 
-    void fps_camera_controller::process(std::span<const input_event> events, time dt)
+    void fps_camera_controller::process(span<const input_event> events, time dt)
     {
         const auto lastMousePosition = m_mousePosition;
 

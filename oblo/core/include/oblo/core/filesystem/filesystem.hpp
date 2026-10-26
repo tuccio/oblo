@@ -3,11 +3,10 @@
 #include <oblo/core/expected.hpp>
 #include <oblo/core/flags.hpp>
 #include <oblo/core/forward.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/cstring_view.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
-
-#include <span>
 
 namespace oblo::filesystem
 {
@@ -56,7 +55,7 @@ namespace oblo::filesystem
     expected<time> last_write_time(string_view path);
 
     [[nodiscard]] bool search_file_in_paths(
-        string_builder& out, string_view fileName, std::span<const string_view> extraPaths);
+        string_builder& out, string_view fileName, span<const string_view> extraPaths);
 
     enum class walk_result : u8
     {

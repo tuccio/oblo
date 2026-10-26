@@ -105,7 +105,7 @@ namespace oblo::ecs
                 }
 
                 {
-                    const std::span archetypes = reg.get_archetypes();
+                    const span archetypes = reg.get_archetypes();
                     ASSERT_EQ(archetypes.size(), 1);
                 }
 
@@ -113,10 +113,10 @@ namespace oblo::ecs
 
                 // Iterate again to check that values are correct
                 reg.range<a_uvec4_c, string_c, instance_counted>().for_each_chunk(
-                    [&totalEntities](std::span<const entity> entities,
-                        std::span<const a_uvec4_c> vectors,
-                        std::span<const string_c> strings,
-                        std::span<const instance_counted> ics)
+                    [&totalEntities](span<const entity> entities,
+                        span<const a_uvec4_c> vectors,
+                        span<const string_c> strings,
+                        span<const instance_counted> ics)
                     {
                         ASSERT_ALIGNED(entities);
                         ASSERT_ALIGNED(vectors);
@@ -164,7 +164,7 @@ namespace oblo::ecs
 
         for (auto&& chunk : reg.range<instance_counted>())
         {
-            std::span chunkEntities = chunk.get<entity>();
+            span chunkEntities = chunk.get<entity>();
             entities.insert(entities.end(), chunkEntities.begin(), chunkEntities.end());
 
             for (auto&& [e, ic] : chunk.zip<entity, const instance_counted>())
@@ -205,7 +205,7 @@ namespace oblo::ecs
 
         for (auto&& chunk : reg.range<instance_counted>())
         {
-            std::span chunkEntities = chunk.get<const entity>();
+            span chunkEntities = chunk.get<const entity>();
             entities.insert(entities.end(), chunkEntities.begin(), chunkEntities.end());
 
             for (auto&& [e, ic] : chunk.zip<const entity, instance_counted>())

@@ -23,7 +23,7 @@ namespace oblo::animation_data
 
     namespace detail
     {
-        inline expected<std::span<const byte>> get_data_impl(const dynamic_array<byte>& dataArray,
+        inline expected<span<const byte>> get_data_impl(const dynamic_array<byte>& dataArray,
             const animation_data_ref& ref)
         {
             if (ref.end > dataArray.size() || ref.end < ref.begin)
@@ -31,14 +31,14 @@ namespace oblo::animation_data
                 return "Invalid data reference"_err;
             }
 
-            return std::span{
+            return span{
                 reinterpret_cast<const byte*>(dataArray.data() + ref.begin),
                 ref.end - ref.begin,
             };
         }
 
-        inline std::span<byte> set_data_impl(
-            dynamic_array<byte>& dataArray, animation_data_ref& ref, std::span<const byte> data)
+        inline span<byte> set_data_impl(
+            dynamic_array<byte>& dataArray, animation_data_ref& ref, span<const byte> data)
         {
             const usize begin = dataArray.size();
             dataArray.append(data.data(), data.data() + data.size());
@@ -46,7 +46,7 @@ namespace oblo::animation_data
 
             ref = {.begin = begin, .end = end};
 
-            return std::span{dataArray}.subspan(begin);
+            return span{dataArray}.subspan(begin);
         }
     }
 
@@ -67,7 +67,7 @@ namespace oblo::animation_data
 
     inline void set_channel_joint_name(animation& clip, animation_channel& channel, string_view name)
     {
-        detail::set_data_impl(clip.aligned1, channel.jointName, as_bytes(std::span{name}));
+        detail::set_data_impl(clip.aligned1, channel.jointName, as_bytes(span{name}));
     }
 
     inline expected<string_view> get_channel_property_name(const animation& clip, const animation_channel& channel)
@@ -87,23 +87,23 @@ namespace oblo::animation_data
 
     inline void set_channel_property_name(animation& clip, animation_channel& channel, string_view name)
     {
-        detail::set_data_impl(clip.aligned1, channel.propertyName, as_bytes(std::span{name}));
+        detail::set_data_impl(clip.aligned1, channel.propertyName, as_bytes(span{name}));
     }
 
-    inline expected<std::span<byte>> set_channel_data(
-        animation& clip, animation_channel& channel, std::span<const byte> data, data_format format)
+    inline expected<span<byte>> set_channel_data(
+        animation& clip, animation_channel& channel, span<const byte> data, data_format format)
     {
         const auto [_, alignment] = get_size_and_alignment(format);
-        std::span<byte> result{};
+        span<byte> result{};
 
         switch (alignment)
         {
         case 1:
-            result = detail::set_data_impl(clip.aligned1, channel.data, std::span{data});
+            result = detail::set_data_impl(clip.aligned1, channel.data, span{data});
             break;
 
         case 4:
-            result = detail::set_data_impl(clip.aligned4, channel.data, std::span{data});
+            result = detail::set_data_impl(clip.aligned4, channel.data, span{data});
             break;
 
         default:
@@ -114,7 +114,7 @@ namespace oblo::animation_data
         return result;
     }
 
-    inline expected<std::span<const byte>> get_channel_data(const animation& clip, const animation_channel& channel)
+    inline expected<span<const byte>> get_channel_data(const animation& clip, const animation_channel& channel)
     {
         const auto [_, alignment] = get_size_and_alignment(channel.format);
 
@@ -132,13 +132,13 @@ namespace oblo::animation_data
     }
 
     inline void set_channel_keyframes(
-        animation& clip, animation_channel& channel, std::span<const animation_time_t> data)
+        animation& clip, animation_channel& channel, span<const animation_time_t> data)
     {
         static_assert(alignof(animation_time_t) == 4);
         detail::set_data_impl(clip.aligned4, channel.keyframes, as_bytes(data));
     }
 
-    inline expected<std::span<const animation_time_t>> get_channel_keyframes(const animation& clip,
+    inline expected<span<const animation_time_t>> get_channel_keyframes(const animation& clip,
         const animation_channel& channel)
     {
         static_assert(alignof(animation_time_t) == 4);
@@ -149,7 +149,7 @@ namespace oblo::animation_data
             return e.error();
         }
 
-        return std::span{
+        return span{
             reinterpret_cast<const animation_time_t*>(e->data()),
             reinterpret_cast<const animation_time_t*>(e->data() + e->size()),
         };
