@@ -20,9 +20,6 @@ namespace oblo
     template <typename T>
     struct hash;
 
-    template <typename T, usize N>
-    class fixed_span;
-
     template <typename>
     class function_ref;
 

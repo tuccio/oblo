@@ -46,9 +46,6 @@ namespace oblo
         template <usize N>
         constexpr span(T (&array)[N]) noexcept;
 
-        template <usize N>
-        constexpr span(fixed_span<T, N> other) noexcept;
-
         template <span_container Container>
             requires std::is_convertible_v<span_container_pointer_type<Container>, T*>
         constexpr span(Container& container) noexcept;
@@ -105,12 +102,6 @@ namespace oblo
     template <typename T>
     template <usize N>
     constexpr span<T>::span(T (&array)[N]) noexcept : m_begin{array}, m_size{N}
-    {
-    }
-
-    template <typename T>
-    template <usize N>
-    constexpr span<T>::span(fixed_span<T, N> other) noexcept : m_begin{other.data()}, m_size{other.size()}
     {
     }
 
@@ -248,6 +239,12 @@ namespace oblo
     }
 
     // CTAD
+
+    template <typename T>
+    span(T*, usize) -> span<T>;
+
+    template <typename T>
+    span(T*, T*) -> span<T>;
 
     template <typename T, usize N>
     span(T (&array)[N]) -> span<T>;

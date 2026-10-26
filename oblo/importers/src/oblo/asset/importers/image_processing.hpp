@@ -67,14 +67,32 @@ namespace oblo::importers::image_processing
         using rgba = component_swizzle<component::red, component::green, component::blue, component::alpha>;
     }
 
+    template <typename T, usize Components>
+    struct fixed_pixel_view
+    {
+        T* first;
+
+        T& operator[](usize index) const noexcept
+        {
+            OBLO_ASSERT(index < Components);
+            return first[index];
+        }
+
+        static fixed_pixel_view<T, Components> from(span<T> s)
+        {
+            OBLO_ASSERT(s.size() >= Components);
+            return {s.data()};
+        }
+    };
+
     template <typename T, typename Swizzle>
     class image_view
     {
     public:
         static constexpr u32 Components = Swizzle::count();
         using byte_type = std::conditional_t<std::is_const_v<T>, const byte, byte>;
-        using pixel_view = span<T, Components>;
         using swizzle = Swizzle;
+        using pixel_view = fixed_pixel_view<T, Components>;
 
         image_view() = default;
         image_view(const image_view&) = default;
@@ -98,7 +116,7 @@ namespace oblo::importers::image_processing
             OBLO_ASSERT(row < m_height && column < m_width);
 
             const u32 offset = m_rowPitch * row + column * Components;
-            return m_view.subspan(offset).template subspan<0, Components>();
+            return pixel_view::from(m_view.subspan(offset));
         }
 
         u32 get_width() const

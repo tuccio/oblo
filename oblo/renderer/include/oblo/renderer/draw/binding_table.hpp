@@ -108,8 +108,7 @@ namespace oblo
         binding_tables_span(const binding_tables_span&) = default;
         binding_tables_span(const binding_table& t) : m_table{&t}, m_count{1} {}
 
-        binding_tables_span(span<const binding_table* const> tables) :
-            m_array{tables.data()}, m_count{tables.size()}
+        binding_tables_span(span<const binding_table* const> tables) : m_array{tables.data()}, m_count{tables.size()}
         {
             if (m_count == 1)
             {
@@ -122,7 +121,7 @@ namespace oblo
         {
         }
 
-        span<const binding_table* const> span() const&
+        span<const binding_table* const> as_span() const noexcept
         {
             auto* const array = m_count == 1 ? &m_table : m_array;
             return span<const binding_table* const>{array, m_count};

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <oblo/core/expected.hpp>
-#include <oblo/core/fixed_span.hpp>
 #include <oblo/core/hash.hpp>
+#include <oblo/core/span.hpp>
 #include <oblo/core/string/string_view.hpp>
 #include <oblo/core/types.hpp>
 
@@ -28,12 +28,10 @@ namespace oblo
             buffer_too_small,
         };
 
-        constexpr string_view format_to(fixed_span<char, 36> buffer) const;
+        constexpr string_view format_to(span<char> buffer) const;
 
-        static constexpr auto parse(fixed_span<const char, 36> buffer);
         static constexpr auto parse(string_view buffer);
 
-        constexpr bool parse_from(fixed_span<const char, 36> buffer);
         constexpr bool parse_from(string_view buffer);
     };
 
@@ -52,9 +50,14 @@ namespace oblo
         };
     }
 
-    constexpr string_view uuid::format_to(fixed_span<char, 36> buffer) const
+    constexpr string_view uuid::format_to(span<char> buffer) const
     {
         using detail::uuid_detail::push_chars;
+
+        if (buffer.size() < 36)
+        {
+            return {};
+        }
 
         auto it = buffer.begin();
         push_chars(data[0], it);
@@ -89,8 +92,15 @@ namespace oblo
         return string_view{buffer.data(), buffer.size()};
     }
 
-    constexpr auto uuid::parse(fixed_span<const char, 36> buffer)
+    constexpr auto uuid::parse(string_view buffer)
     {
+        using result_type = expected<uuid, uuid::format_error>;
+
+        if (buffer.size() < 36)
+        {
+            return result_type{format_error::buffer_too_small};
+        }
+
         using result_type = expected<uuid, uuid::format_error>;
 
         constexpr auto parse_chars = [](u8& byte, auto& in)
@@ -181,31 +191,6 @@ namespace oblo
         }
 
         return result_type{result};
-    }
-
-    constexpr auto uuid::parse(string_view buffer)
-    {
-        using result_type = expected<uuid, uuid::format_error>;
-
-        if (buffer.size() < 36)
-        {
-            return result_type{format_error::buffer_too_small};
-        }
-
-        return uuid::parse(fixed_span<const char, 36>{buffer.data(), 36});
-    }
-
-    constexpr bool uuid::parse_from(fixed_span<const char, 36> buffer)
-    {
-        const auto result = uuid::parse(buffer);
-
-        if (result)
-        {
-            *this = *result;
-            return true;
-        }
-
-        return false;
     }
 
     constexpr bool uuid::parse_from(string_view buffer)

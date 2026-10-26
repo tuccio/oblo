@@ -1,6 +1,5 @@
 #pragma once
 
-#include <oblo/core/fixed_span.hpp>
 #include <oblo/core/iterator/zip_range.hpp>
 #include <oblo/core/span.hpp>
 #include <oblo/ecs/archetype_storage.hpp>
@@ -48,7 +47,7 @@ namespace oblo::ecs
         // This is so we can allow empty ranges
         static constexpr usize s_ArraySize = sizeof...(Components) > 0 ? sizeof...(Components) : 1;
 
-        fixed_span<const component_type, sizeof...(Components)> get_types() const;
+        span<const component_type> get_types() const;
 
         using entity_registry_t = std::conditional_t<IsConst, const entity_registry, entity_registry>;
 
@@ -446,8 +445,7 @@ namespace oblo::ecs
     }
 
     template <bool IsConst, typename... Components>
-    fixed_span<const component_type, sizeof...(Components)> entity_registry::typed_range<IsConst, Components...>::get_types()
-        const
+    span<const component_type> entity_registry::typed_range<IsConst, Components...>::get_types() const
     {
         if constexpr (sizeof...(Components) > 0)
         {

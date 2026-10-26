@@ -311,7 +311,7 @@ namespace oblo
             {
                 const hashed_string_view str = m_interner.h_str(binding.name);
 
-                for (const auto& bindingTable : m_bindingTables.span())
+                for (const auto& bindingTable : m_bindingTables.as_span())
                 {
                     auto* const r = bindingTable->try_find(str);
 
