@@ -75,7 +75,12 @@ function(_oblo_find_source_files)
         list(FILTER _excluded INCLUDE REGEX "${_exclusionRegex}")
 
         if(_excluded)
-            set_source_files_properties("${_excluded}" PROPERTIES HEADER_FILE_ONLY TRUE)
+            set_source_files_properties(
+                ${_excluded}
+                PROPERTIES
+                HEADER_FILE_ONLY TRUE
+                SKIP_UNITY_BUILD_INCLUSION TRUE
+            )
         endif()
     endforeach()
 endfunction(_oblo_find_source_files)

@@ -5,4 +5,6 @@
 namespace oblo::clock
 {
     time now();
+
+    void sleep(time duration);
 }
