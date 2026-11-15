@@ -19,10 +19,14 @@ namespace oblo
         right_thumb,
         left_shoulder,
         right_shoulder,
-        a,
-        b,
-        x,
-        y,
+        south,
+        east,
+        west,
+        north,
+        xbox_a = south,
+        xbox_b = east,
+        xbox_x = west,
+        xbox_y = north,
         enum_max,
     };
 

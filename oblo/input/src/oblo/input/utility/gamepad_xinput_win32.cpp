@@ -1,5 +1,6 @@
 #include <oblo/input/gamepad.hpp>
 
+#include <oblo/core/span.hpp>
 #include <oblo/core/utility.hpp>
 
 #define NOMINMAX
@@ -19,24 +20,25 @@ namespace oblo
         {
             flags<gamepad_button> pressed{};
 
+            // Physical positions on an Xbox layout: A is south, B east, X west, Y north
             if ((gamepad.wButtons & XINPUT_GAMEPAD_A) != 0)
             {
-                pressed.set(gamepad_button::a);
+                pressed.set(gamepad_button::xbox_a);
             }
 
             if ((gamepad.wButtons & XINPUT_GAMEPAD_B) != 0)
             {
-                pressed.set(gamepad_button::b);
+                pressed.set(gamepad_button::xbox_b);
             }
 
             if ((gamepad.wButtons & XINPUT_GAMEPAD_X) != 0)
             {
-                pressed.set(gamepad_button::x);
+                pressed.set(gamepad_button::xbox_x);
             }
 
             if ((gamepad.wButtons & XINPUT_GAMEPAD_Y) != 0)
             {
-                pressed.set(gamepad_button::y);
+                pressed.set(gamepad_button::xbox_y);
             }
 
             if ((gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0)
